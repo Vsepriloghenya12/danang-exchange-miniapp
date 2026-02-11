@@ -58,7 +58,7 @@ process.on("uncaughtException", (e) => console.error("UNCAUGHT EXCEPTION:", e));
 bot.catch((err) => console.error("BOT ERROR:", err));
 
 // webhook endpoint
-app.use(WEBHOOK_PATH, bot.webhookCallback(WEBHOOK_PATH));
+app.use(bot.webhookCallback(WEBHOOK_PATH));
 
 const server = app.listen(PORT, async () => {
   console.log(`✅ Server listening on http://localhost:${PORT}`);
@@ -71,6 +71,9 @@ const server = app.listen(PORT, async () => {
   // На Railway включаем webhook (если есть BASE_URL)
   if (BASE_URL) {
     const full = `${BASE_URL}${WEBHOOK_PATH}`;
+    await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+    await bot.telegram.setWebhook(full);
+    console.log(`✅ Webhook set: ${full}`);
     await bot.telegram.setWebhook(full);
     console.log(`✅ Webhook set: ${full}`);
   } else {
