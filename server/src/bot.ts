@@ -57,8 +57,8 @@ export function createBot(opts: {
     // Попробуем поставить кнопку меню (не критично, но удобно)
     try {
       await ctx.telegram.setChatMenuButton({
-        menu_button: { type: "web_app", text: "Обмен Дананг", web_app: { url } }
-      });
+  menuButton: { type: "web_app", text: "Обмен Дананг", web_app: { url } } as any
+} as any);
     } catch {}
 
     await ctx.reply("Готово ✅ Теперь /start и открывай мини-апп.");
