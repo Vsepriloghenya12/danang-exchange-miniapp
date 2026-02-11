@@ -1,0 +1,10 @@
+{
+  "name": "danang-exchange-miniapp",
+  "private": true,
+  "workspaces": ["server", "webapp"],
+  "scripts": {
+    "dev": "npm -w server run dev",
+    "build": "npm -w webapp run build && npm -w server run build",
+    "start": "npm -w server run start"
+  }
+}
