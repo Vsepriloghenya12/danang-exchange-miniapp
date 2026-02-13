@@ -179,16 +179,39 @@ export default function App() {
             linear-gradient(180deg, rgba(247,251,255,1), rgba(244,255,248,1));
         }
 
-        /* Не ломаем твой layout: просто гарантируем, что в карточках/формах текст не белый */
+        /* Базовая типографика */
+        .vx-page *{ box-sizing: border-box; }
+        .vx-page .h1{ font-size: 22px; font-weight: 900; letter-spacing: -0.02em; }
+        .vx-page .small{ font-size: 13px; opacity: 0.85; }
+
+        /* Заголовки внутри вкладок (часто используются классы .h2/.h3) */
+        .vx-page .h2{ font-size: 18px; font-weight: 900; letter-spacing: -0.015em; margin: 0 0 10px 0; }
+        .vx-page .h3{ font-size: 15px; font-weight: 900; margin: 0 0 8px 0; }
+        .vx-page h2{ font-size: 18px; font-weight: 900; margin: 0 0 10px 0; }
+        .vx-page h3{ font-size: 15px; font-weight: 900; margin: 0 0 8px 0; }
+
+        /* Приводим карточки к единому премиум-стилю (и для твоих табов тоже) */
+        .vx-page .container{ max-width: 420px; margin: 0 auto; }
+        .vx-page .card{
+          border-radius: 24px;
+          border: 1px solid rgba(15,23,42,0.10);
+          background: rgba(255,255,255,0.80);
+          box-shadow: 0 10px 30px rgba(2,6,23,0.08);
+          backdrop-filter: blur(10px);
+          padding: 14px;
+        }
+
+        /* На всякий случай: если где-то оставалась старая верхняя панель вкладок */
+        .vx-page .tabs{ display: none !important; }
+
+        /* Не ломаем твой layout: гарантируем, что в карточках/формах текст не белый */
         .vx-page .card,
         .vx-page .h1,
         .vx-page .small,
         .vx-page label,
         .vx-page input,
         .vx-page select,
-        .vx-page textarea{
-          color: #0f172a !important;
-        }
+        .vx-page textarea{ color: #0f172a !important; }
         .vx-page input::placeholder,
         .vx-page textarea::placeholder{
           color: rgba(15,23,42,0.45) !important;
@@ -200,8 +223,55 @@ export default function App() {
           box-sizing: border-box;
         }
 
+        /* Формы — делаем одинаковые высоты и аккуратные радиусы */
+        .vx-page input,
+        .vx-page select{
+          height: 48px;
+          border-radius: 18px;
+          border: 1px solid rgba(15,23,42,0.16);
+          background: rgba(255,255,255,0.92);
+          padding: 0 14px;
+          font-weight: 800;
+          font-size: 15px;
+          outline: none;
+        }
+        .vx-page textarea{
+          border-radius: 18px;
+          border: 1px solid rgba(15,23,42,0.16);
+          background: rgba(255,255,255,0.92);
+          padding: 12px 14px;
+          font-weight: 700;
+        }
+        .vx-page button{ border-radius: 18px; }
+
         .vx-body{
-          padding-bottom: 120px; /* место под нижний бар */
+          /* много места под плавающий бар, чтобы ничего не перекрывалось */
+          padding-bottom: calc(170px + env(safe-area-inset-bottom));
+        }
+
+        /* Обёртка-карточка для секций (чтобы курс/калькулятор выглядели как бар) */
+        .vx-card2{
+          border-radius: 26px;
+          border: 1px solid rgba(15,23,42,0.10);
+          background: rgba(255,255,255,0.82);
+          box-shadow: 0 12px 34px rgba(2,6,23,0.10);
+          backdrop-filter: blur(12px);
+          padding: 14px;
+        }
+        /* Если внутри табов уже есть .card — убираем двойные рамки */
+        .vx-card2 .card{
+          background: transparent !important;
+          border: 0 !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+        }
+        /* Фикс белого текста внутри секций, но НЕ трогаем кнопки */
+        .vx-card2 :where(h1,h2,h3,h4,p,div,span,small,label,li){
+          color: #0f172a;
+        }
+        .vx-card2 button,
+        .vx-card2 button *{
+          color: inherit;
         }
 
         .vx-stack{
@@ -228,7 +298,7 @@ export default function App() {
         }
         .vx-bottomBar{
           pointer-events: auto;
-          max-width: 520px;
+          max-width: 420px;
           margin: 0 auto;
           border-radius: 28px;
           border: 1px solid rgba(15,23,42,0.10);
@@ -284,6 +354,49 @@ export default function App() {
 
         /* Telegram WebView иногда даёт странные стили кнопкам */
         .vx-bottomBar button{ -webkit-tap-highlight-color: transparent; }
+
+        /* --- Починка раскладки калькулятора (без доступа к внутренним файлам) ---
+           Подхватываем самые типичные классы/структуры: row/calcRow и т.п.
+           Если у тебя внутри другие классы — всё равно подействует на select+input в строках.
+        */
+        .vx-body .row,
+        .vx-body .calcRow,
+        .vx-body .calc-row,
+        .vx-body .exchangeRow,
+        .vx-body .exchange-row{
+          display: grid !important;
+          grid-template-columns: 92px 1fr auto;
+          gap: 10px;
+          align-items: center;
+        }
+        .vx-body .row select,
+        .vx-body .calcRow select,
+        .vx-body .calc-row select,
+        .vx-body .exchangeRow select,
+        .vx-body .exchange-row select{
+          width: 92px;
+          padding-right: 28px;
+        }
+        .vx-body .row input,
+        .vx-body .calcRow input,
+        .vx-body .calc-row input,
+        .vx-body .exchangeRow input,
+        .vx-body .exchange-row input{
+          width: 100%;
+          min-width: 0;
+        }
+        .vx-body .row button,
+        .vx-body .calcRow button,
+        .vx-body .calc-row button,
+        .vx-body .exchangeRow button,
+        .vx-body .exchange-row button{
+          height: 48px;
+          min-width: 48px;
+          padding: 0;
+          border: 1px solid rgba(15,23,42,0.16);
+          background: rgba(255,255,255,0.92);
+          box-shadow: 0 6px 16px rgba(2,6,23,0.06);
+        }
       `}</style>
 
       <div className="container">
@@ -300,14 +413,34 @@ export default function App() {
           {tab === "main" && (
             <div className="vx-stack">
               {/* Сверху курс, ниже калькулятор */}
-              <RatesTab me={me} />
-              <CalculatorTab me={me} />
+              <div className="vx-card2">
+                <RatesTab me={me} />
+              </div>
+              <div className="vx-card2">
+                <CalculatorTab me={me} />
+              </div>
             </div>
           )}
-          {tab === "atm" && <AtmTab />}
-          {tab === "guide" && <GuideTab />}
-          {tab === "reviews" && <ReviewsTab me={me} />}
-          {tab === "admin" && me.isOwner && <AdminTab me={me} />}
+          {tab === "atm" && (
+            <div className="vx-card2">
+              <AtmTab />
+            </div>
+          )}
+          {tab === "guide" && (
+            <div className="vx-card2">
+              <GuideTab />
+            </div>
+          )}
+          {tab === "reviews" && (
+            <div className="vx-card2">
+              <ReviewsTab me={me} />
+            </div>
+          )}
+          {tab === "admin" && me.isOwner && (
+            <div className="vx-card2">
+              <AdminTab me={me} />
+            </div>
+          )}
         </div>
       </div>
 
