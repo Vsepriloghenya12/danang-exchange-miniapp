@@ -10,7 +10,8 @@ export function createBot(opts: {
   const bot = new Telegraf(opts.token);
 
   bot.start(async (ctx) => {
-    const webappUrl = opts.webappUrl;
+    let webappUrl = opts.webappUrl || "";
+if (webappUrl && !/^https?:\/\//i.test(webappUrl)) webappUrl = "https://" + webappUrl;
 
     if (!webappUrl) {
       return ctx.reply(
