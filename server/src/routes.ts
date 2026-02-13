@@ -2,19 +2,41 @@ import express from "express";
 import { readStore, writeStore, upsertUserFromTelegram } from "./store.js";
 import { validateTelegramInitData } from "./telegramValidate.js";
 
-export function createApiRouter(opts: { botToken: string; ownerTgId?: number }) {
+export function createApiRouter(opts: {
+  botToken: string;
+  ownerTgId?: number;      // старый вариант (1 владелец)
+  ownerTgIds?: number[];   // новый вариант (несколько владельцев)
+}) {
   const router = express.Router();
+
+  function isOwnerId(userId: number) {
+    const list = Array.isArray(opts.ownerTgIds) ? opts.ownerTgIds : [];
+    if (list.length > 0) return list.includes(userId);
+    if (opts.ownerTgId) return userId === opts.ownerTgId;
+    return false; // безопасно: если владелец(ы) не задан(ы) — админка закрыта
+  }
 
   // auth helper (каждый запрос можно проверять по initData)
   function requireAuth(req: express.Request) {
-    const initData =
-      (req.headers["x-telegram-init-data"] as string | undefined) ||
-      (req.body?.initData as string | undefined);
+    // 1) Authorization: tma <initData>
+    const auth = (req.headers.authorization as string | undefined) || "";
+    const initFromAuth = auth.startsWith("tma ") ? auth.slice(4) : undefined;
+
+    // 2) X header
+    const initFromHeader = req.headers["x-telegram-init-data"] as string | undefined;
+
+    // 3) body
+    const initFromBody =
+      (req.body?.initData as string | undefined) ||
+      (req.body?.init_data as string | undefined);
+
+    const initData = initFromAuth || initFromHeader || initFromBody;
 
     if (!initData) throw new Error("No initData");
+
     const v = validateTelegramInitData(initData, opts.botToken);
     const { status } = upsertUserFromTelegram(v.user);
-    const isOwner = opts.ownerTgId ? v.user.id === opts.ownerTgId : false;
+    const isOwner = isOwnerId(v.user.id);
 
     return { user: v.user, status, isOwner, initData };
   }
@@ -23,11 +45,8 @@ export function createApiRouter(opts: { botToken: string; ownerTgId?: number }) 
 
   router.post("/auth", (req, res) => {
     try {
-      const initData = req.body?.initData;
-      const v = validateTelegramInitData(initData, opts.botToken);
-      const { status } = upsertUserFromTelegram(v.user);
-      const isOwner = opts.ownerTgId ? v.user.id === opts.ownerTgId : false;
-      res.json({ ok: true, user: v.user, status, isOwner });
+      const { user, status, isOwner } = requireAuth(req);
+      res.json({ ok: true, user, status, isOwner });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -111,10 +130,16 @@ export function createApiRouter(opts: { botToken: string; ownerTgId?: number }) 
   router.post("/reviews", (req, res) => {
     try {
       const { user } = requireAuth(req);
+
       const rating = Number(req.body?.rating);
       const text = String(req.body?.text || "").trim();
-      if (!(rating >= 1 && rating <= 5)) return res.status(400).json({ ok: false, error: "bad_rating" });
-      if (text.length < 3) return res.status(400).json({ ok: false, error: "text_too_short" });
+
+      if (!(rating >= 1 && rating <= 5)) {
+        return res.status(400).json({ ok: false, error: "bad_rating" });
+      }
+      if (text.length < 3) {
+        return res.status(400).json({ ok: false, error: "text_too_short" });
+      }
 
       const store = readStore();
       store.reviews.push({
@@ -137,6 +162,5 @@ export function createApiRouter(opts: { botToken: string; ownerTgId?: number }) 
 }
 
 function cryptoRandomId() {
-  // без зависимости
   return Math.random().toString(16).slice(2) + Date.now().toString(16);
 }
