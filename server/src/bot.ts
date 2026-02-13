@@ -10,19 +10,19 @@ import { formatRequestMessage } from "./format.js";
 export function createBot(opts: {
   token: string;
   webappUrl?: string;
-  ownerTgId?: number;     // совместимость со старым
-  ownerTgIds?: number[];  // новый вариант
+  ownerTgId?: number;
+  ownerTgIds?: number[];
 }) {
   const bot = new Telegraf(opts.token);
 
-  // ✅ фикс логики owners (без "[] || ...")
+  // ✅ правильная сборка ownerIds
   const ownerIds: number[] =
     opts.ownerTgIds && opts.ownerTgIds.length
       ? opts.ownerTgIds
       : (opts.ownerTgId ? [opts.ownerTgId] : []);
 
   const isOwner = (id?: number) => {
-    if (!ownerIds.length) return true; // если владельцы не заданы — не ограничиваем
+    if (!ownerIds.length) return true;
     return !!id && ownerIds.includes(id);
   };
 
@@ -33,20 +33,14 @@ export function createBot(opts: {
     if (webappUrl && !/^https?:\/\//i.test(webappUrl)) webappUrl = "https://" + webappUrl;
 
     if (!webappUrl) {
-      return ctx.reply(
-        "WEBAPP_URL не задан. Укажи публичный HTTPS URL в Railway Variables и снова /start."
-      );
+      return ctx.reply("WEBAPP_URL не задан. Укажи публичный HTTPS URL в Railway Variables и снова /start.");
     }
 
-    try {
-      const kb = Markup.inlineKeyboard([
-        Markup.button.webApp("Открыть мини-приложение", webappUrl)
-      ]);
-      await ctx.reply("Открывай мини-приложение 👇", kb);
-    } catch (e) {
-      console.error("START REPLY ERROR:", e);
-      await ctx.reply(`Открой мини-приложение по ссылке: ${webappUrl}`);
-    }
+    const kb = Markup.inlineKeyboard([
+      Markup.button.webApp("Открыть мини-приложение", webappUrl)
+    ]);
+
+    await ctx.reply("Открывай мини-приложение 👇", kb);
   });
 
   bot.command("whoami", async (ctx) => {
@@ -57,22 +51,27 @@ export function createBot(opts: {
     );
   });
 
-  bot.command("chatid", async (ctx) => {
-    await ctx.reply(`chat_id: ${ctx.chat?.id}`);
+  bot.command("setgroup", async (ctx) => {
+    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setgroup");
+    if (!ctx.chat || ctx.chat.type === "private") return ctx.reply("Используй /setgroup в группе.");
+
+    const store = readStore();
+    store.config.groupChatId = ctx.chat.id;
+    writeStore(store);
+
+    await ctx.reply(`Группа сохранена ✅ groupChatId=${ctx.chat.id}`);
   });
 
-  // ✅ показать, какая группа сохранена
+  // ✅ показать сохранённую группу
   bot.command("showgroup", async (ctx) => {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /showgroup");
     const store = readStore();
     await ctx.reply(
-      `groupChatId: ${store.config.groupChatId ?? "(не задан)"}\n` +
-      `requests: ${store.requests.length}\n` +
-      `users: ${Object.keys(store.users).length}`
+      `groupChatId: ${store.config.groupChatId ?? "(не задан)"}\nrequests: ${store.requests.length}`
     );
   });
 
-  // ✅ тест: отправить сообщение в группу
+  // ✅ тест: может ли бот писать в группу
   bot.command("pinggroup", async (ctx) => {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /pinggroup");
     const store = readStore();
@@ -88,66 +87,13 @@ export function createBot(opts: {
     }
   });
 
-  bot.command("setgroup", async (ctx) => {
-    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setgroup");
-    if (!ctx.chat || ctx.chat.type === "private") return ctx.reply("Используй /setgroup в группе.");
-
-    const store = readStore();
-    store.config.groupChatId = ctx.chat.id;
-    writeStore(store);
-
-    await ctx.reply(`Группа сохранена ✅ groupChatId=${ctx.chat.id}`);
-  });
-
-  bot.command("setstatus", async (ctx) => {
-    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setstatus");
-
-    const text = (ctx.message as any)?.text ?? "";
-    const parts = text.split(" ").filter(Boolean);
-    const tgId = parts[1];
-    const statusRaw = (parts[2] || "").toLowerCase();
-
-    if (!tgId || !statusRaw) {
-      return ctx.reply("Использование: /setstatus <tg_id> <none|bronze|silver|gold>");
-    }
-
-    const allowed: UserStatus[] = ["none", "bronze", "silver", "gold"];
-    if (!allowed.includes(statusRaw as UserStatus)) {
-      return ctx.reply("Статус только: none | bronze | silver | gold");
-    }
-
-    const store = readStore();
-    const key = String(tgId);
-    const now = new Date().toISOString();
-
-    if (!store.users[key]) {
-      store.users[key] = {
-        tg_id: Number(tgId),
-        username: undefined,
-        first_name: undefined,
-        last_name: undefined,
-        status: statusRaw as UserStatus,
-        created_at: now,
-        last_seen_at: now
-      };
-    } else {
-      store.users[key].status = statusRaw as UserStatus;
-      store.users[key].last_seen_at = now;
-    }
-
-    writeStore(store);
-    return ctx.reply(`Готово ✅ tg_id=${tgId} → статус ${statusRaw}`);
-  });
-
-  // ✅ Ловим заявки из Mini App (sendData)
+  // Ловим заявки из Mini App (sendData)
   bot.on("message", async (ctx) => {
     const msg: any = ctx.message;
     const wad = msg?.web_app_data?.data;
-
-    // если это не web_app_data — игнор
     if (!wad) return;
 
-    console.log("✅ web_app_data received from", ctx.from?.id, "len=", String(wad).length);
+    console.log("✅ web_app_data received:", wad);
 
     if (ctx.from) upsertUserFromTelegram(ctx.from);
 
@@ -155,75 +101,21 @@ export function createBot(opts: {
     try {
       payload = JSON.parse(wad);
     } catch (e) {
-      console.error("❌ JSON parse error:", e, "data:", wad);
-      await ctx.reply("Не смог прочитать payload (не JSON).");
-      return;
+      console.error("❌ JSON parse error:", e, wad);
+      return ctx.reply("Не смог прочитать payload (не JSON).");
     }
 
     const store = readStore();
     const groupChatId = store.config.groupChatId;
-
     if (!groupChatId) {
-      await ctx.reply("Группа не задана. Добавь бота в группу и сделай там /setgroup");
-      return;
+      return ctx.reply("Группа не задана. Добавь бота в группу и сделай там /setgroup");
     }
 
     const userKey = String(ctx.from?.id ?? "");
     const status: UserStatus = store.users[userKey]?.status ?? "none";
     const createdAtISO = new Date().toISOString();
 
-    bot.command("setrates", async (ctx) => {
-  if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setrates");
-
-  const text = (ctx.message as any)?.text ?? "";
-  // формат:
-  // /setrates USD 25500 25800 RUB 320 340 USDT 25400 25700
-  const parts = text.split(" ").filter(Boolean);
-  if (parts.length !== 10) {
-    return ctx.reply(
-      "Формат: /setrates USD <buy_vnd> <sell_vnd> RUB <buy_vnd> <sell_vnd> USDT <buy_vnd> <sell_vnd>\n" +
-      "Пример: /setrates USD 25500 25800 RUB 320 340 USDT 25400 25700"
-    );
-  }
-
-  const num = (s: string) => {
-    const n = Number(s);
-    return Number.isFinite(n) ? n : NaN;
-  };
-
-  const usdBuy = num(parts[2]), usdSell = num(parts[3]);
-  const rubBuy = num(parts[5]), rubSell = num(parts[6]);
-  const usdtBuy = num(parts[8]), usdtSell = num(parts[9]);
-
-  if (![usdBuy, usdSell, rubBuy, rubSell, usdtBuy, usdtSell].every(Number.isFinite)) {
-    return ctx.reply("Ошибка: все значения должны быть числами.");
-  }
-
-  const store = readStore();
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
-
-  store.ratesByDate[today] = {
-    updated_at: new Date().toISOString(),
-    updated_by: ctx.from!.id,
-    rates: {
-      USD: { buy_vnd: usdBuy, sell_vnd: usdSell },
-      RUB: { buy_vnd: rubBuy, sell_vnd: rubSell },
-      USDT: { buy_vnd: usdtBuy, sell_vnd: usdtSell }
-    }
-  };
-
-  writeStore(store);
-  await ctx.reply(`Курс сохранён ✅ на ${today}`);
-});
-
-
-    // сохраняем заявку
-    store.requests.push({
-      ...payload,
-      from: ctx.from,
-      status,
-      created_at: createdAtISO
-    });
+    store.requests.push({ ...payload, from: ctx.from, status, created_at: createdAtISO });
     writeStore(store);
 
     const text = formatRequestMessage({
@@ -239,21 +131,16 @@ export function createBot(opts: {
       sellAmount: payload.sellAmount,
       buyAmount: payload.buyAmount,
       receiveMethod: payload.receiveMethod,
-      note: payload.note, // даже если ты убрал комментарий — будет undefined, это ок
+      note: payload.note, // если ты убрал комментарий — будет undefined, это ок
       createdAtISO
     });
 
-    // ✅ отправка в группу + ловим ошибку
     try {
       await ctx.telegram.sendMessage(groupChatId, text, { parse_mode: "HTML" } as any);
       await ctx.reply("Заявка отправлена ✅");
     } catch (e: any) {
       console.error("❌ sendMessage to group failed:", e);
-      await ctx.reply(
-        `Не смог отправить заявку в группу.\n` +
-        `groupChatId=${groupChatId}\n` +
-        `Ошибка: ${e?.message || e}`
-      );
+      await ctx.reply(`Не смог отправить в группу. Ошибка: ${e?.message || e}`);
     }
   });
 
