@@ -14,7 +14,7 @@ dotenv.config();
 const BOT_TOKEN = process.env.BOT_TOKEN || "";
 const WEBAPP_URL = process.env.WEBAPP_URL || "";
 const OWNER_TG_ID = process.env.OWNER_TG_ID ? Number(process.env.OWNER_TG_ID) : undefined;
-const PORT = process.env.PORT ? Number(process.env.PORT) : 4001;
+const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
 
 if (!BOT_TOKEN) {
   console.error("❌ BOT_TOKEN is missing");
@@ -23,9 +23,15 @@ if (!BOT_TOKEN) {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// путь к webapp/dist после сборки на Railway
 const webDist = path.resolve(__dirname, "../../webapp/dist");
+
+// Railway domain (предпочтительно), либо PUBLIC_URL если задашь вручную
+const BASE_URL =
+  process.env.PUBLIC_URL ||
+  (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : "");
+
+// Секретный путь вебхука
+const WEBHOOK_PATH = process.env.WEBHOOK_PATH || `/tg-${BOT_TOKEN.slice(0, 16)}`;
 
 const app = express();
 app.use(cors());
@@ -47,6 +53,9 @@ process.on("unhandledRejection", (e) => console.error("UNHANDLED REJECTION:", e)
 process.on("uncaughtException", (e) => console.error("UNCAUGHT EXCEPTION:", e));
 bot.catch((err) => console.error("BOT ERROR:", err));
 
+// ВАЖНО: webhookCallback сам понимает путь, просто монтируем middleware
+app.use(bot.webhookCallback(WEBHOOK_PATH));
+
 const server = app.listen(PORT, async () => {
   console.log(`✅ Server listening on port ${PORT}`);
   console.log(`ℹ️ webapp dist: ${webDist}`);
@@ -54,12 +63,18 @@ const server = app.listen(PORT, async () => {
   const me = await bot.telegram.getMe();
   console.log(`✅ getMe OK: @${me.username} (id=${me.id})`);
 
-  // КЛЮЧЕВО: если webhook где-то был настроен, он блокирует polling
-  await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-  console.log("✅ deleteWebhook OK");
+  if (!BASE_URL) {
+    console.log("⚠️ No BASE_URL. Using polling locally.");
+    await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+    await bot.launch({ dropPendingUpdates: true });
+    console.log("✅ Bot polling started");
+    return;
+  }
 
-  await bot.launch({ dropPendingUpdates: true });
-  console.log("✅ Bot polling started");
+  // На Railway — webhook
+  const full = `${BASE_URL}${WEBHOOK_PATH}`;
+  await bot.telegram.setWebhook(full);
+  console.log(`✅ Webhook set: ${full}`);
 });
 
 process.once("SIGINT", () => {
