@@ -21,15 +21,13 @@ type Me = {
 
 type TabKey = "main" | "atm" | "guide" | "reviews" | "admin";
 
-// --------------------
-// UI (можно менять)
-// --------------------
 const UI = {
   title: "Обмен валют — Дананг",
+  // Если Google Fonts не грузится в Telegram — будет фолбэк на системный шрифт.
+  fontImport:
+    "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap",
   accent: "#22c55e",
   accent2: "#06b6d4",
-  bgTop: "#f7fbff",
-  bgBottom: "#f4fff8",
 };
 
 function IconSwap({ className = "" }: { className?: string }) {
@@ -90,8 +88,8 @@ function BottomBar({
 }) {
   const visible = items.filter((i) => i.show);
   return (
-    <div className="vx-bottomWrap">
-      <div className="vx-bottomBar" style={{ ["--cols" as any]: String(visible.length) }}>
+    <div className="vx-bottomWrap" style={{ ["--cols" as any]: String(visible.length) }}>
+      <div className="vx-bottomBar">
         {visible.map((t) => {
           const isActive = active === t.key;
           return (
@@ -150,7 +148,6 @@ export default function App() {
     })();
   }, [tg, isDemo]);
 
-  // Если владелец не найден — не даём оставаться на вкладке Управление
   useEffect(() => {
     if (tab === "admin" && !me.isOwner) setTab("main");
   }, [tab, me.isOwner]);
@@ -164,124 +161,68 @@ export default function App() {
   ];
 
   return (
-    <div className="vx-root">
-      {/* Локальные стили — чтобы ничего не ломать в других файлах */}
+    <div className="vx-page">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap');
-        :root{
-          --vx-accent: ${UI.accent};
-          --vx-accent2: ${UI.accent2};
-          --vx-bgTop: ${UI.bgTop};
-          --vx-bgBottom: ${UI.bgBottom};
-        }
-        
-.vx-root{
-  min-height: 100vh;
-  background:
-    radial-gradient(1200px 600px at 20% -10%, rgba(34,197,94,0.22), transparent 55%),
-    radial-gradient(900px 600px at 90% 0%, rgba(6,182,212,0.18), transparent 55%),
-    linear-gradient(180deg, var(--vx-bgTop), var(--vx-bgBottom));
-  padding: 16px 12px 140px;
-  box-sizing: border-box;
-  color: #0f172a;
-  font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-        
-.vx-shell{
-  max-width: 520px;
-  margin: 0 auto;
-}
-.vx-surface{
-  border-radius: 28px;
-  border: 1px solid rgba(15,23,42,0.10);
-  background: rgba(255,255,255,0.62);
-  box-shadow: 0 25px 80px rgba(2,6,23,0.12);
-  overflow: hidden;
-  backdrop-filter: blur(6px);
-}
-                .vx-top{
-          padding: 16px 16px 10px;
-        }
-        .vx-title{
-          font-size: 14px;
-          font-weight: 800;
-          letter-spacing: -0.02em;
+        @import url('${UI.fontImport}');
+
+        .vx-page{
+          min-height: 100vh;
+          padding: 14px 12px;
+          box-sizing: border-box;
           color: #0f172a;
+          font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+          -webkit-font-smoothing: antialiased;
+          text-rendering: optimizeLegibility;
+          background:
+            radial-gradient(1200px 600px at 20% -10%, rgba(34,197,94,0.18), transparent 55%),
+            radial-gradient(900px 600px at 90% 0%, rgba(6,182,212,0.14), transparent 55%),
+            linear-gradient(180deg, rgba(247,251,255,1), rgba(244,255,248,1));
         }
-        .vx-sub{
-          margin-top: 6px;
-          font-size: 12px;
-          color: rgba(15,23,42,0.65);
-          line-height: 1.35;
+
+        /* Не ломаем твой layout: просто гарантируем, что в карточках/формах текст не белый */
+        .vx-page .card,
+        .vx-page .h1,
+        .vx-page .small,
+        .vx-page label,
+        .vx-page input,
+        .vx-page select,
+        .vx-page textarea{
+          color: #0f172a !important;
         }
-        .vx-chipRow{
-          margin-top: 10px;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
+        .vx-page input::placeholder,
+        .vx-page textarea::placeholder{
+          color: rgba(15,23,42,0.45) !important;
         }
-        .vx-chip{
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 6px 10px;
-          border-radius: 999px;
-          border: 1px solid rgba(15,23,42,0.10);
-          background: rgba(255,255,255,0.75);
-          font-size: 11px;
-          font-weight: 700;
-          color: rgba(15,23,42,0.78);
-          backdrop-filter: blur(8px);
+        .vx-page input,
+        .vx-page select,
+        .vx-page textarea{
+          max-width: 100%;
+          box-sizing: border-box;
         }
-        .vx-chipDot{
-          width: 8px;
-          height: 8px;
-          border-radius: 99px;
-          background: linear-gradient(135deg, var(--vx-accent), var(--vx-accent2));
+
+        .vx-body{
+          padding-bottom: 120px; /* место под нижний бар */
         }
-        .vx-content{
-          padding: 10px 16px 24px;
-        }
+
         .vx-stack{
           display: flex;
           flex-direction: column;
           gap: 12px;
         }
-        /* чтобы твои старые блоки внутри табов выглядели мягче */
-        .vx-content .card{
-          border-radius: 22px;
-          border: 1px solid rgba(15,23,42,0.10);
-          background: rgba(255,255,255,0.86);
-          box-shadow: 0 10px 30px rgba(2,6,23,0.08);
-          backdrop-filter: blur(10px);
-          color: #0f172a !important;
+        .vx-stack > *{
+          width: 100%;
+          min-width: 0;
         }
 
-
-.vx-content{
-  color: #0f172a;
-}
-.vx-content .h1,
-.vx-content .h2,
-.vx-content .h3{
-  color: #0f172a !important;
-}
-.vx-content .small,
-.vx-content .muted{
-  color: rgba(15,23,42,0.65) !important;
-}
-
-        /* Bottom bar */
+        /* Bottom bar (плавающий) */
         .vx-bottomWrap{
           position: fixed;
           left: 0;
           right: 0;
           bottom: 0;
-          z-index: 50;
-          padding: 0 16px;
-          padding-bottom: calc(16px + env(safe-area-inset-bottom));
+          z-index: 999;
+          padding: 0 12px;
+          padding-bottom: calc(12px + env(safe-area-inset-bottom));
           box-sizing: border-box;
           pointer-events: none;
         }
@@ -291,7 +232,7 @@ export default function App() {
           margin: 0 auto;
           border-radius: 28px;
           border: 1px solid rgba(15,23,42,0.10);
-          background: rgba(255,255,255,0.85);
+          background: rgba(255,255,255,0.88);
           box-shadow: 0 12px 30px rgba(2,6,23,0.14);
           backdrop-filter: blur(12px);
           padding: 4px;
@@ -310,15 +251,13 @@ export default function App() {
           justify-content: center;
           gap: 4px;
           color: rgba(15,23,42,0.55);
-          font-weight: 700;
+          font-weight: 800;
           font-size: 10px;
           letter-spacing: -0.01em;
           cursor: pointer;
           user-select: none;
         }
-        .vx-navBtnActive{
-          color: #0f172a;
-        }
+        .vx-navBtnActive{ color: #0f172a; }
         .vx-navPill{
           position: absolute;
           inset: 0;
@@ -333,63 +272,42 @@ export default function App() {
           display: grid;
           place-items: center;
         }
-        .vx-i{
-          width: 20px;
-          height: 20px;
-        }
+        .vx-i{ width: 20px; height: 20px; }
         .vx-navLabel{
           position: relative;
-          max-width: 72px;
+          max-width: 80px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
           line-height: 1;
         }
+
+        /* Telegram WebView иногда даёт странные стили кнопкам */
+        .vx-bottomBar button{ -webkit-tap-highlight-color: transparent; }
       `}</style>
 
-      <div className="vx-shell">
-        <div className="vx-surface">
-          <div className="vx-top">
-            <div className="vx-title">{UI.title}</div>
-            <div className="vx-sub">
-              {me.ok && me.user
-                ? `Вы: ${me.user.first_name ?? ""}${me.user.username ? " (@" + me.user.username + ")" : ""} • статус: ${
-                    me.status ?? "—"
-                  }`
-                : me.error ?? "Авторизация..."}
-            </div>
-            <div className="vx-chipRow">
-              <span className="vx-chip">
-                <span className="vx-chipDot" />
-                Без комиссии
-              </span>
-              <span className="vx-chip">
-                <span className="vx-chipDot" />
-                25–40 минут
-              </span>
-              {me.isOwner ? (
-                <span className="vx-chip">
-                  <span className="vx-chipDot" />
-                  владелец
-                </span>
-              ) : null}
-            </div>
+      <div className="container">
+        <div className="card">
+          <div className="h1">{UI.title}</div>
+          <div className="small">
+            {me.ok && me.user
+              ? `Вы: ${me.user.first_name ?? ""} ${me.user.username ? "(@" + me.user.username + ")" : ""} • статус: ${me.status}`
+              : me.error ?? "Авторизация..."}
           </div>
+        </div>
 
-          <div className="vx-content">
-            {tab === "main" && (
-              <div className="vx-stack">
-                {/* Сверху курс, ниже калькулятор (как ты просил) */}
-                <RatesTab me={me} />
-                <CalculatorTab me={me} />
-              </div>
-            )}
-
-            {tab === "atm" && <AtmTab />}
-            {tab === "guide" && <GuideTab />}
-            {tab === "reviews" && <ReviewsTab me={me} />}
-            {tab === "admin" && me.isOwner && <AdminTab me={me} />}
-          </div>
+        <div className="vx-body">
+          {tab === "main" && (
+            <div className="vx-stack">
+              {/* Сверху курс, ниже калькулятор */}
+              <RatesTab me={me} />
+              <CalculatorTab me={me} />
+            </div>
+          )}
+          {tab === "atm" && <AtmTab />}
+          {tab === "guide" && <GuideTab />}
+          {tab === "reviews" && <ReviewsTab me={me} />}
+          {tab === "admin" && me.isOwner && <AdminTab me={me} />}
         </div>
       </div>
 
