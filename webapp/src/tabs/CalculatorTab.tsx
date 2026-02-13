@@ -73,7 +73,6 @@ export default function CalculatorTab({ me }: any) {
       sellAmount: calc.sellAmount,
       buyAmount: calc.buyAmount,
       receiveMethod,
-      note: note.trim() || undefined
     };
 
     tg.sendData(JSON.stringify(payload));
