@@ -25,7 +25,6 @@ function formatAmount(cur: Currency, n: number) {
   return (Math.round(n * 100) / 100).toString();
 }
 
-// Методы получения итоговой валюты (buyCurrency)
 function allowedReceiveMethods(buyCurrency: Currency): ReceiveMethod[] {
   if (buyCurrency === "USD") return ["cash"];
   if (buyCurrency === "RUB") return ["transfer"];
@@ -39,41 +38,25 @@ function methodLabel(m: ReceiveMethod) {
   return "Банкомат";
 }
 
-// Конвертация по правилам:
 // sell -> VND по buy_vnd (если sell != VND)
 // VND -> buy по sell_vnd (если buy != VND)
-function calcBuyAmount(
-  rates: Rates,
-  sellCurrency: Currency,
-  buyCurrency: Currency,
-  sellAmount: number
-): number {
+function calcBuyAmount(rates: Rates, sellCurrency: Currency, buyCurrency: Currency, sellAmount: number): number {
   if (sellAmount <= 0) return 0;
   if (sellCurrency === buyCurrency) return sellAmount;
 
-  // to VND
   let vnd: number;
   if (sellCurrency === "VND") vnd = sellAmount;
   else vnd = sellAmount * rates[sellCurrency].buy_vnd;
 
-  // to buy
   if (buyCurrency === "VND") return vnd;
   return vnd / rates[buyCurrency].sell_vnd;
 }
 
-function calcSellAmount(
-  rates: Rates,
-  sellCurrency: Currency,
-  buyCurrency: Currency,
-  buyAmount: number
-): number {
+function calcSellAmount(rates: Rates, sellCurrency: Currency, buyCurrency: Currency, buyAmount: number): number {
   if (buyAmount <= 0) return 0;
   if (sellCurrency === buyCurrency) return buyAmount;
 
-  // buyAmount -> VND cost (если buy != VND)
   const vndCost = buyCurrency === "VND" ? buyAmount : buyAmount * rates[buyCurrency].sell_vnd;
-
-  // VND -> sell needed
   if (sellCurrency === "VND") return vndCost;
   return vndCost / rates[sellCurrency].buy_vnd;
 }
@@ -87,15 +70,12 @@ export default function CalculatorTab() {
   const [sellCurrency, setSellCurrency] = useState<Currency>("USD");
   const [buyCurrency, setBuyCurrency] = useState<Currency>("VND");
 
-  const [sellText, setSellText] = useState<string>("");
-  const [buyText, setBuyText] = useState<string>("");
+  const [sellText, setSellText] = useState("");
+  const [buyText, setBuyText] = useState("");
 
-  // кто последний редактировал
   const lastEdited = useRef<"sell" | "buy">("sell");
-
   const [receiveMethod, setReceiveMethod] = useState<ReceiveMethod>("cash");
 
-  // при смене buyCurrency — подгоняем метод под допустимые
   useEffect(() => {
     const allowed = allowedReceiveMethods(buyCurrency);
     if (!allowed.includes(receiveMethod)) setReceiveMethod(allowed[0]);
@@ -103,11 +83,9 @@ export default function CalculatorTab() {
   }, [buyCurrency]);
 
   useEffect(() => {
-    // важно для Telegram Mini Apps
     tg?.ready?.();
     tg?.expand?.();
 
-    // грузим курс дня
     (async () => {
       try {
         const res = await fetch("/api/rates/today");
@@ -126,7 +104,6 @@ export default function CalculatorTab() {
   const sellAmount = useMemo(() => parseNum(sellText), [sellText]);
   const buyAmount = useMemo(() => parseNum(buyText), [buyText]);
 
-  // пересчёт при вводе (в обе стороны)
   useEffect(() => {
     if (!rates) return;
 
@@ -152,24 +129,19 @@ export default function CalculatorTab() {
   function swapCurrencies() {
     setSellCurrency(buyCurrency);
     setBuyCurrency(sellCurrency);
-    // меняем поля местами
     const a = sellText;
     const b = buyText;
     setSellText(b);
     setBuyText(a);
   }
 
-  function sendRequest() {
+  async function sendRequest() {
     if (!canSend || !rates) return;
 
     const tg2 = getTg();
-    if (!tg2) {
-      alert("Telegram WebApp API недоступен. Открой мини-приложение из Telegram через /start.");
-      return;
-    }
-
-    if (typeof tg2.sendData !== "function") {
-      tg2.showAlert?.("sendData недоступен. Открой мини-приложение через кнопку в боте (/start).");
+    const initData = tg2?.initData || "";
+    if (!initData) {
+      tg2?.showAlert?.("Нет initData. Открой мини-приложение через /start в Telegram.");
       return;
     }
 
@@ -179,21 +151,34 @@ export default function CalculatorTab() {
       sellAmount: parseNum(sellText),
       buyAmount: parseNum(buyText),
       receiveMethod
-      // комментарий отсутствует
     };
 
     try {
-      tg2.sendData(JSON.stringify(payload));
+      const res = await fetch("/api/requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `tma ${initData}`
+        },
+        body: JSON.stringify(payload)
+      });
 
-      tg2.HapticFeedback?.notificationOccurred?.("success");
-      tg2.showPopup?.({
+      const json = await res.json();
+      if (!json?.ok) {
+        tg2?.HapticFeedback?.notificationOccurred?.("error");
+        tg2?.showAlert?.(`Ошибка: ${json?.error || "fail"}`);
+        return;
+      }
+
+      tg2?.HapticFeedback?.notificationOccurred?.("success");
+      tg2?.showPopup?.({
         title: "Отправлено",
-        message: "Заявка отправлена в бот. Сейчас должна уйти в группу ✅",
+        message: "Заявка отправлена в группу ✅",
         buttons: [{ type: "ok" }]
       });
     } catch (e: any) {
-      tg2.HapticFeedback?.notificationOccurred?.("error");
-      tg2.showAlert?.(`Ошибка отправки: ${e?.message || e}`);
+      tg2?.HapticFeedback?.notificationOccurred?.("error");
+      tg2?.showAlert?.(`Ошибка сети: ${e?.message || e}`);
     }
   }
 
@@ -243,11 +228,7 @@ export default function CalculatorTab() {
 
           <button
             onClick={swapCurrencies}
-            style={{
-              padding: "10px 12px",
-              borderRadius: 10,
-              cursor: "pointer"
-            }}
+            style={{ padding: "10px 12px", borderRadius: 10, cursor: "pointer" }}
             title="Поменять местами"
           >
             ⇄
