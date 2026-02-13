@@ -202,15 +202,13 @@ export function createApiRouter(opts: {
 
       const createdAt = new Date();
 
-const createdAtText = new Intl.DateTimeFormat("ru-RU", {
+const timeDaNang = new Intl.DateTimeFormat("ru-RU", {
   timeZone: "Asia/Ho_Chi_Minh",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
   hour: "2-digit",
   minute: "2-digit",
   hour12: false
-}).format(createdAt).replace(",", "");
+}).format(createdAt);
+
 
 // если всё-таки хочешь хранить ISO для базы — оставь:
 const createdAtISO = createdAt.toISOString();
@@ -228,7 +226,8 @@ const createdAtISO = createdAt.toISOString();
         `💸 Отдаёт: ${sellAmount}\n` +
         `🎯 Получит: ${buyAmount}\n` +
         `📦 Способ: ${methodMap[receiveMethod] || receiveMethod}\n` +
-        `🕒 ${createdAtText} (Дананг, UTC+7)`;
+        `🕒 ${timeDaNang}`
+
 
       // 1) сначала отправляем в группу (только если Telegram подтвердил ok — считаем что заявка доставлена)
       const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
