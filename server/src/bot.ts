@@ -15,11 +15,14 @@ export function createBot(opts: {
 }) {
   const bot = new Telegraf(opts.token);
 
+  // ✅ фикс логики owners (без "[] || ...")
   const ownerIds: number[] =
-  (opts.ownerTgIds && opts.ownerTgIds.length ? opts.ownerTgIds : (opts.ownerTgId ? [opts.ownerTgId] : []));
+    opts.ownerTgIds && opts.ownerTgIds.length
+      ? opts.ownerTgIds
+      : (opts.ownerTgId ? [opts.ownerTgId] : []);
 
   const isOwner = (id?: number) => {
-    if (!ownerIds.length) return true; // если не задано — не ограничиваем
+    if (!ownerIds.length) return true; // если владельцы не заданы — не ограничиваем
     return !!id && ownerIds.includes(id);
   };
 
@@ -58,6 +61,33 @@ export function createBot(opts: {
     await ctx.reply(`chat_id: ${ctx.chat?.id}`);
   });
 
+  // ✅ показать, какая группа сохранена
+  bot.command("showgroup", async (ctx) => {
+    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /showgroup");
+    const store = readStore();
+    await ctx.reply(
+      `groupChatId: ${store.config.groupChatId ?? "(не задан)"}\n` +
+      `requests: ${store.requests.length}\n` +
+      `users: ${Object.keys(store.users).length}`
+    );
+  });
+
+  // ✅ тест: отправить сообщение в группу
+  bot.command("pinggroup", async (ctx) => {
+    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /pinggroup");
+    const store = readStore();
+    const groupChatId = store.config.groupChatId;
+    if (!groupChatId) return ctx.reply("Группа не задана. Сделай /setgroup в группе.");
+
+    try {
+      await ctx.telegram.sendMessage(groupChatId, "✅ Тест: бот может писать в эту группу");
+      await ctx.reply("Ок ✅ отправил тест в группу");
+    } catch (e: any) {
+      console.error("PINGGROUP ERROR:", e);
+      await ctx.reply(`Не смог отправить в группу. Ошибка: ${e?.message || e}`);
+    }
+  });
+
   bot.command("setgroup", async (ctx) => {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setgroup");
     if (!ctx.chat || ctx.chat.type === "private") return ctx.reply("Используй /setgroup в группе.");
@@ -69,8 +99,6 @@ export function createBot(opts: {
     await ctx.reply(`Группа сохранена ✅ groupChatId=${ctx.chat.id}`);
   });
 
-  // Назначить статус клиенту (только владелец)
-  // Использование: /setstatus 123456789 gold
   bot.command("setstatus", async (ctx) => {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setstatus");
 
@@ -111,27 +139,23 @@ export function createBot(opts: {
     return ctx.reply(`Готово ✅ tg_id=${tgId} → статус ${statusRaw}`);
   });
 
-  bot.command("setwebapp", async (ctx) => {
-    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setwebapp");
-
-    const parts = (ctx.message as any)?.text?.split(" ") ?? [];
-    const url = parts[1];
-    if (!url) return ctx.reply("Использование: /setwebapp https://xxxx.tld");
-
-    await ctx.reply("Ок ✅ На Railway лучше задавать WEBAPP_URL в Variables. Потом /start.");
-  });
-
+  // ✅ Ловим заявки из Mini App (sendData)
   bot.on("message", async (ctx) => {
     const msg: any = ctx.message;
     const wad = msg?.web_app_data?.data;
+
+    // если это не web_app_data — игнор
     if (!wad) return;
+
+    console.log("✅ web_app_data received from", ctx.from?.id, "len=", String(wad).length);
 
     if (ctx.from) upsertUserFromTelegram(ctx.from);
 
     let payload: any;
     try {
       payload = JSON.parse(wad);
-    } catch {
+    } catch (e) {
+      console.error("❌ JSON parse error:", e, "data:", wad);
       await ctx.reply("Не смог прочитать payload (не JSON).");
       return;
     }
@@ -148,6 +172,7 @@ export function createBot(opts: {
     const status: UserStatus = store.users[userKey]?.status ?? "none";
     const createdAtISO = new Date().toISOString();
 
+    // сохраняем заявку
     store.requests.push({
       ...payload,
       from: ctx.from,
@@ -169,12 +194,22 @@ export function createBot(opts: {
       sellAmount: payload.sellAmount,
       buyAmount: payload.buyAmount,
       receiveMethod: payload.receiveMethod,
-      note: payload.note, // если уберёшь поле в калькуляторе — здесь будет undefined, это ок
+      note: payload.note, // даже если ты убрал комментарий — будет undefined, это ок
       createdAtISO
     });
 
-    await ctx.telegram.sendMessage(groupChatId, text, { parse_mode: "HTML" } as any);
-    await ctx.reply("Заявка отправлена ✅");
+    // ✅ отправка в группу + ловим ошибку
+    try {
+      await ctx.telegram.sendMessage(groupChatId, text, { parse_mode: "HTML" } as any);
+      await ctx.reply("Заявка отправлена ✅");
+    } catch (e: any) {
+      console.error("❌ sendMessage to group failed:", e);
+      await ctx.reply(
+        `Не смог отправить заявку в группу.\n` +
+        `groupChatId=${groupChatId}\n` +
+        `Ошибка: ${e?.message || e}`
+      );
+    }
   });
 
   return bot;
