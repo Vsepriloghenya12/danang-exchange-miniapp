@@ -167,36 +167,41 @@ export default function App() {
     <div className="vx-root">
       {/* Локальные стили — чтобы ничего не ломать в других файлах */}
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap');
         :root{
           --vx-accent: ${UI.accent};
           --vx-accent2: ${UI.accent2};
           --vx-bgTop: ${UI.bgTop};
           --vx-bgBottom: ${UI.bgBottom};
         }
-        .vx-root{
-          min-height: 100vh;
-          background:
-            radial-gradient(1200px 600px at 20% -10%, rgba(34,197,94,0.22), transparent 55%),
-            radial-gradient(900px 600px at 90% 0%, rgba(6,182,212,0.18), transparent 55%),
-            linear-gradient(180deg, var(--vx-bgTop), var(--vx-bgBottom));
-          padding: 20px 16px 140px;
-          box-sizing: border-box;
-        }
-        .vx-phone{
-          max-width: 420px;
-          margin: 0 auto;
-          border-radius: 44px;
-          border: 1px solid rgba(15,23,42,0.10);
-          background: rgba(255,255,255,0.40);
-          box-shadow: 0 25px 80px rgba(2,6,23,0.14);
-          overflow: hidden;
-        }
-        .vx-phoneInner{
-          min-height: 820px;
-          background: rgba(255,255,255,0.72);
-          backdrop-filter: blur(2px);
-        }
-        .vx-top{
+        
+.vx-root{
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 20% -10%, rgba(34,197,94,0.22), transparent 55%),
+    radial-gradient(900px 600px at 90% 0%, rgba(6,182,212,0.18), transparent 55%),
+    linear-gradient(180deg, var(--vx-bgTop), var(--vx-bgBottom));
+  padding: 16px 12px 140px;
+  box-sizing: border-box;
+  color: #0f172a;
+  font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+        
+.vx-shell{
+  max-width: 520px;
+  margin: 0 auto;
+}
+.vx-surface{
+  border-radius: 28px;
+  border: 1px solid rgba(15,23,42,0.10);
+  background: rgba(255,255,255,0.62);
+  box-shadow: 0 25px 80px rgba(2,6,23,0.12);
+  overflow: hidden;
+  backdrop-filter: blur(6px);
+}
+                .vx-top{
           padding: 16px 16px 10px;
         }
         .vx-title{
@@ -240,17 +245,33 @@ export default function App() {
           padding: 10px 16px 24px;
         }
         .vx-stack{
-          display: grid;
+          display: flex;
+          flex-direction: column;
           gap: 12px;
         }
         /* чтобы твои старые блоки внутри табов выглядели мягче */
         .vx-content .card{
           border-radius: 22px;
           border: 1px solid rgba(15,23,42,0.10);
-          background: rgba(255,255,255,0.78);
+          background: rgba(255,255,255,0.86);
           box-shadow: 0 10px 30px rgba(2,6,23,0.08);
           backdrop-filter: blur(10px);
+          color: #0f172a !important;
         }
+
+
+.vx-content{
+  color: #0f172a;
+}
+.vx-content .h1,
+.vx-content .h2,
+.vx-content .h3{
+  color: #0f172a !important;
+}
+.vx-content .small,
+.vx-content .muted{
+  color: rgba(15,23,42,0.65) !important;
+}
 
         /* Bottom bar */
         .vx-bottomWrap{
@@ -266,7 +287,7 @@ export default function App() {
         }
         .vx-bottomBar{
           pointer-events: auto;
-          max-width: 420px;
+          max-width: 520px;
           margin: 0 auto;
           border-radius: 28px;
           border: 1px solid rgba(15,23,42,0.10);
@@ -326,8 +347,8 @@ export default function App() {
         }
       `}</style>
 
-      <div className="vx-phone">
-        <div className="vx-phoneInner">
+      <div className="vx-shell">
+        <div className="vx-surface">
           <div className="vx-top">
             <div className="vx-title">{UI.title}</div>
             <div className="vx-sub">
