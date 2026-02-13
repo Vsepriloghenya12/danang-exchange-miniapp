@@ -26,35 +26,25 @@ export function validateTelegramInitData(initData: string, botToken: string): Va
   if (!botToken) throw new Error("BOT_TOKEN is missing");
 
   const data = parseInitData(initData);
-
   const receivedHash = data.hash;
   if (!receivedHash) throw new Error("hash is missing in initData");
 
-  // IMPORTANT: исключаем hash и signature
   const pairs: string[] = [];
   for (const [k, v] of Object.entries(data)) {
     if (k === "hash") continue;
-    if (k === "signature") continue;
+    if (k === "signature") continue; // <-- ВАЖНО
     pairs.push(`${k}=${v}`);
   }
   pairs.sort((a, b) => a.localeCompare(b));
   const dataCheckString = pairs.join("\n");
 
-  // secret_key = HMAC_SHA256(key="WebAppData", message=botToken)  :contentReference[oaicite:1]{index=1}
   const secretKey = crypto.createHmac("sha256", "WebAppData").update(botToken).digest();
-
-  const computedHash = crypto
-    .createHmac("sha256", secretKey)
-    .update(dataCheckString)
-    .digest("hex");
+  const computedHash = crypto.createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
 
   if (computedHash !== receivedHash) throw new Error("initData hash mismatch");
 
   const authDate = Number(data.auth_date || 0);
   if (!authDate) throw new Error("auth_date is missing");
-
-  const nowSec = Math.floor(Date.now() / 1000);
-  if (nowSec - authDate > 48 * 3600) throw new Error("initData is too old");
 
   const userJson = data.user;
   if (!userJson) throw new Error("user is missing");
