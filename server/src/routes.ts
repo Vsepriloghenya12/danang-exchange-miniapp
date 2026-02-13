@@ -1,6 +1,8 @@
 import express from "express";
 import { readStore, writeStore, upsertUserFromTelegram } from "./store.js";
 import { validateTelegramInitData } from "./telegramValidate.js";
+import { formatRequestMessage } from "./format.js";
+
 
 export function createApiRouter(opts: {
   botToken: string;
@@ -157,6 +159,7 @@ export function createApiRouter(opts: {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
+  
 
   return router;
 }

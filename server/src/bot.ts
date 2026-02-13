@@ -1,10 +1,5 @@
 import { Telegraf, Markup } from "telegraf";
-import {
-  readStore,
-  writeStore,
-  upsertUserFromTelegram,
-  type UserStatus
-} from "./store.js";
+import { readStore, writeStore, upsertUserFromTelegram, type UserStatus } from "./store.js";
 import { formatRequestMessage } from "./format.js";
 
 export function createBot(opts: {
@@ -15,7 +10,7 @@ export function createBot(opts: {
 }) {
   const bot = new Telegraf(opts.token);
 
-  // ✅ правильная сборка ownerIds
+  // ✅ корректно собираем владельцев
   const ownerIds: number[] =
     opts.ownerTgIds && opts.ownerTgIds.length
       ? opts.ownerTgIds
@@ -36,19 +31,8 @@ export function createBot(opts: {
       return ctx.reply("WEBAPP_URL не задан. Укажи публичный HTTPS URL в Railway Variables и снова /start.");
     }
 
-    const kb = Markup.inlineKeyboard([
-      Markup.button.webApp("Открыть мини-приложение", webappUrl)
-    ]);
-
+    const kb = Markup.inlineKeyboard([Markup.button.webApp("Открыть мини-приложение", webappUrl)]);
     await ctx.reply("Открывай мини-приложение 👇", kb);
-  });
-
-  bot.command("whoami", async (ctx) => {
-    if (ctx.from) upsertUserFromTelegram(ctx.from);
-    const u = ctx.from;
-    await ctx.reply(
-      `Ваш tg_id: ${u?.id}\nusername: ${u?.username ? "@" + u.username : "(нет)"}`
-    );
   });
 
   bot.command("setgroup", async (ctx) => {
@@ -58,20 +42,15 @@ export function createBot(opts: {
     const store = readStore();
     store.config.groupChatId = ctx.chat.id;
     writeStore(store);
-
     await ctx.reply(`Группа сохранена ✅ groupChatId=${ctx.chat.id}`);
   });
 
-  // ✅ показать сохранённую группу
   bot.command("showgroup", async (ctx) => {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /showgroup");
     const store = readStore();
-    await ctx.reply(
-      `groupChatId: ${store.config.groupChatId ?? "(не задан)"}\nrequests: ${store.requests.length}`
-    );
+    await ctx.reply(`groupChatId: ${store.config.groupChatId ?? "(не задан)"}\nrequests: ${store.requests.length}`);
   });
 
-  // ✅ тест: может ли бот писать в группу
   bot.command("pinggroup", async (ctx) => {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /pinggroup");
     const store = readStore();
@@ -87,7 +66,7 @@ export function createBot(opts: {
     }
   });
 
-  // Ловим заявки из Mini App (sendData)
+  // ✅ ловим заявки из Telegram.WebApp.sendData (если ты оставишь этот способ)
   bot.on("message", async (ctx) => {
     const msg: any = ctx.message;
     const wad = msg?.web_app_data?.data;
@@ -107,9 +86,7 @@ export function createBot(opts: {
 
     const store = readStore();
     const groupChatId = store.config.groupChatId;
-    if (!groupChatId) {
-      return ctx.reply("Группа не задана. Добавь бота в группу и сделай там /setgroup");
-    }
+    if (!groupChatId) return ctx.reply("Группа не задана. Добавь бота в группу и сделай там /setgroup");
 
     const userKey = String(ctx.from?.id ?? "");
     const status: UserStatus = store.users[userKey]?.status ?? "none";
@@ -131,7 +108,7 @@ export function createBot(opts: {
       sellAmount: payload.sellAmount,
       buyAmount: payload.buyAmount,
       receiveMethod: payload.receiveMethod,
-      note: payload.note, // если ты убрал комментарий — будет undefined, это ок
+      note: payload.note,
       createdAtISO
     });
 
