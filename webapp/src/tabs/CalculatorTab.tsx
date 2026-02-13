@@ -22,7 +22,6 @@ function parseNum(input: string): number {
 function formatAmount(cur: Currency, n: number) {
   if (!Number.isFinite(n)) return "";
   if (cur === "VND") return Math.round(n).toString();
-  // USD/USDT/RUB — 2 знака достаточно
   return (Math.round(n * 100) / 100).toString();
 }
 
@@ -100,9 +99,12 @@ export default function CalculatorTab() {
   useEffect(() => {
     const allowed = allowedReceiveMethods(buyCurrency);
     if (!allowed.includes(receiveMethod)) setReceiveMethod(allowed[0]);
-  }, [buyCurrency]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buyCurrency]);
 
   useEffect(() => {
+    // важно для Telegram Mini Apps
+    tg?.ready?.();
     tg?.expand?.();
 
     // грузим курс дня
@@ -118,21 +120,24 @@ export default function CalculatorTab() {
         setLoading(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const sellAmount = useMemo(() => parseNum(sellText), [sellText]);
   const buyAmount = useMemo(() => parseNum(buyText), [buyText]);
 
-  // пересчёт при вводе
+  // пересчёт при вводе (в обе стороны)
   useEffect(() => {
     if (!rates) return;
 
     if (lastEdited.current === "sell") {
       const out = calcBuyAmount(rates, sellCurrency, buyCurrency, sellAmount);
-      setBuyText(sellText ? formatAmount(buyCurrency, out) : "");
+      const next = sellText ? formatAmount(buyCurrency, out) : "";
+      if (next !== buyText) setBuyText(next);
     } else {
       const need = calcSellAmount(rates, sellCurrency, buyCurrency, buyAmount);
-      setSellText(buyText ? formatAmount(sellCurrency, need) : "");
+      const next = buyText ? formatAmount(sellCurrency, need) : "";
+      if (next !== sellText) setSellText(next);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sellText, buyText, sellCurrency, buyCurrency, rates]);
@@ -157,19 +162,39 @@ export default function CalculatorTab() {
   function sendRequest() {
     if (!canSend || !rates) return;
 
+    const tg2 = getTg();
+    if (!tg2) {
+      alert("Telegram WebApp API недоступен. Открой мини-приложение из Telegram через /start.");
+      return;
+    }
+
+    if (typeof tg2.sendData !== "function") {
+      tg2.showAlert?.("sendData недоступен. Открой мини-приложение через кнопку в боте (/start).");
+      return;
+    }
+
     const payload = {
       sellCurrency,
       buyCurrency,
       sellAmount: parseNum(sellText),
       buyAmount: parseNum(buyText),
       receiveMethod
-      // note удалили полностью
+      // комментарий отсутствует
     };
 
     try {
-      tg?.sendData?.(JSON.stringify(payload));
-      tg?.HapticFeedback?.notificationOccurred?.("success");
-    } catch {}
+      tg2.sendData(JSON.stringify(payload));
+
+      tg2.HapticFeedback?.notificationOccurred?.("success");
+      tg2.showPopup?.({
+        title: "Отправлено",
+        message: "Заявка отправлена в бот. Сейчас должна уйти в группу ✅",
+        buttons: [{ type: "ok" }]
+      });
+    } catch (e: any) {
+      tg2.HapticFeedback?.notificationOccurred?.("error");
+      tg2.showAlert?.(`Ошибка отправки: ${e?.message || e}`);
+    }
   }
 
   return (
@@ -183,7 +208,6 @@ export default function CalculatorTab() {
         </div>
       )}
 
-      {/* Выбор валют + ввод в обе стороны */}
       <div
         style={{
           display: "grid",
@@ -254,7 +278,6 @@ export default function CalculatorTab() {
           />
         </div>
 
-        {/* Метод получения (по buyCurrency) */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {allowedReceiveMethods(buyCurrency).map((m) => (
             <button
