@@ -148,11 +148,6 @@ export default function CalculatorTab({ me }: any) {
             </select>
           </label>
 
-          <label style={{ display: "block", marginTop: 10 }}>
-            <div className="small">Комментарий (необязательно)</div>
-            <textarea className="input" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
-          </label>
-
           <div className="hr" />
 
           <div>
