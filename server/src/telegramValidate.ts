@@ -1,4 +1,4 @@
-import * as crypto from "node:crypto";
+import { validate } from "@tma.js/init-data-node";
 
 export type TelegramWebAppUser = {
   id: number;
@@ -14,41 +14,28 @@ export type ValidatedInitData = {
   raw: Record<string, string>;
 };
 
-function parseInitData(initData: string): Record<string, string> {
-  const params = new URLSearchParams(initData);
-  const out: Record<string, string> = {};
-  for (const [k, v] of params.entries()) out[k] = v;
-  return out;
-}
+export function validateTelegramInitData(initDataRaw: string, botToken: string): ValidatedInitData {
+  let initData = initDataRaw || "";
 
-export function validateTelegramInitData(initData: string, botToken: string): ValidatedInitData {
-  if (!initData) throw new Error("initData is empty");
-  if (!botToken) throw new Error("BOT_TOKEN is missing");
-
-  const data = parseInitData(initData);
-  const receivedHash = data.hash;
-  if (!receivedHash) throw new Error("hash is missing in initData");
-
-  const pairs: string[] = [];
-  for (const [k, v] of Object.entries(data)) {
-    if (k === "hash") continue;
-    if (k === "signature") continue; // <-- ВАЖНО
-    pairs.push(`${k}=${v}`);
+  // Если кто-то случайно прислал encodeURIComponent(initData) — аккуратно декодируем один раз
+  // (признак: нет '&', но есть '%3D'/'%26')
+  if (!initData.includes("&") && (initData.includes("%3D") || initData.includes("%26"))) {
+    initData = decodeURIComponent(initData);
   }
-  pairs.sort((a, b) => a.localeCompare(b));
-  const dataCheckString = pairs.join("\n");
 
-  const secretKey = crypto.createHmac("sha256", "WebAppData").update(botToken).digest();
-  const computedHash = crypto.createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
+  // Проверка подписи (по умолчанию ещё проверяет срок жизни ~1 день)
+  // Можно отключить expires check: { expiresIn: 0 } — но лучше оставить.
+  validate(initData, botToken);
 
-  if (computedHash !== receivedHash) throw new Error("initData hash mismatch");
+  const params = new URLSearchParams(initData);
+  const raw = Object.fromEntries(params.entries());
 
-  const authDate = Number(data.auth_date || 0);
-  if (!authDate) throw new Error("auth_date is missing");
+  const auth_date = Number(params.get("auth_date") || 0);
+  const query_id = params.get("query_id") || undefined;
 
-  const userJson = data.user;
-  if (!userJson) throw new Error("user is missing");
-  const user = JSON.parse(userJson) as TelegramWebAppUser;
+  const userStr = params.get("user");
+  if (!userStr) throw new Error("user is missing");
+  const user = JSON.parse(userStr) as TelegramWebAppUser;
 
-  return { user, auth_date: authDate, query_id: data.query_id, raw: data };
+  return { user, auth_date, query_id, raw };
 }
