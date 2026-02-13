@@ -25,6 +25,9 @@ const OWNER_TG_IDS = (process.env.OWNER_TG_IDS || "")
   .map((s) => Number(s))
   .filter((n) => Number.isFinite(n));
 
+  console.log("OWNER_TG_IDS parsed:", OWNER_TG_IDS, "OWNER_TG_ID:", OWNER_TG_ID);
+
+
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
 
 if (!BOT_TOKEN) {
