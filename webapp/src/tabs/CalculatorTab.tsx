@@ -204,6 +204,7 @@ export default function CalculatorTab(_props: any) {
           background: rgba(255,255,255,0.62);
           border-radius: 22px;
           padding: 12px;
+          overflow: hidden;
         }
 
         .vx-exRow{ display:grid; grid-template-columns: 92px 1fr 48px; gap:10px; align-items:center; }
@@ -224,6 +225,24 @@ export default function CalculatorTab(_props: any) {
           user-select:none;
         }
         .vx-iconBtnGhost{ opacity:0; pointer-events:none; }
+
+        /* --- FIX overflow in grid (inputs/selects can overflow in CSS grid) --- */
+        .vx-calcBox *{ box-sizing:border-box; }
+        .vx-exRow > *{ min-width: 0; }
+        .vx-exRow select, .vx-exRow input{
+          width: 100%;
+          max-width: 100%;
+          height: 48px;
+          border-radius: 18px;
+          border: 1px solid rgba(15,23,42,0.12);
+          background: rgba(255,255,255,0.92);
+          padding: 0 14px;
+          font-size: 14px;
+          font-weight: 900;
+          color: #0f172a;
+          outline: none;
+        }
+        .vx-exRow input::placeholder{ color: rgba(15,23,42,0.45); font-weight: 800; }
 
         .vx-methods{ display:flex; gap:8px; flex-wrap:wrap; }
         .vx-pill{
