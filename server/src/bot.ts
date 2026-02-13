@@ -172,6 +172,51 @@ export function createBot(opts: {
     const status: UserStatus = store.users[userKey]?.status ?? "none";
     const createdAtISO = new Date().toISOString();
 
+    bot.command("setrates", async (ctx) => {
+  if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setrates");
+
+  const text = (ctx.message as any)?.text ?? "";
+  // формат:
+  // /setrates USD 25500 25800 RUB 320 340 USDT 25400 25700
+  const parts = text.split(" ").filter(Boolean);
+  if (parts.length !== 10) {
+    return ctx.reply(
+      "Формат: /setrates USD <buy_vnd> <sell_vnd> RUB <buy_vnd> <sell_vnd> USDT <buy_vnd> <sell_vnd>\n" +
+      "Пример: /setrates USD 25500 25800 RUB 320 340 USDT 25400 25700"
+    );
+  }
+
+  const num = (s: string) => {
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+  };
+
+  const usdBuy = num(parts[2]), usdSell = num(parts[3]);
+  const rubBuy = num(parts[5]), rubSell = num(parts[6]);
+  const usdtBuy = num(parts[8]), usdtSell = num(parts[9]);
+
+  if (![usdBuy, usdSell, rubBuy, rubSell, usdtBuy, usdtSell].every(Number.isFinite)) {
+    return ctx.reply("Ошибка: все значения должны быть числами.");
+  }
+
+  const store = readStore();
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+
+  store.ratesByDate[today] = {
+    updated_at: new Date().toISOString(),
+    updated_by: ctx.from!.id,
+    rates: {
+      USD: { buy_vnd: usdBuy, sell_vnd: usdSell },
+      RUB: { buy_vnd: rubBuy, sell_vnd: rubSell },
+      USDT: { buy_vnd: usdtBuy, sell_vnd: usdtSell }
+    }
+  };
+
+  writeStore(store);
+  await ctx.reply(`Курс сохранён ✅ на ${today}`);
+});
+
+
     // сохраняем заявку
     store.requests.push({
       ...payload,
