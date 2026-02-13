@@ -10,20 +10,25 @@ import { formatRequestMessage } from "./format.js";
 export function createBot(opts: {
   token: string;
   webappUrl?: string;
-  ownerTgId?: number;
+  ownerTgId?: number;     // совместимость со старым
+  ownerTgIds?: number[];  // новый вариант
 }) {
   const bot = new Telegraf(opts.token);
 
-  // /start — кнопка открытия Mini App
+  const ownerIds: number[] =
+    (opts.ownerTgIds && opts.ownerTgIds.length ? opts.ownerTgIds : []) ||
+    (opts.ownerTgId ? [opts.ownerTgId] : []);
+
+  const isOwner = (id?: number) => {
+    if (!ownerIds.length) return true; // если не задано — не ограничиваем
+    return !!id && ownerIds.includes(id);
+  };
+
   bot.start(async (ctx) => {
     if (ctx.from) upsertUserFromTelegram(ctx.from);
 
     let webappUrl = opts.webappUrl || "";
-
-    // Авто-добавление https:// если забыли
-    if (webappUrl && !/^https?:\/\//i.test(webappUrl)) {
-      webappUrl = "https://" + webappUrl;
-    }
+    if (webappUrl && !/^https?:\/\//i.test(webappUrl)) webappUrl = "https://" + webappUrl;
 
     if (!webappUrl) {
       return ctx.reply(
@@ -42,10 +47,8 @@ export function createBot(opts: {
     }
   });
 
-  // Узнать tg_id
   bot.command("whoami", async (ctx) => {
     if (ctx.from) upsertUserFromTelegram(ctx.from);
-
     const u = ctx.from;
     await ctx.reply(
       `Ваш tg_id: ${u?.id}\nusername: ${u?.username ? "@" + u.username : "(нет)"}`
@@ -56,15 +59,9 @@ export function createBot(opts: {
     await ctx.reply(`chat_id: ${ctx.chat?.id}`);
   });
 
-  // Сохранить chat_id группы, куда слать заявки
   bot.command("setgroup", async (ctx) => {
-    const owner = opts.ownerTgId;
-    if (owner && ctx.from?.id !== owner) {
-      return ctx.reply("Только владелец может делать /setgroup");
-    }
-    if (!ctx.chat || ctx.chat.type === "private") {
-      return ctx.reply("Используй /setgroup в группе.");
-    }
+    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setgroup");
+    if (!ctx.chat || ctx.chat.type === "private") return ctx.reply("Используй /setgroup в группе.");
 
     const store = readStore();
     store.config.groupChatId = ctx.chat.id;
@@ -76,10 +73,7 @@ export function createBot(opts: {
   // Назначить статус клиенту (только владелец)
   // Использование: /setstatus 123456789 gold
   bot.command("setstatus", async (ctx) => {
-    const owner = opts.ownerTgId;
-    if (owner && ctx.from?.id !== owner) {
-      return ctx.reply("Только владелец может делать /setstatus");
-    }
+    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setstatus");
 
     const text = (ctx.message as any)?.text ?? "";
     const parts = text.split(" ").filter(Boolean);
@@ -100,7 +94,6 @@ export function createBot(opts: {
     const now = new Date().toISOString();
 
     if (!store.users[key]) {
-      // создаём пользователя-заглушку, если ещё не было в базе
       store.users[key] = {
         tg_id: Number(tgId),
         username: undefined,
@@ -119,10 +112,8 @@ export function createBot(opts: {
     return ctx.reply(`Готово ✅ tg_id=${tgId} → статус ${statusRaw}`);
   });
 
-  // Оставим /setwebapp как "подсказку" (на Railway лучше через Variables)
   bot.command("setwebapp", async (ctx) => {
-    const owner = opts.ownerTgId;
-    if (owner && ctx.from?.id !== owner) return ctx.reply("Только владелец может делать /setwebapp");
+    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setwebapp");
 
     const parts = (ctx.message as any)?.text?.split(" ") ?? [];
     const url = parts[1];
@@ -131,7 +122,6 @@ export function createBot(opts: {
     await ctx.reply("Ок ✅ На Railway лучше задавать WEBAPP_URL в Variables. Потом /start.");
   });
 
-  // Ловим заявки из Mini App (Telegram.WebApp.sendData)
   bot.on("message", async (ctx) => {
     const msg: any = ctx.message;
     const wad = msg?.web_app_data?.data;
@@ -159,7 +149,6 @@ export function createBot(opts: {
     const status: UserStatus = store.users[userKey]?.status ?? "none";
     const createdAtISO = new Date().toISOString();
 
-    // сохраняем заявку
     store.requests.push({
       ...payload,
       from: ctx.from,
@@ -181,7 +170,7 @@ export function createBot(opts: {
       sellAmount: payload.sellAmount,
       buyAmount: payload.buyAmount,
       receiveMethod: payload.receiveMethod,
-      note: payload.note,
+      note: payload.note, // если уберёшь поле в калькуляторе — здесь будет undefined, это ок
       createdAtISO
     });
 
