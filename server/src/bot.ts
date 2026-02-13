@@ -16,8 +16,7 @@ export function createBot(opts: {
   const bot = new Telegraf(opts.token);
 
   const ownerIds: number[] =
-    (opts.ownerTgIds && opts.ownerTgIds.length ? opts.ownerTgIds : []) ||
-    (opts.ownerTgId ? [opts.ownerTgId] : []);
+  (opts.ownerTgIds && opts.ownerTgIds.length ? opts.ownerTgIds : (opts.ownerTgId ? [opts.ownerTgId] : []));
 
   const isOwner = (id?: number) => {
     if (!ownerIds.length) return true; // если не задано — не ограничиваем
