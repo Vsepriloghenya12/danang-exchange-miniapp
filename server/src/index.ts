@@ -13,7 +13,18 @@ dotenv.config();
 
 const BOT_TOKEN = process.env.BOT_TOKEN || "";
 const WEBAPP_URL = process.env.WEBAPP_URL || "";
+
+// Старый вариант (1 владелец)
 const OWNER_TG_ID = process.env.OWNER_TG_ID ? Number(process.env.OWNER_TG_ID) : undefined;
+
+// Новый вариант (несколько владельцев): "111,222,333"
+const OWNER_TG_IDS = (process.env.OWNER_TG_IDS || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean)
+  .map((s) => Number(s))
+  .filter((n) => Number.isFinite(n));
+
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
 
 if (!BOT_TOKEN) {
@@ -30,14 +41,22 @@ const BASE_URL =
   process.env.PUBLIC_URL ||
   (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : "");
 
-// Секретный путь вебхука
-const WEBHOOK_PATH = process.env.WEBHOOK_PATH || `/tg-${BOT_TOKEN.slice(0, 16)}`;
+// Секретный путь вебхука (лучше переопределить через WEBHOOK_PATH, чтобы токен не светился)
+const WEBHOOK_PATH = process.env.WEBHOOK_PATH || `/tg-webhook-${BOT_TOKEN.slice(0, 16)}`;
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 
-app.use("/api", createApiRouter({ botToken: BOT_TOKEN, ownerTgId: OWNER_TG_ID }));
+// API: передаём ownerTgIds (и ownerTgId для совместимости)
+app.use(
+  "/api",
+  createApiRouter({
+    botToken: BOT_TOKEN,
+    ownerTgIds: OWNER_TG_IDS,
+    ownerTgId: OWNER_TG_ID
+  })
+);
 
 if (fs.existsSync(webDist)) {
   app.use(express.static(webDist));
@@ -47,13 +66,19 @@ if (fs.existsSync(webDist)) {
 }
 
 console.log("➡️ Starting bot...");
-const bot = createBot({ token: BOT_TOKEN, webappUrl: WEBAPP_URL, ownerTgId: OWNER_TG_ID });
+
+// Bot: тоже получает список владельцев
+const bot = createBot({
+  token: BOT_TOKEN,
+  webappUrl: WEBAPP_URL,
+  ownerTgIds: OWNER_TG_IDS.length ? OWNER_TG_IDS : (OWNER_TG_ID ? [OWNER_TG_ID] : undefined)
+});
 
 process.on("unhandledRejection", (e) => console.error("UNHANDLED REJECTION:", e));
 process.on("uncaughtException", (e) => console.error("UNCAUGHT EXCEPTION:", e));
 bot.catch((err) => console.error("BOT ERROR:", err));
 
-// ВАЖНО: webhookCallback сам понимает путь, просто монтируем middleware
+// webhookCallback сам понимает путь, просто монтируем middleware
 app.use(bot.webhookCallback(WEBHOOK_PATH));
 
 const server = app.listen(PORT, async () => {
@@ -71,7 +96,6 @@ const server = app.listen(PORT, async () => {
     return;
   }
 
-  // На Railway — webhook
   const full = `${BASE_URL}${WEBHOOK_PATH}`;
   await bot.telegram.setWebhook(full);
   console.log(`✅ Webhook set: ${full}`);
