@@ -1,5 +1,10 @@
 import { Telegraf, Markup } from "telegraf";
-import { readStore, writeStore } from "./store.js";
+import {
+  readStore,
+  writeStore,
+  upsertUserFromTelegram,
+  type UserStatus
+} from "./store.js";
 import { formatRequestMessage } from "./format.js";
 
 export function createBot(opts: {
@@ -9,25 +14,38 @@ export function createBot(opts: {
 }) {
   const bot = new Telegraf(opts.token);
 
+  // /start — кнопка открытия Mini App
   bot.start(async (ctx) => {
+    if (ctx.from) upsertUserFromTelegram(ctx.from);
+
     let webappUrl = opts.webappUrl || "";
-if (webappUrl && !/^https?:\/\//i.test(webappUrl)) webappUrl = "https://" + webappUrl;
+
+    // Авто-добавление https:// если забыли
+    if (webappUrl && !/^https?:\/\//i.test(webappUrl)) {
+      webappUrl = "https://" + webappUrl;
+    }
 
     if (!webappUrl) {
       return ctx.reply(
-        "WEBAPP_URL не задан. Сначала задай публичный HTTPS URL (Railway domain) в переменной WEBAPP_URL.\n" +
-          "Потом снова /start."
+        "WEBAPP_URL не задан. Укажи публичный HTTPS URL в Railway Variables и снова /start."
       );
     }
 
-    const kb = Markup.inlineKeyboard([
-      Markup.button.webApp("Открыть мини-приложение", webappUrl)
-    ]);
-
-    await ctx.reply("Открывай мини-приложение 👇", kb);
+    try {
+      const kb = Markup.inlineKeyboard([
+        Markup.button.webApp("Открыть мини-приложение", webappUrl)
+      ]);
+      await ctx.reply("Открывай мини-приложение 👇", kb);
+    } catch (e) {
+      console.error("START REPLY ERROR:", e);
+      await ctx.reply(`Открой мини-приложение по ссылке: ${webappUrl}`);
+    }
   });
 
+  // Узнать tg_id
   bot.command("whoami", async (ctx) => {
+    if (ctx.from) upsertUserFromTelegram(ctx.from);
+
     const u = ctx.from;
     await ctx.reply(
       `Ваш tg_id: ${u?.id}\nusername: ${u?.username ? "@" + u.username : "(нет)"}`
@@ -38,6 +56,7 @@ if (webappUrl && !/^https?:\/\//i.test(webappUrl)) webappUrl = "https://" + weba
     await ctx.reply(`chat_id: ${ctx.chat?.id}`);
   });
 
+  // Сохранить chat_id группы, куда слать заявки
   bot.command("setgroup", async (ctx) => {
     const owner = opts.ownerTgId;
     if (owner && ctx.from?.id !== owner) {
@@ -54,24 +73,71 @@ if (webappUrl && !/^https?:\/\//i.test(webappUrl)) webappUrl = "https://" + weba
     await ctx.reply(`Группа сохранена ✅ groupChatId=${ctx.chat.id}`);
   });
 
-  // Команду /setwebapp оставляем, но НЕ пытаемся ставить chat menu button (из-за типовых/совместимости).
+  // Назначить статус клиенту (только владелец)
+  // Использование: /setstatus 123456789 gold
+  bot.command("setstatus", async (ctx) => {
+    const owner = opts.ownerTgId;
+    if (owner && ctx.from?.id !== owner) {
+      return ctx.reply("Только владелец может делать /setstatus");
+    }
+
+    const text = (ctx.message as any)?.text ?? "";
+    const parts = text.split(" ").filter(Boolean);
+    const tgId = parts[1];
+    const statusRaw = (parts[2] || "").toLowerCase();
+
+    if (!tgId || !statusRaw) {
+      return ctx.reply("Использование: /setstatus <tg_id> <none|bronze|silver|gold>");
+    }
+
+    const allowed: UserStatus[] = ["none", "bronze", "silver", "gold"];
+    if (!allowed.includes(statusRaw as UserStatus)) {
+      return ctx.reply("Статус только: none | bronze | silver | gold");
+    }
+
+    const store = readStore();
+    const key = String(tgId);
+    const now = new Date().toISOString();
+
+    if (!store.users[key]) {
+      // создаём пользователя-заглушку, если ещё не было в базе
+      store.users[key] = {
+        tg_id: Number(tgId),
+        username: undefined,
+        first_name: undefined,
+        last_name: undefined,
+        status: statusRaw as UserStatus,
+        created_at: now,
+        last_seen_at: now
+      };
+    } else {
+      store.users[key].status = statusRaw as UserStatus;
+      store.users[key].last_seen_at = now;
+    }
+
+    writeStore(store);
+    return ctx.reply(`Готово ✅ tg_id=${tgId} → статус ${statusRaw}`);
+  });
+
+  // Оставим /setwebapp как "подсказку" (на Railway лучше через Variables)
   bot.command("setwebapp", async (ctx) => {
     const owner = opts.ownerTgId;
     if (owner && ctx.from?.id !== owner) return ctx.reply("Только владелец может делать /setwebapp");
+
     const parts = (ctx.message as any)?.text?.split(" ") ?? [];
     const url = parts[1];
     if (!url) return ctx.reply("Использование: /setwebapp https://xxxx.tld");
 
-    // На Railway лучше задавать WEBAPP_URL через Variables.
-    // Здесь просто подтверждаем, чтобы не ломать сборку типами.
-    await ctx.reply("Ок ✅ Лучше задай WEBAPP_URL в Railway Variables и нажми /start.");
+    await ctx.reply("Ок ✅ На Railway лучше задавать WEBAPP_URL в Variables. Потом /start.");
   });
 
-  // Ловим заявки из Mini App (sendData)
+  // Ловим заявки из Mini App (Telegram.WebApp.sendData)
   bot.on("message", async (ctx) => {
     const msg: any = ctx.message;
     const wad = msg?.web_app_data?.data;
     if (!wad) return;
+
+    if (ctx.from) upsertUserFromTelegram(ctx.from);
 
     let payload: any;
     try {
@@ -90,9 +156,10 @@ if (webappUrl && !/^https?:\/\//i.test(webappUrl)) webappUrl = "https://" + weba
     }
 
     const userKey = String(ctx.from?.id ?? "");
-    const status = store.users[userKey]?.status ?? "none";
+    const status: UserStatus = store.users[userKey]?.status ?? "none";
     const createdAtISO = new Date().toISOString();
 
+    // сохраняем заявку
     store.requests.push({
       ...payload,
       from: ctx.from,
@@ -118,7 +185,6 @@ if (webappUrl && !/^https?:\/\//i.test(webappUrl)) webappUrl = "https://" + weba
       createdAtISO
     });
 
-    // Telegraf типы иногда спорят — отправим как Telegram API extra, но без лишних конфликтов
     await ctx.telegram.sendMessage(groupChatId, text, { parse_mode: "HTML" } as any);
     await ctx.reply("Заявка отправлена ✅");
   });
