@@ -200,7 +200,21 @@ export function createApiRouter(opts: {
 
       if (!groupChatId) return res.status(400).json({ ok: false, error: "group_not_set" });
 
-      const createdAtISO = new Date().toISOString();
+      const createdAt = new Date();
+
+const createdAtText = new Intl.DateTimeFormat("ru-RU", {
+  timeZone: "Asia/Ho_Chi_Minh",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false
+}).format(createdAt).replace(",", "");
+
+// если всё-таки хочешь хранить ISO для базы — оставь:
+const createdAtISO = createdAt.toISOString();
+
       const who =
         (user.username ? `@${user.username}` : `${user.first_name || ""} ${user.last_name || ""}`.trim() || `id ${user.id}`) +
         ` • статус: ${status}`;
@@ -214,7 +228,7 @@ export function createApiRouter(opts: {
         `💸 Отдаёт: ${sellAmount}\n` +
         `🎯 Получит: ${buyAmount}\n` +
         `📦 Способ: ${methodMap[receiveMethod] || receiveMethod}\n` +
-        `🕒 ${createdAtISO}`;
+        `🕒 ${createdAtText} (Дананг, UTC+7)`;
 
       // 1) сначала отправляем в группу (только если Telegram подтвердил ok — считаем что заявка доставлена)
       const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
