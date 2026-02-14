@@ -83,7 +83,7 @@ export default function AdminTab({ me }: any) {
                 <span className="small">{u.username ? "@" + u.username : ""} • id:{u.tg_id} • статус: {u.status}</span>
               </div>
               <div className="row" style={{ marginTop: 6 }}>
-                {["none","bronze","silver","gold"].map(s => (
+                {["standart","silver","gold"].map(s => (
                   <button key={s} className="btn" style={{ padding: "8px 10px" }} onClick={() => setStatus(u.tg_id, s)}>
                     {s}
                   </button>

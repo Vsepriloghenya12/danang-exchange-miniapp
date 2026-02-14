@@ -1,8 +1,15 @@
 import express from "express";
-import { readStore, writeStore, upsertUserFromTelegram, type UserStatus, normalizeStatus } from "./store.js";
+import {
+  readStore,
+  writeStore,
+  upsertUserFromTelegram,
+  type UserStatus,
+  normalizeStatus
+} from "./store.js";
 import { validateTelegramInitData } from "./telegramValidate.js";
 
 type ReceiveMethod = "cash" | "transfer" | "atm";
+type Currency = "RUB" | "USD" | "USDT" | "VND";
 
 const statusLabel: Record<UserStatus, string> = {
   standard: "стандарт",
@@ -25,17 +32,19 @@ export function createApiRouter(opts: {
   }
 
   function requireAuth(req: express.Request) {
+    // Authorization: tma <initData>
     const auth = (req.headers.authorization as string | undefined) || "";
     const initFromAuth = auth.startsWith("tma ") ? auth.slice(4) : undefined;
     const initFromHeader = req.headers["x-telegram-init-data"] as string | undefined;
     const initFromBody =
-      (req.body?.initData as string | undefined) ||
-      (req.body?.init_data as string | undefined);
+      (req.body?.initData as string | undefined) || (req.body?.init_data as string | undefined);
 
     const initData = initFromAuth || initFromHeader || initFromBody;
     if (!initData) throw new Error("No initData");
 
     const v = validateTelegramInitData(initData, opts.botToken);
+
+    // создаём/обновляем пользователя в store
     const up = upsertUserFromTelegram(v.user);
     const status = (up?.status ?? "standard") as UserStatus;
     const isOwner = isOwnerId(v.user.id);
@@ -43,6 +52,9 @@ export function createApiRouter(opts: {
     return { user: v.user, status, isOwner };
   }
 
+  // --------------------
+  // Health / Auth
+  // --------------------
   router.get("/health", (_req, res) => res.json({ ok: true }));
 
   router.post("/auth", (req, res) => {
@@ -54,7 +66,9 @@ export function createApiRouter(opts: {
     }
   });
 
-  // ---- Rates ----
+  // --------------------
+  // Rates
+  // --------------------
   router.get("/rates/today", (_req, res) => {
     const store = readStore();
     const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
@@ -62,55 +76,132 @@ export function createApiRouter(opts: {
     res.json({ ok: true, date: today, data });
   });
 
-  // ---- Reviews ----
-  router.get("/reviews", (_req, res) => {
-    const store = readStore();
-    const reviews = (store.reviews || []).slice(-50).reverse();
-    res.json({ ok: true, reviews });
-  });
-
-  router.post("/reviews", (req, res) => {
+  // ✅ Админка: получить курс на сегодня
+  router.get("/admin/rates/today", (req, res) => {
     try {
-      const { user } = requireAuth(req);
-      const rating = Number(req.body?.rating);
-      const text = String(req.body?.text || "").trim();
-
-      if (!(rating >= 1 && rating <= 5)) return res.status(400).json({ ok: false, error: "bad_rating" });
-      if (text.length < 3) return res.status(400).json({ ok: false, error: "text_too_short" });
+      const { isOwner } = requireAuth(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const store = readStore();
-      store.reviews = store.reviews || [];
-      store.reviews.push({
-        id: cryptoRandomId(),
-        tg_id: user.id,
-        username: user.username,
-        rating,
-        text,
-        created_at: new Date().toISOString()
-      });
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+      const data = store.ratesByDate?.[today] || null;
+      res.json({ ok: true, date: today, data });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // ✅ Админка: сохранить курс на сегодня
+  router.post("/admin/rates/today", (req, res) => {
+    try {
+      const { isOwner, user } = requireAuth(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const body = req.body || {};
+      const rates = body.rates || body; // поддержим оба формата
+
+      // ожидаем: USD/RUB/USDT с buy_vnd/sell_vnd
+      const USD = rates?.USD;
+      const RUB = rates?.RUB;
+      const USDT = rates?.USDT;
+
+      if (!USD || !RUB || !USDT) {
+        return res.status(400).json({ ok: false, error: "rates_missing" });
+      }
+
+      const num = (x: any) => Number(x);
+      const data = {
+        USD: { buy_vnd: num(USD.buy_vnd), sell_vnd: num(USD.sell_vnd) },
+        RUB: { buy_vnd: num(RUB.buy_vnd), sell_vnd: num(RUB.sell_vnd) },
+        USDT: { buy_vnd: num(USDT.buy_vnd), sell_vnd: num(USDT.sell_vnd) }
+      };
+
+      const all = [
+        data.USD.buy_vnd,
+        data.USD.sell_vnd,
+        data.RUB.buy_vnd,
+        data.RUB.sell_vnd,
+        data.USDT.buy_vnd,
+        data.USDT.sell_vnd
+      ];
+      if (!all.every((n) => Number.isFinite(n) && n > 0)) {
+        return res.status(400).json({ ok: false, error: "bad_numbers" });
+      }
+
+      const store = readStore();
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+
+      store.ratesByDate[today] = {
+        updated_at: new Date().toISOString(),
+        updated_by: user.id,
+        rates: data
+      };
 
       writeStore(store);
+      res.json({ ok: true, date: today, data: store.ratesByDate[today] });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // --------------------
+  // Admin users
+  // --------------------
+  router.get("/admin/users", (req, res) => {
+    try {
+      const { isOwner } = requireAuth(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const store = readStore();
+      res.json({ ok: true, users: Object.values(store.users || {}) });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // ✅ теперь строго: только standard/silver/gold
+  router.post("/admin/users/:tgId/status", (req, res) => {
+    try {
+      const { isOwner } = requireAuth(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const tgId = Number(req.params.tgId);
+      const raw = String(req.body?.status || "").toLowerCase().trim();
+
+      const allowed = new Set<UserStatus>(["standard", "silver", "gold"]);
+      if (!allowed.has(raw as UserStatus)) {
+        return res.status(400).json({ ok: false, error: "bad_status" });
+      }
+
+      const store = readStore();
+      const key = String(tgId);
+      if (!store.users?.[key]) return res.status(404).json({ ok: false, error: "user_not_found" });
+
+      store.users[key].status = raw as UserStatus;
+      writeStore(store);
+
       res.json({ ok: true });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
-  // ---- Requests ----
-  // WebApp шлёт сюда — сервер отправляет в группу и отвечает ok:true только если Telegram принял сообщение
+  // --------------------
+  // Requests (главное): отправка заявки в группу
+  // --------------------
   router.post("/requests", async (req, res) => {
     try {
       const { user, status } = requireAuth(req);
 
       const p = req.body || {};
-      const sellCurrency = String(p.sellCurrency || "");
-      const buyCurrency = String(p.buyCurrency || "");
+      const sellCurrency = String(p.sellCurrency || "") as Currency;
+      const buyCurrency = String(p.buyCurrency || "") as Currency;
       const sellAmount = Number(p.sellAmount);
       const buyAmount = Number(p.buyAmount);
-      const receiveMethod = String(p.receiveMethod || "");
+      const receiveMethod = String(p.receiveMethod || "").toLowerCase() as ReceiveMethod;
 
-      const allowedCur = new Set(["RUB", "USD", "USDT", "VND"]);
-      const allowedMethod = new Set(["cash", "transfer", "atm"]);
+      const allowedCur = new Set<Currency>(["RUB", "USD", "USDT", "VND"]);
+      const allowedMethod = new Set<ReceiveMethod>(["cash", "transfer", "atm"]);
 
       if (!allowedCur.has(sellCurrency) || !allowedCur.has(buyCurrency) || sellCurrency === buyCurrency) {
         return res.status(400).json({ ok: false, error: "bad_currency" });
@@ -137,10 +228,16 @@ export function createApiRouter(opts: {
         hour12: false
       }).format(new Date()).replace(",", "");
 
-      const methodMap: Record<string, string> = { cash: "наличные", transfer: "перевод", atm: "банкомат" };
+      const methodMap: Record<ReceiveMethod, string> = {
+        cash: "наличные",
+        transfer: "перевод",
+        atm: "банкомат"
+      };
 
       const who =
-        (user.username ? `@${user.username}` : `${user.first_name || ""} ${user.last_name || ""}`.trim() || `id ${user.id}`) +
+        (user.username
+          ? `@${user.username}`
+          : `${user.first_name || ""} ${user.last_name || ""}`.trim() || `id ${user.id}`) +
         ` • статус: ${statusLabel[normalizeStatus(status)]}`;
 
       const text =
@@ -149,10 +246,9 @@ export function createApiRouter(opts: {
         `🔁 ${sellCurrency} → ${buyCurrency}\n` +
         `💸 Отдаёт: ${sellAmount}\n` +
         `🎯 Получит: ${buyAmount}\n` +
-        `📦 Способ: ${methodMap[receiveMethod] || receiveMethod}\n` +
+        `📦 Способ: ${methodMap[receiveMethod]}\n` +
         `🕒 ${dtDaNang}`;
 
-      // отправляем в группу
       const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -168,14 +264,13 @@ export function createApiRouter(opts: {
         return res.status(500).json({ ok: false, error: tgJson?.description || "tg_send_failed" });
       }
 
-      // сохраняем заявку
       store.requests = store.requests || [];
       store.requests.push({
         sellCurrency,
         buyCurrency,
         sellAmount,
         buyAmount,
-        receiveMethod: receiveMethod as ReceiveMethod,
+        receiveMethod,
         from: user,
         status: normalizeStatus(status),
         created_at: new Date().toISOString()
@@ -188,46 +283,5 @@ export function createApiRouter(opts: {
     }
   });
 
-  // ---- Admin users ----
-  router.get("/admin/users", (req, res) => {
-    try {
-      const { isOwner } = requireAuth(req);
-      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-
-      const store = readStore();
-      res.json({ ok: true, users: Object.values(store.users || {}) });
-    } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
-    }
-  });
-
-  router.post("/admin/users/:tgId/status", (req, res) => {
-    try {
-      const { isOwner } = requireAuth(req);
-      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-
-      const tgId = Number(req.params.tgId);
-      const next = normalizeStatus(req.body?.status);
-
-      const allowed = new Set<UserStatus>(["standard", "silver", "gold"]);
-      if (!allowed.has(next)) return res.status(400).json({ ok: false, error: "bad_status" });
-
-      const store = readStore();
-      const key = String(tgId);
-      if (!store.users?.[key]) return res.status(404).json({ ok: false, error: "user_not_found" });
-
-      store.users[key].status = next;
-      writeStore(store);
-
-      res.json({ ok: true });
-    } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
-    }
-  });
-
   return router;
-}
-
-function cryptoRandomId() {
-  return Math.random().toString(16).slice(2) + Date.now().toString(16);
 }
