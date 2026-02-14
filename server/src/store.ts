@@ -54,15 +54,38 @@ function defaultStore(): Store {
   };
 }
 
+/**
+ * Строгий парсер статуса:
+ * - возвращает UserStatus, если распознали
+ * - возвращает null, если не распознали (мусор/пусто)
+ */
+export function parseStatusInput(s: any): UserStatus | null {
+  const v = String(s ?? "").toLowerCase().trim();
+  if (!v || v === "none") return null;
+
+  // STANDARD (+ совместимость со старым bronze)
+  if (["standard", "standart", "стандарт", "bronze"].includes(v)) return "standard";
+
+  // SILVER
+  if (["silver", "серебро", "сильвер", "силвер"].includes(v)) return "silver";
+
+  // GOLD
+  if (["gold", "золото", "голд"].includes(v)) return "gold";
+
+  return null;
+}
+
+/**
+ * Нормализация для хранения/миграций:
+ * - мусор/пусто => standard
+ */
 export function normalizeStatus(s: any): UserStatus {
-  const v = String(s || "").toLowerCase();
+  const v = String(s ?? "").toLowerCase().trim();
 
-  // миграция старых статусов
-  if (v === "" || v === "none" || v === "bronze") return "standard";
+  // миграция старых статусов / пустых значений
+  if (v === "" || v === "none") return "standard";
 
-  if (v === "standard" || v === "silver" || v === "gold") return v;
-
-  return "standard";
+  return parseStatusInput(v) ?? "standard";
 }
 
 function ensureDir() {

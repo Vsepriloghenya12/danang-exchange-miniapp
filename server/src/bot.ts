@@ -1,5 +1,12 @@
 import { Telegraf, Markup } from "telegraf";
-import { readStore, writeStore, upsertUserFromTelegram, type UserStatus, normalizeStatus } from "./store.js";
+import {
+  readStore,
+  writeStore,
+  upsertUserFromTelegram,
+  type UserStatus,
+  normalizeStatus,
+  parseStatusInput
+} from "./store.js";
 
 type ReceiveMethod = "cash" | "transfer" | "atm";
 
@@ -20,7 +27,9 @@ export function createBot(opts: {
   const ownerIds: number[] =
     opts.ownerTgIds && opts.ownerTgIds.length
       ? opts.ownerTgIds
-      : (opts.ownerTgId ? [opts.ownerTgId] : []);
+      : opts.ownerTgId
+      ? [opts.ownerTgId]
+      : [];
 
   const isOwner = (id?: number) => {
     if (!ownerIds.length) return true; // если не задали владельцев — не ограничиваем
@@ -37,10 +46,7 @@ export function createBot(opts: {
       return ctx.reply("WEBAPP_URL не задан. Укажи публичный HTTPS URL и снова /start.");
     }
 
-    const kb = Markup.inlineKeyboard([
-      Markup.button.webApp("Открыть мини-приложение", webappUrl)
-    ]);
-
+    const kb = Markup.inlineKeyboard([Markup.button.webApp("Открыть мини-приложение", webappUrl)]);
     await ctx.reply("Открывай мини-приложение 👇", kb);
   });
 
@@ -49,8 +55,8 @@ export function createBot(opts: {
       const u = upsertUserFromTelegram(ctx.from);
       await ctx.reply(
         `Твой tg_id: ${u.tg_id}\n` +
-        `username: ${u.username ? "@" + u.username : "(нет)"}\n` +
-        `статус: ${statusLabel[u.status]}`
+          `username: ${u.username ? "@" + u.username : "(нет)"}\n` +
+          `статус: ${statusLabel[u.status]}`
       );
     } else {
       await ctx.reply("Не вижу пользователя.");
@@ -78,8 +84,8 @@ export function createBot(opts: {
     const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
     await ctx.reply(
       `store.groupChatId: ${store.config.groupChatId ?? "(не задан)"}\n` +
-      `env.GROUP_CHAT_ID: ${envGroup ?? "(не задан)"}\n` +
-      `requests: ${store.requests.length}`
+        `env.GROUP_CHAT_ID: ${envGroup ?? "(не задан)"}\n` +
+        `requests: ${store.requests.length}`
     );
   });
 
@@ -106,18 +112,21 @@ export function createBot(opts: {
 
     const text = (ctx.message as any)?.text ?? "";
     const parts = text.split(" ").filter(Boolean);
-    const tgId = parts[1];
-    const statusRaw = (parts[2] || "").toLowerCase();
+    const tgIdRaw = parts[1];
+    const statusRaw = parts[2];
 
-    if (!tgId || !statusRaw) {
+    if (!tgIdRaw || !statusRaw) {
       return ctx.reply("Использование: /setstatus <tg_id> <standard|silver|gold>");
     }
 
-    const next = normalizeStatus(statusRaw);
-    // normalizeStatus вернёт standard даже для мусора → проверим строго:
-    const allowed: UserStatus[] = ["standard", "silver", "gold"];
-    if (!allowed.includes(next)) {
-      return ctx.reply("Статус только: standard | silver | gold");
+    const tgId = Number(tgIdRaw);
+    if (!Number.isFinite(tgId) || tgId <= 0) {
+      return ctx.reply("tg_id должен быть числом. Пример: /setstatus 123456789 gold");
+    }
+
+    const next = parseStatusInput(statusRaw);
+    if (!next) {
+      return ctx.reply("Статус только: standard | silver | gold (можно: стандарт/серебро/золото)");
     }
 
     const store = readStore();
@@ -126,7 +135,7 @@ export function createBot(opts: {
 
     if (!store.users[key]) {
       store.users[key] = {
-        tg_id: Number(tgId),
+        tg_id: tgId,
         username: undefined,
         first_name: undefined,
         last_name: undefined,
@@ -182,11 +191,15 @@ export function createBot(opts: {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false
-    }).format(new Date()).replace(",", "");
+    })
+      .format(new Date())
+      .replace(",", "");
 
     const who =
-      (ctx.from?.username ? `@${ctx.from.username}` : `${ctx.from?.first_name || ""} ${ctx.from?.last_name || ""}`.trim() || `id ${ctx.from?.id}`) +
-      ` • статус: ${statusLabel[status]}`;
+      (ctx.from?.username
+        ? `@${ctx.from.username}`
+        : `${ctx.from?.first_name || ""} ${ctx.from?.last_name || ""}`.trim() || `id ${ctx.from?.id}`) +
+      ` • статус: ${statusLabel[normalizeStatus(status)]}`;
 
     const text =
       `💱 Заявка\n` +

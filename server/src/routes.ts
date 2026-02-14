@@ -4,7 +4,8 @@ import {
   writeStore,
   upsertUserFromTelegram,
   type UserStatus,
-  normalizeStatus
+  normalizeStatus,
+  parseStatusInput
 } from "./store.js";
 import { validateTelegramInitData } from "./telegramValidate.js";
 
@@ -44,7 +45,6 @@ export function createApiRouter(opts: {
 
     const v = validateTelegramInitData(initData, opts.botToken);
 
-    // создаём/обновляем пользователя в store
     const up = upsertUserFromTelegram(v.user);
     const status = (up?.status ?? "standard") as UserStatus;
     const isOwner = isOwnerId(v.user.id);
@@ -52,15 +52,30 @@ export function createApiRouter(opts: {
     return { user: v.user, status, isOwner };
   }
 
-  // --------------------
-  // Health / Auth
-  // --------------------
   router.get("/health", (_req, res) => res.json({ ok: true }));
 
   router.post("/auth", (req, res) => {
     try {
       const { user, status, isOwner } = requireAuth(req);
       res.json({ ok: true, user, status, statusLabel: statusLabel[status], isOwner });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // ✅ чтобы фронт мог получить статус без 404
+  router.get("/me", (req, res) => {
+    try {
+      const { user, status, isOwner } = requireAuth(req);
+      res.json({
+        ok: true,
+        data: {
+          user,
+          status,
+          statusLabel: statusLabel[normalizeStatus(status)],
+          isOwner
+        }
+      });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -76,7 +91,6 @@ export function createApiRouter(opts: {
     res.json({ ok: true, date: today, data });
   });
 
-  // ✅ Админка: получить курс на сегодня
   router.get("/admin/rates/today", (req, res) => {
     try {
       const { isOwner } = requireAuth(req);
@@ -91,16 +105,14 @@ export function createApiRouter(opts: {
     }
   });
 
-  // ✅ Админка: сохранить курс на сегодня
   router.post("/admin/rates/today", (req, res) => {
     try {
       const { isOwner, user } = requireAuth(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const body = req.body || {};
-      const rates = body.rates || body; // поддержим оба формата
+      const rates = body.rates || body;
 
-      // ожидаем: USD/RUB/USDT с buy_vnd/sell_vnd
       const USD = rates?.USD;
       const RUB = rates?.RUB;
       const USDT = rates?.USDT;
@@ -159,35 +171,41 @@ export function createApiRouter(opts: {
     }
   });
 
-  // ✅ теперь строго: только standard/silver/gold
+  // ✅ статус: понимаем standard/silver/gold + русские синонимы
   router.post("/admin/users/:tgId/status", (req, res) => {
     try {
       const { isOwner } = requireAuth(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const tgId = Number(req.params.tgId);
-      const raw = String(req.body?.status || "").toLowerCase().trim();
+      if (!Number.isFinite(tgId) || tgId <= 0) {
+        return res.status(400).json({ ok: false, error: "bad_tg_id" });
+      }
 
-      const allowed = new Set<UserStatus>(["standard", "silver", "gold"]);
-      if (!allowed.has(raw as UserStatus)) {
-        return res.status(400).json({ ok: false, error: "bad_status" });
+      const next = parseStatusInput(req.body?.status);
+      if (!next) {
+        return res.status(400).json({
+          ok: false,
+          error: "bad_status",
+          hint: "status: standard|silver|gold (можно: стандарт/серебро/золото)"
+        });
       }
 
       const store = readStore();
       const key = String(tgId);
       if (!store.users?.[key]) return res.status(404).json({ ok: false, error: "user_not_found" });
 
-      store.users[key].status = raw as UserStatus;
+      store.users[key].status = next;
       writeStore(store);
 
-      res.json({ ok: true });
+      res.json({ ok: true, status: next, statusLabel: statusLabel[next] });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
   // --------------------
-  // Requests (главное): отправка заявки в группу
+  // Requests
   // --------------------
   router.post("/requests", async (req, res) => {
     try {
