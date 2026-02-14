@@ -11,7 +11,6 @@ type Rates = {
 };
 
 type RateKey = Exclude<Currency, "VND">;
-
 function isRateKey(c: Currency): c is RateKey {
   return c !== "VND";
 }
@@ -47,80 +46,75 @@ function methodLabel(m: ReceiveMethod) {
 
 function normalizeStatus(s: any): ClientStatus {
   const v = String(s ?? "").toLowerCase().trim();
-  if (["gold", "золото", "голд"].includes(v)) return "gold";
+  if (["gold", "голд", "золото"].includes(v)) return "gold";
   if (["silver", "силвер", "сильвер", "серебро"].includes(v)) return "silver";
-  // старые статусы (например bronze) считаем стандартом
+  // bronze/unknown считаем стандартом
   return "standard";
 }
-
 function statusLabel(s: ClientStatus) {
   if (s === "gold") return "Голд";
   if (s === "silver") return "Сильвер";
   return "Стандарт";
 }
 
+/**
+ * Надбавка по способу получения:
+ * если получаем VND и выбрали банкомат/перевод => +1 к курсу
+ */
 function methodBonusForRate(buyCurrency: Currency, receiveMethod: ReceiveMethod): number {
-  // +1 если получение в банкомате или переводом (актуально когда получаем VND)
   if (buyCurrency !== "VND") return 0;
   return receiveMethod === "transfer" || receiveMethod === "atm" ? 1 : 0;
 }
 
+/**
+ * Надбавка по статусу и сумме:
+ * - для RUB: +1..+5
+ * - для USD/USDT: +100..+300  (ВАЖНО: не +1..+3!)
+ */
 function tierBonusForRate(sellCurrency: Currency, sellAmount: number, status: ClientStatus): number {
   if (sellAmount <= 0) return 0;
 
-  // Таблица для RUB (₽)
+  // ₽ таблица
   if (sellCurrency === "RUB") {
     const a = sellAmount;
 
-    // До 50к
     if (a < 50_000) {
       if (status === "silver") return 1;
       if (status === "gold") return 2;
-      return 0; // standard
+      return 0;
     }
-
-    // 50–100к
     if (a < 100_000) {
       if (status === "standard") return 1;
       if (status === "silver") return 2;
-      return 3; // gold
+      return 3;
     }
-
-    // 100–200к
     if (a < 200_000) {
       if (status === "standard") return 2;
       if (status === "silver") return 3;
-      return 4; // gold
+      return 4;
     }
-
-    // 200к+
     if (status === "standard") return 3;
     if (status === "silver") return 4;
-    return 5; // gold
+    return 5;
   }
 
-  // Таблица для USD/USDT
+  // USD/USDT таблица (шаг 100)
   if (sellCurrency === "USD" || sellCurrency === "USDT") {
     const a = sellAmount;
 
-    // До 1000
     if (a < 1000) {
       if (status === "silver") return 100;
       if (status === "gold") return 100;
-      return 0; // standard
+      return 0;
     }
-
-    // 1000–3000
     if (a < 3000) {
       if (status === "standard") return 100;
       if (status === "silver") return 150;
-      return 200; // gold
+      return 200;
     }
-
-    // 3000+
     if (status === "standard") return 150;
     if (status === "silver") return 200;
-    return 300; // gold
+    return 300;
   }
 
   return 0;
@@ -140,11 +134,11 @@ function applyRateBonuses(
     USDT: { ...baseRates.USDT },
   };
 
-  // Бонус добавляем к курсу когда клиент ОТДАЁТ (RUB/USD/USDT) и ПОЛУЧАЕТ VND.
+  // Бонусы применяем только когда клиент ОТДАЁТ (RUB/USD/USDT) и ПОЛУЧАЕТ VND
   if (buyCurrency === "VND" && isRateKey(sellCurrency)) {
-    const tierBonus = tierBonusForRate(sellCurrency, sellAmountForTier, status);
-    const mBonus = methodBonusForRate(buyCurrency, receiveMethod);
-    next[sellCurrency].buy_vnd = baseRates[sellCurrency].buy_vnd + tierBonus + mBonus;
+    const tier = tierBonusForRate(sellCurrency, sellAmountForTier, status);
+    const method = methodBonusForRate(buyCurrency, receiveMethod);
+    next[sellCurrency].buy_vnd = baseRates[sellCurrency].buy_vnd + tier + method;
   }
 
   return next;
@@ -215,7 +209,7 @@ export default function CalculatorTab(_props: any) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Пытаемся подтянуть статус с бэка (если эндпоинт есть)
+  // (опционально) подтянуть статус с бэка, если он там есть
   useEffect(() => {
     const tg2 = getTg();
     const initData = tg2?.initData || "";
@@ -227,17 +221,15 @@ export default function CalculatorTab(_props: any) {
           headers: { Authorization: `tma ${initData}` },
         });
         const json = await res.json();
-
-        const rawStatus =
+        const raw =
           json?.data?.status ??
           json?.data?.user?.status ??
           json?.user?.status ??
-          json?.data?.profile?.status ??
-          json?.data?.me?.status;
+          json?.data?.profile?.status;
 
-        if (rawStatus) setClientStatus(normalizeStatus(rawStatus));
+        if (raw) setClientStatus(normalizeStatus(raw));
       } catch {
-        // если /api/me нет — просто остаёмся на стандарт
+        // если /api/me нет — игнор
       }
     })();
   }, []);
@@ -249,33 +241,17 @@ export default function CalculatorTab(_props: any) {
     if (!rates) return;
 
     if (lastEdited.current === "sell") {
-      const effectiveRates = applyRateBonuses(
-        rates,
-        sellCurrency,
-        buyCurrency,
-        sellAmount,
-        clientStatus,
-        receiveMethod
-      );
+      const effectiveRates = applyRateBonuses(rates, sellCurrency, buyCurrency, sellAmount, clientStatus, receiveMethod);
 
       const out = calcBuyAmount(effectiveRates, sellCurrency, buyCurrency, sellAmount);
       const next = sellText ? formatAmount(buyCurrency, out) : "";
       if (next !== buyText) setBuyText(next);
     } else {
-      // Если вводят "получу": tier зависит от того, сколько в итоге "отдать".
-      // 2–3 итерации, чтобы корректно попасть в диапазон.
+      // если вводят "получу" — надбавка зависит от того, сколько получится "отдать"
       let guess = calcSellAmount(rates, sellCurrency, buyCurrency, buyAmount);
 
       for (let i = 0; i < 3; i++) {
-        const effectiveRates = applyRateBonuses(
-          rates,
-          sellCurrency,
-          buyCurrency,
-          guess,
-          clientStatus,
-          receiveMethod
-        );
-
+        const effectiveRates = applyRateBonuses(rates, sellCurrency, buyCurrency, guess, clientStatus, receiveMethod);
         const nextGuess = calcSellAmount(effectiveRates, sellCurrency, buyCurrency, buyAmount);
         if (Math.abs(nextGuess - guess) < 1e-7) {
           guess = nextGuess;
@@ -297,11 +273,9 @@ export default function CalculatorTab(_props: any) {
 
     const amt = parseNum(sellText);
     const base = rates[sellCurrency].buy_vnd;
-    const tierBonus = tierBonusForRate(sellCurrency, amt, clientStatus);
-    const mBonus = methodBonusForRate(buyCurrency, receiveMethod);
-    const eff = base + tierBonus + mBonus;
-
-    return { base, tierBonus, mBonus, eff };
+    const tier = tierBonusForRate(sellCurrency, amt, clientStatus);
+    const m = methodBonusForRate(buyCurrency, receiveMethod);
+    return { base, tier, m, eff: base + tier + m };
   }, [rates, sellCurrency, buyCurrency, sellText, clientStatus, receiveMethod]);
 
   const canSend =
@@ -371,8 +345,7 @@ export default function CalculatorTab(_props: any) {
     <div className="vx-calc">
       <style>{`
         .vx-calc{ display:flex; flex-direction:column; gap:12px; }
-        .vx-calcTitle{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
-        .vx-rightCol{ display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+        .vx-calcTitle{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
         .vx-calcTitle .vx-muted{ font-size:12px; color: rgba(15,23,42,0.55); font-weight:800; }
 
         .vx-calcBox{
@@ -465,10 +438,7 @@ export default function CalculatorTab(_props: any) {
         <div className="h2" style={{ margin: 0 }}>
           Калькулятор
         </div>
-        <div className="vx-rightCol">
-          <div className="vx-muted">Статус: {statusLabel(clientStatus)}</div>
-          <div className="vx-muted">вводи в любом поле</div>
-        </div>
+        <div className="vx-muted">Статус: {statusLabel(clientStatus)}</div>
       </div>
 
       {loading && <div className="vx-help">Загрузка курсов…</div>}
@@ -543,16 +513,16 @@ export default function CalculatorTab(_props: any) {
         {rateInfo && (
           <div className="vx-rateLine">
             Курс: <b>{rateInfo.base}</b>
-            {rateInfo.mBonus ? (
+            {rateInfo.m ? (
               <>
                 {" "}
-                + <b>{rateInfo.mBonus}</b>
+                + <b>{rateInfo.m}</b>
               </>
             ) : null}
-            {rateInfo.tierBonus ? (
+            {rateInfo.tier ? (
               <>
                 {" "}
-                + <b>{rateInfo.tierBonus}</b>
+                + <b>{rateInfo.tier}</b>
               </>
             ) : null}
             {" = "}
