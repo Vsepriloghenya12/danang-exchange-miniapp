@@ -2,108 +2,155 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export type UserStatus = "none" | "bronze" | "silver" | "gold";
+export type UserStatus = "standard" | "silver" | "gold";
+
+export type Rates = {
+  USD: { buy_vnd: number; sell_vnd: number };
+  RUB: { buy_vnd: number; sell_vnd: number };
+  USDT: { buy_vnd: number; sell_vnd: number };
+};
+
+export type StoredUser = {
+  tg_id: number;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  status: UserStatus;
+  created_at: string;
+  last_seen_at: string;
+};
 
 export type Store = {
-  config: { groupChatId: number | null };
-  users: Record<
-    string,
-    {
-      tg_id: number;
-      username?: string;
-      first_name?: string;
-      last_name?: string;
-      status: UserStatus;
-      created_at: string;
-      last_seen_at: string;
-    }
-  >;
+  config: {
+    groupChatId?: number;
+  };
+  users: Record<string, StoredUser>;
   ratesByDate: Record<
     string,
     {
       updated_at: string;
       updated_by: number;
-      rates: {
-        USD: { buy_vnd: number; sell_vnd: number };
-        RUB: { buy_vnd: number; sell_vnd: number };
-        USDT: { buy_vnd: number; sell_vnd: number };
-      };
+      rates: Rates;
     }
   >;
-  requests: Array<any>;
-  reviews: Array<{
-    id: string;
-    tg_id: number;
-    username?: string;
-    rating: number;
-    text: string;
-    created_at: string;
-    is_public: boolean;
-  }>;
+  requests: any[];
+  reviews: any[];
 };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// server/dist/ -> server/data/store.json
-const STORE_PATH = path.resolve(__dirname, "../data", "store.json");
+// dist => /app/server/dist, значит ../data => /app/server/data
+const STORE_PATH =
+  process.env.STORE_PATH || path.resolve(__dirname, "../data/store.json");
 
-function ensureStoreFile() {
+function defaultStore(): Store {
+  return {
+    config: {},
+    users: {},
+    ratesByDate: {},
+    requests: [],
+    reviews: []
+  };
+}
+
+export function normalizeStatus(s: any): UserStatus {
+  const v = String(s || "").toLowerCase();
+
+  // миграция старых статусов
+  if (v === "" || v === "none" || v === "bronze") return "standard";
+
+  if (v === "standard" || v === "silver" || v === "gold") return v;
+
+  return "standard";
+}
+
+function ensureDir() {
   const dir = path.dirname(STORE_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(STORE_PATH)) {
-    fs.writeFileSync(
-      STORE_PATH,
-      JSON.stringify(
-        { config: { groupChatId: null }, users: {}, ratesByDate: {}, requests: [], reviews: [] },
-        null,
-        2
-      ),
-      "utf8"
-    );
-  }
+  fs.mkdirSync(dir, { recursive: true });
 }
 
 export function readStore(): Store {
-  ensureStoreFile();
-  const raw = fs.readFileSync(STORE_PATH, "utf8");
-  return JSON.parse(raw) as Store;
+  ensureDir();
+  if (!fs.existsSync(STORE_PATH)) {
+    const s = defaultStore();
+    fs.writeFileSync(STORE_PATH, JSON.stringify(s, null, 2), "utf-8");
+    return s;
+  }
+
+  let raw = "";
+  try {
+    raw = fs.readFileSync(STORE_PATH, "utf-8");
+  } catch {
+    const s = defaultStore();
+    fs.writeFileSync(STORE_PATH, JSON.stringify(s, null, 2), "utf-8");
+    return s;
+  }
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw || "{}");
+  } catch {
+    const s = defaultStore();
+    fs.writeFileSync(STORE_PATH, JSON.stringify(s, null, 2), "utf-8");
+    return s;
+  }
+
+  const store: Store = {
+    ...defaultStore(),
+    ...parsed,
+    config: { ...(parsed?.config || {}) },
+    users: { ...(parsed?.users || {}) },
+    ratesByDate: { ...(parsed?.ratesByDate || {}) },
+    requests: Array.isArray(parsed?.requests) ? parsed.requests : [],
+    reviews: Array.isArray(parsed?.reviews) ? parsed.reviews : []
+  };
+
+  // миграция статусов
+  for (const k of Object.keys(store.users || {})) {
+    store.users[k].status = normalizeStatus(store.users[k].status);
+  }
+  for (const r of store.requests || []) {
+    r.status = normalizeStatus(r.status);
+  }
+
+  return store;
 }
 
-export function writeStore(next: Store) {
-  ensureStoreFile();
-  const tmp = STORE_PATH + ".tmp";
-  fs.writeFileSync(tmp, JSON.stringify(next, null, 2), "utf8");
-  fs.renameSync(tmp, STORE_PATH);
+export function writeStore(store: Store) {
+  ensureDir();
+  fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2), "utf-8");
 }
 
-export function upsertUserFromTelegram(user: {
+export function upsertUserFromTelegram(u: {
   id: number;
   username?: string;
   first_name?: string;
   last_name?: string;
-}): { status: UserStatus } {
+}): StoredUser {
   const store = readStore();
-  const key = String(user.id);
+  const key = String(u.id);
   const now = new Date().toISOString();
 
-  if (!store.users[key]) {
+  const existing = store.users[key];
+  if (!existing) {
     store.users[key] = {
-      tg_id: user.id,
-      username: user.username,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      status: "none",
+      tg_id: u.id,
+      username: u.username,
+      first_name: u.first_name,
+      last_name: u.last_name,
+      status: "standard",
       created_at: now,
       last_seen_at: now
     };
   } else {
-    store.users[key].username = user.username ?? store.users[key].username;
-    store.users[key].first_name = user.first_name ?? store.users[key].first_name;
-    store.users[key].last_name = user.last_name ?? store.users[key].last_name;
-    store.users[key].last_seen_at = now;
+    existing.username = u.username ?? existing.username;
+    existing.first_name = u.first_name ?? existing.first_name;
+    existing.last_name = u.last_name ?? existing.last_name;
+    existing.status = normalizeStatus(existing.status);
+    existing.last_seen_at = now;
   }
 
   writeStore(store);
-  return { status: store.users[key].status };
+  return store.users[key];
 }
