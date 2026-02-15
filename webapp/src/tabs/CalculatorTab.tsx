@@ -20,7 +20,10 @@ function getTg() {
 }
 
 function parseNum(input: string): number {
-  const s = (input || "").replace(",", ".").replace(/[^\d.]/g, "");
+  const s = (input || "")
+    .replace(/\s+/g, "")
+    .replace(",", ".")
+    .replace(/[^\d.]/g, "");
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
@@ -32,6 +35,7 @@ function formatAmount(cur: Currency, n: number) {
 }
 
 function allowedReceiveMethods(buyCurrency: Currency): ReceiveMethod[] {
+  // Это правила UI по твоей логике
   if (buyCurrency === "USD") return ["cash"];
   if (buyCurrency === "RUB") return ["transfer"];
   if (buyCurrency === "USDT") return ["transfer"];
@@ -48,9 +52,9 @@ function normalizeStatus(s: any): ClientStatus {
   const v = String(s ?? "").toLowerCase().trim();
   if (["gold", "голд", "золото"].includes(v)) return "gold";
   if (["silver", "силвер", "сильвер", "серебро"].includes(v)) return "silver";
-  // bronze/unknown считаем стандартом
-  return "standard";
+  return "standard"; // bronze/none/unknown -> standard
 }
+
 function statusLabel(s: ClientStatus) {
   if (s === "gold") return "Голд";
   if (s === "silver") return "Сильвер";
@@ -58,18 +62,24 @@ function statusLabel(s: ClientStatus) {
 }
 
 /**
- * Надбавка по способу получения:
- * если получаем VND и выбрали банкомат/перевод => +1 к курсу
+ * Надбавка за способ получения:
+ * - актуально ТОЛЬКО когда получаем VND
+ * - перевод/банкомат: RUB +1, USD/USDT +100
  */
-function methodBonusForRate(buyCurrency: Currency, receiveMethod: ReceiveMethod): number {
+function methodBonusForRate(sellCurrency: Currency, buyCurrency: Currency, receiveMethod: ReceiveMethod): number {
   if (buyCurrency !== "VND") return 0;
-  return receiveMethod === "transfer" || receiveMethod === "atm" ? 1 : 0;
+  if (receiveMethod !== "transfer" && receiveMethod !== "atm") return 0;
+
+  if (sellCurrency === "RUB") return 1;
+  if (sellCurrency === "USD" || sellCurrency === "USDT") return 100;
+
+  return 0;
 }
 
 /**
- * Надбавка по статусу и сумме:
- * - для RUB: +1..+5
- * - для USD/USDT: +100..+300  (ВАЖНО: не +1..+3!)
+ * Надбавка по статусу/сумме:
+ * - RUB: +1..+5 (по таблице ₽)
+ * - USD/USDT: +100..+300 (по таблице $)
  */
 function tierBonusForRate(sellCurrency: Currency, sellAmount: number, status: ClientStatus): number {
   if (sellAmount <= 0) return 0;
@@ -78,40 +88,47 @@ function tierBonusForRate(sellCurrency: Currency, sellAmount: number, status: Cl
   if (sellCurrency === "RUB") {
     const a = sellAmount;
 
+    // <50k
     if (a < 50_000) {
       if (status === "silver") return 1;
       if (status === "gold") return 2;
       return 0;
     }
+    // 50-100k
     if (a < 100_000) {
       if (status === "standard") return 1;
       if (status === "silver") return 2;
       return 3;
     }
+    // 100-200k
     if (a < 200_000) {
       if (status === "standard") return 2;
       if (status === "silver") return 3;
       return 4;
     }
+    // 200k+
     if (status === "standard") return 3;
     if (status === "silver") return 4;
     return 5;
   }
 
-  // USD/USDT таблица (шаг 100)
+  // $ таблица (USD/USDT)
   if (sellCurrency === "USD" || sellCurrency === "USDT") {
     const a = sellAmount;
 
+    // <1000
     if (a < 1000) {
       if (status === "silver") return 100;
       if (status === "gold") return 100;
       return 0;
     }
+    // 1000-3000
     if (a < 3000) {
       if (status === "standard") return 100;
       if (status === "silver") return 150;
       return 200;
     }
+    // 3000+
     if (status === "standard") return 150;
     if (status === "silver") return 200;
     return 300;
@@ -137,7 +154,7 @@ function applyRateBonuses(
   // Бонусы применяем только когда клиент ОТДАЁТ (RUB/USD/USDT) и ПОЛУЧАЕТ VND
   if (buyCurrency === "VND" && isRateKey(sellCurrency)) {
     const tier = tierBonusForRate(sellCurrency, sellAmountForTier, status);
-    const method = methodBonusForRate(buyCurrency, receiveMethod);
+    const method = methodBonusForRate(sellCurrency, buyCurrency, receiveMethod);
     next[sellCurrency].buy_vnd = baseRates[sellCurrency].buy_vnd + tier + method;
   }
 
@@ -184,12 +201,14 @@ export default function CalculatorTab(_props: any) {
 
   const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeStatus(_props?.user?.status));
 
+  // адаптируем метод под выбранную валюту получения
   useEffect(() => {
     const allowed = allowedReceiveMethods(buyCurrency);
     if (!allowed.includes(receiveMethod)) setReceiveMethod(allowed[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buyCurrency]);
 
+  // загрузка курсов
   useEffect(() => {
     tg?.ready?.();
     tg?.expand?.();
@@ -209,7 +228,7 @@ export default function CalculatorTab(_props: any) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // (опционально) подтянуть статус с бэка, если он там есть
+  // подтянуть статус с бэка (если есть /api/me)
   useEffect(() => {
     const tg2 = getTg();
     const initData = tg2?.initData || "";
@@ -223,9 +242,9 @@ export default function CalculatorTab(_props: any) {
         const json = await res.json();
         const raw =
           json?.data?.status ??
+          json?.status ??
           json?.data?.user?.status ??
-          json?.user?.status ??
-          json?.data?.profile?.status;
+          json?.user?.status;
 
         if (raw) setClientStatus(normalizeStatus(raw));
       } catch {
@@ -237,12 +256,12 @@ export default function CalculatorTab(_props: any) {
   const sellAmount = useMemo(() => parseNum(sellText), [sellText]);
   const buyAmount = useMemo(() => parseNum(buyText), [buyText]);
 
+  // пересчет
   useEffect(() => {
     if (!rates) return;
 
     if (lastEdited.current === "sell") {
       const effectiveRates = applyRateBonuses(rates, sellCurrency, buyCurrency, sellAmount, clientStatus, receiveMethod);
-
       const out = calcBuyAmount(effectiveRates, sellCurrency, buyCurrency, sellAmount);
       const next = sellText ? formatAmount(buyCurrency, out) : "";
       if (next !== buyText) setBuyText(next);
@@ -266,6 +285,7 @@ export default function CalculatorTab(_props: any) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sellText, buyText, sellCurrency, buyCurrency, rates, receiveMethod, clientStatus]);
 
+  // вывод курса с надбавками (для прозрачности)
   const rateInfo = useMemo(() => {
     if (!rates) return null;
     if (buyCurrency !== "VND") return null;
@@ -274,7 +294,7 @@ export default function CalculatorTab(_props: any) {
     const amt = parseNum(sellText);
     const base = rates[sellCurrency].buy_vnd;
     const tier = tierBonusForRate(sellCurrency, amt, clientStatus);
-    const m = methodBonusForRate(buyCurrency, receiveMethod);
+    const m = methodBonusForRate(sellCurrency, buyCurrency, receiveMethod);
     return { base, tier, m, eff: base + tier + m };
   }, [rates, sellCurrency, buyCurrency, sellText, clientStatus, receiveMethod]);
 
@@ -300,7 +320,7 @@ export default function CalculatorTab(_props: any) {
     const tg2 = getTg();
     const initData = tg2?.initData || "";
     if (!initData) {
-      tg2?.showAlert?.("Нет initData. Открой мини-приложение через /start в Telegram.");
+      tg2?.showAlert?.("Нет initData. Открой мини-приложение через Telegram (/start).");
       return;
     }
 
@@ -332,7 +352,7 @@ export default function CalculatorTab(_props: any) {
       tg2?.HapticFeedback?.notificationOccurred?.("success");
       tg2?.showPopup?.({
         title: "Отправлено",
-        message: "Заявка отправлена в группу ✅",
+        message: "Заявка отправлена ✅",
         buttons: [{ type: "ok" }],
       });
     } catch (e: any) {
@@ -346,7 +366,7 @@ export default function CalculatorTab(_props: any) {
       <style>{`
         .vx-calc{ display:flex; flex-direction:column; gap:12px; }
         .vx-calcTitle{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
-        .vx-calcTitle .vx-muted{ font-size:12px; color: rgba(15,23,42,0.55); font-weight:800; }
+        .vx-muted{ font-size:12px; color: rgba(15,23,42,0.55); font-weight:800; }
 
         .vx-calcBox{
           border: 1px solid rgba(15,23,42,0.10);
@@ -426,7 +446,7 @@ export default function CalculatorTab(_props: any) {
           font-weight: 950;
           letter-spacing: -0.01em;
           color: white;
-          background: linear-gradient(135deg, var(--vx-accent, #22c55e), var(--vx-accent2, #06b6d4));
+          background: linear-gradient(135deg, #22c55e, #06b6d4);
           box-shadow: 0 18px 40px rgba(34,197,94,0.22);
         }
         .vx-primary:disabled{ opacity: 0.55; cursor: not-allowed; }
@@ -435,9 +455,7 @@ export default function CalculatorTab(_props: any) {
       `}</style>
 
       <div className="vx-calcTitle">
-        <div className="h2" style={{ margin: 0 }}>
-          Калькулятор
-        </div>
+        <div style={{ fontSize: 18, fontWeight: 950 }}>Калькулятор</div>
         <div className="vx-muted">Статус: {statusLabel(clientStatus)}</div>
       </div>
 
@@ -457,7 +475,7 @@ export default function CalculatorTab(_props: any) {
 
           <input
             inputMode="decimal"
-            placeholder="Сумма"
+            placeholder="Отдаю"
             value={sellText}
             onChange={(e) => {
               lastEdited.current = "sell";
@@ -482,7 +500,7 @@ export default function CalculatorTab(_props: any) {
 
           <input
             inputMode="decimal"
-            placeholder="Сумма"
+            placeholder="Получаю"
             value={buyText}
             onChange={(e) => {
               lastEdited.current = "buy";
