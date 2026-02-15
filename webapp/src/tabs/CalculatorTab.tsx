@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type Currency = "RUB" | "USD" | "USDT" | "VND";
 type ReceiveMethod = "cash" | "transfer" | "atm";
+type PayMethod = "cash" | "transfer";
 type ClientStatus = "standard" | "silver" | "gold";
 
 type Rates = {
@@ -35,14 +36,14 @@ function formatAmount(cur: Currency, n: number) {
 }
 
 function allowedReceiveMethods(buyCurrency: Currency): ReceiveMethod[] {
-  // Это правила UI по твоей логике
+  // Оставил твои правила UI
   if (buyCurrency === "USD") return ["cash"];
   if (buyCurrency === "RUB") return ["transfer"];
   if (buyCurrency === "USDT") return ["transfer"];
   return ["cash", "transfer", "atm"]; // VND
 }
 
-function methodLabel(m: ReceiveMethod) {
+function methodLabel(m: ReceiveMethod | PayMethod) {
   if (m === "cash") return "Наличные";
   if (m === "transfer") return "Перевод";
   return "Банкомат";
@@ -52,7 +53,7 @@ function normalizeStatus(s: any): ClientStatus {
   const v = String(s ?? "").toLowerCase().trim();
   if (["gold", "голд", "золото"].includes(v)) return "gold";
   if (["silver", "силвер", "сильвер", "серебро"].includes(v)) return "silver";
-  return "standard"; // bronze/none/unknown -> standard
+  return "standard";
 }
 
 function statusLabel(s: ClientStatus) {
@@ -62,13 +63,25 @@ function statusLabel(s: ClientStatus) {
 }
 
 /**
- * Надбавка за способ получения:
- * - актуально ТОЛЬКО когда получаем VND
- * - перевод/банкомат: RUB +1, USD/USDT +100
+ * Доп коэффициент (перевод/банкомат) считаем ТОЛЬКО если:
+ * - получаем VND
+ * - receiveMethod = transfer/atm
+ * - payMethod != cash И receiveMethod != cash (т.е. оба пункта не наличные)
+ * Значение:
+ * - если продаём RUB -> +1
+ * - если продаём USD/USDT -> +100
  */
-function methodBonusForRate(sellCurrency: Currency, buyCurrency: Currency, receiveMethod: ReceiveMethod): number {
+function methodBonusForRate(
+  sellCurrency: Currency,
+  buyCurrency: Currency,
+  payMethod: PayMethod,
+  receiveMethod: ReceiveMethod
+): number {
   if (buyCurrency !== "VND") return 0;
   if (receiveMethod !== "transfer" && receiveMethod !== "atm") return 0;
+
+  // ключевое правило: если хотя бы один пункт "наличные" — не считаем
+  if (payMethod === "cash" || receiveMethod === "cash") return 0;
 
   if (sellCurrency === "RUB") return 1;
   if (sellCurrency === "USD" || sellCurrency === "USDT") return 100;
@@ -78,8 +91,8 @@ function methodBonusForRate(sellCurrency: Currency, buyCurrency: Currency, recei
 
 /**
  * Надбавка по статусу/сумме:
- * - RUB: +1..+5 (по таблице ₽)
- * - USD/USDT: +100..+300 (по таблице $)
+ * - RUB: +1..+5
+ * - USD/USDT: +100..+250 (с новыми условиями для gold)
  */
 function tierBonusForRate(sellCurrency: Currency, sellAmount: number, status: ClientStatus): number {
   if (sellAmount <= 0) return 0;
@@ -88,50 +101,50 @@ function tierBonusForRate(sellCurrency: Currency, sellAmount: number, status: Cl
   if (sellCurrency === "RUB") {
     const a = sellAmount;
 
-    // <50k
     if (a < 50_000) {
       if (status === "silver") return 1;
       if (status === "gold") return 2;
       return 0;
     }
-    // 50-100k
     if (a < 100_000) {
       if (status === "standard") return 1;
       if (status === "silver") return 2;
       return 3;
     }
-    // 100-200k
     if (a < 200_000) {
       if (status === "standard") return 2;
       if (status === "silver") return 3;
       return 4;
     }
-    // 200k+
     if (status === "standard") return 3;
     if (status === "silver") return 4;
     return 5;
   }
 
-  // $ таблица (USD/USDT)
+  // $ таблица (USD/USDT) + твои корректировки:
+  // - <1000 gold +150
+  // - >=3000 gold +250
   if (sellCurrency === "USD" || sellCurrency === "USDT") {
     const a = sellAmount;
 
-    // <1000
+    // < 1000
     if (a < 1000) {
       if (status === "silver") return 100;
-      if (status === "gold") return 100;
+      if (status === "gold") return 150; // ✅ было 100, стало 150
       return 0;
     }
-    // 1000-3000
+
+    // 1000 - 3000
     if (a < 3000) {
       if (status === "standard") return 100;
       if (status === "silver") return 150;
-      return 200;
+      return 200; // gold
     }
-    // 3000+
+
+    // >= 3000
     if (status === "standard") return 150;
     if (status === "silver") return 200;
-    return 300;
+    return 250; // ✅ было 300, стало 250
   }
 
   return 0;
@@ -143,6 +156,7 @@ function applyRateBonuses(
   buyCurrency: Currency,
   sellAmountForTier: number,
   status: ClientStatus,
+  payMethod: PayMethod,
   receiveMethod: ReceiveMethod
 ): Rates {
   const next: Rates = {
@@ -154,7 +168,7 @@ function applyRateBonuses(
   // Бонусы применяем только когда клиент ОТДАЁТ (RUB/USD/USDT) и ПОЛУЧАЕТ VND
   if (buyCurrency === "VND" && isRateKey(sellCurrency)) {
     const tier = tierBonusForRate(sellCurrency, sellAmountForTier, status);
-    const method = methodBonusForRate(sellCurrency, buyCurrency, receiveMethod);
+    const method = methodBonusForRate(sellCurrency, buyCurrency, payMethod, receiveMethod);
     next[sellCurrency].buy_vnd = baseRates[sellCurrency].buy_vnd + tier + method;
   }
 
@@ -197,11 +211,16 @@ export default function CalculatorTab(_props: any) {
   const [buyText, setBuyText] = useState("");
 
   const lastEdited = useRef<"sell" | "buy">("sell");
+
+  // ✅ новое: как отдаёт деньги (только cash/transfer)
+  const [payMethod, setPayMethod] = useState<PayMethod>("cash");
+
+  // как получает (cash/transfer/atm)
   const [receiveMethod, setReceiveMethod] = useState<ReceiveMethod>("cash");
 
   const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeStatus(_props?.user?.status));
 
-  // адаптируем метод под выбранную валюту получения
+  // адаптируем receiveMethod под выбранную валюту получения
   useEffect(() => {
     const allowed = allowedReceiveMethods(buyCurrency);
     if (!allowed.includes(receiveMethod)) setReceiveMethod(allowed[0]);
@@ -248,7 +267,7 @@ export default function CalculatorTab(_props: any) {
 
         if (raw) setClientStatus(normalizeStatus(raw));
       } catch {
-        // если /api/me нет — игнор
+        // ignore
       }
     })();
   }, []);
@@ -261,7 +280,16 @@ export default function CalculatorTab(_props: any) {
     if (!rates) return;
 
     if (lastEdited.current === "sell") {
-      const effectiveRates = applyRateBonuses(rates, sellCurrency, buyCurrency, sellAmount, clientStatus, receiveMethod);
+      const effectiveRates = applyRateBonuses(
+        rates,
+        sellCurrency,
+        buyCurrency,
+        sellAmount,
+        clientStatus,
+        payMethod,
+        receiveMethod
+      );
+
       const out = calcBuyAmount(effectiveRates, sellCurrency, buyCurrency, sellAmount);
       const next = sellText ? formatAmount(buyCurrency, out) : "";
       if (next !== buyText) setBuyText(next);
@@ -270,7 +298,16 @@ export default function CalculatorTab(_props: any) {
       let guess = calcSellAmount(rates, sellCurrency, buyCurrency, buyAmount);
 
       for (let i = 0; i < 3; i++) {
-        const effectiveRates = applyRateBonuses(rates, sellCurrency, buyCurrency, guess, clientStatus, receiveMethod);
+        const effectiveRates = applyRateBonuses(
+          rates,
+          sellCurrency,
+          buyCurrency,
+          guess,
+          clientStatus,
+          payMethod,
+          receiveMethod
+        );
+
         const nextGuess = calcSellAmount(effectiveRates, sellCurrency, buyCurrency, buyAmount);
         if (Math.abs(nextGuess - guess) < 1e-7) {
           guess = nextGuess;
@@ -283,9 +320,9 @@ export default function CalculatorTab(_props: any) {
       if (next !== sellText) setSellText(next);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sellText, buyText, sellCurrency, buyCurrency, rates, receiveMethod, clientStatus]);
+  }, [sellText, buyText, sellCurrency, buyCurrency, rates, receiveMethod, payMethod, clientStatus]);
 
-  // вывод курса с надбавками (для прозрачности)
+  // вывод курса с надбавками
   const rateInfo = useMemo(() => {
     if (!rates) return null;
     if (buyCurrency !== "VND") return null;
@@ -294,9 +331,9 @@ export default function CalculatorTab(_props: any) {
     const amt = parseNum(sellText);
     const base = rates[sellCurrency].buy_vnd;
     const tier = tierBonusForRate(sellCurrency, amt, clientStatus);
-    const m = methodBonusForRate(sellCurrency, buyCurrency, receiveMethod);
+    const m = methodBonusForRate(sellCurrency, buyCurrency, payMethod, receiveMethod);
     return { base, tier, m, eff: base + tier + m };
-  }, [rates, sellCurrency, buyCurrency, sellText, clientStatus, receiveMethod]);
+  }, [rates, sellCurrency, buyCurrency, sellText, clientStatus, receiveMethod, payMethod]);
 
   const canSend =
     !!rates &&
@@ -329,6 +366,7 @@ export default function CalculatorTab(_props: any) {
       buyCurrency,
       sellAmount: parseNum(sellText),
       buyAmount: parseNum(buyText),
+      payMethod,      // ✅ новое
       receiveMethod,
     };
 
@@ -412,7 +450,14 @@ export default function CalculatorTab(_props: any) {
         }
         .vx-exRow input::placeholder{ color: rgba(15,23,42,0.45); font-weight: 800; }
 
-        .vx-methods{ display:flex; gap:8px; flex-wrap:wrap; }
+        .vx-sectionTitle{
+          margin-top: 10px;
+          font-size: 12px;
+          font-weight: 900;
+          color: rgba(15,23,42,0.62);
+        }
+
+        .vx-methods{ display:flex; gap:8px; flex-wrap:wrap; margin-top: 6px; }
         .vx-pill{
           border-radius: 999px;
           border: 1px solid rgba(15,23,42,0.12);
@@ -513,8 +558,23 @@ export default function CalculatorTab(_props: any) {
           </div>
         </div>
 
-        <div style={{ height: 12 }} />
+        {/* ✅ Новые кнопки: как отдаёт */}
+        <div className="vx-sectionTitle">Как отдаёте деньги</div>
+        <div className="vx-methods">
+          {(["cash", "transfer"] as PayMethod[]).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setPayMethod(m)}
+              className={"vx-pill " + (payMethod === m ? "vx-pillActive" : "")}
+            >
+              {methodLabel(m)}
+            </button>
+          ))}
+        </div>
 
+        {/* Как получает (как раньше) */}
+        <div className="vx-sectionTitle">Как получаете</div>
         <div className="vx-methods">
           {allowedReceiveMethods(buyCurrency).map((m) => (
             <button
