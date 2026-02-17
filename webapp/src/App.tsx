@@ -156,9 +156,17 @@ function StatusInfoModal({
     { range: "3 000+", standard: "+150", silver: "+200", gold: "+250" },
   ];
 
-  const Cell = ({ children, muted = false }: { children: React.ReactNode; muted?: boolean }) => (
-    <div className={"vx-tierCell " + (muted ? "vx-tierMuted" : "")}>{children}</div>
-  );
+  const Cell = ({
+  children,
+  muted = false,
+  className = "",
+}: {
+  children: React.ReactNode;
+  muted?: boolean;
+  className?: string;
+}) => (
+  <div className={"vx-tierCell " + (muted ? "vx-tierMuted " : "") + className}>{children}</div>
+);
 
   return (
     <div className="vx-modalOverlay" role="dialog" aria-modal="true" onClick={onClose}>
@@ -681,7 +689,7 @@ export default function App() {
         <div className="vx-body">
           {tab === "rates" && (
             <div className="vx-card2">
-              <RatesTab me={me} />
+              <RatesTab />
             </div>
           )}
           {tab === "calc" && (
@@ -701,7 +709,7 @@ export default function App() {
           )}
           {tab === "reviews" && (
             <div className="vx-card2">
-              <ReviewsTab me={me} />
+              <ReviewsTab />
             </div>
           )}
           {tab === "admin" && me.isOwner && (
