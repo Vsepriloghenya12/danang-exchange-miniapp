@@ -5,6 +5,7 @@ import type { TodayRatesResponse } from "../lib/types";
 type Cur = "RUB" | "USD" | "USDT" | "EUR" | "THB" | "VND";
 type Pair = { id: string; base: Cur; quote: Cur };
 
+// Порядок строго как ты просил (rud-thb исправил на rub-thb)
 const PAIRS: Pair[] = [
   { id: "rub-vnd", base: "RUB", quote: "VND" },
   { id: "usdt-vnd", base: "USDT", quote: "VND" },
@@ -16,7 +17,7 @@ const PAIRS: Pair[] = [
   { id: "rub-usdt", base: "RUB", quote: "USDT" },
   { id: "rub-usd", base: "RUB", quote: "USD" },
   { id: "rub-eur", base: "RUB", quote: "EUR" },
-  { id: "rub-thb", base: "RUB", quote: "THB" }, // ← было "rud-thb"
+  { id: "rub-thb", base: "RUB", quote: "THB" },
 
   { id: "usd-usdt", base: "USD", quote: "USDT" },
   { id: "eur-usd", base: "EUR", quote: "USD" },
@@ -37,35 +38,65 @@ function fmtDaNang(d: Date) {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false
-    }).format(d).replace(",", "");
+    })
+      .format(d)
+      .replace(",", "");
   } catch {
     return d.toLocaleString("ru-RU");
   }
 }
 
-function fmtRate(quote: Cur, n: number | null) {
+function fmt(quote: Cur, n: number | null) {
   if (n == null || !Number.isFinite(n)) return "—";
   const max = quote === "VND" ? 0 : 6;
-  return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: max }).format(n);
+  return new Intl.NumberFormat("ru-RU", {
+    maximumFractionDigits: max,
+    minimumFractionDigits: 0
+  }).format(n);
 }
 
-// 1 BASE -> QUOTE
-// BASE -> VND по buy_vnd (как будто клиент отдаёт BASE)
-// VND -> QUOTE по sell_vnd (как будто клиент получает QUOTE)
-function pairRate(rates: any, base: Cur, quote: Cur): number | null {
-  if (!rates) return null;
-  if (base === quote) return 1;
+/**
+ * Покупка/Продажа ПЕРВОЙ валюты пары.
+ * - Покупка: обменник покупает BASE (клиент продаёт BASE) и выдаёт QUOTE
+ * - Продажа: обменник продаёт BASE (клиент покупает BASE) за QUOTE
+ *
+ * Исходные курсы: для каждой валюты к VND есть buy_vnd и sell_vnd.
+ * - Покупка BASE в QUOTE: (BASE.buy_vnd) / (QUOTE.sell_vnd)
+ * - Продажа BASE в QUOTE: (BASE.sell_vnd) / (QUOTE.buy_vnd)
+ */
+function calcBuySell(rates: any, base: Cur, quote: Cur): { buy: number | null; sell: number | null } {
+  if (!rates) return { buy: null, sell: null };
+  if (base === quote) return { buy: 1, sell: 1 };
 
-  const baseToVnd =
-    base === "VND" ? 1 : Number(rates?.[base]?.buy_vnd);
-  if (!Number.isFinite(baseToVnd) || baseToVnd <= 0) return null;
+  const br = base === "VND" ? { buy_vnd: 1, sell_vnd: 1 } : rates?.[base];
+  if (!br) return { buy: null, sell: null };
 
-  if (quote === "VND") return baseToVnd;
+  const baseBuy = Number(br.buy_vnd);
+  const baseSell = Number(br.sell_vnd);
+  if (!Number.isFinite(baseBuy) || !Number.isFinite(baseSell) || baseBuy <= 0 || baseSell <= 0) {
+    return { buy: null, sell: null };
+  }
 
-  const quoteSellVnd = Number(rates?.[quote]?.sell_vnd);
-  if (!Number.isFinite(quoteSellVnd) || quoteSellVnd <= 0) return null;
+  if (quote === "VND") {
+    return { buy: baseBuy, sell: baseSell };
+  }
 
-  return baseToVnd / quoteSellVnd;
+  const qr = rates?.[quote];
+  if (!qr) return { buy: null, sell: null };
+
+  const quoteBuy = Number(qr.buy_vnd);
+  const quoteSell = Number(qr.sell_vnd);
+  if (!Number.isFinite(quoteBuy) || !Number.isFinite(quoteSell) || quoteBuy <= 0 || quoteSell <= 0) {
+    return { buy: null, sell: null };
+  }
+
+  const buy = baseBuy / quoteSell;
+  const sell = baseSell / quoteBuy;
+
+  return {
+    buy: Number.isFinite(buy) ? buy : null,
+    sell: Number.isFinite(sell) ? sell : null
+  };
 }
 
 export default function RatesTab() {
@@ -76,65 +107,96 @@ export default function RatesTab() {
   }, []);
 
   const rates: any = (data as any)?.data?.rates ?? null;
-  const updatedAt = data?.data?.updated_at ? fmtDaNang(new Date(data.data.updated_at)) : null;
+  const updatedAt = (data as any)?.data?.updated_at ? fmtDaNang(new Date((data as any).data.updated_at)) : null;
 
   const rows = useMemo(() => {
-    return PAIRS.map((p) => ({ ...p, value: pairRate(rates, p.base, p.quote) }));
+    return PAIRS.map((p) => {
+      const { buy, sell } = calcBuySell(rates, p.base, p.quote);
+      return { ...p, buy, sell };
+    });
   }, [rates]);
 
   return (
-    <div className="vx-rates">
+    <div className="vx-rates2">
       <style>{`
-        .vx-rates{ display:flex; flex-direction:column; gap:10px; }
-        .vx-rHead{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
-        .vx-rMeta{ font-size:12px; color: rgba(15,23,42,0.55); font-weight: 800; }
+        .vx-rates2{ display:flex; flex-direction:column; gap:10px; }
+        .vx-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+        .vx-meta{ font-size:12px; color: rgba(15,23,42,0.55); font-weight: 800; }
+        .vx-note{ font-size:12px; color: rgba(15,23,42,0.55); font-weight: 800; margin-top: 2px; }
 
-        .vx-rateList{ display:flex; flex-direction:column; gap:8px; }
-        .vx-rateRow{
+        .vx-table{
           border: 1px solid rgba(15,23,42,0.10);
           background: rgba(255,255,255,0.62);
           border-radius: 18px;
-          padding: 10px 12px;
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          gap: 10px;
+          overflow: hidden;
         }
-        .vx-code{ font-size: 14px; font-weight: 950; letter-spacing: -0.01em; color: #0f172a; }
-        .vx-sub{ font-size: 11px; font-weight: 800; color: rgba(15,23,42,0.55); margin-top: 2px; }
-        .vx-pill{
-          border-radius: 999px;
-          border: 1px solid rgba(15,23,42,0.10);
+
+        .vx-tr{
+          display:grid;
+          grid-template-columns: 1.2fr 0.9fr 0.9fr;
+          gap: 10px;
+          padding: 10px 12px;
+          align-items:center;
+          font-variant-numeric: tabular-nums;
+        }
+
+        .vx-tr + .vx-tr{ border-top: 1px solid rgba(15,23,42,0.08); }
+
+        .vx-th{
           background: rgba(255,255,255,0.78);
-          padding: 7px 10px;
           font-size: 11px;
           font-weight: 950;
-          color: #0f172a;
-          white-space: nowrap;
+          color: rgba(15,23,42,0.65);
+          letter-spacing: 0.02em;
+          text-transform: uppercase;
         }
+
+        .vx-pair{ font-size: 13px; font-weight: 950; color:#0f172a; }
+        .vx-sub{ font-size: 11px; font-weight: 800; color: rgba(15,23,42,0.55); margin-top: 2px; }
+
+        .vx-num{
+          justify-self:end;
+          font-size: 13px;
+          font-weight: 950;
+          color:#0f172a;
+        }
+        .vx-dash{ color: rgba(15,23,42,0.35); }
       `}</style>
 
-      <div className="vx-rHead">
+      <div className="vx-head">
         <div>
           <div className="h2" style={{ margin: 0 }}>Курс</div>
-          <div className="vx-rMeta">Дата (Дананг): {data?.date ?? "—"}</div>
+          <div className="vx-meta">Дата (Дананг): {data?.date ?? "—"}</div>
+          <div className="vx-note">Покупка / Продажа — для первой валюты пары</div>
         </div>
-        {updatedAt ? <div className="vx-rMeta">Обновлено: {updatedAt}</div> : null}
+        {updatedAt ? <div className="vx-meta">Обновлено: {updatedAt}</div> : null}
       </div>
 
       {!data ? (
-        <div className="vx-rMeta">Загрузка…</div>
+        <div className="vx-meta">Загрузка…</div>
       ) : !rates ? (
-        <div className="vx-rMeta">Курс ещё не задан владельцем.</div>
+        <div className="vx-meta">Курс ещё не задан владельцем.</div>
       ) : (
-        <div className="vx-rateList">
+        <div className="vx-table">
+          <div className="vx-tr vx-th">
+            <div>Пара</div>
+            <div style={{ justifySelf: "end" }}>Покупка</div>
+            <div style={{ justifySelf: "end" }}>Продажа</div>
+          </div>
+
           {rows.map((r) => (
-            <div key={r.id} className="vx-rateRow">
+            <div key={r.id} className="vx-tr">
               <div>
-                <div className="vx-code">{r.base} → {r.quote}</div>
-                <div className="vx-sub">1 {r.base} = {fmtRate(r.quote, r.value)} {r.quote}</div>
+                <div className="vx-pair">{r.base} → {r.quote}</div>
+                <div className="vx-sub">за 1 {r.base}</div>
               </div>
-              <span className="vx-pill">{fmtRate(r.quote, r.value)}</span>
+
+              <div className={"vx-num " + (r.buy == null ? "vx-dash" : "")}>
+                {fmt(r.quote, r.buy)}
+              </div>
+              <div className={"vx-num " + (r.sell == null ? "vx-dash" : "")}>
+                {fmt(r.quote, r.sell)}
+              </div>
             </div>
           ))}
         </div>
