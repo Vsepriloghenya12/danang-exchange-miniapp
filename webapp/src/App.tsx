@@ -669,7 +669,7 @@ export default function App() {
                 <button type="button" className="vx-statusBtn" onClick={() => setStatusInfoOpen(true)}>
                   <span className="vx-statusDot" />
                   {me.status ? STATUS_RU[me.status] : "—"}
-                  <span className="vx-statusHint">нажми</span>
+                  <span className="vx-statusHint"></span>
                 </button>
               </>
             ) : (
