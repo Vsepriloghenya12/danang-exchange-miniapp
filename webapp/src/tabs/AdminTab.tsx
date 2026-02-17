@@ -95,45 +95,103 @@ export default function AdminTab({ me }: any) {
     else alert(r.error || "Ошибка");
   };
 
+  const RateRow = (props: {
+    code: string;
+    buy: string;
+    sell: string;
+    setBuy: (v: string) => void;
+    setSell: (v: string) => void;
+  }) => {
+    return (
+      <div className="vx-rateRow">
+        <div className="vx-code">{props.code}</div>
+
+        <div className="vx-fields">
+          <div className="vx-field">
+            <div className="vx-lbl">BUY</div>
+            <input
+              className="input vx-in"
+              inputMode="decimal"
+              value={props.buy}
+              onChange={(e) => props.setBuy(e.target.value)}
+              placeholder="например 24800"
+            />
+          </div>
+
+          <div className="vx-field">
+            <div className="vx-lbl">SELL</div>
+            <input
+              className="input vx-in"
+              inputMode="decimal"
+              value={props.sell}
+              onChange={(e) => props.setSell(e.target.value)}
+              placeholder="например 25100"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="card">
+      <style>{`
+        .vx-rateRow{
+          display:flex;
+          align-items:flex-start;
+          gap:10px;
+          padding: 10px 0;
+          border-top: 1px solid rgba(15,23,42,0.08);
+        }
+        .vx-rateRow:first-of-type{ border-top: 0; padding-top: 0; }
+
+        .vx-code{
+          width: 62px;
+          flex: 0 0 62px;
+          font-weight: 950;
+          color:#0f172a;
+          padding-top: 18px;
+        }
+
+        .vx-fields{
+          flex: 1 1 auto;
+          min-width: 0;
+          display:flex;
+          gap:8px;
+          flex-wrap: wrap;     /* ключ: не вылезаем за рамки */
+        }
+
+        .vx-field{
+          flex: 1 1 140px;     /* если узко — перенос на следующую строку */
+          min-width: 0;
+        }
+
+        .vx-lbl{
+          font-size: 11px;
+          font-weight: 900;
+          color: rgba(15,23,42,0.55);
+          margin: 0 0 6px 2px;
+          letter-spacing: 0.02em;
+        }
+
+        .vx-in{
+          width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+        }
+      `}</style>
+
       <div className="h1">Управление</div>
 
       <div className="card">
         <div className="small">Курс на сегодня (BUY/SELL к VND) — заполняется каждый день</div>
         <div className="hr" />
 
-        <div style={{ display: "grid", gridTemplateColumns: "0.7fr 1fr 1fr", gap: 8, alignItems: "center" }}>
-          <div className="small" style={{ fontWeight: 900 }}>Валюта</div>
-          <div className="small" style={{ fontWeight: 900 }}>BUY</div>
-          <div className="small" style={{ fontWeight: 900 }}>SELL</div>
-
-          {[
-            ["RUB", rubBuy, setRubBuy, rubSell, setRubSell],
-            ["USDT", usdtBuy, setUsdtBuy, usdtSell, setUsdtSell],
-            ["USD", usdBuy, setUsdBuy, usdSell, setUsdSell],
-            ["EUR", eurBuy, setEurBuy, eurSell, setEurSell],
-            ["THB", thbBuy, setThbBuy, thbSell, setThbSell]
-          ].map(([code, buy, setBuy, sell, setSell]) => (
-            <React.Fragment key={String(code)}>
-              <div style={{ fontWeight: 950 }}>{String(code)}</div>
-              <input
-                className="input"
-                inputMode="decimal"
-                value={String(buy)}
-                onChange={(e) => (setBuy as any)(e.target.value)}
-                placeholder="например 24800"
-              />
-              <input
-                className="input"
-                inputMode="decimal"
-                value={String(sell)}
-                onChange={(e) => (setSell as any)(e.target.value)}
-                placeholder="например 25100"
-              />
-            </React.Fragment>
-          ))}
-        </div>
+        <RateRow code="RUB"  buy={rubBuy}  sell={rubSell}  setBuy={setRubBuy}  setSell={setRubSell} />
+        <RateRow code="USDT" buy={usdtBuy} sell={usdtSell} setBuy={setUsdtBuy} setSell={setUsdtSell} />
+        <RateRow code="USD"  buy={usdBuy}  sell={usdSell}  setBuy={setUsdBuy}  setSell={setUsdSell} />
+        <RateRow code="EUR"  buy={eurBuy}  sell={eurSell}  setBuy={setEurBuy}  setSell={setEurSell} />
+        <RateRow code="THB"  buy={thbBuy}  sell={thbSell}  setBuy={setThbBuy}  setSell={setThbSell} />
 
         <div style={{ marginTop: 10 }}>
           <button className="btn" onClick={saveRates}>Сохранить курс</button>
