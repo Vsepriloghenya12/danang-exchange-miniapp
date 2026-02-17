@@ -36,7 +36,7 @@ const RateRow = React.memo(function RateRow(props: RateRowProps) {
             inputMode="decimal"
             value={props.buy}
             onChange={(e) => props.setBuy(e.target.value)}
-            placeholder="например 24800"
+            placeholder="0"
           />
         </div>
 
@@ -47,7 +47,7 @@ const RateRow = React.memo(function RateRow(props: RateRowProps) {
             inputMode="decimal"
             value={props.sell}
             onChange={(e) => props.setSell(e.target.value)}
-            placeholder="например 25100"
+            placeholder="0"
           />
         </div>
       </div>
@@ -74,14 +74,15 @@ function toNumStrict(label: string, s: string) {
 }
 
 export default function AdminTab({ me }: any) {
-  const [usdBuy, setUsdBuy] = useState("24800");
-  const [usdSell, setUsdSell] = useState("25100");
+  // По умолчанию ВСЁ пустое (без подстановки старых значений)
+  const [usdBuy, setUsdBuy] = useState("");
+  const [usdSell, setUsdSell] = useState("");
 
-  const [rubBuy, setRubBuy] = useState("260");
-  const [rubSell, setRubSell] = useState("275");
+  const [rubBuy, setRubBuy] = useState("");
+  const [rubSell, setRubSell] = useState("");
 
-  const [usdtBuy, setUsdtBuy] = useState("24800");
-  const [usdtSell, setUsdtSell] = useState("25100");
+  const [usdtBuy, setUsdtBuy] = useState("");
+  const [usdtSell, setUsdtSell] = useState("");
 
   const [eurBuy, setEurBuy] = useState("");
   const [eurSell, setEurSell] = useState("");
@@ -90,6 +91,14 @@ export default function AdminTab({ me }: any) {
   const [thbSell, setThbSell] = useState("");
 
   const [users, setUsers] = useState<any[]>([]);
+
+  const clearRates = () => {
+    setRubBuy(""); setRubSell("");
+    setUsdtBuy(""); setUsdtSell("");
+    setUsdBuy(""); setUsdSell("");
+    setEurBuy(""); setEurSell("");
+    setThbBuy(""); setThbSell("");
+  };
 
   const loadUsers = async () => {
     const r = await apiAdminUsers(me.initData);
@@ -110,19 +119,36 @@ export default function AdminTab({ me }: any) {
 
   useEffect(() => {
     loadUsers();
-    loadRates();
+    // ВАЖНО: не подставляем сохранённые курсы автоматически — всё начинается пустым.
+    clearRates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const saveRates = async () => {
     try {
-      const rates = {
+      const hasAny = (a: string, b: string) => a.trim() !== "" || b.trim() !== "";
+      const hasBoth = (a: string, b: string) => a.trim() !== "" && b.trim() !== "";
+
+      // EUR/THB — опционально: либо оба поля заполнены, либо оба пустые
+      if (hasAny(eurBuy, eurSell) && !hasBoth(eurBuy, eurSell)) {
+        throw new Error("EUR: заполни BUY и SELL (или оставь оба поля пустыми)");
+      }
+      if (hasAny(thbBuy, thbSell) && !hasBoth(thbBuy, thbSell)) {
+        throw new Error("THB: заполни BUY и SELL (или оставь оба поля пустыми)");
+      }
+
+      const rates: any = {
         RUB: { buy_vnd: toNumStrict("RUB BUY", rubBuy), sell_vnd: toNumStrict("RUB SELL", rubSell) },
         USDT: { buy_vnd: toNumStrict("USDT BUY", usdtBuy), sell_vnd: toNumStrict("USDT SELL", usdtSell) },
-        USD: { buy_vnd: toNumStrict("USD BUY", usdBuy), sell_vnd: toNumStrict("USD SELL", usdSell) },
-        EUR: { buy_vnd: toNumStrict("EUR BUY", eurBuy), sell_vnd: toNumStrict("EUR SELL", eurSell) },
-        THB: { buy_vnd: toNumStrict("THB BUY", thbBuy), sell_vnd: toNumStrict("THB SELL", thbSell) }
+        USD: { buy_vnd: toNumStrict("USD BUY", usdBuy), sell_vnd: toNumStrict("USD SELL", usdSell) }
       };
+
+      if (hasBoth(eurBuy, eurSell)) {
+        rates.EUR = { buy_vnd: toNumStrict("EUR BUY", eurBuy), sell_vnd: toNumStrict("EUR SELL", eurSell) };
+      }
+      if (hasBoth(thbBuy, thbSell)) {
+        rates.THB = { buy_vnd: toNumStrict("THB BUY", thbBuy), sell_vnd: toNumStrict("THB SELL", thbSell) };
+      }
 
       const r = await apiAdminSetTodayRates(me.initData, rates);
       if (r.ok) alert("Курс сохранён ✅");
@@ -153,7 +179,11 @@ export default function AdminTab({ me }: any) {
         <RateRow code="THB"  buy={thbBuy}  sell={thbSell}  setBuy={setThbBuy}  setSell={setThbSell} />
 
         <div className="vx-mt10">
-          <button className="btn" onClick={saveRates}>Сохранить курс</button>
+          <div className="row vx-rowWrap" style={{ gap: 8 }}>
+            <button className="btn" onClick={saveRates}>Сохранить курс</button>
+            <button className="btn" onClick={clearRates}>Очистить</button>
+            <button className="btn" onClick={loadRates}>Загрузить текущий</button>
+          </div>
         </div>
       </div>
 
