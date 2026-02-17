@@ -29,6 +29,12 @@ const UI = {
   accent: "#22c55e",
   accent2: "#06b6d4",
 };
+const STATUS_RU: Record<UserStatus, string> = {
+  standard: "стандарт",
+  silver: "серебро",
+  gold: "золото",
+};
+
 
 function IconSwap({ className = "" }: { className?: string }) {
   return (
@@ -420,7 +426,7 @@ export default function App() {
           <div className="h1">{UI.title}</div>
           <div className="small">
             {me.ok && me.user
-              ? `Вы: ${me.user.first_name ?? ""} ${me.user.username ? "(@" + me.user.username + ")" : ""} • статус: ${me.status}`
+              ? `Вы: ${me.user.first_name ?? ""} ${me.user.username ? "(@" + me.user.username + ")" : ""} • статус: ${me.status ? STATUS_RU[me.status] : "—"}`
               : me.error ?? "Авторизация..."}
           </div>
         </div>
