@@ -30,7 +30,6 @@ const RateRow = React.memo(function RateRow(props: RateRowProps) {
 
       <div className="vx-fields">
         <div className="vx-field">
-          <div className="vx-lbl">BUY</div>
           <input
             className="input vx-in"
             inputMode="decimal"
@@ -41,7 +40,6 @@ const RateRow = React.memo(function RateRow(props: RateRowProps) {
         </div>
 
         <div className="vx-field">
-          <div className="vx-lbl">SELL</div>
           <input
             className="input vx-in"
             inputMode="decimal"
