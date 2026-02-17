@@ -1,11 +1,30 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { apiGetTodayRates } from "../lib/api";
-import type { TodayRatesResponse } from "../lib/types";
+import type { Currency, Rates, TodayRatesResponse } from "../lib/types";
 
-function fmtInt(n: number) {
-  if (!Number.isFinite(n)) return "—";
-  return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n);
-}
+type Pair = { id: string; base: Currency; quote: Currency };
+
+const PAIRS: Pair[] = [
+  { id: "rub-vnd", base: "RUB", quote: "VND" },
+  { id: "usdt-vnd", base: "USDT", quote: "VND" },
+  { id: "usd-vnd", base: "USD", quote: "VND" },
+
+  { id: "eur-vnd", base: "EUR", quote: "VND" },
+  { id: "thb-vnd", base: "THB", quote: "VND" },
+
+  { id: "rub-usdt", base: "RUB", quote: "USDT" },
+  { id: "rub-usd", base: "RUB", quote: "USD" },
+  { id: "rub-eur", base: "RUB", quote: "EUR" },
+  { id: "rub-thb", base: "RUB", quote: "THB" }, // ← было "rud-thb"
+
+  { id: "usd-usdt", base: "USD", quote: "USDT" },
+  { id: "eur-usd", base: "EUR", quote: "USD" },
+  { id: "eur-usdt", base: "EUR", quote: "USDT" },
+
+  { id: "thb-usd", base: "THB", quote: "USD" },
+  { id: "thb-usdt", base: "THB", quote: "USDT" },
+  { id: "thb-eur", base: "THB", quote: "EUR" }
+];
 
 function fmtDaNang(d: Date) {
   try {
@@ -16,31 +35,55 @@ function fmtDaNang(d: Date) {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-      second: "2-digit",
-    }).format(d);
+      hour12: false
+    })
+      .format(d)
+      .replace(",", "");
   } catch {
     return d.toLocaleString("ru-RU");
   }
 }
 
-export default function RatesTab(_props: any) {
+function fmtRate(quote: Currency, n: number | null) {
+  if (n == null || !Number.isFinite(n)) return "—";
+  const max =
+    quote === "VND" ? 0 : 6; // чтобы кросс-пары читались нормально
+  return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: max }).format(n);
+}
+
+// 1 BASE -> сколько QUOTE (логика: BASE продаём → в VND по buy_vnd; VND → QUOTE по sell_vnd)
+function pairRate(rates: any, base: Currency, quote: Currency): number | null {
+  if (!rates) return null;
+  if (base === quote) return 1;
+
+  const baseToVnd =
+    base === "VND" ? 1 : Number(rates?.[base]?.buy_vnd);
+  if (!Number.isFinite(baseToVnd) || baseToVnd <= 0) return null;
+
+  if (quote === "VND") return baseToVnd;
+
+  const quoteSellVnd = Number(rates?.[quote]?.sell_vnd);
+  if (!Number.isFinite(quoteSellVnd) || quoteSellVnd <= 0) return null;
+
+  return baseToVnd / quoteSellVnd;
+}
+
+export default function RatesTab() {
   const [data, setData] = useState<TodayRatesResponse | null>(null);
 
   useEffect(() => {
     apiGetTodayRates().then(setData);
   }, []);
 
-  const rows = useMemo(() => {
-    if (!data?.data?.rates) return [] as Array<{ code: string; buy: number; sell: number }>;
-    const r = data.data.rates;
-    return [
-      { code: "USD", buy: r.USD.buy_vnd, sell: r.USD.sell_vnd },
-      { code: "RUB", buy: r.RUB.buy_vnd, sell: r.RUB.sell_vnd },
-      { code: "USDT", buy: r.USDT.buy_vnd, sell: r.USDT.sell_vnd },
-    ];
-  }, [data]);
-
+  const rates: Rates | null = (data as any)?.data?.rates ?? null;
   const updatedAt = data?.data?.updated_at ? fmtDaNang(new Date(data.data.updated_at)) : null;
+
+  const rows = useMemo(() => {
+    return PAIRS.map((p) => {
+      const v = pairRate(rates as any, p.base, p.quote);
+      return { ...p, value: v };
+    });
+  }, [rates]);
 
   return (
     <div className="vx-rates">
@@ -73,39 +116,30 @@ export default function RatesTab(_props: any) {
           color: #0f172a;
           white-space: nowrap;
         }
-        .vx-pill b{ font-weight: 950; }
-        .vx-upd{ margin-top: 2px; font-size: 12px; font-weight: 800; color: rgba(15,23,42,0.55); }
       `}</style>
 
       <div className="vx-rHead">
         <div>
-          <div className="h2" style={{ margin: 0 }}>
-            Актуальный курс
-          </div>
-          <div className="vx-rMeta">Дата: {data?.date ?? "—"}</div>
+          <div className="h2" style={{ margin: 0 }}>Курс</div>
+          <div className="vx-rMeta">Дата (Дананг): {data?.date ?? "—"}</div>
         </div>
-        {updatedAt ? <div className="vx-rMeta">Обновлено: {updatedAt} (Дананг)</div> : null}
+        {updatedAt ? <div className="vx-rMeta">Обновлено: {updatedAt}</div> : null}
       </div>
 
       {!data ? (
         <div className="vx-rMeta">Загрузка…</div>
-      ) : !data.data ? (
+      ) : !rates ? (
         <div className="vx-rMeta">Курс ещё не задан владельцем.</div>
       ) : (
         <div className="vx-rateList">
           {rows.map((r) => (
-            <div key={r.code} className="vx-rateRow">
+            <div key={r.id} className="vx-rateRow">
               <div>
-                <div className="vx-code">{r.code} → VND</div>
-                <div className="vx-sub">за 1 {r.code}</div>
+                <div className="vx-code">{r.base} → {r.quote}</div>
+                <div className="vx-sub">1 {r.base} = {fmtRate(r.quote, r.value)} {r.quote}</div>
               </div>
               <div className="vx-right">
-                <span className="vx-pill">
-                  BUY <b>{fmtInt(r.buy)}</b>
-                </span>
-                <span className="vx-pill">
-                  SELL <b>{fmtInt(r.sell)}</b>
-                </span>
+                <span className="vx-pill">{fmtRate(r.quote, r.value)}</span>
               </div>
             </div>
           ))}

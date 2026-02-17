@@ -1,11 +1,13 @@
-export type Currency = "RUB" | "USD" | "USDT" | "VND";
+export type Currency = "RUB" | "USDT" | "USD" | "EUR" | "THB" | "VND";
 export type ReceiveMethod = "cash" | "transfer" | "atm";
-export type UserStatus = "none" | "bronze" | "silver" | "gold";
+export type UserStatus = "standard" | "silver" | "gold";
 
 export type Rates = {
   USD: { buy_vnd: number; sell_vnd: number };
   RUB: { buy_vnd: number; sell_vnd: number };
   USDT: { buy_vnd: number; sell_vnd: number };
+  EUR: { buy_vnd: number; sell_vnd: number };
+  THB: { buy_vnd: number; sell_vnd: number };
 };
 
 export type TodayRatesResponse = {
@@ -19,5 +21,10 @@ export type TodayRatesResponse = {
 };
 
 export type AuthResponse =
-  | { ok: true; user: { id: number; username?: string; first_name?: string; last_name?: string }; status: UserStatus; isOwner: boolean }
+  | {
+      ok: true;
+      user: { id: number; username?: string; first_name?: string; last_name?: string };
+      status: UserStatus;
+      isOwner: boolean;
+    }
   | { ok: false; error: string };
