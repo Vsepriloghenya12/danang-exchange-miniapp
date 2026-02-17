@@ -19,7 +19,7 @@ type Me = {
   error?: string;
 };
 
-type TabKey = "rates" | "calc" | "atm" | "guide" | "reviews" | "admin";
+type TabKey = "main" | "atm" | "guide" | "reviews" | "admin";
 
 const UI = {
   title: "Обмен валют — Дананг",
@@ -40,21 +40,6 @@ function IconSwap({ className = "" }: { className?: string }) {
     </svg>
   );
 }
-function IconCalc({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="5" y="3" width="14" height="18" rx="2" />
-      <path d="M8 7h8" />
-      <path d="M8 11h2" />
-      <path d="M12 11h2" />
-      <path d="M16 11h0" />
-      <path d="M8 15h2" />
-      <path d="M12 15h2" />
-      <path d="M8 19h8" />
-    </svg>
-  );
-}
-
 function IconAtm({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
@@ -128,7 +113,7 @@ function BottomBar({
 export default function App() {
   const tg = getTg();
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
-  const [tab, setTab] = useState<TabKey>("rates");
+  const [tab, setTab] = useState<TabKey>("main");
 
   const isDemo = useMemo(() => new URLSearchParams(location.search).get("demo") === "1", []);
 
@@ -164,12 +149,11 @@ export default function App() {
   }, [tg, isDemo]);
 
   useEffect(() => {
-    if (tab === "admin" && !me.isOwner) setTab("rates");
+    if (tab === "admin" && !me.isOwner) setTab("main");
   }, [tab, me.isOwner]);
 
   const bottomTabs: Array<{ key: TabKey; label: string; show: boolean; icon: React.ReactNode }> = [
-    { key: "rates", label: "Курс", show: true, icon: <IconSwap className="vx-i" /> },
-    { key: "calc", label: "Калькулятор", show: true, icon: <IconCalc className="vx-i" /> },
+    { key: "main", label: "Курс", show: true, icon: <IconSwap className="vx-i" /> },
     { key: "atm", label: "Банкоматы", show: true, icon: <IconAtm className="vx-i" /> },
     { key: "guide", label: "Гид", show: true, icon: <IconGuide className="vx-i" /> },
     { key: "reviews", label: "Отзывы", show: true, icon: <IconStar className="vx-i" /> },
@@ -426,14 +410,15 @@ export default function App() {
         </div>
 
         <div className="vx-body">
-          {tab === "rates" && (
-            <div className="vx-card2">
-              <RatesTab me={me} />
-            </div>
-          )}
-          {tab === "calc" && (
-            <div className="vx-card2">
-              <CalculatorTab me={me} />
+          {tab === "main" && (
+            <div className="vx-stack">
+              {/* Сверху курс, ниже калькулятор */}
+              <div className="vx-card2">
+                <RatesTab me={me} />
+              </div>
+              <div className="vx-card2">
+                <CalculatorTab me={me} />
+              </div>
             </div>
           )}
           {tab === "atm" && (
