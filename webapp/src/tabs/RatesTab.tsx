@@ -118,54 +118,9 @@ export default function RatesTab() {
 
   return (
     <div className="vx-rates2">
-      <style>{`
-        .vx-rates2{ display:flex; flex-direction:column; gap:10px; }
-        .vx-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
-        .vx-meta{ font-size:12px; color: rgba(15,23,42,0.55); font-weight: 800; }
-        .vx-note{ font-size:12px; color: rgba(15,23,42,0.55); font-weight: 800; margin-top: 2px; }
-
-        .vx-table{
-          border: 1px solid rgba(15,23,42,0.10);
-          background: rgba(255,255,255,0.62);
-          border-radius: 18px;
-          overflow: hidden;
-        }
-
-        .vx-tr{
-          display:grid;
-          grid-template-columns: 1.2fr 0.9fr 0.9fr;
-          gap: 10px;
-          padding: 10px 12px;
-          align-items:center;
-          font-variant-numeric: tabular-nums;
-        }
-
-        .vx-tr + .vx-tr{ border-top: 1px solid rgba(15,23,42,0.08); }
-
-        .vx-th{
-          background: rgba(255,255,255,0.78);
-          font-size: 11px;
-          font-weight: 950;
-          color: rgba(15,23,42,0.65);
-          letter-spacing: 0.02em;
-          text-transform: uppercase;
-        }
-
-        .vx-pair{ font-size: 13px; font-weight: 950; color:#0f172a; }
-        .vx-sub{ font-size: 11px; font-weight: 800; color: rgba(15,23,42,0.55); margin-top: 2px; }
-
-        .vx-num{
-          justify-self:end;
-          font-size: 13px;
-          font-weight: 950;
-          color:#0f172a;
-        }
-        .vx-dash{ color: rgba(15,23,42,0.35); }
-      `}</style>
-
-      <div className="vx-head">
+<div className="vx-head">
         <div>
-          <div className="h2" style={{ margin: 0 }}>Курс</div>
+          <div className="h2 vx-m0">Курс</div>
           <div className="vx-meta">Дата (Дананг): {data?.date ?? "—"}</div>
           <div className="vx-note">Покупка / Продажа — для первой валюты пары</div>
         </div>
@@ -180,8 +135,8 @@ export default function RatesTab() {
         <div className="vx-table">
           <div className="vx-tr vx-th">
             <div>Пара</div>
-            <div style={{ justifySelf: "end" }}>Покупка</div>
-            <div style={{ justifySelf: "end" }}>Продажа</div>
+            <div className="vx-end">Покупка</div>
+            <div className="vx-end">Продажа</div>
           </div>
 
           {rows.map((r) => (

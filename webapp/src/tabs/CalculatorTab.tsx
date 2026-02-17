@@ -1,12 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-type Currency = "RUB" | "USD" | "USDT" | "EUR" | "THB" | "VND";
+type Currency = "RUB" | "USD" | "USDT" | "VND";
 type ReceiveMethod = "cash" | "transfer" | "atm";
 type PayMethod = "cash" | "transfer";
 type ClientStatus = "standard" | "silver" | "gold";
 
+type Rates = {
+  USD: { buy_vnd: number; sell_vnd: number };
+  RUB: { buy_vnd: number; sell_vnd: number };
+  USDT: { buy_vnd: number; sell_vnd: number };
+};
+
 type RateKey = Exclude<Currency, "VND">;
-type Rates = Record<RateKey, { buy_vnd: number; sell_vnd: number }>;
 function isRateKey(c: Currency): c is RateKey {
   return c !== "VND";
 }
@@ -32,7 +37,7 @@ function formatAmount(cur: Currency, n: number) {
 
 function allowedReceiveMethods(buyCurrency: Currency): ReceiveMethod[] {
   // правила из твоей логики
-  if (buyCurrency === "USD" || buyCurrency === "EUR" || buyCurrency === "THB") return ["cash"]; // валюта только наличкой
+  if (buyCurrency === "USD") return ["cash"]; // доллары только наличкой
   if (buyCurrency === "RUB") return ["transfer"]; // рубли только перевод
   if (buyCurrency === "USDT") return ["transfer"]; // usdt только перевод
   return ["cash", "transfer", "atm"]; // VND
@@ -154,7 +159,11 @@ function applyRateBonuses(
   payMethod: PayMethod,
   receiveMethod: ReceiveMethod
 ): Rates {
-  const next: Rates = { ...baseRates };
+  const next: Rates = {
+    USD: { ...baseRates.USD },
+    RUB: { ...baseRates.RUB },
+    USDT: { ...baseRates.USDT },
+  };
 
   // бонусы применяем только когда ОТДАЁМ (RUB/USD/USDT) и ПОЛУЧАЕМ VND
   if (buyCurrency === "VND" && isRateKey(sellCurrency)) {
@@ -173,26 +182,19 @@ function calcBuyAmount(rates: Rates, sellCurrency: Currency, buyCurrency: Curren
   if (sellCurrency === buyCurrency) return sellAmount;
 
   const vnd =
-    sellCurrency === "VND" ? sellAmount : sellAmount * (rates[sellCurrency as RateKey]?.buy_vnd ?? 0);
+    sellCurrency === "VND" ? sellAmount : sellAmount * rates[sellCurrency as RateKey].buy_vnd;
 
   if (buyCurrency === "VND") return vnd;
-  return vnd / (rates[buyCurrency as RateKey]?.sell_vnd ?? 1);
+  return vnd / rates[buyCurrency as RateKey].sell_vnd;
 }
 
 function calcSellAmount(rates: Rates, sellCurrency: Currency, buyCurrency: Currency, buyAmount: number): number {
   if (buyAmount <= 0) return 0;
   if (sellCurrency === buyCurrency) return buyAmount;
 
-  const vndCost = buyCurrency === "VND" ? buyAmount : buyAmount * (rates[buyCurrency as RateKey]?.sell_vnd ?? 0);
+  const vndCost = buyCurrency === "VND" ? buyAmount : buyAmount * rates[buyCurrency as RateKey].sell_vnd;
   if (sellCurrency === "VND") return vndCost;
-  return vndCost / (rates[sellCurrency as RateKey]?.buy_vnd ?? 1);
-}
-
-function hasRate(r: Rates | null, c: Currency): boolean {
-  if (!r) return false;
-  if (c === "VND") return true;
-  const row = (r as any)[c];
-  return !!row && Number.isFinite(row.buy_vnd) && Number.isFinite(row.sell_vnd);
+  return vndCost / rates[sellCurrency as RateKey].buy_vnd;
 }
 
 export default function CalculatorTab(_props: any) {
@@ -262,19 +264,9 @@ export default function CalculatorTab(_props: any) {
   const sellAmount = useMemo(() => parseNum(sellText), [sellText]);
   const buyAmount = useMemo(() => parseNum(buyText), [buyText]);
 
-  const ratesOk = useMemo(() => hasRate(rates, sellCurrency) && hasRate(rates, buyCurrency), [rates, sellCurrency, buyCurrency]);
-
   // пересчёт
   useEffect(() => {
     if (!rates) return;
-    if (!ratesOk) {
-      if (lastEdited.current === "sell") {
-        if (buyText) setBuyText("");
-      } else {
-        if (sellText) setSellText("");
-      }
-      return;
-    }
 
     if (lastEdited.current === "sell") {
       const effectiveRates = applyRateBonuses(
@@ -319,8 +311,7 @@ export default function CalculatorTab(_props: any) {
   const rateInfo = useMemo(() => {
     if (!rates) return null;
     if (buyCurrency !== "VND") return null;
-    if (!isRateKey(sellCurrency)) return null;
-    if (!hasRate(rates, sellCurrency)) return null;
+    if (!(sellCurrency === "RUB" || sellCurrency === "USD" || sellCurrency === "USDT")) return null;
 
     const amt = parseNum(sellText);
     const base = rates[sellCurrency].buy_vnd;
@@ -331,7 +322,6 @@ export default function CalculatorTab(_props: any) {
 
   const canSend =
     !!rates &&
-    ratesOk &&
     sellCurrency !== buyCurrency &&
     parseNum(sellText) > 0 &&
     parseNum(buyText) > 0 &&
@@ -396,101 +386,8 @@ export default function CalculatorTab(_props: any) {
 
   return (
     <div className="vx-calc">
-      <style>{`
-        .vx-calc{ display:flex; flex-direction:column; gap:12px; }
-        .vx-calcTitle{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
-        .vx-calcTitle .vx-muted{ font-size:12px; color: rgba(15,23,42,0.55); font-weight:800; }
-
-        .vx-calcBox{
-          border: 1px solid rgba(15,23,42,0.10);
-          background: rgba(255,255,255,0.62);
-          border-radius: 22px;
-          padding: 12px;
-          overflow: hidden;
-        }
-
-        .vx-exRow{ display:grid; grid-template-columns: 92px 1fr 48px; gap:10px; align-items:center; }
-        @media (max-width: 360px){ .vx-exRow{ grid-template-columns: 84px 1fr 44px; } }
-
-        .vx-iconBtn{
-          height:48px;
-          width:48px;
-          display:grid;
-          place-items:center;
-          border-radius: 18px;
-          border: 1px solid rgba(15,23,42,0.16);
-          background: rgba(255,255,255,0.92);
-          box-shadow: 0 6px 16px rgba(2,6,23,0.06);
-          cursor:pointer;
-          font-weight: 900;
-          color: #0f172a;
-          user-select:none;
-        }
-        .vx-iconBtnGhost{ opacity:0; pointer-events:none; }
-
-        .vx-calcBox *{ box-sizing:border-box; }
-        .vx-exRow > *{ min-width: 0; }
-        .vx-exRow select, .vx-exRow input{
-          width: 100%;
-          max-width: 100%;
-          height: 48px;
-          border-radius: 18px;
-          border: 1px solid rgba(15,23,42,0.12);
-          background: rgba(255,255,255,0.92);
-          padding: 0 14px;
-          font-size: 14px;
-          font-weight: 900;
-          color: #0f172a;
-          outline: none;
-        }
-        .vx-exRow input::placeholder{ color: rgba(15,23,42,0.45); font-weight: 800; }
-
-        .vx-subTitle{ margin-top: 10px; font-size: 12px; font-weight: 900; color: rgba(15,23,42,0.62); }
-
-        .vx-methods{ display:flex; gap:8px; flex-wrap:wrap; }
-        .vx-pill{
-          border-radius: 999px;
-          border: 1px solid rgba(15,23,42,0.12);
-          background: rgba(255,255,255,0.70);
-          padding: 10px 12px;
-          font-size: 12px;
-          font-weight: 900;
-          color: #0f172a;
-          cursor:pointer;
-          user-select:none;
-        }
-        .vx-pillActive{
-          border-color: rgba(15,23,42,0.10);
-          background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(6,182,212,0.18));
-        }
-
-        .vx-rateLine{
-          margin-top: 10px;
-          font-size: 12px;
-          font-weight: 900;
-          color: rgba(15,23,42,0.72);
-        }
-        .vx-rateLine b{ color: rgba(15,23,42,0.92); }
-
-        .vx-primary{
-          height: 52px;
-          border-radius: 18px;
-          border: 0;
-          width: 100%;
-          cursor: pointer;
-          font-weight: 950;
-          letter-spacing: -0.01em;
-          color: white;
-          background: linear-gradient(135deg, var(--vx-accent, #22c55e), var(--vx-accent2, #06b6d4));
-          box-shadow: 0 18px 40px rgba(34,197,94,0.22);
-        }
-        .vx-primary:disabled{ opacity: 0.55; cursor: not-allowed; }
-
-        .vx-help{ font-size: 12px; color: rgba(15,23,42,0.60); font-weight: 700; line-height: 1.35; }
-      `}</style>
-
-      <div className="vx-calcTitle">
-        <div className="h2" style={{ margin: 0 }}>Калькулятор</div>
+<div className="vx-calcTitle">
+        <div className="h2 vx-m0">Калькулятор</div>
         <div className="vx-muted">Статус: {statusLabel(clientStatus)}</div>
       </div>
 
@@ -501,21 +398,15 @@ export default function CalculatorTab(_props: any) {
         </div>
       )}
 
-      {!loading && rates && !ratesOk && (
-        <div className="vx-help">
-          Для выбранных валют нет курса на сегодня. Выбери другую валюту или попроси владельца добавить курс.
-        </div>
-      )}
-
       <div className="vx-calcBox">
         <div className="vx-exRow">
           <select value={sellCurrency} onChange={(e) => setSellCurrency(e.target.value as Currency)}>
             <option value="RUB">RUB</option>
             <option value="USD">USD</option>
             <option value="USDT">USDT</option>
-            <option value="EUR">EUR</option>
+                        <option value="EUR">EUR</option>
             <option value="THB">THB</option>
-            <option value="VND">VND</option>
+<option value="VND">VND</option>
           </select>
 
           <input
@@ -533,16 +424,16 @@ export default function CalculatorTab(_props: any) {
           </button>
         </div>
 
-        <div style={{ height: 10 }} />
+        <div className="vx-sp10" />
 
         <div className="vx-exRow">
           <select value={buyCurrency} onChange={(e) => setBuyCurrency(e.target.value as Currency)}>
             <option value="RUB">RUB</option>
             <option value="USD">USD</option>
             <option value="USDT">USDT</option>
-            <option value="EUR">EUR</option>
+                        <option value="EUR">EUR</option>
             <option value="THB">THB</option>
-            <option value="VND">VND</option>
+<option value="VND">VND</option>
           </select>
 
           <input
@@ -596,13 +487,13 @@ export default function CalculatorTab(_props: any) {
           </div>
         )}
 
-        <div style={{ height: 12 }} />
+        <div className="vx-sp12" />
 
         <button type="button" onClick={sendRequest} disabled={!canSend} className="vx-primary">
           Оформить заявку
         </button>
 
-        <div style={{ height: 10 }} />
+        <div className="vx-sp10" />
         <div className="vx-help">
           Вводи сумму в любом поле — второе пересчитается автоматически. Если где-то выбрано «Наличные» —
           надбавка за «Перевод/Банкомат» не применяется.

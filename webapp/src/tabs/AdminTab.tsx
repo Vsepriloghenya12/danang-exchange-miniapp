@@ -135,53 +135,7 @@ export default function AdminTab({ me }: any) {
 
   return (
     <div className="card">
-      <style>{`
-        .vx-rateRow{
-          display:flex;
-          align-items:flex-start;
-          gap:10px;
-          padding: 10px 0;
-          border-top: 1px solid rgba(15,23,42,0.08);
-        }
-        .vx-rateRow:first-of-type{ border-top: 0; padding-top: 0; }
-
-        .vx-code{
-          width: 62px;
-          flex: 0 0 62px;
-          font-weight: 950;
-          color:#0f172a;
-          padding-top: 18px;
-        }
-
-        .vx-fields{
-          flex: 1 1 auto;
-          min-width: 0;
-          display:flex;
-          gap:8px;
-          flex-wrap: wrap;     /* ключ: не вылезаем за рамки */
-        }
-
-        .vx-field{
-          flex: 1 1 140px;     /* если узко — перенос на следующую строку */
-          min-width: 0;
-        }
-
-        .vx-lbl{
-          font-size: 11px;
-          font-weight: 900;
-          color: rgba(15,23,42,0.55);
-          margin: 0 0 6px 2px;
-          letter-spacing: 0.02em;
-        }
-
-        .vx-in{
-          width: 100%;
-          min-width: 0;
-          box-sizing: border-box;
-        }
-      `}</style>
-
-      <div className="h1">Управление</div>
+<div className="h1">Управление</div>
 
       <div className="card">
         <div className="small">Курс на сегодня (BUY/SELL к VND) — заполняется каждый день</div>
@@ -193,7 +147,7 @@ export default function AdminTab({ me }: any) {
         <RateRow code="EUR"  buy={eurBuy}  sell={eurSell}  setBuy={setEurBuy}  setSell={setEurSell} />
         <RateRow code="THB"  buy={thbBuy}  sell={thbSell}  setBuy={setThbBuy}  setSell={setThbSell} />
 
-        <div style={{ marginTop: 10 }}>
+        <div className="vx-mt10">
           <button className="btn" onClick={saveRates}>Сохранить курс</button>
         </div>
       </div>
@@ -206,7 +160,7 @@ export default function AdminTab({ me }: any) {
           <div className="small">Пока нет клиентов (они появятся после входа в мини-апп).</div>
         ) : (
           users.map((u) => (
-            <div key={u.tg_id} style={{ marginBottom: 10 }}>
+            <div key={u.tg_id} className="vx-mb10">
               <div>
                 <b>{u.first_name ?? ""} {u.last_name ?? ""}</b>{" "}
                 <span className="small">
@@ -214,12 +168,11 @@ export default function AdminTab({ me }: any) {
                 </span>
               </div>
 
-              <div className="row" style={{ marginTop: 6, flexWrap: "wrap" }}>
+              <div className="row vx-mt6 vx-rowWrap">
                 {STATUS_OPTIONS.map((s) => (
                   <button
                     key={s.value}
-                    className="btn"
-                    style={{ padding: "8px 10px" }}
+                    className="btn vx-btnSm"
                     onClick={() => setStatus(u.tg_id, s.value)}
                   >
                     {s.label}

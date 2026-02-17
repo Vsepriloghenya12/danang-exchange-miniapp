@@ -13,7 +13,7 @@ export default function AtmTab() {
       <div className="small">Пока статический список (позже сделаем редактирование владельцем).</div>
       <div className="hr" />
       {ATMS.map((a, i) => (
-        <div key={i} style={{ marginBottom: 10 }}>
+        <div key={i} className="vx-mb10">
           <div><b>{a.title}</b></div>
           <div className="small">{a.area} • {a.note}</div>
         </div>

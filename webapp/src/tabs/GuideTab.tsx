@@ -5,7 +5,7 @@ export default function GuideTab() {
     <div className="card">
       <div className="h1">Гид Дананг</div>
       <div>Скоро будет 👀</div>
-      <div className="small" style={{ marginTop: 8 }}>
+      <div className="small vx-mt8">
         В следующем этапе сделаем: владелец редактирует места/категории, пользователи смотрят список.
       </div>
     </div>
