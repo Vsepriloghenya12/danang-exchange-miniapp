@@ -9,27 +9,7 @@ type RateKey = Exclude<Currency, "VND">;
 type RateEntry = { buy_vnd: number; sell_vnd: number };
 type Rates = Partial<Record<RateKey, RateEntry>>;
 
-const PAIRS_ORDER: Array<[Currency, Currency]> = [
-  ["RUB", "VND"],
-  ["USDT", "VND"],
-  ["USD", "VND"],
-  ["EUR", "VND"],
-  ["THB", "VND"],
-  ["RUB", "USDT"],
-  ["RUB", "USD"],
-  ["RUB", "EUR"],
-  ["RUB", "THB"], // у тебя было "rud-thb" — считаю опечаткой
-  ["USD", "USDT"],
-  ["EUR", "USD"],
-  ["EUR", "USDT"],
-  ["THB", "USD"],
-  ["THB", "USDT"],
-  ["THB", "EUR"],
-];
-
-function pairId(a: Currency, b: Currency) {
-  return `${a}-${b}`;
-}
+const CURRENCY_OPTIONS: Currency[] = ["RUB", "USDT", "USD", "EUR", "THB", "VND"];
 
 function getTg() {
   return (window as any).Telegram?.WebApp;
@@ -50,6 +30,31 @@ function formatAmount(cur: Currency, n: number) {
   return (Math.round(n * 100) / 100).toString();
 }
 
+function getRate(rates: Rates | null, c: Currency): RateEntry | null {
+  if (!rates) return null;
+  if (c === "VND") return { buy_vnd: 1, sell_vnd: 1 };
+  const r = rates[c as RateKey];
+  if (!r) return null;
+  const buy = Number(r.buy_vnd);
+  const sell = Number(r.sell_vnd);
+  if (!Number.isFinite(buy) || !Number.isFinite(sell) || buy <= 0 || sell <= 0) return null;
+  return { buy_vnd: buy, sell_vnd: sell };
+}
+
+function allowedReceiveMethods(buyCurrency: Currency): ReceiveMethod[] {
+  if (buyCurrency === "VND") return ["cash", "transfer", "atm"];
+  if (buyCurrency === "RUB") return ["transfer"];
+  if (buyCurrency === "USDT") return ["transfer"];
+  // USD/EUR/THB — выдача наличными (если будут другие правила — скажешь)
+  return ["cash"];
+}
+
+function methodLabel(m: ReceiveMethod | PayMethod) {
+  if (m === "cash") return "Наличные";
+  if (m === "transfer") return "Перевод";
+  return "Банкомат";
+}
+
 function normalizeStatus(s: any): ClientStatus {
   const v = String(s ?? "").toLowerCase().trim();
   if (["gold", "голд", "золото"].includes(v)) return "gold";
@@ -63,44 +68,18 @@ function statusLabel(s: ClientStatus) {
   return "Стандарт";
 }
 
-function methodLabel(m: ReceiveMethod | PayMethod) {
-  if (m === "cash") return "Наличные";
-  if (m === "transfer") return "Перевод";
-  return "Банкомат";
-}
-
-function allowedReceiveMethods(buyCurrency: Currency): ReceiveMethod[] {
-  // Логика как раньше + для новых валют:
-  // ВND: все варианты
-  // USD/EUR/THB: наличные (если хочешь — скажи, сделаю по твоим правилам)
-  // RUB/USDT: перевод
-  if (buyCurrency === "VND") return ["cash", "transfer", "atm"];
-  if (buyCurrency === "RUB") return ["transfer"];
-  if (buyCurrency === "USDT") return ["transfer"];
-  if (buyCurrency === "USD") return ["cash"];
-  if (buyCurrency === "EUR") return ["cash"];
-  if (buyCurrency === "THB") return ["cash"];
-  return ["cash"];
-}
-
-function getRate(rates: Rates | null, c: Currency): RateEntry | null {
-  if (!rates) return null;
-  if (c === "VND") return { buy_vnd: 1, sell_vnd: 1 }; // не используем напрямую, но удобно
-  const r = rates[c as RateKey];
-  if (!r) return null;
-  const buy = Number(r.buy_vnd);
-  const sell = Number(r.sell_vnd);
-  if (!Number.isFinite(buy) || !Number.isFinite(sell) || buy <= 0 || sell <= 0) return null;
-  return { buy_vnd: buy, sell_vnd: sell };
-}
-
 /**
- * Надбавка по статусу/сумме:
- * - RUB: +1..+5
- * - USD/USDT:
- *   <1000:  silver +100, gold +150
- *   1000–3000: standard +100, silver +150, gold +200
- *   >=3000: standard +150, silver +200, gold +250
+ * Надбавка по статусу/сумме.
+ * RUB (₽):
+ *  <50k:   standard 0,  silver +1, gold +2
+ *  50-100: standard +1, silver +2, gold +3
+ *  100-200:standard +2, silver +3, gold +4
+ *  200k+:  standard +3, silver +4, gold +5
+ *
+ * USD/USDT:
+ *  <1000:  standard 0,   silver +100, gold +150
+ *  1000–3000: standard +100, silver +150, gold +200
+ *  >=3000: standard +150, silver +200, gold +250
  */
 function tierBonusForRate(sellCurrency: Currency, sellAmount: number, status: ClientStatus): number {
   if (sellAmount <= 0) return 0;
@@ -136,17 +115,16 @@ function tierBonusForRate(sellCurrency: Currency, sellAmount: number, status: Cl
       return 0;
     }
 
-    // ✅ “дыра” закрыта: 1000–3000
+    // ✅ 1000–3000 (без “дыры”)
     if (a < 3000) {
       if (status === "standard") return 100;
       if (status === "silver") return 150;
-      return 200; // gold
+      return 200;
     }
 
-    // >=3000
     if (status === "standard") return 150;
     if (status === "silver") return 200;
-    return 250; // gold
+    return 250;
   }
 
   return 0;
@@ -154,8 +132,8 @@ function tierBonusForRate(sellCurrency: Currency, sellAmount: number, status: Cl
 
 /**
  * Доп. коэффициент ATM/Перевод:
- * - применяется только когда покупаем VND и receiveMethod = transfer/atm
- * - если ХОТЬ ЧТО-ТО = “Наличные” (payMethod или receiveMethod) — бонус отменяем
+ * - только когда покупаем VND и receiveMethod = transfer/atm
+ * - если хоть что-то "Наличные" (payMethod или receiveMethod) — бонус отменяем
  * - шаг: RUB +1, USD/USDT +100
  */
 function methodBonusForRate(
@@ -166,15 +144,14 @@ function methodBonusForRate(
 ): number {
   if (buyCurrency !== "VND") return 0;
 
-  // ✅ если хоть что-то "наличные" — бонус отменяем
+  // ✅ главное правило
   if (payMethod === "cash" || receiveMethod === "cash") return 0;
 
-  // сюда мы попадаем только если receiveMethod = transfer | atm
-  if (receiveMethod === "transfer" || receiveMethod === "atm") {
-    if (sellCurrency === "RUB") return 1;
-    if (sellCurrency === "USD" || sellCurrency === "USDT") return 100;
-  }
+  // TS-safe: сюда cash уже не попадёт
+  if (receiveMethod !== "transfer" && receiveMethod !== "atm") return 0;
 
+  if (sellCurrency === "RUB") return 1;
+  if (sellCurrency === "USD" || sellCurrency === "USDT") return 100;
   return 0;
 }
 
@@ -189,18 +166,15 @@ function applyRateBonuses(
 ): Rates {
   const next: Rates = { ...baseRates };
 
-  // бонусы применяем только когда ОТДАЁМ (RUB/USD/USDT) и ПОЛУЧАЕМ VND
-  if (buyCurrency === "VND" && sellCurrency !== "VND") {
+  // бонусы только для * -> VND и только RUB/USD/USDT
+  if (buyCurrency === "VND" && (sellCurrency === "RUB" || sellCurrency === "USD" || sellCurrency === "USDT")) {
     const r = getRate(baseRates, sellCurrency);
     if (!r) return next;
 
     const tier = tierBonusForRate(sellCurrency, sellAmountForTier, status);
     const method = methodBonusForRate(sellCurrency, buyCurrency, payMethod, receiveMethod);
 
-    next[sellCurrency as RateKey] = {
-      buy_vnd: r.buy_vnd + tier + method,
-      sell_vnd: r.sell_vnd,
-    };
+    next[sellCurrency as RateKey] = { buy_vnd: r.buy_vnd + tier + method, sell_vnd: r.sell_vnd };
   }
 
   return next;
@@ -238,19 +212,11 @@ function calcSellAmount(rates: Rates, sellCurrency: Currency, buyCurrency: Curre
   })();
 
   if (!Number.isFinite(vndCost)) return Number.NaN;
-
   if (sellCurrency === "VND") return vndCost;
 
   const sr = getRate(rates, sellCurrency);
   if (!sr) return Number.NaN;
   return vndCost / sr.buy_vnd;
-}
-
-function calcPairRate(rates: Rates | null, a: Currency, b: Currency): number | null {
-  if (!rates) return null;
-  const one = 1;
-  const r = calcBuyAmount(rates, a, b, one);
-  return Number.isFinite(r) ? r : null;
 }
 
 export default function CalculatorTab(props: any) {
@@ -259,8 +225,7 @@ export default function CalculatorTab(props: any) {
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState<Rates | null>(null);
 
-  // стартовая пара
-  const [sellCurrency, setSellCurrency] = useState<Currency>("RUB");
+  const [sellCurrency, setSellCurrency] = useState<Currency>("USD");
   const [buyCurrency, setBuyCurrency] = useState<Currency>("VND");
 
   const [sellText, setSellText] = useState("");
@@ -273,12 +238,6 @@ export default function CalculatorTab(props: any) {
 
   const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeStatus(props?.user?.status));
 
-  // пары в порядке + “custom” (если вдруг получилась не из списка)
-  const knownPairIds = useMemo(() => new Set(PAIRS_ORDER.map(([a, b]) => pairId(a, b))), []);
-  const currentPairId = pairId(sellCurrency, buyCurrency);
-  const pairSelectValue = knownPairIds.has(currentPairId) ? currentPairId : "custom";
-
-  // подстроим receiveMethod под валюту получения
   useEffect(() => {
     const allowed = allowedReceiveMethods(buyCurrency);
     if (!allowed.includes(receiveMethod)) setReceiveMethod(allowed[0]);
@@ -304,7 +263,6 @@ export default function CalculatorTab(props: any) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // подтянуть статус если есть /api/me (не обязателен)
   useEffect(() => {
     const tg2 = getTg();
     const initData = tg2?.initData || "";
@@ -325,8 +283,7 @@ export default function CalculatorTab(props: any) {
   const sellAmount = useMemo(() => parseNum(sellText), [sellText]);
   const buyAmount = useMemo(() => parseNum(buyText), [buyText]);
 
-  // проверка “есть ли курс” (чтобы не было белого экрана)
-  const missing = useMemo(() => {
+  const missingRates = useMemo(() => {
     const miss: Currency[] = [];
     if (!rates) return miss;
     if (sellCurrency !== "VND" && !getRate(rates, sellCurrency)) miss.push(sellCurrency);
@@ -334,9 +291,8 @@ export default function CalculatorTab(props: any) {
     return Array.from(new Set(miss));
   }, [rates, sellCurrency, buyCurrency]);
 
-  const canCalc = !!rates && missing.length === 0;
+  const canCalc = !!rates && missingRates.length === 0;
 
-  // пересчёт
   useEffect(() => {
     if (!rates) return;
     if (!canCalc) return;
@@ -358,7 +314,6 @@ export default function CalculatorTab(props: any) {
     } else {
       let guess = calcSellAmount(rates, sellCurrency, buyCurrency, buyAmount);
 
-      // 2–3 итерации чтобы учесть бонус, зависящий от суммы
       for (let i = 0; i < 3; i++) {
         const effectiveRates = applyRateBonuses(
           rates,
@@ -382,31 +337,10 @@ export default function CalculatorTab(props: any) {
       if (next !== sellText) setSellText(next);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sellText, buyText, sellCurrency, buyCurrency, rates, payMethod, receiveMethod, clientStatus, canCalc]);
-
-  function onSelectPair(id: string) {
-    const found = PAIRS_ORDER.find(([a, b]) => pairId(a, b) === id);
-    if (!found) return;
-    const [a, b] = found;
-    setSellCurrency(a);
-    setBuyCurrency(b);
-    // не трогаем суммы — пользователь может менять пары “на лету”
-  }
-
-  function swapDirection() {
-    // ✅ одна кнопка, без дублей
-    setSellCurrency(buyCurrency);
-    setBuyCurrency(sellCurrency);
-    const a = sellText;
-    const b = buyText;
-    setSellText(b);
-    setBuyText(a);
-  }
+  }, [sellText, buyText, sellCurrency, buyCurrency, rates, receiveMethod, payMethod, clientStatus, canCalc]);
 
   const rateInfo = useMemo(() => {
     if (!rates) return null;
-
-    // показываем “эффективный курс” только для пар * -> VND, где применяются бонусы
     if (buyCurrency !== "VND") return null;
     if (!(sellCurrency === "RUB" || sellCurrency === "USD" || sellCurrency === "USDT")) return null;
 
@@ -416,7 +350,7 @@ export default function CalculatorTab(props: any) {
     const tier = tierBonusForRate(sellCurrency, sellAmount, clientStatus);
     const m = methodBonusForRate(sellCurrency, buyCurrency, payMethod, receiveMethod);
     return { base, tier, m, eff: base + tier + m };
-  }, [rates, sellCurrency, buyCurrency, sellAmount, clientStatus, payMethod, receiveMethod]);
+  }, [rates, sellCurrency, buyCurrency, sellAmount, clientStatus, receiveMethod, payMethod]);
 
   const canSend =
     canCalc &&
@@ -425,13 +359,22 @@ export default function CalculatorTab(props: any) {
     parseNum(buyText) > 0 &&
     !!receiveMethod;
 
+  function swapCurrencies() {
+    setSellCurrency(buyCurrency);
+    setBuyCurrency(sellCurrency);
+    const a = sellText;
+    const b = buyText;
+    setSellText(b);
+    setBuyText(a);
+  }
+
   async function sendRequest() {
     if (!canSend || !rates) return;
 
     const tg2 = getTg();
     const initData = tg2?.initData || "";
     if (!initData) {
-      tg2?.showAlert?.("Нет initData. Открой мини-приложение через /start в Telegram.");
+      tg2?.showAlert?.("Нет initData. Открой мини-приложение через Telegram (/start).");
       return;
     }
 
@@ -440,15 +383,18 @@ export default function CalculatorTab(props: any) {
       buyCurrency,
       sellAmount: parseNum(sellText),
       buyAmount: parseNum(buyText),
-      payMethod,      // добавил (можно игнорировать на сервере)
-      receiveMethod,
+      payMethod,
+      receiveMethod
     };
 
     try {
       const res = await fetch("/api/requests", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `tma ${initData}` },
-        body: JSON.stringify(payload),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `tma ${initData}`
+        },
+        body: JSON.stringify(payload)
       });
 
       const json = await res.json();
@@ -461,8 +407,8 @@ export default function CalculatorTab(props: any) {
       tg2?.HapticFeedback?.notificationOccurred?.("success");
       tg2?.showPopup?.({
         title: "Отправлено",
-        message: "Заявка отправлена в группу ✅",
-        buttons: [{ type: "ok" }],
+        message: "Заявка отправлена ✅",
+        buttons: [{ type: "ok" }]
       });
     } catch (e: any) {
       tg2?.HapticFeedback?.notificationOccurred?.("error");
@@ -474,24 +420,42 @@ export default function CalculatorTab(props: any) {
     <div className="vx-calc">
       <style>{`
         .vx-calc{ display:flex; flex-direction:column; gap:12px; }
-        .vx-title{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
-        .vx-muted{ font-size:12px; color: rgba(15,23,42,0.55); font-weight:800; }
-        .vx-box{
+        .vx-calcTitle{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+        .vx-calcTitle .vx-muted{ font-size:12px; color: rgba(15,23,42,0.55); font-weight:800; }
+
+        .vx-calcBox{
           border: 1px solid rgba(15,23,42,0.10);
           background: rgba(255,255,255,0.62);
           border-radius: 22px;
           padding: 12px;
           overflow: hidden;
         }
-        .vx-row{
-          display:grid;
-          grid-template-columns: 110px 1fr;
-          gap:10px;
-          align-items:center;
-        }
-        .vx-row select, .vx-row input{
-          width:100%;
+
+        .vx-exRow{ display:grid; grid-template-columns: 92px 1fr 48px; gap:10px; align-items:center; }
+        @media (max-width: 360px){ .vx-exRow{ grid-template-columns: 84px 1fr 44px; } }
+
+        .vx-iconBtn{
           height:48px;
+          width:48px;
+          display:grid;
+          place-items:center;
+          border-radius: 18px;
+          border: 1px solid rgba(15,23,42,0.16);
+          background: rgba(255,255,255,0.92);
+          box-shadow: 0 6px 16px rgba(2,6,23,0.06);
+          cursor:pointer;
+          font-weight: 900;
+          color: #0f172a;
+          user-select:none;
+        }
+        .vx-iconSpacer{ width:48px; height:48px; }
+
+        .vx-calcBox *{ box-sizing:border-box; }
+        .vx-exRow > *{ min-width: 0; }
+        .vx-exRow select, .vx-exRow input{
+          width: 100%;
+          max-width: 100%;
+          height: 48px;
           border-radius: 18px;
           border: 1px solid rgba(15,23,42,0.12);
           background: rgba(255,255,255,0.92);
@@ -500,28 +464,16 @@ export default function CalculatorTab(props: any) {
           font-weight: 900;
           color: #0f172a;
           outline: none;
-          box-sizing:border-box;
         }
-        .vx-row input::placeholder{ color: rgba(15,23,42,0.45); font-weight: 800; }
+        .vx-exRow input::placeholder{ color: rgba(15,23,42,0.45); font-weight: 800; }
 
-        .vx-swapWrap{ display:flex; justify-content:center; padding: 8px 0; }
-        .vx-swapBtn{
-          height:44px;
-          min-width: 52px;
-          padding: 0 14px;
-          display:grid;
-          place-items:center;
-          border-radius: 18px;
-          border: 1px solid rgba(15,23,42,0.16);
-          background: rgba(255,255,255,0.92);
-          box-shadow: 0 6px 16px rgba(2,6,23,0.06);
-          cursor:pointer;
-          font-weight: 950;
-          color: #0f172a;
-          user-select:none;
+        .vx-sectionTitle{
+          margin-top: 10px;
+          font-size: 12px;
+          font-weight: 900;
+          color: rgba(15,23,42,0.62);
         }
 
-        .vx-section{ margin-top: 10px; font-size: 12px; font-weight: 900; color: rgba(15,23,42,0.62); }
         .vx-methods{ display:flex; gap:8px; flex-wrap:wrap; margin-top: 6px; }
         .vx-pill{
           border-radius: 999px;
@@ -539,8 +491,21 @@ export default function CalculatorTab(props: any) {
           background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(6,182,212,0.18));
         }
 
-        .vx-rateLine{ margin-top: 10px; font-size: 12px; font-weight: 900; color: rgba(15,23,42,0.72); }
+        .vx-rateLine{
+          margin-top: 10px;
+          font-size: 12px;
+          font-weight: 900;
+          color: rgba(15,23,42,0.72);
+        }
         .vx-rateLine b{ color: rgba(15,23,42,0.92); }
+
+        .vx-warn{
+          margin-top: 10px;
+          font-size: 12px;
+          font-weight: 900;
+          color: rgba(185,28,28,0.85);
+          line-height: 1.35;
+        }
 
         .vx-primary{
           height: 52px;
@@ -551,104 +516,74 @@ export default function CalculatorTab(props: any) {
           font-weight: 950;
           letter-spacing: -0.01em;
           color: white;
-          background: linear-gradient(135deg, var(--vx-accent, #22c55e), var(--vx-accent2, #06b6d4));
+          background: linear-gradient(135deg, #22c55e, #06b6d4);
           box-shadow: 0 18px 40px rgba(34,197,94,0.22);
         }
         .vx-primary:disabled{ opacity: 0.55; cursor: not-allowed; }
 
         .vx-help{ font-size: 12px; color: rgba(15,23,42,0.60); font-weight: 700; line-height: 1.35; }
-        .vx-warn{ font-size: 12px; color: rgba(185,28,28,0.85); font-weight: 900; }
-        .vx-list{ margin-top:10px; display:flex; flex-direction:column; gap:6px; }
-        .vx-item{
-          display:flex;
-          justify-content:space-between;
-          gap:10px;
-          padding:10px 12px;
-          border-radius: 16px;
-          border: 1px solid rgba(15,23,42,0.10);
-          background: rgba(255,255,255,0.55);
-          font-size:12px;
-          font-weight:900;
-          color:#0f172a;
-        }
-        .vx-item span:last-child{ color: rgba(15,23,42,0.78); }
       `}</style>
 
-      <div className="vx-title">
+      <div className="vx-calcTitle">
         <div style={{ fontSize: 18, fontWeight: 950 }}>Калькулятор</div>
         <div className="vx-muted">Статус: {statusLabel(clientStatus)}</div>
       </div>
 
       {loading && <div className="vx-help">Загрузка курсов…</div>}
-      {!loading && !rates && (
-        <div className="vx-help">Курсы не загружены. Проверь курс на сегодня.</div>
-      )}
+      {!loading && !rates && <div className="vx-help">Курсы не загружены.</div>}
 
-      <div className="vx-box">
-        {/* Пары в нужном порядке */}
-        <div className="vx-row">
-          <select value={pairSelectValue} onChange={(e) => onSelectPair(e.target.value)}>
-            {PAIRS_ORDER.map(([a, b]) => (
-              <option key={pairId(a, b)} value={pairId(a, b)}>
-                {a} → {b}
-              </option>
+      <div className="vx-calcBox">
+        <div className="vx-exRow">
+          <select value={sellCurrency} onChange={(e) => setSellCurrency(e.target.value as Currency)}>
+            {CURRENCY_OPTIONS.map((c) => (
+              <option key={"sell-" + c} value={c}>{c}</option>
             ))}
-            {!knownPairIds.has(currentPairId) && (
-              <option value="custom">
-                {sellCurrency} → {buyCurrency}
-              </option>
-            )}
           </select>
-          <div className="vx-help" style={{ margin: 0 }}>
-            Валютная пара
-          </div>
-        </div>
 
-        <div style={{ height: 10 }} />
-
-        <div className="vx-row">
-          <div className="vx-help" style={{ margin: 0, fontWeight: 900 }}>
-            Отдаю ({sellCurrency})
-          </div>
           <input
             inputMode="decimal"
-            placeholder="Сумма"
+            placeholder="Отдаю"
             value={sellText}
             onChange={(e) => {
               lastEdited.current = "sell";
               setSellText(e.target.value);
             }}
           />
-        </div>
 
-        <div className="vx-swapWrap">
-          <button type="button" className="vx-swapBtn" onClick={swapDirection} title="Поменять направление">
+          <button type="button" onClick={swapCurrencies} className="vx-iconBtn" title="Поменять местами">
             ⇄
           </button>
         </div>
 
-        <div className="vx-row">
-          <div className="vx-help" style={{ margin: 0, fontWeight: 900 }}>
-            Получаю ({buyCurrency})
-          </div>
+        <div style={{ height: 10 }} />
+
+        <div className="vx-exRow">
+          <select value={buyCurrency} onChange={(e) => setBuyCurrency(e.target.value as Currency)}>
+            {CURRENCY_OPTIONS.map((c) => (
+              <option key={"buy-" + c} value={c}>{c}</option>
+            ))}
+          </select>
+
           <input
             inputMode="decimal"
-            placeholder="Сумма"
+            placeholder="Получаю"
             value={buyText}
             onChange={(e) => {
               lastEdited.current = "buy";
               setBuyText(e.target.value);
             }}
           />
+
+          <div className="vx-iconSpacer" aria-hidden="true" />
         </div>
 
-        {missing.length > 0 && (
-          <div style={{ marginTop: 10 }} className="vx-warn">
-            Нет курса для: {missing.join(", ")}. Задай EUR/THB в курсе на сегодня — и всё заработает.
+        {missingRates.length > 0 && (
+          <div className="vx-warn">
+            Нет курса для: {missingRates.join(", ")}. Задай эти валюты в “Управление → курс на каждый день”.
           </div>
         )}
 
-        <div className="vx-section">Как отдаёте деньги</div>
+        <div className="vx-sectionTitle">Как отдаёте деньги</div>
         <div className="vx-methods">
           {(["cash", "transfer"] as PayMethod[]).map((m) => (
             <button
@@ -662,7 +597,7 @@ export default function CalculatorTab(props: any) {
           ))}
         </div>
 
-        <div className="vx-section">Как получаете</div>
+        <div className="vx-sectionTitle">Как получаете</div>
         <div className="vx-methods">
           {allowedReceiveMethods(buyCurrency).map((m) => (
             <button
@@ -679,18 +614,8 @@ export default function CalculatorTab(props: any) {
         {rateInfo && (
           <div className="vx-rateLine">
             Курс: <b>{rateInfo.base}</b>
-            {rateInfo.m ? (
-              <>
-                {" "}
-                + <b>{rateInfo.m}</b>
-              </>
-            ) : null}
-            {rateInfo.tier ? (
-              <>
-                {" "}
-                + <b>{rateInfo.tier}</b>
-              </>
-            ) : null}
+            {rateInfo.m ? <> + <b>{rateInfo.m}</b></> : null}
+            {rateInfo.tier ? <> + <b>{rateInfo.tier}</b></> : null}
             {" = "}
             <b>{rateInfo.eff}</b>
           </div>
@@ -705,22 +630,6 @@ export default function CalculatorTab(props: any) {
         <div style={{ height: 10 }} />
         <div className="vx-help">
           Если хоть что-то выбрано «Наличные» — надбавка за «Перевод/Банкомат» не применяется.
-        </div>
-
-        {/* Список курсов по парам (в том же порядке) */}
-        <div className="vx-section">Курс по парам</div>
-        <div className="vx-list">
-          {PAIRS_ORDER.map(([a, b]) => {
-            const r = calcPairRate(rates, a, b);
-            return (
-              <div className="vx-item" key={"list-" + pairId(a, b)}>
-                <span>
-                  {a} → {b}
-                </span>
-                <span>{r === null ? "—" : r >= 100 ? r.toFixed(2) : r.toFixed(6)}</span>
-              </div>
-            );
-          })}
         </div>
       </div>
     </div>
