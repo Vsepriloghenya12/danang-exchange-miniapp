@@ -32,8 +32,19 @@ export function createBot(opts: {
       : [];
 
   const isOwner = (id?: number) => {
-    if (!ownerIds.length) return true; // если не задали владельцев — не ограничиваем
     return !!id && ownerIds.includes(id);
+  };
+
+  const requireOwner = async (ctx: any, action: string) => {
+    if (!ownerIds.length) {
+      await ctx.reply("Владелец не настроен. Укажи OWNER_TG_ID или OWNER_TG_IDS в .env и перезапусти сервер/бота.");
+      return false;
+    }
+    if (!isOwner(ctx.from?.id)) {
+      await ctx.reply(`Только владелец может делать ${action}`);
+      return false;
+    }
+    return true;
   };
 
   bot.start(async (ctx) => {
@@ -56,7 +67,7 @@ export function createBot(opts: {
       await ctx.reply(
         `Твой tg_id: ${u.tg_id}\n` +
           `username: ${u.username ? "@" + u.username : "(нет)"}\n` +
-          `статус: ${statusLabel[u.status]}`
+          `статус: ${statusLabel[normalizeStatus(u.status)]}`
       );
     } else {
       await ctx.reply("Не вижу пользователя.");
@@ -68,7 +79,7 @@ export function createBot(opts: {
   });
 
   bot.command("setgroup", async (ctx) => {
-    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setgroup");
+    if (!(await requireOwner(ctx, "/setgroup"))) return;
     if (!ctx.chat || ctx.chat.type === "private") return ctx.reply("Используй /setgroup в группе.");
 
     const store = readStore();
@@ -79,7 +90,7 @@ export function createBot(opts: {
   });
 
   bot.command("showgroup", async (ctx) => {
-    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /showgroup");
+    if (!(await requireOwner(ctx, "/showgroup"))) return;
     const store = readStore();
     const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
     await ctx.reply(
@@ -90,7 +101,7 @@ export function createBot(opts: {
   });
 
   bot.command("pinggroup", async (ctx) => {
-    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /pinggroup");
+    if (!(await requireOwner(ctx, "/pinggroup"))) return;
     const store = readStore();
     const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
     const groupChatId = store.config.groupChatId || envGroup;
@@ -108,7 +119,7 @@ export function createBot(opts: {
 
   // setstatus <tg_id> <standard|silver|gold>
   bot.command("setstatus", async (ctx) => {
-    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setstatus");
+    if (!(await requireOwner(ctx, "/setstatus"))) return;
 
     const text = (ctx.message as any)?.text ?? "";
     const parts = text.split(" ").filter(Boolean);
@@ -131,92 +142,14 @@ export function createBot(opts: {
 
     const store = readStore();
     const key = String(tgId);
-    const now = new Date().toISOString();
+    const u = store.users[key];
+    if (!u) return ctx.reply("Пользователь не найден в store (он должен хотя бы раз открыть мини-приложение).");
 
-    if (!store.users[key]) {
-      store.users[key] = {
-        tg_id: tgId,
-        username: undefined,
-        first_name: undefined,
-        last_name: undefined,
-        status: next,
-        created_at: now,
-        last_seen_at: now
-      };
-    } else {
-      store.users[key].status = next;
-      store.users[key].last_seen_at = now;
-    }
-
+    u.status = normalizeStatus(next);
+    store.users[key] = u;
     writeStore(store);
-    return ctx.reply(`Готово ✅ tg_id=${tgId} → статус ${statusLabel[next]}`);
-  });
 
-  // если вдруг кто-то всё ещё шлёт sendData() — не ломаем
-  bot.on("message", async (ctx) => {
-    const msg: any = ctx.message;
-    const wad = msg?.web_app_data?.data;
-    if (!wad) return;
-
-    console.log("✅ web_app_data received len=", String(wad).length);
-
-    if (ctx.from) upsertUserFromTelegram(ctx.from);
-
-    let payload: any;
-    try {
-      payload = JSON.parse(wad);
-    } catch {
-      await ctx.reply("Не смог прочитать payload (не JSON).");
-      return;
-    }
-
-    const store = readStore();
-    const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
-    const groupChatId = store.config.groupChatId || envGroup;
-
-    if (!groupChatId) {
-      await ctx.reply("Группа не задана. Сделай /setgroup в группе (или задай GROUP_CHAT_ID).");
-      return;
-    }
-
-    const userKey = String(ctx.from?.id ?? "");
-    const status: UserStatus = store.users[userKey]?.status ?? "standard";
-
-    const methodMap: Record<string, string> = { cash: "наличные", transfer: "перевод", atm: "банкомат" };
-    const dtDaNang = new Intl.DateTimeFormat("ru-RU", {
-      timeZone: "Asia/Ho_Chi_Minh",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false
-    })
-      .format(new Date())
-      .replace(",", "");
-
-    const who =
-      (ctx.from?.username
-        ? `@${ctx.from.username}`
-        : `${ctx.from?.first_name || ""} ${ctx.from?.last_name || ""}`.trim() || `id ${ctx.from?.id}`) +
-      ` • статус: ${statusLabel[normalizeStatus(status)]}`;
-
-    const text =
-      `💱 Заявка\n` +
-      `👤 ${who}\n` +
-      `🔁 ${payload.sellCurrency} → ${payload.buyCurrency}\n` +
-      `💸 Отдаёт: ${payload.sellAmount}\n` +
-      `🎯 Получит: ${payload.buyAmount}\n` +
-      `📦 Способ: ${methodMap[payload.receiveMethod as ReceiveMethod] || payload.receiveMethod}\n` +
-      `🕒 ${dtDaNang}`;
-
-    try {
-      await ctx.telegram.sendMessage(groupChatId, text);
-      await ctx.reply("Заявка отправлена ✅");
-    } catch (e: any) {
-      console.error("SEND FAIL:", e);
-      await ctx.reply(`Не смог отправить в группу: ${e?.message || e}`);
-    }
+    await ctx.reply(`Готово ✅ tg_id=${tgId} статус=${statusLabel[u.status]}`);
   });
 
   return bot;

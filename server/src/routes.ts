@@ -10,7 +10,7 @@ import {
 import { validateTelegramInitData } from "./telegramValidate.js";
 
 type ReceiveMethod = "cash" | "transfer" | "atm";
-type Currency = "RUB" | "USD" | "USDT" | "VND"; // заявки пока только эти 4
+type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB";
 
 const statusLabel: Record<UserStatus, string> = {
   standard: "стандарт",
@@ -33,62 +33,86 @@ export function createApiRouter(opts: {
   }
 
   function requireAuth(req: express.Request) {
-    const auth = (req.headers.authorization as string | undefined) || "";
-    const initFromAuth = auth.startsWith("tma ") ? auth.slice(4) : undefined;
-    const initFromHeader = req.headers["x-telegram-init-data"] as string | undefined;
-    const initFromBody =
-      (req.body?.initData as string | undefined) || (req.body?.init_data as string | undefined);
+    const auth = req.headers.authorization || "";
+    const headerInitData =
+      auth.startsWith("tma ") ? auth.slice(4) : (req.headers["x-telegram-init-data"] as string | undefined);
 
-    const initData = initFromAuth || initFromHeader || initFromBody;
-    if (!initData) throw new Error("No initData");
+    const initData = headerInitData || (req.body && (req.body.initData as string)) || "";
+    if (!initData) throw new Error("missing_init_data");
 
-    const v = validateTelegramInitData(initData, opts.botToken);
+    const ok = validateTelegramInitData(initData, opts.botToken);
+    if (!ok) throw new Error("bad_init_data");
 
-    const up = upsertUserFromTelegram(v.user);
-    const status = (up?.status ?? "standard") as UserStatus;
-    const isOwner = isOwnerId(v.user.id);
+    const params = new URLSearchParams(initData);
+    const userJson = params.get("user");
+    if (!userJson) throw new Error("missing_user");
 
-    return { user: v.user, status, isOwner };
+    const user = JSON.parse(userJson) as {
+      id: number;
+      username?: string;
+      first_name?: string;
+      last_name?: string;
+    };
+
+    const stored = upsertUserFromTelegram({
+      id: user.id,
+      username: user.username,
+      first_name: user.first_name,
+      last_name: user.last_name
+    });
+
+    const isOwner = isOwnerId(user.id);
+
+    return { user, stored, status: stored.status, isOwner };
   }
 
+  // --------------------
+  // health
+  // --------------------
   router.get("/health", (_req, res) => res.json({ ok: true }));
 
+  // --------------------
+  // auth
+  // --------------------
   router.post("/auth", (req, res) => {
     try {
-      const { user, status, isOwner } = requireAuth(req);
-      res.json({ ok: true, user, status, statusLabel: statusLabel[status], isOwner });
+      const { user, stored, status, isOwner } = requireAuth(req);
+      return res.json({
+        ok: true,
+        user,
+        status,
+        isOwner,
+        stored
+      });
     } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
   router.get("/me", (req, res) => {
     try {
       const { user, status, isOwner } = requireAuth(req);
-      res.json({
-        ok: true,
-        data: {
-          user,
-          status,
-          statusLabel: statusLabel[normalizeStatus(status)],
-          isOwner
-        }
-      });
+      return res.json({ ok: true, user, status, isOwner });
     } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
   // --------------------
-  // Rates
+  // Rates today
   // --------------------
   router.get("/rates/today", (_req, res) => {
     const store = readStore();
     const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
-    const data = store.ratesByDate?.[today] || null;
-    res.json({ ok: true, date: today, data });
+    const entry = store.ratesByDate[today];
+
+    if (!entry) return res.json({ ok: true, date: today, rates: null });
+    return res.json({ ok: true, date: today, rates: entry.rates, meta: { updated_at: entry.updated_at, updated_by: entry.updated_by } });
   });
 
+  // --------------------
+  // Admin rates
+  // --------------------
   router.get("/admin/rates/today", (req, res) => {
     try {
       const { isOwner } = requireAuth(req);
@@ -96,10 +120,11 @@ export function createApiRouter(opts: {
 
       const store = readStore();
       const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
-      const data = store.ratesByDate?.[today] || null;
-      res.json({ ok: true, date: today, data });
+      const entry = store.ratesByDate[today];
+
+      return res.json({ ok: true, date: today, rates: entry?.rates ?? null });
     } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
@@ -144,9 +169,12 @@ export function createApiRouter(opts: {
       }
 
       const required = [
-        data.USD.buy_vnd, data.USD.sell_vnd,
-        data.RUB.buy_vnd, data.RUB.sell_vnd,
-        data.USDT.buy_vnd, data.USDT.sell_vnd
+        data.USD.buy_vnd,
+        data.USD.sell_vnd,
+        data.RUB.buy_vnd,
+        data.RUB.sell_vnd,
+        data.USDT.buy_vnd,
+        data.USDT.sell_vnd
       ];
       if (!required.every((n) => Number.isFinite(n) && n > 0)) {
         return res.status(400).json({ ok: false, error: "bad_numbers" });
@@ -162,9 +190,9 @@ export function createApiRouter(opts: {
       };
 
       writeStore(store);
-      res.json({ ok: true, date: today, data: store.ratesByDate[today] });
+      return res.json({ ok: true });
     } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
@@ -177,9 +205,10 @@ export function createApiRouter(opts: {
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const store = readStore();
-      res.json({ ok: true, users: Object.values(store.users || {}) });
+      const list = Object.values(store.users).sort((a, b) => b.last_seen_at.localeCompare(a.last_seen_at));
+      return res.json({ ok: true, users: list });
     } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
@@ -189,34 +218,29 @@ export function createApiRouter(opts: {
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const tgId = Number(req.params.tgId);
-      if (!Number.isFinite(tgId) || tgId <= 0) {
-        return res.status(400).json({ ok: false, error: "bad_tg_id" });
-      }
+      const nextRaw = String(req.body?.status || "");
+      const next = parseStatusInput(nextRaw);
 
-      const next = parseStatusInput(req.body?.status);
-      if (!next) {
-        return res.status(400).json({
-          ok: false,
-          error: "bad_status",
-          hint: "status: standard|silver|gold (можно: стандарт/серебро/золото)"
-        });
-      }
+      if (!Number.isFinite(tgId) || tgId <= 0) return res.status(400).json({ ok: false, error: "bad_tg_id" });
+      if (!next) return res.status(400).json({ ok: false, error: "bad_status" });
 
       const store = readStore();
       const key = String(tgId);
-      if (!store.users?.[key]) return res.status(404).json({ ok: false, error: "user_not_found" });
+      const u = store.users[key];
+      if (!u) return res.status(404).json({ ok: false, error: "user_not_found" });
 
-      store.users[key].status = next;
+      u.status = normalizeStatus(next);
+      store.users[key] = u;
       writeStore(store);
 
-      res.json({ ok: true, status: next, statusLabel: statusLabel[next] });
+      return res.json({ ok: true });
     } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
   // --------------------
-  // Requests (пока только 4 валюты)
+  // Requests
   // --------------------
   router.post("/requests", async (req, res) => {
     try {
@@ -229,7 +253,7 @@ export function createApiRouter(opts: {
       const buyAmount = Number(p.buyAmount);
       const receiveMethod = String(p.receiveMethod || "").toLowerCase() as ReceiveMethod;
 
-      const allowedCur = new Set<Currency>(["RUB", "USD", "USDT", "VND"]);
+      const allowedCur = new Set<Currency>(["RUB", "USD", "USDT", "VND", "EUR", "THB"]);
       const allowedMethod = new Set<ReceiveMethod>(["cash", "transfer", "atm"]);
 
       if (!allowedCur.has(sellCurrency) || !allowedCur.has(buyCurrency) || sellCurrency === buyCurrency) {
@@ -255,7 +279,9 @@ export function createApiRouter(opts: {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false
-      }).format(new Date()).replace(",", "");
+      })
+        .format(new Date())
+        .replace(",", "");
 
       const methodMap: Record<ReceiveMethod, string> = {
         cash: "наличные",
@@ -264,9 +290,7 @@ export function createApiRouter(opts: {
       };
 
       const who =
-        (user.username
-          ? `@${user.username}`
-          : `${user.first_name || ""} ${user.last_name || ""}`.trim() || `id ${user.id}`) +
+        (user.username ? `@${user.username}` : `${user.first_name || ""} ${user.last_name || ""}`.trim() || `id ${user.id}`) +
         ` • статус: ${statusLabel[normalizeStatus(status)]}`;
 
       const text =
@@ -289,26 +313,29 @@ export function createApiRouter(opts: {
       });
 
       const tgJson: any = await tgRes.json();
-      if (!tgJson?.ok) {
-        return res.status(500).json({ ok: false, error: tgJson?.description || "tg_send_failed" });
+      if (!tgRes.ok || !tgJson?.ok) {
+        console.error("TG sendMessage failed:", tgJson);
+        return res.status(500).json({ ok: false, error: "tg_send_failed" });
       }
 
-      store.requests = store.requests || [];
+      // сохраняем заявку в store (минимально)
       store.requests.push({
+        id: String(Date.now()),
+        created_at: new Date().toISOString(),
+        user: { id: user.id, username: user.username, first_name: user.first_name, last_name: user.last_name },
+        status,
         sellCurrency,
         buyCurrency,
         sellAmount,
         buyAmount,
-        receiveMethod,
-        from: user,
-        status: normalizeStatus(status),
-        created_at: new Date().toISOString()
+        receiveMethod
       });
       writeStore(store);
 
-      res.json({ ok: true });
+      return res.json({ ok: true });
     } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+      console.error("REQUESTS ERROR:", e);
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
