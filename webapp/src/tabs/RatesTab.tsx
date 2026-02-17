@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { apiGetTodayRates } from "../lib/api";
-import type { Currency, Rates, TodayRatesResponse } from "../lib/types";
+import type { TodayRatesResponse } from "../lib/types";
 
-type Pair = { id: string; base: Currency; quote: Currency };
+type Cur = "RUB" | "USD" | "USDT" | "EUR" | "THB" | "VND";
+type Pair = { id: string; base: Cur; quote: Cur };
 
 const PAIRS: Pair[] = [
   { id: "rub-vnd", base: "RUB", quote: "VND" },
@@ -36,23 +37,22 @@ function fmtDaNang(d: Date) {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false
-    })
-      .format(d)
-      .replace(",", "");
+    }).format(d).replace(",", "");
   } catch {
     return d.toLocaleString("ru-RU");
   }
 }
 
-function fmtRate(quote: Currency, n: number | null) {
+function fmtRate(quote: Cur, n: number | null) {
   if (n == null || !Number.isFinite(n)) return "—";
-  const max =
-    quote === "VND" ? 0 : 6; // чтобы кросс-пары читались нормально
+  const max = quote === "VND" ? 0 : 6;
   return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: max }).format(n);
 }
 
-// 1 BASE -> сколько QUOTE (логика: BASE продаём → в VND по buy_vnd; VND → QUOTE по sell_vnd)
-function pairRate(rates: any, base: Currency, quote: Currency): number | null {
+// 1 BASE -> QUOTE
+// BASE -> VND по buy_vnd (как будто клиент отдаёт BASE)
+// VND -> QUOTE по sell_vnd (как будто клиент получает QUOTE)
+function pairRate(rates: any, base: Cur, quote: Cur): number | null {
   if (!rates) return null;
   if (base === quote) return 1;
 
@@ -75,14 +75,11 @@ export default function RatesTab() {
     apiGetTodayRates().then(setData);
   }, []);
 
-  const rates: Rates | null = (data as any)?.data?.rates ?? null;
+  const rates: any = (data as any)?.data?.rates ?? null;
   const updatedAt = data?.data?.updated_at ? fmtDaNang(new Date(data.data.updated_at)) : null;
 
   const rows = useMemo(() => {
-    return PAIRS.map((p) => {
-      const v = pairRate(rates as any, p.base, p.quote);
-      return { ...p, value: v };
-    });
+    return PAIRS.map((p) => ({ ...p, value: pairRate(rates, p.base, p.quote) }));
   }, [rates]);
 
   return (
@@ -105,7 +102,6 @@ export default function RatesTab() {
         }
         .vx-code{ font-size: 14px; font-weight: 950; letter-spacing: -0.01em; color: #0f172a; }
         .vx-sub{ font-size: 11px; font-weight: 800; color: rgba(15,23,42,0.55); margin-top: 2px; }
-        .vx-right{ display:flex; gap: 8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
         .vx-pill{
           border-radius: 999px;
           border: 1px solid rgba(15,23,42,0.10);
@@ -138,9 +134,7 @@ export default function RatesTab() {
                 <div className="vx-code">{r.base} → {r.quote}</div>
                 <div className="vx-sub">1 {r.base} = {fmtRate(r.quote, r.value)} {r.quote}</div>
               </div>
-              <div className="vx-right">
-                <span className="vx-pill">{fmtRate(r.quote, r.value)}</span>
-              </div>
+              <span className="vx-pill">{fmtRate(r.quote, r.value)}</span>
             </div>
           ))}
         </div>

@@ -10,7 +10,7 @@ import {
 import { validateTelegramInitData } from "./telegramValidate.js";
 
 type ReceiveMethod = "cash" | "transfer" | "atm";
-type Currency = "RUB" | "USD" | "USDT" | "VND";
+type Currency = "RUB" | "USD" | "USDT" | "VND"; // заявки пока только эти 4
 
 const statusLabel: Record<UserStatus, string> = {
   standard: "стандарт",
@@ -33,7 +33,6 @@ export function createApiRouter(opts: {
   }
 
   function requireAuth(req: express.Request) {
-    // Authorization: tma <initData>
     const auth = (req.headers.authorization as string | undefined) || "";
     const initFromAuth = auth.startsWith("tma ") ? auth.slice(4) : undefined;
     const initFromHeader = req.headers["x-telegram-init-data"] as string | undefined;
@@ -63,7 +62,6 @@ export function createApiRouter(opts: {
     }
   });
 
-  // ✅ чтобы фронт мог получить статус без 404
   router.get("/me", (req, res) => {
     try {
       const { user, status, isOwner } = requireAuth(req);
@@ -122,21 +120,35 @@ export function createApiRouter(opts: {
       }
 
       const num = (x: any) => Number(x);
-      const data = {
+
+      const data: any = {
         USD: { buy_vnd: num(USD.buy_vnd), sell_vnd: num(USD.sell_vnd) },
         RUB: { buy_vnd: num(RUB.buy_vnd), sell_vnd: num(RUB.sell_vnd) },
         USDT: { buy_vnd: num(USDT.buy_vnd), sell_vnd: num(USDT.sell_vnd) }
       };
 
-      const all = [
-        data.USD.buy_vnd,
-        data.USD.sell_vnd,
-        data.RUB.buy_vnd,
-        data.RUB.sell_vnd,
-        data.USDT.buy_vnd,
-        data.USDT.sell_vnd
+      // EUR/THB — опционально: сохраняем только если обе цифры > 0
+      const EUR = rates?.EUR;
+      const THB = rates?.THB;
+
+      const eurBuy = num(EUR?.buy_vnd);
+      const eurSell = num(EUR?.sell_vnd);
+      if (Number.isFinite(eurBuy) && Number.isFinite(eurSell) && eurBuy > 0 && eurSell > 0) {
+        data.EUR = { buy_vnd: eurBuy, sell_vnd: eurSell };
+      }
+
+      const thbBuy = num(THB?.buy_vnd);
+      const thbSell = num(THB?.sell_vnd);
+      if (Number.isFinite(thbBuy) && Number.isFinite(thbSell) && thbBuy > 0 && thbSell > 0) {
+        data.THB = { buy_vnd: thbBuy, sell_vnd: thbSell };
+      }
+
+      const required = [
+        data.USD.buy_vnd, data.USD.sell_vnd,
+        data.RUB.buy_vnd, data.RUB.sell_vnd,
+        data.USDT.buy_vnd, data.USDT.sell_vnd
       ];
-      if (!all.every((n) => Number.isFinite(n) && n > 0)) {
+      if (!required.every((n) => Number.isFinite(n) && n > 0)) {
         return res.status(400).json({ ok: false, error: "bad_numbers" });
       }
 
@@ -171,7 +183,6 @@ export function createApiRouter(opts: {
     }
   });
 
-  // ✅ статус: понимаем standard/silver/gold + русские синонимы
   router.post("/admin/users/:tgId/status", (req, res) => {
     try {
       const { isOwner } = requireAuth(req);
@@ -205,7 +216,7 @@ export function createApiRouter(opts: {
   });
 
   // --------------------
-  // Requests
+  // Requests (пока только 4 валюты)
   // --------------------
   router.post("/requests", async (req, res) => {
     try {

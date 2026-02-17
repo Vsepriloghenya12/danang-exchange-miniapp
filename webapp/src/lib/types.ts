@@ -1,4 +1,4 @@
-export type Currency = "RUB" | "USDT" | "USD" | "EUR" | "THB" | "VND";
+export type Currency = "RUB" | "USD" | "USDT" | "EUR" | "THB" | "VND";
 export type ReceiveMethod = "cash" | "transfer" | "atm";
 export type UserStatus = "standard" | "silver" | "gold";
 
@@ -6,8 +6,9 @@ export type Rates = {
   USD: { buy_vnd: number; sell_vnd: number };
   RUB: { buy_vnd: number; sell_vnd: number };
   USDT: { buy_vnd: number; sell_vnd: number };
-  EUR: { buy_vnd: number; sell_vnd: number };
-  THB: { buy_vnd: number; sell_vnd: number };
+  // новые валюты — могут быть не заданы
+  EUR?: { buy_vnd: number; sell_vnd: number };
+  THB?: { buy_vnd: number; sell_vnd: number };
 };
 
 export type TodayRatesResponse = {

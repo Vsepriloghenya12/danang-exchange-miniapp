@@ -11,7 +11,7 @@ function statusLabelAny(s: any) {
   const v = String(s ?? "").toLowerCase().trim();
   if (v === "gold") return "Золото";
   if (v === "silver") return "Серебро";
-  // совместимость со старыми none/bronze
+  // старые none/bronze тоже покажем как Стандарт
   return "Стандарт";
 }
 
@@ -25,11 +25,11 @@ export default function AdminTab({ me }: any) {
   const [usdtBuy, setUsdtBuy] = useState("24800");
   const [usdtSell, setUsdtSell] = useState("25100");
 
-  const [eurBuy, setEurBuy] = useState("0");
-  const [eurSell, setEurSell] = useState("0");
+  const [eurBuy, setEurBuy] = useState("");
+  const [eurSell, setEurSell] = useState("");
 
-  const [thbBuy, setThbBuy] = useState("0");
-  const [thbSell, setThbSell] = useState("0");
+  const [thbBuy, setThbBuy] = useState("");
+  const [thbSell, setThbSell] = useState("");
 
   const [users, setUsers] = useState<any[]>([]);
 
@@ -43,26 +43,11 @@ export default function AdminTab({ me }: any) {
     const rates = (r as any)?.data?.rates;
     if (!rates) return;
 
-    if (rates.USD) {
-      setUsdBuy(String(rates.USD.buy_vnd ?? usdBuy));
-      setUsdSell(String(rates.USD.sell_vnd ?? usdSell));
-    }
-    if (rates.RUB) {
-      setRubBuy(String(rates.RUB.buy_vnd ?? rubBuy));
-      setRubSell(String(rates.RUB.sell_vnd ?? rubSell));
-    }
-    if (rates.USDT) {
-      setUsdtBuy(String(rates.USDT.buy_vnd ?? usdtBuy));
-      setUsdtSell(String(rates.USDT.sell_vnd ?? usdtSell));
-    }
-    if (rates.EUR) {
-      setEurBuy(String(rates.EUR.buy_vnd ?? eurBuy));
-      setEurSell(String(rates.EUR.sell_vnd ?? eurSell));
-    }
-    if (rates.THB) {
-      setThbBuy(String(rates.THB.buy_vnd ?? thbBuy));
-      setThbSell(String(rates.THB.sell_vnd ?? thbSell));
-    }
+    if (rates.USD) { setUsdBuy(String(rates.USD.buy_vnd ?? "")); setUsdSell(String(rates.USD.sell_vnd ?? "")); }
+    if (rates.RUB) { setRubBuy(String(rates.RUB.buy_vnd ?? "")); setRubSell(String(rates.RUB.sell_vnd ?? "")); }
+    if (rates.USDT) { setUsdtBuy(String(rates.USDT.buy_vnd ?? "")); setUsdtSell(String(rates.USDT.sell_vnd ?? "")); }
+    if (rates.EUR) { setEurBuy(String(rates.EUR.buy_vnd ?? "")); setEurSell(String(rates.EUR.sell_vnd ?? "")); }
+    if (rates.THB) { setThbBuy(String(rates.THB.buy_vnd ?? "")); setThbSell(String(rates.THB.sell_vnd ?? "")); }
   };
 
   useEffect(() => {
@@ -76,6 +61,7 @@ export default function AdminTab({ me }: any) {
       USD: { buy_vnd: Number(usdBuy), sell_vnd: Number(usdSell) },
       RUB: { buy_vnd: Number(rubBuy), sell_vnd: Number(rubSell) },
       USDT: { buy_vnd: Number(usdtBuy), sell_vnd: Number(usdtSell) },
+      // EUR/THB можно оставить пустыми — сервер сохранит, только если >0
       EUR: { buy_vnd: Number(eurBuy), sell_vnd: Number(eurSell) },
       THB: { buy_vnd: Number(thbBuy), sell_vnd: Number(thbSell) }
     };
