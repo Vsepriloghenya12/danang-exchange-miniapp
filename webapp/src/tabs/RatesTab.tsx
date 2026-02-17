@@ -122,7 +122,6 @@ export default function RatesTab() {
         <div>
           <div className="h2 vx-m0">Курс</div>
           <div className="vx-meta">Дата (Дананг): {data?.date ?? "—"}</div>
-          <div className="vx-note">Покупка / Продажа — для первой валюты пары</div>
         </div>
         {updatedAt ? <div className="vx-meta">Обновлено: {updatedAt}</div> : null}
       </div>
