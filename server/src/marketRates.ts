@@ -1,4 +1,5 @@
-// Рыночные курсы "G" (как в Google) для кросс‑пар.
+// server/src/marketRates.ts
+// Рыночные курсы "G" для кросс-пар.
 // Обновление кэша каждые 15 минут.
 
 type MarketOk = {
@@ -32,7 +33,10 @@ async function fetchJson(url: string): Promise<any> {
   const ac = new AbortController();
   const t = setTimeout(() => ac.abort(), HTTP_TIMEOUT_MS);
   try {
-    const r = await fetch(url, { signal: ac.signal, headers: { "user-agent": "danang-exchange-miniapp" } });
+    const r = await fetch(url, {
+      signal: ac.signal,
+      headers: { "user-agent": "danang-exchange-miniapp" }
+    });
     const txt = await r.text();
     let json: any;
     try {
@@ -58,9 +62,7 @@ async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; 
     if ([RUB, THB, EUR].every((n) => Number.isFinite(n) && n > 0)) {
       return { RUB, THB, EUR, source: "exchangerate.host" };
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
 
   // 2) open.er-api.com
   try {
@@ -71,9 +73,7 @@ async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; 
     if ([RUB, THB, EUR].every((n) => Number.isFinite(n) && n > 0)) {
       return { RUB, THB, EUR, source: "open.er-api.com" };
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
 
   // 3) exchangerate-api.com
   try {
@@ -84,9 +84,7 @@ async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; 
     if ([RUB, THB, EUR].every((n) => Number.isFinite(n) && n > 0)) {
       return { RUB, THB, EUR, source: "exchangerate-api.com" };
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
 
   throw new Error("market_source_unavailable");
 }
@@ -101,9 +99,9 @@ function buildG(usd: { RUB: number; THB: number; EUR: number }): Record<string, 
   const EUR_THB = EUR_USD * USD_THB; // 1 EUR -> THB
   const THB_RUB = USD_RUB / USD_THB; // 1 THB -> RUB
 
+  // USDT считаем ~= USD (как на практике в обменниках)
   const g: Record<string, number> = {
-    // таблица с картинки
-    "USDT/RUB": USD_RUB, // считаем USDT ~= USD
+    "USDT/RUB": USD_RUB,
     "USD/RUB": USD_RUB,
     "EUR/RUB": EUR_RUB,
     "THB/RUB": THB_RUB,
@@ -119,7 +117,6 @@ function buildG(usd: { RUB: number; THB: number; EUR: number }): Record<string, 
     const v = Number(g[k]);
     if (!Number.isFinite(v) || v <= 0) delete g[k];
   }
-
   return g;
 }
 
@@ -142,7 +139,7 @@ async function refresh(): Promise<MarketOk> {
 
 export async function getMarketSnapshot(): Promise<MarketSnapshot> {
   const now = Date.now();
-  // `cache && ...` returns a non-boolean union; keep this strictly boolean for TS narrowing.
+  // ВАЖНО: строго boolean, чтобы TS нормально сужал типы
   const fresh = !!cache && now - lastFetchAt < REFRESH_MS;
   if (fresh && cache) return cache;
 
