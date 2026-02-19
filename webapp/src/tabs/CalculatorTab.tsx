@@ -820,8 +820,7 @@ export default function CalculatorTab({ me }: { me: any }) {
         {invalidUsd ? <div className="vx-warn">USD: сумма должна быть кратна 100.</div> : null}
         {invalidEur ? <div className="vx-warn">EUR: сумма должна быть кратна 10.</div> : null}
         {(invalidVndSell || invalidVndBuy) ? <div className="vx-warn">VND: сумма должна быть кратна 10000.</div> : null}
-        {invalidAtmVnd ? <div className="vx-warn">Сумма получения в банкомате должна быть кратна 100000.</div> : null}
-
+        
         <div style={{ height: 12 }} />
 
         <button className="vx-primary" disabled={!canSend} onClick={sendRequest}>
