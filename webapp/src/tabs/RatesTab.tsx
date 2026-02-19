@@ -190,7 +190,7 @@ export default function RatesTab() {
           ))}
 
           {market && !market.ok ? (
-            <div className="vx-meta" style={{ marginTop: 10 }}>
+            <div className="vx-meta vx-mt10">
               Не удалось обновить G: {market.error}
             </div>
           ) : null}

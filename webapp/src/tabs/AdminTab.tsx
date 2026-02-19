@@ -188,23 +188,6 @@ export default function AdminTab({ me }: any) {
 
   return (
     <div className="card vx-admin">
-      <style>{`
-        .vx-adminHead{ display:flex; align-items:flex-end; justify-content:space-between; gap:10px; }
-        .vx-adminHead .h1{ margin:0; }
-        .vx-adminSeg{ margin-top:10px; display:flex; gap:6px; padding:6px; border-radius: 22px; border:1px solid rgba(15,23,42,0.10); background: rgba(255,255,255,0.72); }
-        .vx-adminSeg button{ flex:1 1 0; height:40px; border-radius: 16px; border:0; cursor:pointer; font-weight: 950; font-size: 13px; background: transparent; color: rgba(15,23,42,0.62); }
-        .vx-adminSeg .on{ background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(6,182,212,0.18)); color:#0f172a; border:1px solid rgba(15,23,42,0.08); }
-
-        /* компактнее курс */
-        .vx-admin .vx-rateRow{ padding: 6px 0; align-items:center; }
-        .vx-admin .vx-code{ width: 54px; flex: 0 0 54px; padding-top:0; font-size: 13px; }
-        .vx-admin input.vx-in{ height: 40px; border-radius: 16px; font-size: 14px; }
-        .vx-admin .vx-field{ flex: 1 1 120px; }
-
-        /* карточки внутри — без «воздуха» */
-        .vx-admin .card{ padding: 12px; border-radius: 22px; }
-        .vx-admin .hr{ margin: 8px 0; }
-      `}</style>
 
       <div className="vx-adminHead">
         <div className="h1">Управление</div>
@@ -229,7 +212,7 @@ export default function AdminTab({ me }: any) {
           <RateRow code="THB" buy={thbBuy} sell={thbSell} setBuy={setThbBuy} setSell={setThbSell} />
 
           <div className="vx-mt10">
-            <div className="row vx-rowWrap" style={{ gap: 8 }}>
+            <div className="row vx-rowWrap vx-gap8">
               <button className="btn" onClick={saveRates}>Сохранить</button>
               <button className="btn" onClick={clearRates}>Очистить</button>
               <button className="btn" onClick={loadRates}>Загрузить</button>
@@ -240,7 +223,7 @@ export default function AdminTab({ me }: any) {
 
       {section === "users" ? (
         <div className="card vx-mt10">
-          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <div className="row vx-between vx-center">
             <div className="small">Клиенты и статусы</div>
             <button className="btn vx-btnSm" onClick={loadUsers}>Обновить</button>
           </div>
@@ -258,7 +241,7 @@ export default function AdminTab({ me }: any) {
                   </span>
                 </div>
 
-                <div className="row vx-mt6 vx-rowWrap" style={{ gap: 6 }}>
+                <div className="row vx-mt6 vx-rowWrap vx-gap6">
                   {STATUS_OPTIONS.map((s) => (
                     <button
                       key={s.value}
@@ -279,7 +262,7 @@ export default function AdminTab({ me }: any) {
 
       {section === "requests" ? (
         <div className="card vx-mt10">
-          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <div className="row vx-between vx-center">
             <div className="small">Заявки</div>
             <button className="btn vx-btnSm" onClick={loadRequests}>Обновить</button>
           </div>
@@ -305,7 +288,7 @@ export default function AdminTab({ me }: any) {
                   </div>
                   <div className="small">Статус: <b>{stateLabel}</b></div>
 
-                  <div className="row vx-mt6 vx-rowWrap" style={{ gap: 6 }}>
+                  <div className="row vx-mt6 vx-rowWrap vx-gap6">
                     {REQUEST_STATE_OPTIONS.map((s) => (
                       <button key={s.value} className="btn vx-btnSm" onClick={() => setRequestState(r.id, s.value)}>
                         {s.label}

@@ -13,10 +13,6 @@ type Rates = Partial<Record<RateKey, RateEntry>>;
 
 const CURRENCY_OPTIONS: Currency[] = ["RUB", "USDT", "USD", "EUR", "THB", "VND"];
 
-// ✅ округления/условия
-const VND_STEP = 10_000;
-const ATM_VND_STEP = 100_000;
-
 // Формулы с картинки (на эти пары НЕ действуют бонусы/надбавки)
 const G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
   "USDT/RUB": { buyMul: 0.98, sellMul: 1.08 },
@@ -28,40 +24,26 @@ const G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
   "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
   "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
   "USDT/THB": { buyMul: 0.95, sellMul: 1.07 },
-  "EUR/THB": { buyMul: 0.95, sellMul: 1.07 },
+  "EUR/THB": { buyMul: 0.95, sellMul: 1.07 }
 };
 
 function getTg() {
   return (window as any).Telegram?.WebApp;
 }
 
-// ✅ все суммы — целые числа
-function parseIntSafe(input: string): number {
-  const s = String(input ?? "")
+function parseNum(input: string): number {
+  const s = (input || "")
     .replace(/\s+/g, "")
-    .replace(/[^\d]/g, "");
+    .replace(",", ".")
+    .replace(/[^\d.]/g, "");
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
 
-function formatAmount(_cur: Currency, n: number) {
+function formatAmount(cur: Currency, n: number) {
   if (!Number.isFinite(n)) return "";
-  return String(Math.trunc(n));
-}
-
-function roundDown(n: number, step: number) {
-  if (!Number.isFinite(n) || step <= 0) return 0;
-  return Math.floor(n / step) * step;
-}
-
-function roundUp(n: number, step: number) {
-  if (!Number.isFinite(n) || step <= 0) return 0;
-  return Math.ceil(n / step) * step;
-}
-
-function isMultiple(n: number, step: number) {
-  if (!Number.isFinite(n) || step <= 0) return false;
-  return n % step === 0;
+  if (cur === "VND") return Math.round(n).toString();
+  return (Math.round(n * 100) / 100).toString();
 }
 
 function getRate(rates: Rates | null, c: Currency): RateEntry | null {
@@ -75,23 +57,12 @@ function getRate(rates: Rates | null, c: Currency): RateEntry | null {
   return { buy_vnd: buy, sell_vnd: sell };
 }
 
-// Получение (как было): VND — cash/transfer/atm, RUB/USDT — transfer, остальное — cash
 function allowedReceiveMethods(buyCurrency: Currency): ReceiveMethod[] {
   if (buyCurrency === "VND") return ["cash", "transfer", "atm"];
   if (buyCurrency === "RUB") return ["transfer"];
   if (buyCurrency === "USDT") return ["transfer"];
-  return ["cash"]; // USD/EUR/THB
-}
-
-// ✅ Ограничения по тому, ЧЕМ клиент ОТДАЁТ валюту
-// RUB — только перевод
-// USDT — только перевод
-// USD/EUR/THB — только наличные
-// VND — любой способ
-function allowedPayMethods(sellCurrency: Currency): PayMethod[] {
-  if (sellCurrency === "RUB" || sellCurrency === "USDT") return ["transfer"];
-  if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return ["cash"];
-  return ["cash", "transfer"]; // VND
+  // USD/EUR/THB
+  return ["cash"];
 }
 
 function methodLabel(m: ReceiveMethod | PayMethod) {
@@ -270,11 +241,19 @@ function calcBuyAmountG(market: MarketRatesResponse | null, sellCur: Currency, b
   if (sellAmount <= 0) return 0;
   if (sellCur === buyCur) return sellAmount;
 
+  // прямой ключ: sellCur/base -> buyCur/quote
   const direct = getGPairRates(market, sellCur, buyCur);
-  if (direct) return sellAmount * direct.buy;
+  if (direct) {
+    // клиент продаёт BASE, получит QUOTE по BUY
+    return sellAmount * direct.buy;
+  }
 
+  // обратный ключ: buyCur/base -> sellCur/quote
   const inverse = getGPairRates(market, buyCur, sellCur);
-  if (inverse) return sellAmount / inverse.sell;
+  if (inverse) {
+    // клиент продаёт QUOTE, чтобы купить BASE — делим на SELL
+    return sellAmount / inverse.sell;
+  }
 
   return Number.NaN;
 }
@@ -284,15 +263,21 @@ function calcSellAmountG(market: MarketRatesResponse | null, sellCur: Currency, 
   if (sellCur === buyCur) return buyAmount;
 
   const direct = getGPairRates(market, sellCur, buyCur);
-  if (direct) return buyAmount / direct.buy;
+  if (direct) {
+    // sellAmount * BUY = buyAmount
+    return buyAmount / direct.buy;
+  }
 
   const inverse = getGPairRates(market, buyCur, sellCur);
-  if (inverse) return buyAmount * inverse.sell;
+  if (inverse) {
+    // buyAmount = sellAmount / SELL  => sellAmount = buyAmount * SELL
+    return buyAmount * inverse.sell;
+  }
 
   return Number.NaN;
 }
 
-export default function CalculatorTab({ me }: { me: any }) {
+export default function CalculatorTab(props: any) {
   const tg = getTg();
 
   const [loading, setLoading] = useState(true);
@@ -310,16 +295,9 @@ export default function CalculatorTab({ me }: { me: any }) {
   const [payMethod, setPayMethod] = useState<PayMethod>("cash");
   const [receiveMethod, setReceiveMethod] = useState<ReceiveMethod>("cash");
 
-  const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeStatus(me?.status));
+  const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeStatus(props?.user?.status));
 
   const gMode = useMemo(() => isGModePair(sellCurrency, buyCurrency), [sellCurrency, buyCurrency]);
-
-  // ✅ подстройка метода оплаты под правила
-  useEffect(() => {
-    const allowed = allowedPayMethods(sellCurrency);
-    if (!allowed.includes(payMethod)) setPayMethod(allowed[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sellCurrency]);
 
   useEffect(() => {
     const allowed = allowedReceiveMethods(buyCurrency);
@@ -387,8 +365,8 @@ export default function CalculatorTab({ me }: { me: any }) {
     })();
   }, []);
 
-  const sellAmount = useMemo(() => parseIntSafe(sellText), [sellText]);
-  const buyAmount = useMemo(() => parseIntSafe(buyText), [buyText]);
+  const sellAmount = useMemo(() => parseNum(sellText), [sellText]);
+  const buyAmount = useMemo(() => parseNum(buyText), [buyText]);
 
   // чего не хватает для расчёта
   const missingRates = useMemo(() => {
@@ -397,7 +375,8 @@ export default function CalculatorTab({ me }: { me: any }) {
     if (gMode) {
       if (!market || !market.ok) miss.push("G");
       else {
-        const has = !!market.g?.[`${sellCurrency}/${buyCurrency}`] || !!market.g?.[`${buyCurrency}/${sellCurrency}`];
+        const has =
+          !!market.g?.[`${sellCurrency}/${buyCurrency}`] || !!market.g?.[`${buyCurrency}/${sellCurrency}`];
         if (!has) miss.push("G");
       }
       return Array.from(new Set(miss));
@@ -411,37 +390,18 @@ export default function CalculatorTab({ me }: { me: any }) {
 
   const canCalc = missingRates.length === 0;
 
-  // --- Валидации условий ---
-  const invalidUsd = sellCurrency === "USD" && sellAmount > 0 && !isMultiple(sellAmount, 100);
-  const invalidEur = sellCurrency === "EUR" && sellAmount > 0 && !isMultiple(sellAmount, 10);
-  const invalidVndSell = sellCurrency === "VND" && sellAmount > 0 && !isMultiple(sellAmount, VND_STEP);
-  const invalidVndBuy = buyCurrency === "VND" && buyAmount > 0 && !isMultiple(buyAmount, VND_STEP);
-  const invalidAtmVnd = buyCurrency === "VND" && receiveMethod === "atm" && buyAmount > 0 && !isMultiple(buyAmount, ATM_VND_STEP);
-
-  const hasInvalid = invalidUsd || invalidEur || invalidVndSell || invalidVndBuy || invalidAtmVnd;
-
   // пересчёт
   useEffect(() => {
     if (!canCalc) return;
 
-    const buyOutStep = (cur: Currency) => (cur === "VND" ? VND_STEP : 1);
-    const sellNeedStep = (cur: Currency) => {
-      if (cur === "VND") return VND_STEP;
-      if (cur === "USD") return 100;
-      if (cur === "EUR") return 10;
-      return 1;
-    };
-
     if (gMode) {
       if (lastEdited.current === "sell") {
-        const outRaw = calcBuyAmountG(market, sellCurrency, buyCurrency, sellAmount);
-        const out = sellText && Number.isFinite(outRaw) ? roundDown(outRaw, buyOutStep(buyCurrency)) : 0;
-        const next = sellText && Number.isFinite(outRaw) ? formatAmount(buyCurrency, out) : "";
+        const out = calcBuyAmountG(market, sellCurrency, buyCurrency, sellAmount);
+        const next = sellText && Number.isFinite(out) ? formatAmount(buyCurrency, out) : "";
         if (next !== buyText) setBuyText(next);
       } else {
-        const needRaw = calcSellAmountG(market, sellCurrency, buyCurrency, buyAmount);
-        const need = buyText && Number.isFinite(needRaw) ? roundUp(needRaw, sellNeedStep(sellCurrency)) : 0;
-        const next = buyText && Number.isFinite(needRaw) ? formatAmount(sellCurrency, need) : "";
+        const need = calcSellAmountG(market, sellCurrency, buyCurrency, buyAmount);
+        const next = buyText && Number.isFinite(need) ? formatAmount(sellCurrency, need) : "";
         if (next !== sellText) setSellText(next);
       }
       return;
@@ -450,10 +410,18 @@ export default function CalculatorTab({ me }: { me: any }) {
     if (!rates) return;
 
     if (lastEdited.current === "sell") {
-      const effectiveRates = applyRateBonuses(rates, sellCurrency, buyCurrency, sellAmount, clientStatus, payMethod, receiveMethod);
-      const outRaw = calcBuyAmountVnd(effectiveRates, sellCurrency, buyCurrency, sellAmount);
-      const out = sellText && Number.isFinite(outRaw) ? roundDown(outRaw, buyOutStep(buyCurrency)) : 0;
-      const next = sellText && Number.isFinite(outRaw) ? formatAmount(buyCurrency, out) : "";
+      const effectiveRates = applyRateBonuses(
+        rates,
+        sellCurrency,
+        buyCurrency,
+        sellAmount,
+        clientStatus,
+        payMethod,
+        receiveMethod
+      );
+
+      const out = calcBuyAmountVnd(effectiveRates, sellCurrency, buyCurrency, sellAmount);
+      const next = sellText && Number.isFinite(out) ? formatAmount(buyCurrency, out) : "";
       if (next !== buyText) setBuyText(next);
     } else {
       let guess = calcSellAmountVnd(rates, sellCurrency, buyCurrency, buyAmount);
@@ -478,8 +446,7 @@ export default function CalculatorTab({ me }: { me: any }) {
         guess = nextGuess;
       }
 
-      const need = buyText && Number.isFinite(guess) ? roundUp(guess, sellNeedStep(sellCurrency)) : 0;
-      const next = buyText && Number.isFinite(guess) ? formatAmount(sellCurrency, need) : "";
+      const next = buyText && Number.isFinite(guess) ? formatAmount(sellCurrency, guess) : "";
       if (next !== sellText) setSellText(next);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -500,7 +467,8 @@ export default function CalculatorTab({ me }: { me: any }) {
     return { base, tier, m, eff: base + tier + m };
   }, [gMode, rates, sellCurrency, buyCurrency, sellAmount, clientStatus, receiveMethod, payMethod]);
 
-  const canSend = canCalc && sellCurrency !== buyCurrency && sellAmount > 0 && buyAmount > 0 && !!receiveMethod && !hasInvalid;
+  const canSend =
+    canCalc && sellCurrency !== buyCurrency && parseNum(sellText) > 0 && parseNum(buyText) > 0 && !!receiveMethod;
 
   function swapCurrencies() {
     setSellCurrency(buyCurrency);
@@ -517,17 +485,17 @@ export default function CalculatorTab({ me }: { me: any }) {
     const tg2 = getTg();
     const initData = tg2?.initData || "";
     if (!initData) {
-      tg2?.showAlert?.("Нет initData. Открой мини-приложение через Telegram (/start)." );
+      tg2?.showAlert?.("Нет initData. Открой мини-приложение через Telegram (/start).");
       return;
     }
 
     const payload = {
       sellCurrency,
       buyCurrency,
-      sellAmount: parseIntSafe(sellText),
-      buyAmount: parseIntSafe(buyText),
+      sellAmount: parseNum(sellText),
+      buyAmount: parseNum(buyText),
       payMethod,
-      receiveMethod,
+      receiveMethod
     };
 
     try {
@@ -535,9 +503,9 @@ export default function CalculatorTab({ me }: { me: any }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `tma ${initData}`,
+          Authorization: `tma ${initData}`
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payload)
       });
 
       const json = await res.json();
@@ -551,7 +519,7 @@ export default function CalculatorTab({ me }: { me: any }) {
       tg2?.showPopup?.({
         title: "Отправлено",
         message: "Заявка отправлена ✅",
-        buttons: [{ type: "ok" }],
+        buttons: [{ type: "ok" }]
       });
     } catch (e: any) {
       tg2?.HapticFeedback?.notificationOccurred?.("error");
@@ -559,144 +527,11 @@ export default function CalculatorTab({ me }: { me: any }) {
     }
   }
 
-  const payAllowed = useMemo(() => allowedPayMethods(sellCurrency), [sellCurrency]);
-
   return (
     <div className="vx-calc">
-      <style>{`
-        .vx-calc{ display:flex; flex-direction:column; gap:12px; }
-        .vx-calcTitle{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
-        .vx-calcTitle .vx-muted{ font-size:12px; color: rgba(15,23,42,0.55); font-weight:800; }
-
-        .vx-calcBox{
-          border: 1px solid rgba(15,23,42,0.10);
-          background: rgba(255,255,255,0.62);
-          border-radius: 22px;
-          padding: 12px;
-          overflow: hidden;
-        }
-
-        .vx-exRow{ display:grid; grid-template-columns: 92px 1fr 48px; gap:10px; align-items:center; }
-        @media (max-width: 360px){ .vx-exRow{ grid-template-columns: 84px 1fr 44px; } }
-
-        .vx-iconBtn{
-          height:48px;
-          width:48px;
-          display:grid;
-          place-items:center;
-          border-radius: 18px;
-          border: 1px solid rgba(15,23,42,0.16);
-          background: rgba(255,255,255,0.92);
-          box-shadow: 0 6px 16px rgba(2,6,23,0.06);
-          cursor:pointer;
-          font-weight: 900;
-          color: #0f172a;
-          user-select:none;
-        }
-
-        .vx-calcBox *{ box-sizing:border-box; }
-        .vx-exRow > *{ min-width: 0; }
-        .vx-exRow select, .vx-exRow input{
-          width: 100%;
-          max-width: 100%;
-          height: 48px;
-          border-radius: 18px;
-          border: 1px solid rgba(15,23,42,0.12);
-          background: rgba(255,255,255,0.92);
-          padding: 0 14px;
-          font-size: 14px;
-          font-weight: 900;
-          color: #0f172a;
-          outline: none;
-        }
-        .vx-exRow input::placeholder{ color: rgba(15,23,42,0.45); font-weight: 800; }
-
-        .vx-inputInvalid{
-          border-color: rgba(185,28,28,0.55) !important;
-          box-shadow: 0 0 0 3px rgba(185,28,28,0.12) !important;
-        }
-
-        .vx-sectionTitle{
-          margin-top: 10px;
-          font-size: 12px;
-          font-weight: 900;
-          color: rgba(15,23,42,0.62);
-        }
-
-        .vx-methods{ display:flex; gap:8px; flex-wrap:wrap; margin-top: 6px; }
-        .vx-pill{
-          border-radius: 999px;
-          border: 1px solid rgba(15,23,42,0.12);
-          background: rgba(255,255,255,0.70);
-          padding: 10px 12px;
-          font-size: 12px;
-          font-weight: 900;
-          color: #0f172a;
-          cursor:pointer;
-          user-select:none;
-        }
-        .vx-pillActive{
-          border-color: rgba(15,23,42,0.10);
-          background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(6,182,212,0.18));
-        }
-        .vx-pillDisabled{
-          opacity: 0.35;
-          cursor: not-allowed;
-          filter: grayscale(0.2);
-        }
-
-        .vx-rateLine{
-          margin-top: 10px;
-          font-size: 12px;
-          font-weight: 900;
-          color: rgba(15,23,42,0.72);
-        }
-        .vx-rateLine b{ color: rgba(15,23,42,0.92); }
-
-        .vx-note{
-          margin-top: 10px;
-          font-size: 12px;
-          font-weight: 900;
-          line-height: 1.35;
-          border: 1px solid rgba(15,23,42,0.10);
-          background: rgba(255,255,255,0.72);
-          border-radius: 16px;
-          padding: 10px 12px;
-          color: rgba(15,23,42,0.78);
-        }
-        .vx-noteWarn{
-          border-color: rgba(185,28,28,0.20);
-          background: rgba(185,28,28,0.06);
-          color: rgba(185,28,28,0.88);
-        }
-
-        .vx-warn{
-          margin-top: 10px;
-          font-size: 12px;
-          font-weight: 900;
-          color: rgba(185,28,28,0.85);
-          line-height: 1.35;
-        }
-
-        .vx-primary{
-          height: 52px;
-          border-radius: 18px;
-          border: 0;
-          width: 100%;
-          cursor: pointer;
-          font-weight: 950;
-          letter-spacing: -0.01em;
-          color: white;
-          background: linear-gradient(135deg, #22c55e, #06b6d4);
-          box-shadow: 0 18px 40px rgba(34,197,94,0.22);
-        }
-        .vx-primary:disabled{ opacity: 0.55; cursor: not-allowed; }
-
-        .vx-help{ font-size: 12px; color: rgba(15,23,42,0.60); font-weight: 700; line-height: 1.35; }
-      `}</style>
 
       <div className="vx-calcTitle">
-        <div style={{ fontSize: 18, fontWeight: 950 }}>Калькулятор</div>
+        <div className="vx-title18">Калькулятор</div>
         <div className="vx-muted">Статус: {statusLabel(clientStatus)}</div>
       </div>
 
@@ -714,10 +549,9 @@ export default function CalculatorTab({ me }: { me: any }) {
           </select>
 
           <input
-            inputMode="numeric"
+            inputMode="decimal"
             placeholder="Отдаю"
             value={sellText}
-            className={(invalidUsd || invalidEur || invalidVndSell) ? "vx-inputInvalid" : ""}
             onChange={(e) => {
               lastEdited.current = "sell";
               setSellText(e.target.value);
@@ -729,7 +563,7 @@ export default function CalculatorTab({ me }: { me: any }) {
           </button>
         </div>
 
-        <div style={{ height: 10 }} />
+        <div className="vx-sp10" />
 
         <div className="vx-exRow">
           <select value={buyCurrency} onChange={(e) => setBuyCurrency(e.target.value as Currency)}>
@@ -741,39 +575,29 @@ export default function CalculatorTab({ me }: { me: any }) {
           </select>
 
           <input
-            inputMode="numeric"
+            inputMode="decimal"
             placeholder="Получаю"
             value={buyText}
-            className={(invalidAtmVnd || invalidVndBuy) ? "vx-inputInvalid" : ""}
             onChange={(e) => {
               lastEdited.current = "buy";
               setBuyText(e.target.value);
             }}
           />
 
-          <div style={{ width: 48, height: 48 }} />
+          <div className="vx-blankBtn" />
         </div>
 
         <div className="vx-sectionTitle">Оплата</div>
         <div className="vx-methods">
-          {(["cash", "transfer"] as PayMethod[]).map((m) => {
-            const disabled = !payAllowed.includes(m);
-            return (
-              <div
-                key={m}
-                className={
-                  "vx-pill " +
-                  (payMethod === m ? "vx-pillActive " : "") +
-                  (disabled ? "vx-pillDisabled" : "")
-                }
-                onClick={() => {
-                  if (!disabled) setPayMethod(m);
-                }}
-              >
-                {methodLabel(m)}
-              </div>
-            );
-          })}
+          {(["cash", "transfer"] as PayMethod[]).map((m) => (
+            <div
+              key={m}
+              className={"vx-pill " + (payMethod === m ? "vx-pillActive" : "")}
+              onClick={() => setPayMethod(m)}
+            >
+              {methodLabel(m)}
+            </div>
+          ))}
         </div>
 
         <div className="vx-sectionTitle">Получение</div>
@@ -794,34 +618,16 @@ export default function CalculatorTab({ me }: { me: any }) {
             Курс: <b>{rateInfo.base}</b> + статус <b>{rateInfo.tier}</b> + способ <b>{rateInfo.m}</b> = <b>{rateInfo.eff}</b>
           </div>
         ) : gMode ? (
-          <div className="vx-rateLine">Для этой пары используется <b>G</b>-курс по формуле (без бонусов/банкомата).</div>
-        ) : null}
-
-        {!canCalc ? <div className="vx-warn">Не хватает данных для расчёта: {missingRates.join(", ")}</div> : null}
-
-        {sellCurrency === "USD" ? (
-          <div className="vx-note">
-            На обмен принимаются только доллары номиналом 100$ нового образца (синие), без надписей и дефектов.
+          <div className="vx-rateLine">
+            Для этой пары используется <b>G</b>-курс по формуле (без бонусов/банкомата).
           </div>
         ) : null}
 
-        {sellCurrency === "EUR" ? (
-          <div className="vx-note">На обмен принимаются только банкноты EURO без надписей и дефектов.</div>
+        {!canCalc ? (
+          <div className="vx-warn">Не хватает данных для расчёта: {missingRates.join(", ")}</div>
         ) : null}
 
-        {(sellCurrency === "VND" || buyCurrency === "VND") ? (
-          <div className="vx-note">Донги округляются и вводятся шагом 10000.</div>
-        ) : null}
-
-        {buyCurrency === "VND" && receiveMethod === "atm" ? (
-          <div className={"vx-note " + (invalidAtmVnd ? "vx-noteWarn" : "")}>Сумма получения в банкомате должна быть кратна 100000.</div>
-        ) : null}
-
-        {invalidUsd ? <div className="vx-warn">USD: сумма должна быть кратна 100.</div> : null}
-        {invalidEur ? <div className="vx-warn">EUR: сумма должна быть кратна 10.</div> : null}
-        {(invalidVndSell || invalidVndBuy) ? <div className="vx-warn">VND: сумма должна быть кратна 10000.</div> : null}
-        
-        <div style={{ height: 12 }} />
+        <div className="vx-sp12" />
 
         <button className="vx-primary" disabled={!canSend} onClick={sendRequest}>
           Отправить заявку

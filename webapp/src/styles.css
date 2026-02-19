@@ -299,8 +299,9 @@ label, input, select, textarea{ color: #0f172a; }
 .vx-calcBox{
   border: 1px solid rgba(15,23,42,0.10);
   background: rgba(255,255,255,0.62);
-  border-radius: 18px;
+  border-radius: 22px;
   padding: 12px;
+  overflow: hidden;
 }
 
 .vx-exRow{
@@ -311,6 +312,13 @@ label, input, select, textarea{ color: #0f172a; }
 }
 .vx-exRow select{ width: 92px; padding-right: 28px; }
 .vx-exRow input{ width: 100%; min-width: 0; }
+
+@media (max-width: 360px){
+  .vx-exRow{ grid-template-columns: 84px 1fr 44px; }
+  .vx-exRow select{ width: 84px; }
+  .vx-iconBtn{ min-width: 44px; }
+  .vx-blankBtn{ width: 44px; }
+}
 
 .vx-iconBtn{
   height: 48px;
@@ -482,3 +490,91 @@ label, input, select, textarea{ color: #0f172a; }
 /* =========================
    Minor tabs helpers
    ========================= */
+
+/* =========================
+   Global utilities
+   ========================= */
+.vx-gap6{ gap: 6px !important; }
+.vx-gap8{ gap: 8px !important; }
+.vx-between{ justify-content: space-between !important; }
+.vx-center{ align-items: center !important; }
+
+/* helper for the install row in the header */
+.vx-installRow{ margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* =========================
+   Calculator extra states
+   ========================= */
+.vx-sectionTitle{
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(15,23,42,0.62);
+}
+
+.vx-warn{
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(185,28,28,0.85);
+  line-height: 1.35;
+}
+
+/* placeholder cell instead of a button (keeps the grid aligned) */
+.vx-blankBtn{ width: 52px; height: 48px; }
+
+/* optional validation styles (used in newer calculator versions) */
+.vx-inputInvalid{
+  border-color: rgba(185,28,28,0.55) !important;
+  box-shadow: 0 0 0 3px rgba(185,28,28,0.12) !important;
+}
+.vx-noteWarn{
+  border-color: rgba(185,28,28,0.20) !important;
+  background: rgba(185,28,28,0.06) !important;
+  color: rgba(185,28,28,0.88) !important;
+}
+.vx-pillDisabled{ opacity: 0.35; cursor: not-allowed; filter: grayscale(0.2); }
+
+/* =========================
+   Admin compact controls
+   ========================= */
+.vx-adminHead{ display:flex; align-items:flex-end; justify-content:space-between; gap:10px; }
+.vx-adminHead .h1{ margin:0; }
+
+.vx-adminSeg{
+  margin-top:10px;
+  display:flex;
+  gap:6px;
+  padding:6px;
+  border-radius: 22px;
+  border:1px solid rgba(15,23,42,0.10);
+  background: rgba(255,255,255,0.72);
+}
+.vx-adminSeg button{
+  flex:1 1 0;
+  height:40px;
+  border-radius: 16px;
+  border:0;
+  cursor:pointer;
+  font-weight: 950;
+  font-size: 13px;
+  background: transparent;
+  color: rgba(15,23,42,0.62);
+}
+.vx-adminSeg .on{
+  background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(6,182,212,0.18));
+  color:#0f172a;
+  border:1px solid rgba(15,23,42,0.08);
+}
+
+/* ещё компактнее блоки курса в управлении */
+.vx-admin .vx-rateRow{ padding: 6px 0; align-items:center; }
+.vx-admin .vx-code{ width: 54px; flex: 0 0 54px; padding-top:0; font-size: 13px; }
+.vx-admin input.vx-in{ height: 40px; border-radius: 16px; font-size: 14px; }
+.vx-admin .vx-field{ flex: 1 1 120px; }
+
+/* карточки внутри управления — чуть плотнее */
+.vx-admin .card{ padding: 12px; border-radius: 22px; }
+.vx-admin .hr{ margin: 8px 0; }
+
+.vx-title18{ font-size: 18px; font-weight: 950; letter-spacing: -0.015em; }
