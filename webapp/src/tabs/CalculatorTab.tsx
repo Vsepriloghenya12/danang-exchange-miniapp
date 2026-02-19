@@ -12,6 +12,8 @@ type RateEntry = { buy_vnd: number; sell_vnd: number };
 type Rates = Partial<Record<RateKey, RateEntry>>;
 
 const CURRENCY_OPTIONS: Currency[] = ["RUB", "USDT", "USD", "EUR", "THB", "VND"];
+const ALL_RECEIVE_METHODS: ReceiveMethod[] = ["cash", "transfer", "atm"];
+const ALL_PAY_METHODS: PayMethod[] = ["cash", "transfer"];
 
 // Формулы с картинки (на эти пары НЕ действуют бонусы/надбавки)
 const G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
@@ -57,11 +59,24 @@ function getRate(rates: Rates | null, c: Currency): RateEntry | null {
   return { buy_vnd: buy, sell_vnd: sell };
 }
 
+// ✅ ОГРАНИЧЕНИЯ (как ты попросил)
+// USD/THB/EUR — только наличные
+// USDT/RUB — только перевод
+function allowedPayMethods(sellCurrency: Currency): PayMethod[] {
+  if (sellCurrency === "USD" || sellCurrency === "THB" || sellCurrency === "EUR") return ["cash"];
+  if (sellCurrency === "USDT" || sellCurrency === "RUB") return ["transfer"];
+  // VND (и всё остальное на будущее)
+  return ["cash", "transfer"];
+}
+
 function allowedReceiveMethods(buyCurrency: Currency): ReceiveMethod[] {
+  // VND можно любым способом
   if (buyCurrency === "VND") return ["cash", "transfer", "atm"];
-  if (buyCurrency === "RUB") return ["transfer"];
-  if (buyCurrency === "USDT") return ["transfer"];
-  // USD/EUR/THB
+
+  // RUB/USDT — только перевод
+  if (buyCurrency === "RUB" || buyCurrency === "USDT") return ["transfer"];
+
+  // USD/EUR/THB — только наличные
   return ["cash"];
 }
 
@@ -178,7 +193,7 @@ function applyRateBonuses(
   return next;
 }
 
-// ---------- VND-конвертация (как раньше) ----------
+// ---------- VND-конвертация ----------
 function calcBuyAmountVnd(rates: Rates, sellCurrency: Currency, buyCurrency: Currency, sellAmount: number): number {
   if (sellAmount <= 0) return 0;
   if (sellCurrency === buyCurrency) return sellAmount;
@@ -218,7 +233,7 @@ function calcSellAmountVnd(rates: Rates, sellCurrency: Currency, buyCurrency: Cu
   return vndCost / sr.buy_vnd;
 }
 
-// ---------- G-конвертация (формулы с картинки) ----------
+// ---------- G-конвертация ----------
 function isGModePair(a: Currency, b: Currency): boolean {
   if (a === "VND" || b === "VND") return false;
   return !!G_FORMULAS[`${a}/${b}`] || !!G_FORMULAS[`${b}/${a}`];
@@ -241,19 +256,11 @@ function calcBuyAmountG(market: MarketRatesResponse | null, sellCur: Currency, b
   if (sellAmount <= 0) return 0;
   if (sellCur === buyCur) return sellAmount;
 
-  // прямой ключ: sellCur/base -> buyCur/quote
   const direct = getGPairRates(market, sellCur, buyCur);
-  if (direct) {
-    // клиент продаёт BASE, получит QUOTE по BUY
-    return sellAmount * direct.buy;
-  }
+  if (direct) return sellAmount * direct.buy;
 
-  // обратный ключ: buyCur/base -> sellCur/quote
   const inverse = getGPairRates(market, buyCur, sellCur);
-  if (inverse) {
-    // клиент продаёт QUOTE, чтобы купить BASE — делим на SELL
-    return sellAmount / inverse.sell;
-  }
+  if (inverse) return sellAmount / inverse.sell;
 
   return Number.NaN;
 }
@@ -263,16 +270,10 @@ function calcSellAmountG(market: MarketRatesResponse | null, sellCur: Currency, 
   if (sellCur === buyCur) return buyAmount;
 
   const direct = getGPairRates(market, sellCur, buyCur);
-  if (direct) {
-    // sellAmount * BUY = buyAmount
-    return buyAmount / direct.buy;
-  }
+  if (direct) return buyAmount / direct.buy;
 
   const inverse = getGPairRates(market, buyCur, sellCur);
-  if (inverse) {
-    // buyAmount = sellAmount / SELL  => sellAmount = buyAmount * SELL
-    return buyAmount * inverse.sell;
-  }
+  if (inverse) return buyAmount * inverse.sell;
 
   return Number.NaN;
 }
@@ -299,6 +300,14 @@ export default function CalculatorTab(props: any) {
 
   const gMode = useMemo(() => isGModePair(sellCurrency, buyCurrency), [sellCurrency, buyCurrency]);
 
+  // ✅ Автоподстройка "Оплата" под ограничения
+  useEffect(() => {
+    const allowed = allowedPayMethods(sellCurrency);
+    if (!allowed.includes(payMethod)) setPayMethod(allowed[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sellCurrency]);
+
+  // ✅ Автоподстройка "Получение" под ограничения
   useEffect(() => {
     const allowed = allowedReceiveMethods(buyCurrency);
     if (!allowed.includes(receiveMethod)) setReceiveMethod(allowed[0]);
@@ -382,7 +391,7 @@ export default function CalculatorTab(props: any) {
       return Array.from(new Set(miss));
     }
 
-    if (!rates) return ["VND rates"]; // общий маркер
+    if (!rates) return ["VND rates"];
     if (sellCurrency !== "VND" && !getRate(rates, sellCurrency)) miss.push(sellCurrency);
     if (buyCurrency !== "VND" && !getRate(rates, buyCurrency)) miss.push(buyCurrency);
     return Array.from(new Set(miss));
@@ -426,7 +435,6 @@ export default function CalculatorTab(props: any) {
     } else {
       let guess = calcSellAmountVnd(rates, sellCurrency, buyCurrency, buyAmount);
 
-      // итерация нужна только из-за бонуса, зависящего от sellAmount
       for (let i = 0; i < 3; i++) {
         const effectiveRates = applyRateBonuses(
           rates,
@@ -453,7 +461,6 @@ export default function CalculatorTab(props: any) {
   }, [sellText, buyText, sellCurrency, buyCurrency, rates, market, receiveMethod, payMethod, clientStatus, canCalc, gMode]);
 
   const rateInfo = useMemo(() => {
-    // бонусы показываем только для * -> VND, и только если НЕ gMode
     if (gMode) return null;
     if (!rates) return null;
     if (buyCurrency !== "VND") return null;
@@ -527,6 +534,9 @@ export default function CalculatorTab(props: any) {
     }
   }
 
+  const allowedPay = useMemo(() => allowedPayMethods(sellCurrency), [sellCurrency]);
+  const allowedRecv = useMemo(() => allowedReceiveMethods(buyCurrency), [buyCurrency]);
+
   return (
     <div className="vx-calc">
       <style>{`
@@ -599,6 +609,11 @@ export default function CalculatorTab(props: any) {
         .vx-pillActive{
           border-color: rgba(15,23,42,0.10);
           background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(6,182,212,0.18));
+        }
+        .vx-pillDisabled{
+          opacity: 0.35;
+          cursor: not-allowed;
+          filter: grayscale(0.2);
         }
 
         .vx-rateLine{
@@ -693,33 +708,56 @@ export default function CalculatorTab(props: any) {
 
         <div className="vx-sectionTitle">Оплата</div>
         <div className="vx-methods">
-          {(["cash", "transfer"] as PayMethod[]).map((m) => (
-            <div
-              key={m}
-              className={"vx-pill " + (payMethod === m ? "vx-pillActive" : "")}
-              onClick={() => setPayMethod(m)}
-            >
-              {methodLabel(m)}
-            </div>
-          ))}
+          {ALL_PAY_METHODS.map((m) => {
+            const disabled = !allowedPay.includes(m);
+            return (
+              <div
+                key={m}
+                className={
+                  "vx-pill " +
+                  (payMethod === m ? "vx-pillActive " : "") +
+                  (disabled ? "vx-pillDisabled" : "")
+                }
+                onClick={() => {
+                  if (!disabled) setPayMethod(m);
+                }}
+                aria-disabled={disabled}
+                role="button"
+              >
+                {methodLabel(m)}
+              </div>
+            );
+          })}
         </div>
 
         <div className="vx-sectionTitle">Получение</div>
         <div className="vx-methods">
-          {allowedReceiveMethods(buyCurrency).map((m) => (
-            <div
-              key={m}
-              className={"vx-pill " + (receiveMethod === m ? "vx-pillActive" : "")}
-              onClick={() => setReceiveMethod(m)}
-            >
-              {methodLabel(m)}
-            </div>
-          ))}
+          {ALL_RECEIVE_METHODS.map((m) => {
+            const disabled = !allowedRecv.includes(m);
+            return (
+              <div
+                key={m}
+                className={
+                  "vx-pill " +
+                  (receiveMethod === m ? "vx-pillActive " : "") +
+                  (disabled ? "vx-pillDisabled" : "")
+                }
+                onClick={() => {
+                  if (!disabled) setReceiveMethod(m);
+                }}
+                aria-disabled={disabled}
+                role="button"
+              >
+                {methodLabel(m)}
+              </div>
+            );
+          })}
         </div>
 
         {rateInfo ? (
           <div className="vx-rateLine">
-            Курс: <b>{rateInfo.base}</b> + статус <b>{rateInfo.tier}</b> + способ <b>{rateInfo.m}</b> = <b>{rateInfo.eff}</b>
+            Курс: <b>{rateInfo.base}</b> + статус <b>{rateInfo.tier}</b> + способ <b>{rateInfo.m}</b> ={" "}
+            <b>{rateInfo.eff}</b>
           </div>
         ) : gMode ? (
           <div className="vx-rateLine">
@@ -727,9 +765,7 @@ export default function CalculatorTab(props: any) {
           </div>
         ) : null}
 
-        {!canCalc ? (
-          <div className="vx-warn">Не хватает данных для расчёта: {missingRates.join(", ")}</div>
-        ) : null}
+        {!canCalc ? <div className="vx-warn">Не хватает данных для расчёта: {missingRates.join(", ")}</div> : null}
 
         <div style={{ height: 12 }} />
 
