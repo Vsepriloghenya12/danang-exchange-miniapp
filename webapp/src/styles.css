@@ -239,11 +239,11 @@ label, input, select, textarea{ color: #0f172a; }
   width: 100%;
   min-width: 0;
 }
-.vx-body .row button,
-.vx-body .calcRow button,
-.vx-body .calc-row button,
-.vx-body .exchangeRow button,
-.vx-body .exchange-row button{
+.vx-body .row button:not(.btn):not(.vx-primary),
+.vx-body .calcRow button:not(.btn):not(.vx-primary),
+.vx-body .calc-row button:not(.btn):not(.vx-primary),
+.vx-body .exchangeRow button:not(.btn):not(.vx-primary),
+.vx-body .exchange-row button:not(.btn):not(.vx-primary){
   height: 48px;
   min-width: 48px;
   padding: 0;
