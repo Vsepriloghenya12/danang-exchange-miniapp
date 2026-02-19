@@ -129,6 +129,7 @@ export default function App() {
   const tg = getTg();
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
   const [tab, setTab] = useState<TabKey>("rates");
+  const [hsStatus, setHsStatus] = useState<string | null>(null);
 
   const isDemo = useMemo(() => new URLSearchParams(location.search).get("demo") === "1", []);
 
@@ -161,6 +162,29 @@ export default function App() {
       if (r.ok) setMe({ ok: true, initData: useInit, user: r.user, status: r.status, isOwner: r.isOwner });
       else setMe({ ok: false, initData: useInit, error: r.error });
     })();
+  }, [tg, isDemo]);
+
+  // Homescreen shortcut ("установить на телефон")
+  useEffect(() => {
+    if (!tg || isDemo) return;
+    if (!tg.checkHomeScreenStatus) return;
+
+    const onChecked = (e: any) => {
+      if (e?.status) setHsStatus(String(e.status));
+    };
+    const onAdded = () => setHsStatus("added");
+
+    tg.onEvent?.("homeScreenChecked", onChecked);
+    tg.onEvent?.("homeScreenAdded", onAdded);
+
+    try {
+      tg.checkHomeScreenStatus?.((status) => setHsStatus(String(status)));
+    } catch {}
+
+    return () => {
+      tg.offEvent?.("homeScreenChecked", onChecked);
+      tg.offEvent?.("homeScreenAdded", onAdded);
+    };
   }, [tg, isDemo]);
 
   useEffect(() => {
@@ -423,6 +447,28 @@ export default function App() {
               ? `Вы: ${me.user.first_name ?? ""} ${me.user.username ? "(@" + me.user.username + ")" : ""} • статус: ${me.status}`
               : me.error ?? "Авторизация..."}
           </div>
+
+          {tg?.addToHomeScreen && tg?.checkHomeScreenStatus && hsStatus !== "unsupported" ? (
+            <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              {hsStatus === "added" ? (
+                <div className="small">Установлено на телефон ✅</div>
+              ) : (
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => {
+                    try {
+                      tg.addToHomeScreen?.();
+                    } catch {
+                      tg.showAlert?.("Не получилось установить. Попробуй обновить Telegram.");
+                    }
+                  }}
+                >
+                  Установить на телефон
+                </button>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <div className="vx-body">

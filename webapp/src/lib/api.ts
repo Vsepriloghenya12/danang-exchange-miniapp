@@ -44,6 +44,22 @@ export async function apiAdminSetUserStatus(initData: string, tgId: number, stat
   return r.json();
 }
 
+export async function apiAdminGetRequests(initData: string) {
+  const r = await fetch("/api/admin/requests", {
+    headers: { "x-telegram-init-data": initData }
+  });
+  return r.json();
+}
+
+export async function apiAdminSetRequestState(initData: string, id: string, state: string) {
+  const r = await fetch(`/api/admin/requests/${encodeURIComponent(id)}/state`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-telegram-init-data": initData },
+    body: JSON.stringify({ state })
+  });
+  return r.json();
+}
+
 export async function apiGetReviews() {
   const r = await fetch("/api/reviews");
   return r.json();

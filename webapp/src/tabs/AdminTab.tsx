@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import {
   apiAdminSetTodayRates,
+  apiAdminGetRequests,
+  apiAdminSetRequestState,
   apiAdminSetUserStatus,
   apiAdminUsers,
   apiGetTodayRates
@@ -10,6 +12,13 @@ const STATUS_OPTIONS = [
   { value: "standard", label: "Стандарт" },
   { value: "silver", label: "Серебро" },
   { value: "gold", label: "Золото" }
+] as const;
+
+const REQUEST_STATE_OPTIONS = [
+  { value: "new", label: "Принята" },
+  { value: "in_progress", label: "В работе" },
+  { value: "done", label: "Готово" },
+  { value: "canceled", label: "Отменена" }
 ] as const;
 
 type RateRowProps = {
@@ -89,6 +98,7 @@ export default function AdminTab({ me }: any) {
   const [thbSell, setThbSell] = useState("");
 
   const [users, setUsers] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
 
   const clearRates = () => {
     setRubBuy(""); setRubSell("");
@@ -101,6 +111,11 @@ export default function AdminTab({ me }: any) {
   const loadUsers = async () => {
     const r = await apiAdminUsers(me.initData);
     if (r.ok) setUsers(r.users);
+  };
+
+  const loadRequests = async () => {
+    const r = await apiAdminGetRequests(me.initData);
+    if (r.ok) setRequests(r.requests || []);
   };
 
   const loadRates = async () => {
@@ -117,6 +132,7 @@ export default function AdminTab({ me }: any) {
 
   useEffect(() => {
     loadUsers();
+    loadRequests();
     // ВАЖНО: не подставляем сохранённые курсы автоматически — всё начинается пустым.
     clearRates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -159,6 +175,12 @@ export default function AdminTab({ me }: any) {
   const setStatus = async (tgId: number, status: string) => {
     const r = await apiAdminSetUserStatus(me.initData, tgId, status);
     if (r.ok) loadUsers();
+    else alert(r.error || "Ошибка");
+  };
+
+  const setRequestState = async (id: string, state: string) => {
+    const r = await apiAdminSetRequestState(me.initData, id, state);
+    if (r.ok) loadRequests();
     else alert(r.error || "Ошибка");
   };
 
@@ -216,6 +238,48 @@ export default function AdminTab({ me }: any) {
               <div className="hr" />
             </div>
           ))
+        )}
+      </div>
+
+      <div className="card">
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <div className="small">Заявки</div>
+          <button className="btn vx-btnSm" onClick={loadRequests}>Обновить</button>
+        </div>
+        <div className="hr" />
+
+        {requests.length === 0 ? (
+          <div className="small">Пока нет заявок.</div>
+        ) : (
+          requests.map((r) => {
+            const who = r?.from?.username ? "@" + r.from.username : (r?.from?.first_name || "") || `id ${r?.from?.id}`;
+            const shortId = String(r.id || "").slice(-6);
+            const created = r.created_at ? new Date(r.created_at).toLocaleString("ru-RU") : "";
+            const stateLabel = REQUEST_STATE_OPTIONS.find((x) => x.value === r.state)?.label || r.state;
+
+            return (
+              <div key={r.id} className="vx-mb10">
+                <div>
+                  <b>#{shortId}</b>{" "}
+                  <span className="small">{created}</span>
+                </div>
+                <div className="small">
+                  {who} • {r.sellCurrency} → {r.buyCurrency} • отдаёт: {r.sellAmount} • получит: {r.buyAmount}
+                </div>
+                <div className="small">Статус: <b>{stateLabel}</b></div>
+
+                <div className="row vx-mt6 vx-rowWrap">
+                  {REQUEST_STATE_OPTIONS.map((s) => (
+                    <button key={s.value} className="btn vx-btnSm" onClick={() => setRequestState(r.id, s.value)}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="hr" />
+              </div>
+            );
+          })
         )}
       </div>
     </div>

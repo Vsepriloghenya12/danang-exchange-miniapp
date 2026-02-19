@@ -4,6 +4,17 @@ export type TgWebApp = {
   ready: () => void;
   expand: () => void;
   sendData: (data: string) => void;
+
+  // Homescreen shortcuts (Bot API 8.0+)
+  addToHomeScreen?: () => void;
+  checkHomeScreenStatus?: (cb?: (status: string) => void) => void;
+  onEvent?: (eventType: string, eventHandler: (payload?: any) => void) => void;
+  offEvent?: (eventType: string, eventHandler: (payload?: any) => void) => void;
+
+  // UI helpers (Telegram client)
+  showAlert?: (message: string) => void;
+  showPopup?: (params: any) => void;
+  HapticFeedback?: any;
 };
 
 export function getTg(): TgWebApp | null {

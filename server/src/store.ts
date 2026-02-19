@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 export type UserStatus = "standard" | "silver" | "gold";
 
+export type RequestState = "new" | "in_progress" | "done" | "canceled";
+
 export type Rates = {
   USD: { buy_vnd: number; sell_vnd: number };
   RUB: { buy_vnd: number; sell_vnd: number };
@@ -33,8 +35,25 @@ export type Store = {
       rates: Rates;
     }
   >;
-  requests: any[];
+  requests: StoredRequest[];
   reviews: any[];
+};
+
+export type StoredRequest = {
+  id: string;
+  state: RequestState;
+  state_updated_at?: string;
+  state_updated_by?: number;
+  sellCurrency: string;
+  buyCurrency: string;
+  sellAmount: number;
+  buyAmount: number;
+  payMethod?: string;
+  receiveMethod: string;
+  from: { id: number; username?: string; first_name?: string; last_name?: string };
+  // статус клиента (standard/silver/gold) на момент заявки
+  status: UserStatus;
+  created_at: string;
 };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -125,17 +144,32 @@ export function readStore(): Store {
     config: { ...(parsed?.config || {}) },
     users: { ...(parsed?.users || {}) },
     ratesByDate: { ...(parsed?.ratesByDate || {}) },
-    requests: Array.isArray(parsed?.requests) ? parsed.requests : [],
+    requests: Array.isArray(parsed?.requests) ? (parsed.requests as any) : [],
     reviews: Array.isArray(parsed?.reviews) ? parsed.reviews : []
   };
+
+  let dirty = false;
 
   // миграция статусов
   for (const k of Object.keys(store.users || {})) {
     store.users[k].status = normalizeStatus(store.users[k].status);
   }
+
   for (const r of store.requests || []) {
-    r.status = normalizeStatus(r.status);
+    // старые заявки могли не иметь этих полей
+    if (!r.id) {
+      r.id = `req_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      dirty = true;
+    }
+    if (!r.state) {
+      r.state = "new";
+      dirty = true;
+    }
+    // status (статус клиента) нормализуем
+    r.status = normalizeStatus((r as any).status);
   }
+
+  if (dirty) writeStore(store);
 
   return store;
 }

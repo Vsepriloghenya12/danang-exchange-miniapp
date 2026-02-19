@@ -1,9 +1,12 @@
 import express from "express";
+import { randomUUID } from "node:crypto";
 import {
   readStore,
   writeStore,
   upsertUserFromTelegram,
   type UserStatus,
+  type RequestState,
+  type StoredRequest,
   normalizeStatus,
   parseStatusInput
 } from "./store.js";
@@ -18,6 +21,23 @@ const statusLabel: Record<UserStatus, string> = {
   silver: "серебро",
   gold: "золото"
 };
+
+const requestStateLabel: Record<RequestState, string> = {
+  new: "принята",
+  in_progress: "в работе",
+  done: "готово",
+  canceled: "отменена"
+};
+
+function parseRequestState(s: any): RequestState | null {
+  const v = String(s ?? "").toLowerCase().trim();
+  if (!v) return null;
+  if (["new", "принята", "новая", "создана"].includes(v)) return "new";
+  if (["in_progress", "inprogress", "process", "в работе", "вработе"].includes(v)) return "in_progress";
+  if (["done", "готово", "готова", "выполнена"].includes(v)) return "done";
+  if (["canceled", "cancelled", "отменена", "отмена"].includes(v)) return "canceled";
+  return null;
+}
 
 export function createApiRouter(opts: {
   botToken: string;
@@ -226,6 +246,81 @@ export function createApiRouter(opts: {
   // --------------------
   // Requests
   // --------------------
+  // список заявок (для владельца)
+  router.get("/admin/requests", (req, res) => {
+    try {
+      const { isOwner } = requireAuth(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const store = readStore();
+      const requests = [...(store.requests || [])].sort((a, b) =>
+        String(b.created_at).localeCompare(String(a.created_at))
+      );
+
+      return res.json({ ok: true, requests });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // изменить статус заявки (и отправить пуш пользователю через Telegram)
+  router.post("/admin/requests/:id/state", async (req, res) => {
+    try {
+      const { isOwner, user } = requireAuth(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const id = String(req.params.id || "");
+      const next = parseRequestState(req.body?.state);
+      if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
+      if (!next) {
+        return res.status(400).json({
+          ok: false,
+          error: "bad_state",
+          hint: "state: new | in_progress | done | canceled"
+        });
+      }
+
+      const store = readStore();
+      const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
+      if (!r) return res.status(404).json({ ok: false, error: "not_found" });
+
+      r.state = next;
+      r.state_updated_at = new Date().toISOString();
+      r.state_updated_by = user.id;
+      writeStore(store);
+
+      // Уведомление пользователю (это и будет "push" на телефоне через Telegram)
+      const shortId = id.slice(-6);
+      const text =
+        `📣 Статус заявки обновлён\n` +
+        `🆔 #${shortId}\n` +
+        `🔁 ${r.sellCurrency} → ${r.buyCurrency}\n` +
+        `💸 Отдаёте: ${r.sellAmount}\n` +
+        `🎯 Получаете: ${r.buyAmount}\n` +
+        `📌 Сейчас: ${requestStateLabel[next]}`;
+
+      // бот может писать пользователю только если он уже нажал /start (в нашем случае это так)
+      const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          chat_id: r.from.id,
+          text,
+          disable_web_page_preview: true
+        })
+      });
+      const tgJson: any = await tgRes.json();
+      if (!tgJson?.ok) {
+        // не фейлим весь запрос, но возвращаем предупреждение
+        return res.json({ ok: true, request: r, warn: tgJson?.description || "tg_send_failed" });
+      }
+
+      return res.json({ ok: true, request: r });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
   router.post("/requests", async (req, res) => {
     try {
       const { user, status } = requireAuth(req);
@@ -302,19 +397,37 @@ export function createApiRouter(opts: {
       }
 
       store.requests = store.requests || [];
-      store.requests.push({
+      const request: StoredRequest = {
+        id: randomUUID(),
+        state: "new",
         sellCurrency,
         buyCurrency,
         sellAmount,
         buyAmount,
+        payMethod: String(p.payMethod || ""),
         receiveMethod,
         from: user,
         status: normalizeStatus(status),
         created_at: new Date().toISOString()
-      });
+      };
+      store.requests.push(request);
       writeStore(store);
 
-      res.json({ ok: true });
+      // Доп. подтверждение пользователю в личку (тоже пуш): можно выключить, если не нужно.
+      // Важно: бот сможет написать только тем, кто уже нажал /start.
+      try {
+        const shortId = request.id.slice(-6);
+        await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            chat_id: user.id,
+            text: `✅ Заявка принята\n🆔 #${shortId}\nМы скоро напишем, когда изменится статус.`
+          })
+        });
+      } catch {}
+
+      res.json({ ok: true, id: request.id, state: request.state });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
