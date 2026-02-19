@@ -203,13 +203,34 @@ export default function App() {
   return (
     <div className="vx-page">
 
+      {/* Background (in poputchiki style). Replace the file to change the scene:
+          webapp/public/brand/danang-bg.svg (or .jpg/.png with same name in CSS) */}
+      <div className="bg-danang" aria-hidden="true" />
+
       <div className="container">
-        <div className="card">
-          <div className="h1">{UI.title}</div>
-          <div className="small">
-            {me.ok && me.user
-              ? `Вы: ${me.user.first_name ?? ""} ${me.user.username ? "(@" + me.user.username + ")" : ""} • статус: ${me.status}`
-              : me.error ?? "Авторизация..."}
+        <div className="card vx-topCard">
+          <div className="vx-topRow">
+            <div className="vx-logo" aria-label="Лого">
+              {/* Put your logo here (easy to replace): webapp/public/brand/logo.png */}
+              <img
+                className="vx-logoImg"
+                src="/brand/logo.png"
+                alt=""
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+              <span className="vx-logoFallback">DX</span>
+            </div>
+
+            <div className="vx-topText">
+              <div className="vx-title">{UI.title}</div>
+              <div className="vx-topSub">
+                {me.ok && me.user
+                  ? `Вы: ${me.user.first_name ?? ""} ${me.user.username ? "(@" + me.user.username + ")" : ""} • статус: ${me.status}`
+                  : me.error ?? "Авторизация..."}
+              </div>
+            </div>
           </div>
 
           {tg?.addToHomeScreen && tg?.checkHomeScreenStatus && hsStatus !== "unsupported" ? (

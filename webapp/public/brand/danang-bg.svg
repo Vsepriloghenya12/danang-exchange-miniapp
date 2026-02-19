@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#66d2f2"/>
+      <stop offset="1" stop-color="#5ac4e9"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2aa4d6"/>
+      <stop offset="1" stop-color="#167aa6"/>
+    </linearGradient>
+    <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6e2b6"/>
+      <stop offset="1" stop-color="#efd29a"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="1200" fill="url(#sky)"/>
+
+  <circle cx="1230" cy="210" r="140" fill="#ffb357" opacity="0.98"/>
+  <circle cx="1230" cy="210" r="260" fill="#ffd8a1" opacity="0.30"/>
+
+  <g opacity="0.20">
+    <ellipse cx="310" cy="240" rx="170" ry="40" fill="#fff"/>
+    <ellipse cx="455" cy="255" rx="130" ry="34" fill="#fff"/>
+    <ellipse cx="1040" cy="290" rx="190" ry="42" fill="#fff"/>
+    <ellipse cx="1205" cy="305" rx="145" ry="36" fill="#fff"/>
+  </g>
+
+  <!-- Mountains -->
+  <path d="M0 560 C260 515 360 410 560 440 C720 460 820 535 980 525 C1180 515 1260 430 1600 470 L1600 1200 L0 1200 Z" fill="#2f6f80"/>
+  <path d="M0 680 C260 650 390 575 560 602 C740 632 820 720 1000 700 C1200 680 1280 598 1600 630 L1600 1200 L0 1200 Z" fill="#2b6172"/>
+
+  <!-- Sea -->
+  <path d="M0 800 C240 770 420 820 650 800 C900 780 1160 840 1600 815 L1600 1200 L0 1200 Z" fill="url(#sea)"/>
+
+  <!-- Waves -->
+  <g opacity="0.28" fill="#b7ecff">
+    <path d="M0 830 C180 810 340 850 520 830 C690 812 880 852 1060 830 C1240 808 1420 850 1600 830 L1600 870 C1420 890 1240 848 1060 870 C880 892 690 850 520 870 C340 890 180 850 0 870 Z"/>
+    <path d="M0 890 C180 870 340 910 520 890 C690 872 880 912 1060 890 C1240 868 1420 910 1600 890 L1600 930 C1420 950 1240 908 1060 930 C880 952 690 910 520 930 C340 950 180 910 0 930 Z"/>
+  </g>
+
+  <!-- Sand -->
+  <path d="M0 940 C260 910 520 980 760 960 C980 944 1220 900 1600 940 L1600 1200 L0 1200 Z" fill="url(#sand)"/>
+
+  <!-- Palm silhouette -->
+  <g opacity="0.16" filter="url(#soft)" fill="#0b2b33">
+    <path d="M230 980 C260 920 280 860 300 820 C320 860 330 920 320 980 Z"/>
+    <path d="M300 820 C260 800 235 780 220 760 C250 760 285 772 310 790 C340 770 380 760 410 760 C390 790 360 805 325 820 Z"/>
+  </g>
+</svg>
