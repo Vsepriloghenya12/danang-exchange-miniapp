@@ -1,0 +1,20 @@
+{
+  "name": "Обмен валют — Дананг",
+  "short_name": "Exchange",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5ac4e9",
+  "icons": [
+    {
+      "src": "/brand/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/brand/app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
