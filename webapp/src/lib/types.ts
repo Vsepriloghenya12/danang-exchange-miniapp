@@ -29,3 +29,20 @@ export type AuthResponse =
       isOwner: boolean;
     }
   | { ok: false; error: string };
+
+export type MarketRatesResponse =
+  | {
+      ok: true;
+      updated_at: string;
+      source: string;
+      stale: boolean;
+      g: Record<string, number>;
+    }
+  | {
+      ok: false;
+      error: string;
+      stale: boolean;
+      updated_at?: string;
+      source?: string;
+      g?: Record<string, number>;
+    };

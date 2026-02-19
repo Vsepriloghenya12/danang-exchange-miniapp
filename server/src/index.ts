@@ -8,6 +8,7 @@ import cors from "cors";
 
 import { createApiRouter } from "./routes.js";
 import { createBot } from "./bot.js";
+import { startMarketUpdater } from "./marketRates.js";
 
 dotenv.config();
 
@@ -50,6 +51,9 @@ const WEBHOOK_PATH = process.env.WEBHOOK_PATH || `/tg-webhook-${BOT_TOKEN.slice(
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
+
+// Рыночный курс "G" (кросс-пары) — обновление ~каждые 15 минут
+startMarketUpdater();
 
 // API: передаём ownerTgIds (и ownerTgId для совместимости)
 app.use(

@@ -8,9 +8,10 @@ import {
   parseStatusInput
 } from "./store.js";
 import { validateTelegramInitData } from "./telegramValidate.js";
+import { getMarketSnapshot } from "./marketRates.js";
 
 type ReceiveMethod = "cash" | "transfer" | "atm";
-type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB"; // заявки: добавили EUR и THB
+type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB";
 
 const statusLabel: Record<UserStatus, string> = {
   standard: "стандарт",
@@ -29,7 +30,7 @@ export function createApiRouter(opts: {
     const list = Array.isArray(opts.ownerTgIds) ? opts.ownerTgIds : [];
     if (list.length > 0) return list.includes(userId);
     if (opts.ownerTgId) return userId === opts.ownerTgId;
-    return false; // если владелец не задан — никто не владелец (совпадает с ботом)
+    return false;
   }
 
   function requireAuth(req: express.Request) {
@@ -79,11 +80,21 @@ export function createApiRouter(opts: {
     }
   });
 
+  // --------------------
+  // Rates
+  // --------------------
   router.get("/rates/today", (_req, res) => {
     const store = readStore();
     const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
     const data = store.ratesByDate?.[today] || null;
     res.json({ ok: true, date: today, data });
+  });
+
+  // Рыночные курсы "G" для кросс-пар (обновление ~каждые 15 минут)
+  router.get("/market", async (_req, res) => {
+    const snap = await getMarketSnapshot();
+    if (snap.ok) return res.json(snap);
+    return res.status(503).json(snap);
   });
 
   router.get("/admin/rates/today", (req, res) => {
@@ -124,7 +135,7 @@ export function createApiRouter(opts: {
         USDT: { buy_vnd: num(USDT.buy_vnd), sell_vnd: num(USDT.sell_vnd) }
       };
 
-      // EUR/THB — опционально
+      // EUR/THB — опционально: сохраняем только если обе цифры > 0
       const EUR = rates?.EUR;
       const THB = rates?.THB;
 
@@ -165,16 +176,16 @@ export function createApiRouter(opts: {
     }
   });
 
+  // --------------------
+  // Admin users
+  // --------------------
   router.get("/admin/users", (req, res) => {
     try {
       const { isOwner } = requireAuth(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const store = readStore();
-      const users = Object.values(store.users).sort(
-        (a, b) => (b.last_seen_at || "").localeCompare(a.last_seen_at || "")
-      );
-      res.json({ ok: true, users });
+      res.json({ ok: true, users: Object.values(store.users || {}) });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -186,27 +197,35 @@ export function createApiRouter(opts: {
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const tgId = Number(req.params.tgId);
-      const nextRaw = String(req.body?.status || "");
-      const next = parseStatusInput(nextRaw);
+      if (!Number.isFinite(tgId) || tgId <= 0) {
+        return res.status(400).json({ ok: false, error: "bad_tg_id" });
+      }
 
-      if (!Number.isFinite(tgId) || tgId <= 0) return res.status(400).json({ ok: false, error: "bad_tg_id" });
-      if (!next) return res.status(400).json({ ok: false, error: "bad_status" });
+      const next = parseStatusInput(req.body?.status);
+      if (!next) {
+        return res.status(400).json({
+          ok: false,
+          error: "bad_status",
+          hint: "status: standard|silver|gold (можно: стандарт/серебро/золото)"
+        });
+      }
 
       const store = readStore();
       const key = String(tgId);
-      const u = store.users[key];
-      if (!u) return res.status(404).json({ ok: false, error: "user_not_found" });
+      if (!store.users?.[key]) return res.status(404).json({ ok: false, error: "user_not_found" });
 
-      u.status = normalizeStatus(next);
-      store.users[key] = u;
+      store.users[key].status = next;
       writeStore(store);
 
-      res.json({ ok: true });
+      res.json({ ok: true, status: next, statusLabel: statusLabel[next] });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
+  // --------------------
+  // Requests
+  // --------------------
   router.post("/requests", async (req, res) => {
     try {
       const { user, status } = requireAuth(req);
@@ -253,7 +272,9 @@ export function createApiRouter(opts: {
       };
 
       const who =
-        (user.username ? `@${user.username}` : `${user.first_name || ""} ${user.last_name || ""}`.trim() || `id ${user.id}`) +
+        (user.username
+          ? `@${user.username}`
+          : `${user.first_name || ""} ${user.last_name || ""}`.trim() || `id ${user.id}`) +
         ` • статус: ${statusLabel[normalizeStatus(status)]}`;
 
       const text =
@@ -276,28 +297,26 @@ export function createApiRouter(opts: {
       });
 
       const tgJson: any = await tgRes.json();
-      if (!tgRes.ok || !tgJson?.ok) {
-        console.error("TG sendMessage failed:", tgJson);
-        return res.status(500).json({ ok: false, error: "tg_send_failed" });
+      if (!tgJson?.ok) {
+        return res.status(500).json({ ok: false, error: tgJson?.description || "tg_send_failed" });
       }
 
+      store.requests = store.requests || [];
       store.requests.push({
-        id: String(Date.now()),
-        created_at: new Date().toISOString(),
-        user: { id: user.id, username: user.username, first_name: user.first_name, last_name: user.last_name },
-        status,
         sellCurrency,
         buyCurrency,
         sellAmount,
         buyAmount,
-        receiveMethod
+        receiveMethod,
+        from: user,
+        status: normalizeStatus(status),
+        created_at: new Date().toISOString()
       });
       writeStore(store);
 
-      return res.json({ ok: true });
+      res.json({ ok: true });
     } catch (e: any) {
-      console.error("REQUESTS ERROR:", e);
-      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 

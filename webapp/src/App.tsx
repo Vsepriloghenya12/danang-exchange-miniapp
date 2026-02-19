@@ -24,15 +24,10 @@ type TabKey = "rates" | "calc" | "atm" | "guide" | "reviews" | "admin";
 const UI = {
   title: "Обмен валют — Дананг",
   // Если Google Fonts не грузится в Telegram — будет фолбэк на системный шрифт.
-  fontImport: "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap",
+  fontImport:
+    "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap",
   accent: "#22c55e",
   accent2: "#06b6d4",
-};
-
-const STATUS_RU: Record<UserStatus, string> = {
-  standard: "Стандарт",
-  silver: "Серебро",
-  gold: "Золото",
 };
 
 function IconSwap({ className = "" }: { className?: string }) {
@@ -130,120 +125,10 @@ function BottomBar({
   );
 }
 
-function StatusInfoModal({
-  open,
-  onClose,
-  current,
-}: {
-  open: boolean;
-  onClose: () => void;
-  current: UserStatus | undefined;
-}) {
-  if (!open) return null;
-
-  const Cur = current ?? "standard";
-
-  const rubRows = [
-    { range: "< 50 000 ₽", standard: "+0", silver: "+1", gold: "+2" },
-    { range: "50–100 тыс ₽", standard: "+1", silver: "+2", gold: "+3" },
-    { range: "100–200 тыс ₽", standard: "+2", silver: "+3", gold: "+4" },
-    { range: "200 тыс ₽+", standard: "+3", silver: "+4", gold: "+5" },
-  ];
-
-  const usdRows = [
-    { range: "< 1 000", standard: "+0", silver: "+100", gold: "+150" },
-    { range: "1 000–3 000", standard: "+100", silver: "+150", gold: "+200" },
-    { range: "3 000+", standard: "+150", silver: "+200", gold: "+250" },
-  ];
-
-  const Cell = ({
-  children,
-  muted = false,
-  className = "",
-}: {
-  children: React.ReactNode;
-  muted?: boolean;
-  className?: string;
-}) => (
-  <div className={"vx-tierCell " + (muted ? "vx-tierMuted " : "") + className}>{children}</div>
-);
-
-  return (
-    <div className="vx-modalOverlay" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="vx-modalSheet" onClick={(e) => e.stopPropagation()}>
-        <div className="vx-modalHead">
-          <div className="vx-modalTitle">Преимущества статуса</div>
-          <button type="button" className="vx-modalClose" onClick={onClose} aria-label="Закрыть">
-            ✕
-          </button>
-        </div>
-
-        <div className="vx-modalBody">
-          <div className="vx-note">
-            Текущий статус: <b>{STATUS_RU[Cur]}</b>
-            <div className="vx-note2">
-              Статус влияет на курс в калькуляторе: он добавляет <b>надбавку к курсу покупки</b> (VND за 1 валюту)
-              при обмене <b>RUB / USD / USDT → VND</b>. Чем выше статус — тем выгоднее.
-            </div>
-          </div>
-
-          <div className="vx-block">
-            <div className="vx-blockTitle">RUB → VND (надбавка к курсу)</div>
-            <div className="vx-tierGrid">
-              <Cell muted>Сумма</Cell>
-              <Cell muted>Стандарт</Cell>
-              <Cell muted>Серебро</Cell>
-              <Cell muted>Золото</Cell>
-
-              {rubRows.map((r) => (
-                <React.Fragment key={r.range}>
-                  <Cell>{r.range}</Cell>
-                  <Cell>{r.standard}</Cell>
-                  <Cell className={Cur === "silver" ? "vx-tierHi" : ""}>{r.silver}</Cell>
-                  <Cell className={Cur === "gold" ? "vx-tierHi" : ""}>{r.gold}</Cell>
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-
-          <div className="vx-block">
-            <div className="vx-blockTitle">USD/USDT → VND (надбавка к курсу)</div>
-            <div className="vx-tierGrid">
-              <Cell muted>Сумма</Cell>
-              <Cell muted>Стандарт</Cell>
-              <Cell muted>Серебро</Cell>
-              <Cell muted>Золото</Cell>
-
-              {usdRows.map((r) => (
-                <React.Fragment key={r.range}>
-                  <Cell>{r.range}</Cell>
-                  <Cell>{r.standard}</Cell>
-                  <Cell className={Cur === "silver" ? "vx-tierHi" : ""}>{r.silver}</Cell>
-                  <Cell className={Cur === "gold" ? "vx-tierHi" : ""}>{r.gold}</Cell>
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-
-          <div className="vx-note2">
-            Если захочешь — могу сделать так, чтобы тут показывались ещё и “бонусы за способ получения”
-            (transfer/atm), но сейчас это окно именно про статус.
-          </div>
-
-          <button type="button" className="vx-modalOk" onClick={onClose}>
-            Понятно
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function App() {
   const tg = getTg();
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
   const [tab, setTab] = useState<TabKey>("rates");
-  const [statusInfoOpen, setStatusInfoOpen] = useState(false);
 
   const isDemo = useMemo(() => new URLSearchParams(location.search).get("demo") === "1", []);
 
@@ -380,145 +265,6 @@ export default function App() {
           padding-bottom: calc(170px + env(safe-area-inset-bottom));
         }
 
-        /* Кнопка статуса (в шапке) */
-        .vx-statusBtn{
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          border: 1px solid rgba(15,23,42,0.14);
-          background: rgba(255,255,255,0.75);
-          padding: 3px 10px;
-          border-radius: 999px;
-          font-weight: 900;
-          font-size: 12px;
-          cursor: pointer;
-          box-shadow: 0 6px 16px rgba(2,6,23,0.06);
-          vertical-align: middle;
-        }
-        .vx-statusDot{
-          width: 8px; height: 8px; border-radius: 999px;
-          background: linear-gradient(135deg, rgba(34,197,94,1), rgba(6,182,212,1));
-        }
-        .vx-statusHint{
-          font-weight: 800;
-          opacity: 0.7;
-          font-size: 11px;
-        }
-
-        /* Модалка статуса */
-        .vx-modalOverlay{
-          position: fixed;
-          inset: 0;
-          z-index: 2000;
-          background: rgba(2,6,23,0.45);
-          backdrop-filter: blur(10px);
-          display: flex;
-          align-items: flex-end;
-          justify-content: center;
-          padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
-          box-sizing: border-box;
-        }
-        .vx-modalSheet{
-          width: 100%;
-          max-width: 420px;
-          border-radius: 24px;
-          border: 1px solid rgba(255,255,255,0.18);
-          background: rgba(255,255,255,0.92);
-          box-shadow: 0 18px 60px rgba(2,6,23,0.22);
-          overflow: hidden;
-          max-height: 82vh;
-          display: flex;
-          flex-direction: column;
-        }
-        .vx-modalHead{
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 14px 14px 10px;
-          border-bottom: 1px solid rgba(15,23,42,0.08);
-        }
-        .vx-modalTitle{
-          font-size: 16px;
-          font-weight: 1000;
-          letter-spacing: -0.01em;
-        }
-        .vx-modalClose{
-          border: 1px solid rgba(15,23,42,0.14);
-          background: rgba(255,255,255,0.85);
-          height: 36px;
-          width: 36px;
-          border-radius: 14px;
-          font-weight: 1000;
-          cursor: pointer;
-        }
-        .vx-modalBody{
-          padding: 12px 14px 14px;
-          overflow: auto;
-        }
-        .vx-note{
-          border-radius: 18px;
-          border: 1px solid rgba(15,23,42,0.10);
-          background: rgba(34,197,94,0.06);
-          padding: 12px;
-          font-size: 13px;
-          font-weight: 800;
-        }
-        .vx-note2{
-          margin-top: 6px;
-          font-size: 12px;
-          font-weight: 700;
-          opacity: 0.85;
-          line-height: 1.35;
-        }
-        .vx-block{
-          margin-top: 12px;
-          border-radius: 18px;
-          border: 1px solid rgba(15,23,42,0.10);
-          background: rgba(255,255,255,0.75);
-          padding: 12px;
-        }
-        .vx-blockTitle{
-          font-size: 13px;
-          font-weight: 1000;
-          margin-bottom: 8px;
-        }
-        .vx-tierGrid{
-          display: grid;
-          grid-template-columns: 1.15fr repeat(3, 1fr);
-          gap: 6px;
-          font-size: 12px;
-          font-weight: 900;
-        }
-        .vx-tierCell{
-          border: 1px solid rgba(15,23,42,0.08);
-          background: rgba(255,255,255,0.85);
-          padding: 8px 8px;
-          border-radius: 14px;
-          text-align: center;
-          white-space: nowrap;
-        }
-        .vx-tierMuted{
-          opacity: 0.75;
-          font-weight: 1000;
-        }
-        .vx-tierHi{
-          border-color: rgba(34,197,94,0.35);
-          box-shadow: 0 8px 20px rgba(34,197,94,0.12);
-          background: rgba(34,197,94,0.09);
-        }
-        .vx-modalOk{
-          width: 100%;
-          margin-top: 12px;
-          height: 48px;
-          border: 0;
-          border-radius: 18px;
-          font-weight: 1000;
-          background: linear-gradient(135deg, rgba(34,197,94,1), rgba(6,182,212,1));
-          color: white;
-          cursor: pointer;
-          box-shadow: 0 14px 30px rgba(6,182,212,0.22);
-        }
-
         /* Обёртка-карточка для секций (чтобы курс/калькулятор выглядели как бар) */
         .vx-card2{
           border-radius: 26px;
@@ -625,7 +371,10 @@ export default function App() {
         /* Telegram WebView иногда даёт странные стили кнопкам */
         .vx-bottomBar button{ -webkit-tap-highlight-color: transparent; }
 
-        /* --- Починка раскладки калькулятора (без доступа к внутренним файлам) --- */
+        /* --- Починка раскладки калькулятора (без доступа к внутренним файлам) ---
+           Подхватываем самые типичные классы/структуры: row/calcRow и т.п.
+           Если у тебя внутри другие классы — всё равно подействует на select+input в строках.
+        */
         .vx-body .row,
         .vx-body .calcRow,
         .vx-body .calc-row,
@@ -669,27 +418,17 @@ export default function App() {
       <div className="container">
         <div className="card">
           <div className="h1">{UI.title}</div>
-
           <div className="small">
-            {me.ok && me.user ? (
-              <>
-                Вы: {me.user.first_name ?? ""} {me.user.username ? "(@" + me.user.username + ")" : ""} • статус:{" "}
-                <button type="button" className="vx-statusBtn" onClick={() => setStatusInfoOpen(true)}>
-                  <span className="vx-statusDot" />
-                  {me.status ? STATUS_RU[me.status] : "—"}
-                  <span className="vx-statusHint"></span>
-                </button>
-              </>
-            ) : (
-              me.error ?? "Авторизация..."
-            )}
+            {me.ok && me.user
+              ? `Вы: ${me.user.first_name ?? ""} ${me.user.username ? "(@" + me.user.username + ")" : ""} • статус: ${me.status}`
+              : me.error ?? "Авторизация..."}
           </div>
         </div>
 
         <div className="vx-body">
           {tab === "rates" && (
             <div className="vx-card2">
-              <RatesTab />
+              <RatesTab me={me} />
             </div>
           )}
           {tab === "calc" && (
@@ -709,7 +448,7 @@ export default function App() {
           )}
           {tab === "reviews" && (
             <div className="vx-card2">
-              <ReviewsTab />
+              <ReviewsTab me={me} />
             </div>
           )}
           {tab === "admin" && me.isOwner && (
@@ -721,12 +460,6 @@ export default function App() {
       </div>
 
       <BottomBar active={tab} onChange={setTab} items={bottomTabs} />
-
-      <StatusInfoModal
-        open={statusInfoOpen}
-        onClose={() => setStatusInfoOpen(false)}
-        current={me.status}
-      />
     </div>
   );
 }

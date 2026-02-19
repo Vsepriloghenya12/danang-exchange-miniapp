@@ -1,4 +1,4 @@
-import type { AuthResponse, TodayRatesResponse } from "./types";
+import type { AuthResponse, TodayRatesResponse, MarketRatesResponse } from "./types";
 
 export async function apiAuth(initData: string): Promise<AuthResponse> {
   const r = await fetch("/api/auth", {
@@ -11,6 +11,11 @@ export async function apiAuth(initData: string): Promise<AuthResponse> {
 
 export async function apiGetTodayRates(): Promise<TodayRatesResponse> {
   const r = await fetch("/api/rates/today");
+  return r.json();
+}
+
+export async function apiGetMarketRates(): Promise<MarketRatesResponse> {
+  const r = await fetch("/api/market");
   return r.json();
 }
 
