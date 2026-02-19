@@ -142,8 +142,9 @@ async function refresh(): Promise<MarketOk> {
 
 export async function getMarketSnapshot(): Promise<MarketSnapshot> {
   const now = Date.now();
-  const fresh = cache && now - lastFetchAt < REFRESH_MS;
-  if (fresh) return cache;
+  // `cache && ...` returns a non-boolean union; keep this strictly boolean for TS narrowing.
+  const fresh = !!cache && now - lastFetchAt < REFRESH_MS;
+  if (fresh && cache) return cache;
 
   if (!inFlight) {
     inFlight = refresh().finally(() => {
@@ -170,6 +171,5 @@ export function startMarketUpdater() {
   }, REFRESH_MS);
 
   // чтобы не держать процесс при завершении
-  // @ts-expect-error
   timer.unref?.();
 }
