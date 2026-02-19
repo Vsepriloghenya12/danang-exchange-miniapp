@@ -81,6 +81,8 @@ function toNumStrict(label: string, s: string) {
 }
 
 export default function AdminTab({ me }: any) {
+  const [section, setSection] = useState<"rates" | "users" | "requests">("rates");
+
   // По умолчанию ВСЁ пустое (без подстановки старых значений)
   const [usdBuy, setUsdBuy] = useState("");
   const [usdSell, setUsdSell] = useState("");
@@ -185,92 +187,84 @@ export default function AdminTab({ me }: any) {
   };
 
   return (
-    <div className="card">
-<div className="h1">Управление</div>
+    <div className="card vx-admin">
+      <style>{`
+        .vx-adminHead{ display:flex; align-items:flex-end; justify-content:space-between; gap:10px; }
+        .vx-adminHead .h1{ margin:0; }
+        .vx-adminSeg{ margin-top:10px; display:flex; gap:6px; padding:6px; border-radius: 22px; border:1px solid rgba(15,23,42,0.10); background: rgba(255,255,255,0.72); }
+        .vx-adminSeg button{ flex:1 1 0; height:40px; border-radius: 16px; border:0; cursor:pointer; font-weight: 950; font-size: 13px; background: transparent; color: rgba(15,23,42,0.62); }
+        .vx-adminSeg .on{ background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(6,182,212,0.18)); color:#0f172a; border:1px solid rgba(15,23,42,0.08); }
 
-      <div className="card">
-        <div className="small">Курс на сегодня (BUY/SELL к VND) — заполняется каждый день</div>
-        <div className="hr" />
+        /* компактнее курс */
+        .vx-admin .vx-rateRow{ padding: 6px 0; align-items:center; }
+        .vx-admin .vx-code{ width: 54px; flex: 0 0 54px; padding-top:0; font-size: 13px; }
+        .vx-admin input.vx-in{ height: 40px; border-radius: 16px; font-size: 14px; }
+        .vx-admin .vx-field{ flex: 1 1 120px; }
 
-        <RateRow code="RUB"  buy={rubBuy}  sell={rubSell}  setBuy={setRubBuy}  setSell={setRubSell} />
-        <RateRow code="USDT" buy={usdtBuy} sell={usdtSell} setBuy={setUsdtBuy} setSell={setUsdtSell} />
-        <RateRow code="USD"  buy={usdBuy}  sell={usdSell}  setBuy={setUsdBuy}  setSell={setUsdSell} />
-        <RateRow code="EUR"  buy={eurBuy}  sell={eurSell}  setBuy={setEurBuy}  setSell={setEurSell} />
-        <RateRow code="THB"  buy={thbBuy}  sell={thbSell}  setBuy={setThbBuy}  setSell={setThbSell} />
+        /* карточки внутри — без «воздуха» */
+        .vx-admin .card{ padding: 12px; border-radius: 22px; }
+        .vx-admin .hr{ margin: 8px 0; }
+      `}</style>
 
-        <div className="vx-mt10">
-          <div className="row vx-rowWrap" style={{ gap: 8 }}>
-            <button className="btn" onClick={saveRates}>Сохранить курс</button>
-            <button className="btn" onClick={clearRates}>Очистить</button>
-            <button className="btn" onClick={loadRates}>Загрузить текущий</button>
+      <div className="vx-adminHead">
+        <div className="h1">Управление</div>
+        <div className="vx-muted">только для владельца</div>
+      </div>
+
+      <div className="vx-adminSeg">
+        <button className={section === "rates" ? "on" : ""} onClick={() => setSection("rates")}>Курс</button>
+        <button className={section === "users" ? "on" : ""} onClick={() => setSection("users")}>Клиенты</button>
+        <button className={section === "requests" ? "on" : ""} onClick={() => setSection("requests")}>Заявки</button>
+      </div>
+
+      {section === "rates" ? (
+        <div className="card vx-mt10">
+          <div className="small">Курс на сегодня (BUY/SELL к VND) — заполняется каждый день</div>
+          <div className="hr" />
+
+          <RateRow code="RUB" buy={rubBuy} sell={rubSell} setBuy={setRubBuy} setSell={setRubSell} />
+          <RateRow code="USDT" buy={usdtBuy} sell={usdtSell} setBuy={setUsdtBuy} setSell={setUsdtSell} />
+          <RateRow code="USD" buy={usdBuy} sell={usdSell} setBuy={setUsdBuy} setSell={setUsdSell} />
+          <RateRow code="EUR" buy={eurBuy} sell={eurSell} setBuy={setEurBuy} setSell={setEurSell} />
+          <RateRow code="THB" buy={thbBuy} sell={thbSell} setBuy={setThbBuy} setSell={setThbSell} />
+
+          <div className="vx-mt10">
+            <div className="row vx-rowWrap" style={{ gap: 8 }}>
+              <button className="btn" onClick={saveRates}>Сохранить</button>
+              <button className="btn" onClick={clearRates}>Очистить</button>
+              <button className="btn" onClick={loadRates}>Загрузить</button>
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
 
-      <div className="card">
-        <div className="small">Клиенты и статусы</div>
-        <div className="hr" />
+      {section === "users" ? (
+        <div className="card vx-mt10">
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <div className="small">Клиенты и статусы</div>
+            <button className="btn vx-btnSm" onClick={loadUsers}>Обновить</button>
+          </div>
+          <div className="hr" />
 
-        {users.length === 0 ? (
-          <div className="small">Пока нет клиентов (они появятся после входа в мини-апп).</div>
-        ) : (
-          users.map((u) => (
-            <div key={u.tg_id} className="vx-mb10">
-              <div>
-                <b>{u.first_name ?? ""} {u.last_name ?? ""}</b>{" "}
-                <span className="small">
-                  {u.username ? "@" + u.username : ""} • id:{u.tg_id} • статус: {statusLabelAny(u.status)}
-                </span>
-              </div>
-
-              <div className="row vx-mt6 vx-rowWrap">
-                {STATUS_OPTIONS.map((s) => (
-                  <button
-                    key={s.value}
-                    className="btn vx-btnSm"
-                    onClick={() => setStatus(u.tg_id, s.value)}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="hr" />
-            </div>
-          ))
-        )}
-      </div>
-
-      <div className="card">
-        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-          <div className="small">Заявки</div>
-          <button className="btn vx-btnSm" onClick={loadRequests}>Обновить</button>
-        </div>
-        <div className="hr" />
-
-        {requests.length === 0 ? (
-          <div className="small">Пока нет заявок.</div>
-        ) : (
-          requests.map((r) => {
-            const who = r?.from?.username ? "@" + r.from.username : (r?.from?.first_name || "") || `id ${r?.from?.id}`;
-            const shortId = String(r.id || "").slice(-6);
-            const created = r.created_at ? new Date(r.created_at).toLocaleString("ru-RU") : "";
-            const stateLabel = REQUEST_STATE_OPTIONS.find((x) => x.value === r.state)?.label || r.state;
-
-            return (
-              <div key={r.id} className="vx-mb10">
+          {users.length === 0 ? (
+            <div className="small">Пока нет клиентов (они появятся после входа в мини-апп).</div>
+          ) : (
+            users.map((u) => (
+              <div key={u.tg_id} className="vx-mb10">
                 <div>
-                  <b>#{shortId}</b>{" "}
-                  <span className="small">{created}</span>
+                  <b>{u.first_name ?? ""} {u.last_name ?? ""}</b>{" "}
+                  <span className="small">
+                    {u.username ? "@" + u.username : ""} • id:{u.tg_id} • статус: {statusLabelAny(u.status)}
+                  </span>
                 </div>
-                <div className="small">
-                  {who} • {r.sellCurrency} → {r.buyCurrency} • отдаёт: {r.sellAmount} • получит: {r.buyAmount}
-                </div>
-                <div className="small">Статус: <b>{stateLabel}</b></div>
 
-                <div className="row vx-mt6 vx-rowWrap">
-                  {REQUEST_STATE_OPTIONS.map((s) => (
-                    <button key={s.value} className="btn vx-btnSm" onClick={() => setRequestState(r.id, s.value)}>
+                <div className="row vx-mt6 vx-rowWrap" style={{ gap: 6 }}>
+                  {STATUS_OPTIONS.map((s) => (
+                    <button
+                      key={s.value}
+                      className="btn vx-btnSm"
+                      onClick={() => setStatus(u.tg_id, s.value)}
+                    >
                       {s.label}
                     </button>
                   ))}
@@ -278,10 +272,54 @@ export default function AdminTab({ me }: any) {
 
                 <div className="hr" />
               </div>
-            );
-          })
-        )}
-      </div>
+            ))
+          )}
+        </div>
+      ) : null}
+
+      {section === "requests" ? (
+        <div className="card vx-mt10">
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <div className="small">Заявки</div>
+            <button className="btn vx-btnSm" onClick={loadRequests}>Обновить</button>
+          </div>
+          <div className="hr" />
+
+          {requests.length === 0 ? (
+            <div className="small">Пока нет заявок.</div>
+          ) : (
+            requests.map((r) => {
+              const who = r?.from?.username ? "@" + r.from.username : (r?.from?.first_name || "") || `id ${r?.from?.id}`;
+              const shortId = String(r.id || "").slice(-6);
+              const created = r.created_at ? new Date(r.created_at).toLocaleString("ru-RU") : "";
+              const stateLabel = REQUEST_STATE_OPTIONS.find((x) => x.value === r.state)?.label || r.state;
+
+              return (
+                <div key={r.id} className="vx-mb10">
+                  <div>
+                    <b>#{shortId}</b>{" "}
+                    <span className="small">{created}</span>
+                  </div>
+                  <div className="small">
+                    {who} • {r.sellCurrency} → {r.buyCurrency} • отдаёт: {r.sellAmount} • получит: {r.buyAmount}
+                  </div>
+                  <div className="small">Статус: <b>{stateLabel}</b></div>
+
+                  <div className="row vx-mt6 vx-rowWrap" style={{ gap: 6 }}>
+                    {REQUEST_STATE_OPTIONS.map((s) => (
+                      <button key={s.value} className="btn vx-btnSm" onClick={() => setRequestState(r.id, s.value)}>
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="hr" />
+                </div>
+              );
+            })
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
