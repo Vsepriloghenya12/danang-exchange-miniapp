@@ -5,7 +5,7 @@ import type { TodayRatesResponse } from "../lib/types";
 type Cur = "RUB" | "USD" | "USDT" | "EUR" | "THB" | "VND";
 type Pair = { id: string; base: Cur; quote: Cur };
 
-// Порядок строго как ты просил (rud-thb исправил на rub-thb)
+// Порядок как был, но КРОСС-ПАРЫ перевёрнуты (валюты поменяны местами)
 const PAIRS: Pair[] = [
   { id: "rub-vnd", base: "RUB", quote: "VND" },
   { id: "usdt-vnd", base: "USDT", quote: "VND" },
@@ -14,18 +14,24 @@ const PAIRS: Pair[] = [
   { id: "eur-vnd", base: "EUR", quote: "VND" },
   { id: "thb-vnd", base: "THB", quote: "VND" },
 
-  { id: "rub-usdt", base: "RUB", quote: "USDT" },
-  { id: "rub-usd", base: "RUB", quote: "USD" },
-  { id: "rub-eur", base: "RUB", quote: "EUR" },
-  { id: "rub-thb", base: "RUB", quote: "THB" },
+  // было: rub-usdt, rub-usd, rub-eur, rub-thb
+  // стало:
+  { id: "usdt-rub", base: "USDT", quote: "RUB" },
+  { id: "usd-rub", base: "USD", quote: "RUB" },
+  { id: "eur-rub", base: "EUR", quote: "RUB" },
+  { id: "thb-rub", base: "THB", quote: "RUB" },
 
-  { id: "usd-usdt", base: "USD", quote: "USDT" },
-  { id: "eur-usd", base: "EUR", quote: "USD" },
-  { id: "eur-usdt", base: "EUR", quote: "USDT" },
+  // было: usd-usdt, eur-usd, eur-usdt
+  // стало:
+  { id: "usdt-usd", base: "USDT", quote: "USD" },
+  { id: "usd-eur", base: "USD", quote: "EUR" },
+  { id: "usdt-eur", base: "USDT", quote: "EUR" },
 
-  { id: "thb-usd", base: "THB", quote: "USD" },
-  { id: "thb-usdt", base: "THB", quote: "USDT" },
-  { id: "thb-eur", base: "THB", quote: "EUR" }
+  // было: thb-usd, thb-usdt, thb-eur
+  // стало:
+  { id: "usd-thb", base: "USD", quote: "THB" },
+  { id: "usdt-thb", base: "USDT", quote: "THB" },
+  { id: "eur-thb", base: "EUR", quote: "THB" }
 ];
 
 function fmtDaNang(d: Date) {
@@ -46,24 +52,18 @@ function fmtDaNang(d: Date) {
   }
 }
 
+// ✅ 2 знака после запятой для всех НЕ-VND
 function fmt(quote: Cur, n: number | null) {
   if (n == null || !Number.isFinite(n)) return "—";
-  const max = quote === "VND" ? 0 : 6;
+
+  const digits = quote === "VND" ? 0 : 2;
+
   return new Intl.NumberFormat("ru-RU", {
-    maximumFractionDigits: max,
-    minimumFractionDigits: 0
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
   }).format(n);
 }
 
-/**
- * Покупка/Продажа ПЕРВОЙ валюты пары.
- * - Покупка: обменник покупает BASE (клиент продаёт BASE) и выдаёт QUOTE
- * - Продажа: обменник продаёт BASE (клиент покупает BASE) за QUOTE
- *
- * Исходные курсы: для каждой валюты к VND есть buy_vnd и sell_vnd.
- * - Покупка BASE в QUOTE: (BASE.buy_vnd) / (QUOTE.sell_vnd)
- * - Продажа BASE в QUOTE: (BASE.sell_vnd) / (QUOTE.buy_vnd)
- */
 function calcBuySell(rates: any, base: Cur, quote: Cur): { buy: number | null; sell: number | null } {
   if (!rates) return { buy: null, sell: null };
   if (base === quote) return { buy: 1, sell: 1 };
@@ -90,7 +90,9 @@ function calcBuySell(rates: any, base: Cur, quote: Cur): { buy: number | null; s
     return { buy: null, sell: null };
   }
 
+  // BUY: сколько quote за 1 base (по выгодному для клиента направлению)
   const buy = baseBuy / quoteSell;
+  // SELL: сколько quote за 1 base (обратная сторона спреда)
   const sell = baseSell / quoteBuy;
 
   return {
@@ -118,7 +120,7 @@ export default function RatesTab() {
 
   return (
     <div className="vx-rates2">
-<div className="vx-head">
+      <div className="vx-head">
         <div>
           <div className="h2 vx-m0">Курс</div>
           <div className="vx-meta">Дата (Дананг): {data?.date ?? "—"}</div>
@@ -141,16 +143,14 @@ export default function RatesTab() {
           {rows.map((r) => (
             <div key={r.id} className="vx-tr">
               <div>
-                <div className="vx-pair">{r.base} → {r.quote}</div>
+                <div className="vx-pair">
+                  {r.base} → {r.quote}
+                </div>
                 <div className="vx-sub">за 1 {r.base}</div>
               </div>
 
-              <div className={"vx-num " + (r.buy == null ? "vx-dash" : "")}>
-                {fmt(r.quote, r.buy)}
-              </div>
-              <div className={"vx-num " + (r.sell == null ? "vx-dash" : "")}>
-                {fmt(r.quote, r.sell)}
-              </div>
+              <div className={"vx-num " + (r.buy == null ? "vx-dash" : "")}>{fmt(r.quote, r.buy)}</div>
+              <div className={"vx-num " + (r.sell == null ? "vx-dash" : "")}>{fmt(r.quote, r.sell)}</div>
             </div>
           ))}
         </div>
