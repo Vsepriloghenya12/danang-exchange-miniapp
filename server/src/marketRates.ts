@@ -4,7 +4,7 @@
 
 type MarketOk = {
   ok: true;
-  updated_at: string; // когда мы обновили кэш
+  updated_at: string;
   source: string;
   stale: boolean;
   g: Record<string, number>; // "USD/RUB" => G
@@ -52,8 +52,42 @@ async function fetchJson(url: string): Promise<any> {
   }
 }
 
+async function fetchUsdBaseFromExchangeRateApiV6(
+  apiKey: string
+): Promise<{ RUB: number; THB: number; EUR: number; source: string }> {
+  const url = `https://v6.exchangerate-api.com/v6/${encodeURIComponent(apiKey)}/latest/USD`;
+  const j = await fetchJson(url);
+
+  // Формат v6: { result: "success", rates: { ... } }
+  if (j?.result !== "success") {
+    // error-type может быть: invalid-key / inactive-account / quota-reached / unsupported-code ...
+    const err = j?.["error-type"] ? String(j["error-type"]) : "v6_not_success";
+    throw new Error(`exchangerate-api-v6:${err}`);
+  }
+
+  const RUB = Number(j?.rates?.RUB);
+  const THB = Number(j?.rates?.THB);
+  const EUR = Number(j?.rates?.EUR);
+
+  if (![RUB, THB, EUR].every((n) => Number.isFinite(n) && n > 0)) {
+    throw new Error("exchangerate-api-v6:bad_rates");
+  }
+
+  return { RUB, THB, EUR, source: "exchangerate-api.com v6" };
+}
+
 async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; source: string }> {
-  // 1) exchangerate.host
+  // 0) exchangerate-api.com v6 (по ключу) — самый приоритетный
+  const apiKey = (process.env.EXCHANGERATE_API_KEY || "").trim();
+  if (apiKey) {
+    try {
+      return await fetchUsdBaseFromExchangeRateApiV6(apiKey);
+    } catch {
+      // если ключ есть, но временно не сработало — упадём в fallback источники
+    }
+  }
+
+  // 1) exchangerate.host (fallback)
   try {
     const j = await fetchJson("https://api.exchangerate.host/latest?base=USD&symbols=RUB,THB,EUR");
     const RUB = Number(j?.rates?.RUB);
@@ -62,9 +96,11 @@ async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; 
     if ([RUB, THB, EUR].every((n) => Number.isFinite(n) && n > 0)) {
       return { RUB, THB, EUR, source: "exchangerate.host" };
     }
-  } catch {}
+  } catch {
+    // ignore
+  }
 
-  // 2) open.er-api.com
+  // 2) open.er-api.com (fallback)
   try {
     const j = await fetchJson("https://open.er-api.com/v6/latest/USD");
     const RUB = Number(j?.rates?.RUB);
@@ -73,18 +109,22 @@ async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; 
     if ([RUB, THB, EUR].every((n) => Number.isFinite(n) && n > 0)) {
       return { RUB, THB, EUR, source: "open.er-api.com" };
     }
-  } catch {}
+  } catch {
+    // ignore
+  }
 
-  // 3) exchangerate-api.com
+  // 3) exchangerate-api.com v4 (fallback)
   try {
     const j = await fetchJson("https://api.exchangerate-api.com/v4/latest/USD");
     const RUB = Number(j?.rates?.RUB);
     const THB = Number(j?.rates?.THB);
     const EUR = Number(j?.rates?.EUR);
     if ([RUB, THB, EUR].every((n) => Number.isFinite(n) && n > 0)) {
-      return { RUB, THB, EUR, source: "exchangerate-api.com" };
+      return { RUB, THB, EUR, source: "exchangerate-api.com v4" };
     }
-  } catch {}
+  } catch {
+    // ignore
+  }
 
   throw new Error("market_source_unavailable");
 }
@@ -99,9 +139,8 @@ function buildG(usd: { RUB: number; THB: number; EUR: number }): Record<string, 
   const EUR_THB = EUR_USD * USD_THB; // 1 EUR -> THB
   const THB_RUB = USD_RUB / USD_THB; // 1 THB -> RUB
 
-  // USDT считаем ~= USD (как на практике в обменниках)
   const g: Record<string, number> = {
-    "USDT/RUB": USD_RUB,
+    "USDT/RUB": USD_RUB, // USDT ~= USD
     "USD/RUB": USD_RUB,
     "EUR/RUB": EUR_RUB,
     "THB/RUB": THB_RUB,
@@ -117,6 +156,7 @@ function buildG(usd: { RUB: number; THB: number; EUR: number }): Record<string, 
     const v = Number(g[k]);
     if (!Number.isFinite(v) || v <= 0) delete g[k];
   }
+
   return g;
 }
 
@@ -139,7 +179,6 @@ async function refresh(): Promise<MarketOk> {
 
 export async function getMarketSnapshot(): Promise<MarketSnapshot> {
   const now = Date.now();
-  // ВАЖНО: строго boolean, чтобы TS нормально сужал типы
   const fresh = !!cache && now - lastFetchAt < REFRESH_MS;
   if (fresh && cache) return cache;
 
@@ -160,13 +199,11 @@ export async function getMarketSnapshot(): Promise<MarketSnapshot> {
 export function startMarketUpdater() {
   if (timer) return;
 
-  // первый прогрев
   getMarketSnapshot().catch(() => null);
 
   timer = setInterval(() => {
     getMarketSnapshot().catch(() => null);
   }, REFRESH_MS);
 
-  // чтобы не держать процесс при завершении
   timer.unref?.();
 }
