@@ -149,9 +149,10 @@ export default function RatesTab() {
 
   const metaParts = useMemo(() => {
     const parts: string[] = [];
-    parts.push(`Дананг: ${today?.date ?? "—"}`);
-    if (updatedAt) parts.push(`VND: ${updatedAt}`);
-    if (marketUpdatedAt) parts.push(`G: ${marketUpdatedAt}${market?.ok && market.stale ? " (устар.)" : ""}`);
+    // максимально компактно, чтобы влезало на 1 экран
+    parts.push(`${today?.date ?? "—"}`);
+    if (updatedAt) parts.push(`VND ${updatedAt}`);
+    if (marketUpdatedAt) parts.push(`G ${marketUpdatedAt}${market?.ok && market.stale ? " (устар.)" : ""}`);
     return parts;
   }, [today?.date, updatedAt, marketUpdatedAt, market?.ok, market?.stale]);
 
@@ -174,18 +175,17 @@ export default function RatesTab() {
         <div className="vx-meta">Курс ещё не задан владельцем.</div>
       ) : (
         <>
-          <div className="vx-rateLegend">
-            <span>BUY</span>
-            <span>SELL</span>
-          </div>
+          <div className="vx-rateList">
+            <div className="vx-rateHdr">
+              <span>Пара</span>
+              <span>BUY / SELL</span>
+            </div>
 
-          <div className="vx-rateGrid">
             {rows.map((r) => (
-              <div key={r.id} className="vx-rateCell">
+              <div key={r.id} className="vx-rateLine">
                 <div className="vx-ratePair2">
                   {r.base} → {r.quote}
                 </div>
-
                 <div className="vx-rateNums">
                   <span className={"vx-rateN " + (r.buy == null ? "vx-dash" : "")}>{fmt(r.quote, r.buy)}</span>
                   <span className={"vx-rateN vx-rateNMuted " + (r.sell == null ? "vx-dash" : "")}>{fmt(r.quote, r.sell)}</span>

@@ -217,7 +217,8 @@ label, input, select, textarea{ color: var(--text); }
    Layout helpers used by App
    ========================= */
 .vx-body{
-  padding-bottom: calc(170px + env(safe-area-inset-bottom));
+  /* enough space for the fixed bottom bar, but not so much that pages start scrolling */
+  padding-bottom: calc(118px + env(safe-area-inset-bottom));
 }
 
 .vx-card2{
@@ -317,6 +318,18 @@ label, input, select, textarea{ color: var(--text); }
   opacity: 0;
 }
 
+/* Swipe / tab change animation */
+.vx-animInL{ animation: vxSlideInL 180ms ease both; }
+.vx-animInR{ animation: vxSlideInR 180ms ease both; }
+@keyframes vxSlideInL{
+  from{ transform: translateX(22px); opacity: .55; }
+  to{ transform: translateX(0); opacity: 1; }
+}
+@keyframes vxSlideInR{
+  from{ transform: translateX(-22px); opacity: .55; }
+  to{ transform: translateX(0); opacity: 1; }
+}
+
 /* Allow horizontal swipes without breaking vertical scroll */
 .vx-body{ touch-action: pan-y; }
 
@@ -377,65 +390,52 @@ label, input, select, textarea{ color: var(--text); }
 }
 .vx-metaLine span{ white-space: nowrap; }
 
-/* Compact rates layout to fit on one screen */
-.vx-rateLegend{
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  font-size: 11px;
-  font-weight: 950;
-  letter-spacing: 0.02em;
-  color: var(--muted2);
-  text-transform: uppercase;
-}
-
-.vx-rateGrid{
+/* Compact single-column rates list (fits one screen, no "blocks" per row) */
+.vx-rateList{
   border: 1px solid var(--stroke);
-  background: rgba(255,255,255,0.46);
+  background: rgba(255,255,255,0.42);
   border-radius: 18px;
-  padding: 8px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  padding: 6px 10px;
+  font-variant-numeric: tabular-nums;
 }
-
-.vx-rateCell{
-  border: 1px solid rgba(9,23,33,0.10);
-  background: rgba(255,255,255,0.86);
-  border-radius: 16px;
-  padding: 8px 10px;
-  display: flex;
-  align-items: center;
+.vx-rateHdr{
+  display:flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 4px 0 6px;
+  font-size: 10.5px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted2);
+}
+.vx-rateLine{
+  display:flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  min-height: 42px;
-  font-variant-numeric: tabular-nums;
+  padding: 6px 0;
+  border-top: 1px solid rgba(9,23,33,0.10);
 }
 .vx-ratePair2{
   font-size: 12px;
   font-weight: 950;
-  color: var(--text);
-  line-height: 1.15;
+  color: rgba(9,23,33,0.90);
+  line-height: 1.1;
 }
 .vx-rateNums{
-  display: flex;
+  display:flex;
   align-items: baseline;
   justify-content: flex-end;
   gap: 10px;
-  min-width: 0;
+  white-space: nowrap;
 }
 .vx-rateN{
   font-size: 12.5px;
   font-weight: 950;
   color: var(--text);
-  white-space: nowrap;
 }
-.vx-rateNMuted{ color: rgba(9,23,33,0.70); }
-
-@media (max-width: 380px){
-  .vx-rateGrid{ grid-template-columns: 1fr; }
-  .vx-rateCell{ min-height: 40px; }
-}
+.vx-rateNMuted{ color: rgba(9,23,33,0.72); }
 
 .vx-table{
   border: 1px solid var(--stroke);

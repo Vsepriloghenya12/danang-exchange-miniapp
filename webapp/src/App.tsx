@@ -132,6 +132,9 @@ export default function App() {
   const [hsStatus, setHsStatus] = useState<string | null>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
 
+  // Page enter animation (for swipe/click)
+  const [anim, setAnim] = useState<{ dir: "left" | "right"; token: number }>({ dir: "left", token: 0 });
+
   // Keyboard detection (mobile): hide bottom bar while typing so it doesn't jump above the keyboard.
   const vvBaseHeightRef = useRef<number>(
     typeof window !== "undefined" ? window.visualViewport?.height ?? window.innerHeight : 0
@@ -194,7 +197,7 @@ export default function App() {
   }, [tg, isDemo]);
 
   useEffect(() => {
-    if (tab === "admin" && !me.isOwner) setTab("rates");
+    if (tab === "admin" && !me.isOwner) changeTab("rates");
   }, [tab, me.isOwner]);
 
   const bottomTabs: Array<{ key: TabKey; label: string; show: boolean; icon: React.ReactNode }> = [
@@ -207,6 +210,15 @@ export default function App() {
   ];
 
   const visibleTabKeys = useMemo(() => bottomTabs.filter((t) => t.show).map((t) => t.key), [me.isOwner]);
+
+  const changeTab = (next: TabKey) => {
+    if (next === tab) return;
+    const i = visibleTabKeys.indexOf(tab);
+    const j = visibleTabKeys.indexOf(next);
+    const dir: "left" | "right" = j > i ? "left" : "right";
+    setAnim((a) => ({ dir, token: a.token + 1 }));
+    setTab(next);
+  };
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -301,9 +313,30 @@ export default function App() {
     const i = visibleTabKeys.indexOf(tab);
     if (i < 0) return;
 
-    if (dx < 0 && i < visibleTabKeys.length - 1) setTab(visibleTabKeys[i + 1]);
-    if (dx > 0 && i > 0) setTab(visibleTabKeys[i - 1]);
+    if (dx < 0 && i < visibleTabKeys.length - 1) changeTab(visibleTabKeys[i + 1]);
+    if (dx > 0 && i > 0) changeTab(visibleTabKeys[i - 1]);
   };
+
+  // Logo loader: try several extensions (so you can drop .png/.svg/.jpg/.webp)
+  // + add a cache-buster (Telegram can be very aggressive with caching static files).
+  const logoCandidates = useMemo(() => {
+    const base = import.meta.env.BASE_URL || "/";
+    const b = base.endsWith("/") ? base : base + "/";
+    const v = String(Date.now());
+    return [
+      `${b}brand/logo.svg?v=${v}`,
+      `${b}brand/logo.png?v=${v}`,
+      `${b}brand/logo.jpg?v=${v}`,
+      `${b}brand/logo.jpeg?v=${v}`,
+      `${b}brand/logo.webp?v=${v}`,
+    ];
+  }, []);
+  const [logoIdx, setLogoIdx] = useState(0);
+  const [logoOk, setLogoOk] = useState(false);
+  const logoSrc = logoCandidates[Math.min(logoIdx, logoCandidates.length - 1)];
+
+  const animClass = anim.dir === "left" ? "vx-animInL" : "vx-animInR";
+  const animKey = `${tab}-${anim.token}`;
 
   return (
     <div
@@ -320,16 +353,18 @@ export default function App() {
         <div className="card vx-topCard">
           <div className="vx-topRow">
             <div className="vx-logo" aria-label="Лого">
-              {/* Put your logo here (easy to replace): webapp/public/brand/logo.png */}
+              {/* Put your logo here (easy to replace): webapp/public/brand/logo.(png|svg|jpg|webp) */}
+              {!logoOk ? <span className="vx-logoFallback">DX</span> : null}
               <img
                 className="vx-logoImg"
-                src={(import.meta.env.BASE_URL || "/") + "brand/logo.png"}
+                src={logoSrc}
                 alt=""
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                onLoad={() => setLogoOk(true)}
+                onError={() => {
+                  setLogoOk(false);
+                  setLogoIdx((i) => (i < logoCandidates.length - 1 ? i + 1 : i));
                 }}
               />
-              <span className="vx-logoFallback">DX</span>
             </div>
 
             <div className="vx-topText">
@@ -366,40 +401,18 @@ export default function App() {
         </div>
 
         <div className="vx-body">
-          {tab === "rates" && (
-            <div className="vx-card2">
-              <RatesTab me={me} />
-            </div>
-          )}
-          {tab === "calc" && (
-            <div className="vx-card2">
-              <CalculatorTab me={me} />
-            </div>
-          )}
-          {tab === "atm" && (
-            <div className="vx-card2">
-              <AtmTab />
-            </div>
-          )}
-          {tab === "guide" && (
-            <div className="vx-card2">
-              <GuideTab />
-            </div>
-          )}
-          {tab === "reviews" && (
-            <div className="vx-card2">
-              <ReviewsTab me={me} />
-            </div>
-          )}
-          {tab === "admin" && me.isOwner && (
-            <div className="vx-card2">
-              <AdminTab me={me} />
-            </div>
-          )}
+          <div className={"vx-card2 " + animClass} key={animKey}>
+            {tab === "rates" ? <RatesTab me={me} /> : null}
+            {tab === "calc" ? <CalculatorTab me={me} /> : null}
+            {tab === "atm" ? <AtmTab /> : null}
+            {tab === "guide" ? <GuideTab /> : null}
+            {tab === "reviews" ? <ReviewsTab me={me} /> : null}
+            {tab === "admin" && me.isOwner ? <AdminTab me={me} /> : null}
+          </div>
         </div>
       </div>
 
-      <BottomBar active={tab} onChange={setTab} items={bottomTabs} />
+      <BottomBar active={tab} onChange={changeTab} items={bottomTabs} />
     </div>
   );
 }
