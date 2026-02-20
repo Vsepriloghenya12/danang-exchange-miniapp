@@ -147,19 +147,24 @@ export default function RatesTab() {
     });
   }, [rates, market]);
 
+  const metaParts = useMemo(() => {
+    const parts: string[] = [];
+    parts.push(`Дананг: ${today?.date ?? "—"}`);
+    if (updatedAt) parts.push(`VND: ${updatedAt}`);
+    if (marketUpdatedAt) parts.push(`G: ${marketUpdatedAt}${market?.ok && market.stale ? " (устар.)" : ""}`);
+    return parts;
+  }, [today?.date, updatedAt, marketUpdatedAt, market?.ok, market?.stale]);
+
   return (
     <div className="vx-rates2">
       <div className="vx-head">
         <div>
           <div className="h2 vx-m0">Курс</div>
-          <div className="vx-meta">Дата (Дананг): {today?.date ?? "—"}</div>
-          {updatedAt ? <div className="vx-meta">Обновлено (VND): {updatedAt}</div> : null}
-          {marketUpdatedAt ? (
-            <div className="vx-meta">
-              Обновлено (G): {marketUpdatedAt}
-              {market?.ok && market.stale ? " (устар.)" : ""}
-            </div>
-          ) : null}
+          <div className="vx-meta vx-metaLine">
+            {metaParts.map((p) => (
+              <span key={p}>{p}</span>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -168,33 +173,31 @@ export default function RatesTab() {
       ) : !rates ? (
         <div className="vx-meta">Курс ещё не задан владельцем.</div>
       ) : (
-        <div className="vx-table">
-          <div className="vx-tr vx-th">
-            <div>Пара</div>
-            <div className="vx-end">BUY</div>
-            <div className="vx-end">SELL</div>
+        <>
+          <div className="vx-rateLegend">
+            <span>BUY</span>
+            <span>SELL</span>
           </div>
 
-          {rows.map((r) => (
-            <div key={r.id} className="vx-tr">
-              <div>
-                <div className="vx-pair">
+          <div className="vx-rateGrid">
+            {rows.map((r) => (
+              <div key={r.id} className="vx-rateCell">
+                <div className="vx-ratePair2">
                   {r.base} → {r.quote}
                 </div>
-                <div className="vx-sub">за 1 {r.base}</div>
-              </div>
 
-              <div className={"vx-num " + (r.buy == null ? "vx-dash" : "")}>{fmt(r.quote, r.buy)}</div>
-              <div className={"vx-num " + (r.sell == null ? "vx-dash" : "")}>{fmt(r.quote, r.sell)}</div>
-            </div>
-          ))}
+                <div className="vx-rateNums">
+                  <span className={"vx-rateN " + (r.buy == null ? "vx-dash" : "")}>{fmt(r.quote, r.buy)}</span>
+                  <span className={"vx-rateN vx-rateNMuted " + (r.sell == null ? "vx-dash" : "")}>{fmt(r.quote, r.sell)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
 
           {market && !market.ok ? (
-            <div className="vx-meta vx-mt10">
-              Не удалось обновить G: {market.error}
-            </div>
+            <div className="vx-meta vx-mt10">Не удалось обновить G: {market.error}</div>
           ) : null}
-        </div>
+        </>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getTg } from "./lib/telegram";
 import { apiAuth } from "./lib/api";
 import type { UserStatus } from "./lib/types";
@@ -130,6 +130,12 @@ export default function App() {
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
   const [tab, setTab] = useState<TabKey>("rates");
   const [hsStatus, setHsStatus] = useState<string | null>(null);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  // Keyboard detection (mobile): hide bottom bar while typing so it doesn't jump above the keyboard.
+  const vvBaseHeightRef = useRef<number>(
+    typeof window !== "undefined" ? window.visualViewport?.height ?? window.innerHeight : 0
+  );
 
   const isDemo = useMemo(() => new URLSearchParams(location.search).get("demo") === "1", []);
 
@@ -200,8 +206,111 @@ export default function App() {
     { key: "admin", label: "Упр.", show: !!me.isOwner, icon: <IconSettings className="vx-i" /> },
   ];
 
+  const visibleTabKeys = useMemo(() => bottomTabs.filter((t) => t.show).map((t) => t.key), [me.isOwner]);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+
+    // Fallback: if VisualViewport is missing, hide bar while any input is focused.
+    if (!vv) {
+      const onFocusIn = (e: any) => {
+        const t = e?.target as HTMLElement | null;
+        const tag = t?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") setKeyboardOpen(true);
+      };
+      const onFocusOut = () => setKeyboardOpen(false);
+      window.addEventListener("focusin", onFocusIn);
+      window.addEventListener("focusout", onFocusOut);
+      return () => {
+        window.removeEventListener("focusin", onFocusIn);
+        window.removeEventListener("focusout", onFocusOut);
+      };
+    }
+
+    const isFieldFocused = () => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el) return false;
+      const tag = el.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+      return el.getAttribute?.("contenteditable") === "true";
+    };
+
+    const update = () => {
+      const focused = isFieldFocused();
+
+      // When no field is focused, update the baseline (address bar / orientation changes).
+      if (!focused) {
+        vvBaseHeightRef.current = vv.height;
+        setKeyboardOpen(false);
+        return;
+      }
+
+      const base = vvBaseHeightRef.current || vv.height;
+      const open = vv.height < base - 120;
+      setKeyboardOpen(open);
+    };
+
+    const onResize = () => update();
+    const onFocusIn = () => update();
+    const onFocusOut = () => window.setTimeout(update, 60);
+
+    vv.addEventListener("resize", onResize);
+    window.addEventListener("focusin", onFocusIn);
+    window.addEventListener("focusout", onFocusOut);
+    update();
+
+    return () => {
+      vv.removeEventListener("resize", onResize);
+      window.removeEventListener("focusin", onFocusIn);
+      window.removeEventListener("focusout", onFocusOut);
+    };
+  }, []);
+
+  // Swipe navigation between tabs (left/right)
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (keyboardOpen) return;
+    const target = e.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (target?.closest?.(".vx-bottomWrap")) return;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    if (!e.touches?.[0]) return;
+    swipeStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+
+  const onTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const s = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!s) return;
+    if (keyboardOpen) return;
+
+    const target = e.target as HTMLElement | null;
+    if (target?.closest?.(".vx-bottomWrap")) return;
+
+    const t = e.changedTouches?.[0];
+    if (!t) return;
+
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+
+    // Horizontal swipe only (avoid triggering on vertical scroll)
+    if (Math.abs(dx) < 70) return;
+    if (Math.abs(dx) < Math.abs(dy) * 1.3) return;
+
+    const i = visibleTabKeys.indexOf(tab);
+    if (i < 0) return;
+
+    if (dx < 0 && i < visibleTabKeys.length - 1) setTab(visibleTabKeys[i + 1]);
+    if (dx > 0 && i > 0) setTab(visibleTabKeys[i - 1]);
+  };
+
   return (
-    <div className="vx-page">
+    <div
+      className={"vx-page" + (keyboardOpen ? " vx-kbOpen" : "")}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
 
       {/* Background (in poputchiki style). Replace the file to change the scene:
           webapp/public/brand/danang-bg.svg (or .jpg/.png with same name in CSS) */}
@@ -214,7 +323,7 @@ export default function App() {
               {/* Put your logo here (easy to replace): webapp/public/brand/logo.png */}
               <img
                 className="vx-logoImg"
-                src="/brand/logo.png"
+                src={(import.meta.env.BASE_URL || "/") + "brand/logo.png"}
                 alt=""
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).style.display = "none";
