@@ -490,7 +490,6 @@ const logoCandidates = useMemo(() => {
         </div>
 
         <div className="vx-body">
-        <div className="vx-body">
           <div className="vx-swipeWrap">
             {slide ? (
               <div
@@ -508,7 +507,6 @@ const logoCandidates = useMemo(() => {
             ) : (
               <div className="vx-card2">{renderTab(tab)}</div>
             )}
-          </div>
           </div>
         </div>
       </div>

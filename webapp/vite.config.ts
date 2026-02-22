@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 
 export default defineConfig({
   plugins: [react()],
+  // Use relative asset paths so the app works even if served under a subpath (Telegram webview / reverse proxies).
+  base: "./",
   build: {
     rollupOptions: {
       input: {
