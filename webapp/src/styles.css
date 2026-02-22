@@ -550,7 +550,17 @@ label, input, select, textarea{ color: var(--text); }
 .vx-rates2{ display:flex; flex-direction:column; gap:10px; }
 .vx-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
 .vx-meta{ font-size:12px; color: var(--muted2); font-weight: 800; }
-.vx-note{ font-size:12px; color: var(--muted2); font-weight: 800; margin-top: 2px; }
+.vx-note{
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.35;
+  border: 1px solid rgba(9,23,33,0.10);
+  background: rgba(255,255,255,0.58);
+  border-radius: 16px;
+  padding: 10px 12px;
+  color: rgba(9,23,33,0.78);
+}
 
 /* Compact meta line */
 .vx-metaLine{
@@ -566,14 +576,14 @@ label, input, select, textarea{ color: var(--text); }
   border: 1px solid var(--stroke);
   background: rgba(255,255,255,0.42);
   border-radius: 18px;
-  padding: 6px 10px;
+  padding: 6px 8px;
   font-variant-numeric: tabular-nums;
 }
 .vx-rateHdr{
   display:flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: 4px 0 6px;
+  padding: 2px 0 4px;
   font-size: 10.5px;
   font-weight: 950;
   letter-spacing: 0.08em;
@@ -585,7 +595,7 @@ label, input, select, textarea{ color: var(--text); }
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  padding: 6px 0;
+  padding: 4px 0;
   border-top: 1px solid rgba(9,23,33,0.10);
 }
 .vx-ratePair2{

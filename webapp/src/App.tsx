@@ -123,9 +123,6 @@ export default function App() {
   const [hsStatus, setHsStatus] = useState<string | null>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
 
-  // Page enter animation (for swipe/click)
-  const [anim, setAnim] = useState<{ dir: "left" | "right"; token: number }>({ dir: "left", token: 0 });
-
   // Keyboard detection (mobile): hide bottom bar while typing so it doesn't jump above the keyboard.
   const vvBaseHeightRef = useRef<number>(
     typeof window !== "undefined" ? window.visualViewport?.height ?? window.innerHeight : 0
@@ -204,7 +201,6 @@ export default function App() {
     const dir: "left" | "right" = j > i ? "left" : "right";
     // Kick off a transition (exit old + enter new)
     setTransition((tr) => ({ from: tab, to: next, dir, id: (tr?.id ?? 0) + 1 }));
-    setAnim((a) => ({ dir, token: a.token + 1 }));
     setTab(next);
   };
 
@@ -360,7 +356,6 @@ export default function App() {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-
       {/* Background (in poputchiki style). Replace the file to change the scene:
           webapp/public/brand/danang-bg.svg (or .jpg/.png with same name in CSS) */}
       <div className="bg-danang" aria-hidden="true" />
@@ -437,7 +432,7 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <div className={"vx-card2 " + (anim.dir === "left" ? "vx-animInL" : "vx-animInR")} key={`${tab}-${anim.token}`}>
+            <div className="vx-card2" key={tab}>
               {renderTab(tab)}
             </div>
           )}
