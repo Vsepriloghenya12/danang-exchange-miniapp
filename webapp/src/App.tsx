@@ -20,16 +20,18 @@ type Me = {
 
 type TabKey = "rates" | "calc" | "atm" | "guide" | "reviews";
 
-type SlideState = {
-  from: TabKey;
-  to: TabKey;
-  dir: "left" | "right";
-  pages: [TabKey, TabKey];
-  startX: number;
-  endX: number;
-  x: number;
-  running: boolean;
-};
+type SlideState =
+  | null
+  | {
+      from: TabKey;
+      to: TabKey;
+      dir: "left" | "right";
+      pages: [TabKey, TabKey];
+      startX: number;
+      endX: number;
+      x: number;
+      running: boolean;
+    };
 
 const UI = {
   title: "Обмен валют — Дананг",
@@ -127,18 +129,15 @@ function BottomBar({
 
 export default function App() {
   const tg = getTg();
+
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
   const [tab, setTab] = useState<TabKey>("rates");
   const [hsStatus, setHsStatus] = useState<string | null>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
 
-  // ✅ slide объявляем ДО changeTab (чтобы не было TS-ошибки)
-  const [slide, setSlide] = useState<SlideState | null>(null);
+  // ✅ slide объявлен ДО changeTab
+  const [slide, setSlide] = useState<SlideState>(null);
 
-  // ✅ мгновенная блокировка от двойного свайпа до перерендера
-  const animLockRef = useRef(false);
-
-  // Keyboard detection (mobile): hide bottom bar while typing so it doesn't jump above the keyboard.
   const vvBaseHeightRef = useRef<number>(
     typeof window !== "undefined" ? window.visualViewport?.height ?? window.innerHeight : 0
   );
@@ -176,7 +175,7 @@ export default function App() {
     })();
   }, [tg, isDemo]);
 
-  // Homescreen shortcut ("установить на телефон")
+  // Homescreen shortcut
   useEffect(() => {
     if (!tg || isDemo) return;
     if (!tg.checkHomeScreenStatus) return;
@@ -211,20 +210,16 @@ export default function App() {
 
   const changeTab = (next: TabKey) => {
     if (next === tab) return;
-    if (animLockRef.current) return; // ✅ без “двойного триггера”
-    if (slide) return;
+    if (slide) return; // prevent double-trigger while animating
 
     const i = visibleTabKeys.indexOf(tab);
     const j = visibleTabKeys.indexOf(next);
     if (i < 0 || j < 0) return;
 
     const dir: "left" | "right" = j > i ? "left" : "right";
-
     const pages: [TabKey, TabKey] = dir === "left" ? [tab, next] : [next, tab];
     const startX = dir === "left" ? 0 : -50;
     const endX = dir === "left" ? -50 : 0;
-
-    animLockRef.current = true;
 
     setSlide({
       from: tab,
@@ -237,7 +232,6 @@ export default function App() {
       running: false,
     });
 
-    // highlight tab immediately
     setTab(next);
   };
 
@@ -249,6 +243,7 @@ export default function App() {
     return () => window.cancelAnimationFrame(raf);
   }, [slide]);
 
+  // Keyboard detection (hide bottom bar while typing)
   useEffect(() => {
     const vv = window.visualViewport;
 
@@ -303,12 +298,11 @@ export default function App() {
     };
   }, []);
 
-  // Swipe navigation between tabs (left/right)
+  // Swipe navigation
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (keyboardOpen) return;
-    if (animLockRef.current) return;
     const target = e.target as HTMLElement | null;
     const tag = target?.tagName;
     if (target?.closest?.(".vx-bottomWrap")) return;
@@ -322,7 +316,6 @@ export default function App() {
     swipeStartRef.current = null;
     if (!s) return;
     if (keyboardOpen) return;
-    if (animLockRef.current) return;
 
     const target = e.target as HTMLElement | null;
     if (target?.closest?.(".vx-bottomWrap")) return;
@@ -343,7 +336,7 @@ export default function App() {
     if (dx > 0 && i > 0) changeTab(visibleTabKeys[i - 1]);
   };
 
-  // Background image loader
+  // ✅ Background loader: ищет brand/danang-bg.(svg|jpg|png|webp)
   const bgCandidates = useMemo(() => {
     const v = String(Date.now());
     const baseRaw = (import.meta as any)?.env?.BASE_URL || "/";
@@ -380,7 +373,8 @@ export default function App() {
     };
   }, [bgCandidates]);
 
-  const bgStyle: React.CSSProperties = useMemo(
+  // ✅ Реальный фон (его раньше не было в JSX)
+  const bgStyle = useMemo<React.CSSProperties>(
     () => ({
       position: "fixed",
       left: "50%",
@@ -389,7 +383,7 @@ export default function App() {
       top: "-16px",
       height: "calc(100dvh + 32px)",
       pointerEvents: "none",
-      zIndex: -1, // ✅ никогда не перекрывает UI
+      zIndex: 0,
       backgroundColor: "#5ac4e9",
       backgroundImage: bgSrc ? `url("${bgSrc}")` : undefined,
       backgroundSize: "150% 190%",
@@ -435,7 +429,6 @@ export default function App() {
   const onTrackEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
     if (!slide || !slide.running) return;
     if (e.propertyName !== "transform") return;
-    animLockRef.current = false;
     setSlide(null);
   };
 
@@ -445,10 +438,11 @@ export default function App() {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* ✅ Реальный фон */}
+      {/* ✅ Фон */}
       <div aria-hidden="true" style={bgStyle} />
 
-      <div className="container">
+      {/* ✅ UI всегда выше фона */}
+      <div className="container" style={{ position: "relative", zIndex: 1 }}>
         <div className="card vx-topCard">
           <div className="vx-topRow">
             <div className="vx-logo" aria-label="Лого">
