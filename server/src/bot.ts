@@ -10,6 +10,10 @@ import {
 
 type ReceiveMethod = "cash" | "transfer" | "atm";
 
+// Telegram WebView may cache index.html aggressively. We add a stable per-deploy cache-buster
+// to the WebApp URL in /start so users always open the latest build.
+const WEBAPP_VERSION = process.env.WEBAPP_VERSION || String(Date.now());
+
 const statusLabel: Record<UserStatus, string> = {
   standard: "стандарт",
   silver: "серебро",
@@ -44,6 +48,15 @@ export function createBot(opts: {
 
     if (!webappUrl) {
       return ctx.reply("WEBAPP_URL не задан. Укажи публичный HTTPS URL и снова /start.");
+    }
+
+    // Add cache-buster query param (doesn't affect routing)
+    try {
+      const u = new URL(webappUrl);
+      u.searchParams.set("v", WEBAPP_VERSION);
+      webappUrl = u.toString();
+    } catch {
+      // ignore
     }
 
     const kb = Markup.inlineKeyboard([Markup.button.webApp("Открыть мини-приложение", webappUrl)]);

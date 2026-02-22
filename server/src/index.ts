@@ -66,11 +66,44 @@ app.use(
 );
 
 if (fs.existsSync(webDist)) {
-  app.use(express.static(webDist));
-  // Standalone admin dashboard (PC). Served from the same build output.
-  // Open: https://<domain>/admin
-  app.get("/admin", (_req, res) => res.sendFile(path.join(webDist, "admin.html")));
-  app.get("*", (_req, res) => res.sendFile(path.join(webDist, "index.html")));
+  // Static webapp. Important: Telegram can cache HTML aggressively.
+  // We serve HTML and entry bundles with no-store, while hashed chunks/images can be cached long-term.
+  app.use(
+    express.static(webDist, {
+      setHeaders(res, filePath) {
+        const fp = filePath.replace(/\\/g, "/");
+
+        // Never cache HTML
+        if (fp.endsWith("/index.html") || fp.endsWith("/admin.html")) {
+          res.setHeader("Cache-Control", "no-store");
+          return;
+        }
+
+        // Never cache entry bundles (stable filenames like assets/main.js / assets/admin.js)
+        if (/\/assets\/(main|admin)\.(js|css)$/.test(fp)) {
+          res.setHeader("Cache-Control", "no-store");
+          return;
+        }
+
+        // Cache hashed chunks / images
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      }
+    })
+  );
+
+  // Standalone admin dashboard (PC). Open: https://<domain>/admin
+  app.get("/admin", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.sendFile(path.join(webDist, "admin.html"));
+  });
+
+  // SPA fallback: only for routes WITHOUT file extensions.
+  // This avoids returning index.html for missing /assets/*.js (which breaks the app with "Unexpected token <").
+  app.get("*", (req, res) => {
+    if (req.path.includes(".")) return res.status(404).end();
+    res.setHeader("Cache-Control", "no-store");
+    res.sendFile(path.join(webDist, "index.html"));
+  });
 } else {
   app.get("/", (_req, res) => res.send("WebApp build not found. Run npm run build."));
 }
