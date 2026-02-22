@@ -479,10 +479,15 @@ label, input, select, textarea{ color: var(--text); }
 /* Two-pane swipe animation (enter + exit at the same time) */
 .vx-swipeWrap{
   display: grid;
+  /* Prevent tiny horizontal bounce/jitter during animation */
+  overflow: hidden;
+  border-radius: 26px;
 }
 .vx-pane{
   grid-area: 1 / 1;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 .vx-enter{ animation: vxEnter 260ms cubic-bezier(.22,.9,.22,1) both; }
 .vx-exit{ animation: vxExit 260ms cubic-bezier(.22,.9,.22,1) both; }
@@ -493,15 +498,16 @@ label, input, select, textarea{ color: var(--text); }
 .vx-exitToR{ --vx-to-x: 26px; }
 
 @keyframes vxEnter{
-  from{ transform: translateX(var(--vx-from-x, 0)); opacity: .55; filter: blur(1.2px); }
-  to{ transform: translateX(0); opacity: 1; filter: blur(0); }
+  from{ transform: translate3d(var(--vx-from-x, 0), 0, 0); opacity: .70; }
+  to{ transform: translate3d(0,0,0); opacity: 1; }
 }
 @keyframes vxExit{
-  from{ transform: translateX(0); opacity: 1; filter: blur(0); }
-  to{ transform: translateX(var(--vx-to-x, 0)); opacity: .40; filter: blur(1.2px); }
+  from{ transform: translate3d(0,0,0); opacity: 1; }
+  to{ transform: translate3d(var(--vx-to-x, 0), 0, 0); opacity: .55; }
 }
 
 /* Allow horizontal swipes without breaking vertical scroll */
+.vx-page{ touch-action: pan-y; overscroll-behavior-x: none; }
 .vx-body{ touch-action: pan-y; }
 
 /* Починка строк "валюта + сумма + кнопка" если где-то остались старые классы */

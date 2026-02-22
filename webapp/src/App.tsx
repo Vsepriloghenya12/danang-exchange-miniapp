@@ -196,11 +196,17 @@ export default function App() {
 
   const changeTab = (next: TabKey) => {
     if (next === tab) return;
+    if (transition) return; // prevent double-trigger while animating
     const i = visibleTabKeys.indexOf(tab);
     const j = visibleTabKeys.indexOf(next);
     const dir: "left" | "right" = j > i ? "left" : "right";
     // Kick off a transition (exit old + enter new)
-    setTransition((tr) => ({ from: tab, to: next, dir, id: (tr?.id ?? 0) + 1 }));
+    // Keep wrapper stable to prevent "shake" at the end.
+    // Also prevent re-entrant transitions while one is running.
+    setTransition((tr) => {
+      if (tr) return tr;
+      return { from: tab, to: next, dir, id: (tr?.id ?? 0) + 1 };
+    });
     setTab(next);
   };
 
@@ -329,7 +335,7 @@ export default function App() {
   const [logoOk, setLogoOk] = useState(false);
   const logoSrc = logoCandidates[Math.min(logoIdx, logoCandidates.length - 1)];
 
-  // Improved swipe animation: keep previous tab for a short exit animation.
+  // Swipe animation: keep previous tab for a short exit animation.
   const [transition, setTransition] = useState<
     | null
     | { from: TabKey; to: TabKey; dir: "left" | "right"; id: number }
@@ -344,11 +350,11 @@ export default function App() {
     return null;
   };
 
-  useEffect(() => {
-    if (!transition) return;
-    const t = window.setTimeout(() => setTransition(null), 260);
-    return () => window.clearTimeout(t);
-  }, [transition]);
+  const onAnimEnd = (e: React.AnimationEvent<HTMLDivElement>) => {
+    // Finish only when EXIT animation ends (some webviews emit multiple events).
+    if (e.animationName !== "vxExit") return;
+    setTransition(null);
+  };
 
   return (
     <div
@@ -412,30 +418,34 @@ export default function App() {
         </div>
 
         <div className="vx-body">
-          {transition ? (
-            <div className="vx-swipeWrap" key={transition.id}>
-              <div
-                className={
-                  "vx-card2 vx-pane vx-exit " +
-                  (transition.dir === "left" ? "vx-exitToL" : "vx-exitToR")
-                }
-              >
-                {renderTab(transition.from)}
+          {/* Keep wrapper ALWAYS to avoid layout snap (shake) after animation */}
+          <div className="vx-swipeWrap">
+            {transition ? (
+              <>
+                <div
+                  className={
+                    "vx-card2 vx-pane vx-exit " +
+                    (transition.dir === "left" ? "vx-exitToL" : "vx-exitToR")
+                  }
+                  onAnimationEnd={onAnimEnd}
+                >
+                  {renderTab(transition.from)}
+                </div>
+                <div
+                  className={
+                    "vx-card2 vx-pane vx-enter " +
+                    (transition.dir === "left" ? "vx-enterFromR" : "vx-enterFromL")
+                  }
+                >
+                  {renderTab(transition.to)}
+                </div>
+              </>
+            ) : (
+              <div className="vx-card2 vx-pane" key={tab}>
+                {renderTab(tab)}
               </div>
-              <div
-                className={
-                  "vx-card2 vx-pane vx-enter " +
-                  (transition.dir === "left" ? "vx-enterFromR" : "vx-enterFromL")
-                }
-              >
-                {renderTab(transition.to)}
-              </div>
-            </div>
-          ) : (
-            <div className="vx-card2" key={tab}>
-              {renderTab(tab)}
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
