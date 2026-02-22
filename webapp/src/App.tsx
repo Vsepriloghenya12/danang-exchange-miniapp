@@ -20,9 +20,19 @@ type Me = {
 
 type TabKey = "rates" | "calc" | "atm" | "guide" | "reviews";
 
+type SlideState = {
+  from: TabKey;
+  to: TabKey;
+  dir: "left" | "right";
+  pages: [TabKey, TabKey];
+  startX: number;
+  endX: number;
+  x: number;
+  running: boolean;
+};
+
 const UI = {
   title: "Обмен валют — Дананг",
-  // Если Google Fonts не грузится в Telegram — будет фолбэк на системный шрифт.
   fontImport:
     "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap",
   accent: "#22c55e",
@@ -53,7 +63,6 @@ function IconCalc({ className = "" }: { className?: string }) {
     </svg>
   );
 }
-
 function IconAtm({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
@@ -123,12 +132,18 @@ export default function App() {
   const [hsStatus, setHsStatus] = useState<string | null>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
 
+  // ✅ slide объявляем ДО changeTab (чтобы не было TS-ошибки)
+  const [slide, setSlide] = useState<SlideState | null>(null);
+
+  // ✅ мгновенная блокировка от двойного свайпа до перерендера
+  const animLockRef = useRef(false);
+
   // Keyboard detection (mobile): hide bottom bar while typing so it doesn't jump above the keyboard.
   const vvBaseHeightRef = useRef<number>(
     typeof window !== "undefined" ? window.visualViewport?.height ?? window.innerHeight : 0
   );
 
-  const isDemo = useMemo(() => new URLSearchParams(location.search).get("demo") === "1", []);
+  const isDemo = useMemo(() => new URLSearchParams(window.location.search).get("demo") === "1", []);
 
   useEffect(() => {
     tg?.ready();
@@ -196,7 +211,8 @@ export default function App() {
 
   const changeTab = (next: TabKey) => {
     if (next === tab) return;
-    if (slide) return; // prevent double-trigger while animating
+    if (animLockRef.current) return; // ✅ без “двойного триггера”
+    if (slide) return;
 
     const i = visibleTabKeys.indexOf(tab);
     const j = visibleTabKeys.indexOf(next);
@@ -205,8 +221,10 @@ export default function App() {
     const dir: "left" | "right" = j > i ? "left" : "right";
 
     const pages: [TabKey, TabKey] = dir === "left" ? [tab, next] : [next, tab];
-    const startX = dir === "left" ? 0 : -50; // show the current page first
-    const endX = dir === "left" ? -50 : 0;   // slide to the new page
+    const startX = dir === "left" ? 0 : -50;
+    const endX = dir === "left" ? -50 : 0;
+
+    animLockRef.current = true;
 
     setSlide({
       from: tab,
@@ -219,10 +237,9 @@ export default function App() {
       running: false,
     });
 
-    // Update active tab immediately (bottom bar highlights instantly)
+    // highlight tab immediately
     setTab(next);
   };
-
 
   useEffect(() => {
     if (!slide || slide.running) return;
@@ -232,11 +249,9 @@ export default function App() {
     return () => window.cancelAnimationFrame(raf);
   }, [slide]);
 
-
   useEffect(() => {
     const vv = window.visualViewport;
 
-    // Fallback: if VisualViewport is missing, hide bar while any input is focused.
     if (!vv) {
       const onFocusIn = (e: any) => {
         const t = e?.target as HTMLElement | null;
@@ -262,14 +277,11 @@ export default function App() {
 
     const update = () => {
       const focused = isFieldFocused();
-
-      // When no field is focused, update the baseline (address bar / orientation changes).
       if (!focused) {
         vvBaseHeightRef.current = vv.height;
         setKeyboardOpen(false);
         return;
       }
-
       const base = vvBaseHeightRef.current || vv.height;
       const open = vv.height < base - 120;
       setKeyboardOpen(open);
@@ -296,6 +308,7 @@ export default function App() {
 
   const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (keyboardOpen) return;
+    if (animLockRef.current) return;
     const target = e.target as HTMLElement | null;
     const tag = target?.tagName;
     if (target?.closest?.(".vx-bottomWrap")) return;
@@ -309,6 +322,7 @@ export default function App() {
     swipeStartRef.current = null;
     if (!s) return;
     if (keyboardOpen) return;
+    if (animLockRef.current) return;
 
     const target = e.target as HTMLElement | null;
     if (target?.closest?.(".vx-bottomWrap")) return;
@@ -319,7 +333,6 @@ export default function App() {
     const dx = t.clientX - s.x;
     const dy = t.clientY - s.y;
 
-    // Horizontal swipe only (avoid triggering on vertical scroll)
     if (Math.abs(dx) < 70) return;
     if (Math.abs(dx) < Math.abs(dy) * 1.3) return;
 
@@ -330,9 +343,7 @@ export default function App() {
     if (dx > 0 && i > 0) changeTab(visibleTabKeys[i - 1]);
   };
 
-  
-  // Background image loader (robust for hosting under any base path).
-  // Put your background here: webapp/public/brand/danang-bg.(svg|jpg|png|webp)
+  // Background image loader
   const bgCandidates = useMemo(() => {
     const v = String(Date.now());
     const baseRaw = (import.meta as any)?.env?.BASE_URL || "/";
@@ -347,11 +358,6 @@ export default function App() {
 
   const [bgSrc, setBgSrc] = useState<string | null>(null);
 
-// Logo loader (robust for ANY hosting path):
-  // 1) try relative URLs (brand/logo.*) — works if app is hosted under /something/
-  // 2) try absolute URLs (/brand/logo.*) — works if app is hosted at domain root
-  // 3) add cache-buster (Telegram caching can be aggressive)
-  
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -368,17 +374,35 @@ export default function App() {
           return;
         }
       }
-      // if nothing loaded — keep null (background will be plain gradient)
     })();
     return () => {
       cancelled = true;
     };
   }, [bgCandidates]);
-const logoCandidates = useMemo(() => {
+
+  const bgStyle: React.CSSProperties = useMemo(
+    () => ({
+      position: "fixed",
+      left: "50%",
+      transform: "translateX(-50%)",
+      width: "calc(min(480px, 100vw) + 32px)",
+      top: "-16px",
+      height: "calc(100dvh + 32px)",
+      pointerEvents: "none",
+      zIndex: -1, // ✅ никогда не перекрывает UI
+      backgroundColor: "#5ac4e9",
+      backgroundImage: bgSrc ? `url("${bgSrc}")` : undefined,
+      backgroundSize: "150% 190%",
+      backgroundRepeat: "no-repeat",
+      backgroundPosition: "center center",
+    }),
+    [bgSrc]
+  );
+
+  const logoCandidates = useMemo(() => {
     const v = String(Date.now());
     const rel = (p: string) => `${p}?v=${v}`;
     const abs = (p: string) => `/${p}?v=${v}`;
-    // Bundled fallback (works even if you put the logo next to the style file in src/brand/)
     const bundled = new URL("./brand/logo.png", import.meta.url).toString();
     return [
       rel("brand/logo.svg"),
@@ -394,24 +418,10 @@ const logoCandidates = useMemo(() => {
       bundled,
     ];
   }, []);
+
   const [logoIdx, setLogoIdx] = useState(0);
   const [logoOk, setLogoOk] = useState(false);
   const logoSrc = logoCandidates[Math.min(logoIdx, logoCandidates.length - 1)];
-
-  // Swipe animation: keep previous tab for a short exit animation.
-  const [slide, setSlide] = useState<
-    | null
-    | {
-        from: TabKey;
-        to: TabKey;
-        dir: "left" | "right";
-        pages: [TabKey, TabKey];
-        startX: number;
-        endX: number;
-        x: number;
-        running: boolean;
-      }
-  >(null);
 
   const renderTab = (k: TabKey) => {
     if (k === "rates") return <RatesTab me={me} />;
@@ -425,6 +435,7 @@ const logoCandidates = useMemo(() => {
   const onTrackEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
     if (!slide || !slide.running) return;
     if (e.propertyName !== "transform") return;
+    animLockRef.current = false;
     setSlide(null);
   };
 
@@ -434,14 +445,13 @@ const logoCandidates = useMemo(() => {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Background (in poputchiki style). Replace the file to change the scene:
-          webapp/public/brand/danang-bg.svg (or .jpg/.png with same name in CSS) */}
-      
+      {/* ✅ Реальный фон */}
+      <div aria-hidden="true" style={bgStyle} />
+
       <div className="container">
         <div className="card vx-topCard">
           <div className="vx-topRow">
             <div className="vx-logo" aria-label="Лого">
-              {/* Put your logo here (easy to replace): webapp/public/brand/logo.(png|svg|jpg|webp) */}
               {!logoOk ? <span className="vx-logoFallback">DX</span> : null}
               <img
                 className="vx-logoImg"
