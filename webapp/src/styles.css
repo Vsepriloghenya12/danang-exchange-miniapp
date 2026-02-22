@@ -63,7 +63,7 @@ body{
   z-index: 0;
   background-color: var(--sky);
   /* Relative URL so it works even if the app is hosted under a subpath */
-  background-image: url("brand/danang-bg.svg");
+  background-image: none;
   background-size: 150% 190%;
   background-repeat: no-repeat;
   background-position: center center;
@@ -476,35 +476,26 @@ label, input, select, textarea{ color: var(--text); }
   to{ transform: translateX(0); opacity: 1; }
 }
 
-/* Two-pane swipe animation (enter + exit at the same time) */
+/* Swipe pager (stable, no jitter) */
 .vx-swipeWrap{
-  display: grid;
-  /* Prevent tiny horizontal bounce/jitter during animation */
+  position: relative;
   overflow: hidden;
   border-radius: 26px;
 }
-.vx-pane{
-  grid-area: 1 / 1;
-  will-change: transform, opacity;
+.vx-slideTrack{
+  display: flex;
+  width: 200%;
+  will-change: transform;
   backface-visibility: hidden;
-  transform: translateZ(0);
+  transform: translate3d(0,0,0);
+  transition: transform 260ms cubic-bezier(.22,.9,.22,1);
 }
-.vx-enter{ animation: vxEnter 260ms cubic-bezier(.22,.9,.22,1) both; }
-.vx-exit{ animation: vxExit 260ms cubic-bezier(.22,.9,.22,1) both; }
-
-.vx-enterFromR{ --vx-from-x: 26px; }
-.vx-enterFromL{ --vx-from-x: -26px; }
-.vx-exitToL{ --vx-to-x: -26px; }
-.vx-exitToR{ --vx-to-x: 26px; }
-
-@keyframes vxEnter{
-  from{ transform: translate3d(var(--vx-from-x, 0), 0, 0); opacity: .70; }
-  to{ transform: translate3d(0,0,0); opacity: 1; }
-}
-@keyframes vxExit{
-  from{ transform: translate3d(0,0,0); opacity: 1; }
-  to{ transform: translate3d(var(--vx-to-x, 0), 0, 0); opacity: .55; }
-}
+.vx-slideTrack.vx-slideNoTrans{ transition: none; }
+.vx-slidePage{
+  width: 50%;
+  flex: 0 0 50%;
+  min-width: 0;
+} 
 
 /* Allow horizontal swipes without breaking vertical scroll */
 .vx-page{ touch-action: pan-y; overscroll-behavior-x: none; }

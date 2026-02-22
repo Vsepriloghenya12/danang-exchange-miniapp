@@ -196,19 +196,42 @@ export default function App() {
 
   const changeTab = (next: TabKey) => {
     if (next === tab) return;
-    if (transition) return; // prevent double-trigger while animating
+    if (slide) return; // prevent double-trigger while animating
+
     const i = visibleTabKeys.indexOf(tab);
     const j = visibleTabKeys.indexOf(next);
+    if (i < 0 || j < 0) return;
+
     const dir: "left" | "right" = j > i ? "left" : "right";
-    // Kick off a transition (exit old + enter new)
-    // Keep wrapper stable to prevent "shake" at the end.
-    // Also prevent re-entrant transitions while one is running.
-    setTransition((tr) => {
-      if (tr) return tr;
-      return { from: tab, to: next, dir, id: (tr?.id ?? 0) + 1 };
+
+    const pages: [TabKey, TabKey] = dir === "left" ? [tab, next] : [next, tab];
+    const startX = dir === "left" ? 0 : -50; // show the current page first
+    const endX = dir === "left" ? -50 : 0;   // slide to the new page
+
+    setSlide({
+      from: tab,
+      to: next,
+      dir,
+      pages,
+      startX,
+      endX,
+      x: startX,
+      running: false,
     });
+
+    // Update active tab immediately (bottom bar highlights instantly)
     setTab(next);
   };
+
+
+  useEffect(() => {
+    if (!slide || slide.running) return;
+    const raf = window.requestAnimationFrame(() => {
+      setSlide((s) => (s ? { ...s, running: true, x: s.endX } : s));
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [slide]);
+
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -307,11 +330,51 @@ export default function App() {
     if (dx > 0 && i > 0) changeTab(visibleTabKeys[i - 1]);
   };
 
-  // Logo loader (robust for ANY hosting path):
+  
+  // Background image loader (robust for hosting under any base path).
+  // Put your background here: webapp/public/brand/danang-bg.(svg|jpg|png|webp)
+  const bgCandidates = useMemo(() => {
+    const v = String(Date.now());
+    const baseRaw = (import.meta as any)?.env?.BASE_URL || "/";
+    const base = String(baseRaw).endsWith("/") ? String(baseRaw) : String(baseRaw) + "/";
+    const rel = (p: string) => `${base}${p}?v=${v}`;
+    const abs = (p: string) => `/${p}?v=${v}`;
+    const exts = ["svg", "jpg", "png", "webp"];
+    const relList = exts.map((ext) => rel(`brand/danang-bg.${ext}`));
+    const absList = exts.map((ext) => abs(`brand/danang-bg.${ext}`));
+    return [...relList, ...absList];
+  }, []);
+
+  const [bgSrc, setBgSrc] = useState<string | null>(null);
+
+// Logo loader (robust for ANY hosting path):
   // 1) try relative URLs (brand/logo.*) — works if app is hosted under /something/
   // 2) try absolute URLs (/brand/logo.*) — works if app is hosted at domain root
   // 3) add cache-buster (Telegram caching can be aggressive)
-  const logoCandidates = useMemo(() => {
+  
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      for (const src of bgCandidates) {
+        const ok = await new Promise<boolean>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+          img.src = src;
+        });
+        if (cancelled) return;
+        if (ok) {
+          setBgSrc(src);
+          return;
+        }
+      }
+      // if nothing loaded — keep null (background will be plain gradient)
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bgCandidates]);
+const logoCandidates = useMemo(() => {
     const v = String(Date.now());
     const rel = (p: string) => `${p}?v=${v}`;
     const abs = (p: string) => `/${p}?v=${v}`;
@@ -336,9 +399,18 @@ export default function App() {
   const logoSrc = logoCandidates[Math.min(logoIdx, logoCandidates.length - 1)];
 
   // Swipe animation: keep previous tab for a short exit animation.
-  const [transition, setTransition] = useState<
+  const [slide, setSlide] = useState<
     | null
-    | { from: TabKey; to: TabKey; dir: "left" | "right"; id: number }
+    | {
+        from: TabKey;
+        to: TabKey;
+        dir: "left" | "right";
+        pages: [TabKey, TabKey];
+        startX: number;
+        endX: number;
+        x: number;
+        running: boolean;
+      }
   >(null);
 
   const renderTab = (k: TabKey) => {
@@ -350,10 +422,10 @@ export default function App() {
     return null;
   };
 
-  const onAnimEnd = (e: React.AnimationEvent<HTMLDivElement>) => {
-    // Finish only when EXIT animation ends (some webviews emit multiple events).
-    if (e.animationName !== "vxExit") return;
-    setTransition(null);
+  const onTrackEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
+    if (!slide || !slide.running) return;
+    if (e.propertyName !== "transform") return;
+    setSlide(null);
   };
 
   return (
@@ -364,7 +436,7 @@ export default function App() {
     >
       {/* Background (in poputchiki style). Replace the file to change the scene:
           webapp/public/brand/danang-bg.svg (or .jpg/.png with same name in CSS) */}
-      <div className="bg-danang" aria-hidden="true" />
+      <div className="bg-danang" aria-hidden="true" style={bgSrc ? { backgroundImage: `url(${bgSrc})` } : undefined} />
 
       <div className="container">
         <div className="card vx-topCard">
@@ -418,33 +490,25 @@ export default function App() {
         </div>
 
         <div className="vx-body">
-          {/* Keep wrapper ALWAYS to avoid layout snap (shake) after animation */}
+        <div className="vx-body">
           <div className="vx-swipeWrap">
-            {transition ? (
-              <>
-                <div
-                  className={
-                    "vx-card2 vx-pane vx-exit " +
-                    (transition.dir === "left" ? "vx-exitToL" : "vx-exitToR")
-                  }
-                  onAnimationEnd={onAnimEnd}
-                >
-                  {renderTab(transition.from)}
+            {slide ? (
+              <div
+                className={"vx-slideTrack" + (!slide.running ? " vx-slideNoTrans" : "")}
+                style={{ transform: `translate3d(${slide.x}%,0,0)` }}
+                onTransitionEnd={onTrackEnd}
+              >
+                <div className="vx-slidePage">
+                  <div className="vx-card2">{renderTab(slide.pages[0])}</div>
                 </div>
-                <div
-                  className={
-                    "vx-card2 vx-pane vx-enter " +
-                    (transition.dir === "left" ? "vx-enterFromR" : "vx-enterFromL")
-                  }
-                >
-                  {renderTab(transition.to)}
+                <div className="vx-slidePage">
+                  <div className="vx-card2">{renderTab(slide.pages[1])}</div>
                 </div>
-              </>
-            ) : (
-              <div className="vx-card2 vx-pane" key={tab}>
-                {renderTab(tab)}
               </div>
+            ) : (
+              <div className="vx-card2">{renderTab(tab)}</div>
             )}
+          </div>
           </div>
         </div>
       </div>
