@@ -266,13 +266,13 @@ function calcSellAmountG(market: MarketRatesResponse | null, sellCur: Currency, 
 function sellStep(cur: Currency): number {
   if (cur === "USD") return 100;
   if (cur === "EUR") return 10;
-  if (cur === "VND") return 10000;
+  if (cur === "VND") return 100000;
   return 1;
 }
 
 function vndStepForReceive(receiveMethod: ReceiveMethod): number {
   // Донги округляем до 10k, но если получаем в банкомате — требуем кратность 100k
-  return receiveMethod === "atm" ? 100000 : 10000;
+  return receiveMethod === "atm" ? 100000 : 100000;
 }
 
 export default function CalculatorTab({ me }: Props) {
@@ -400,8 +400,8 @@ export default function CalculatorTab({ me }: Props) {
   const invalidUsd = sellCurrency === "USD" && sellText.trim() !== "" && !isMultiple(sellAmount, 100);
   const invalidEur = sellCurrency === "EUR" && sellText.trim() !== "" && !isMultiple(sellAmount, 10);
 
-  const invalidVndSell = sellCurrency === "VND" && sellText.trim() !== "" && !isMultiple(sellAmount, 10000);
-  const invalidVndBuy = buyCurrency === "VND" && buyText.trim() !== "" && !isMultiple(buyAmount, 10000);
+  const invalidVndSell = sellCurrency === "VND" && sellText.trim() !== "" && !isMultiple(sellAmount, 100000);
+  const invalidVndBuy = buyCurrency === "VND" && buyText.trim() !== "" && !isMultiple(buyAmount, 100000);
 
   const invalidAtmVnd =
     buyCurrency === "VND" &&
@@ -728,7 +728,7 @@ export default function CalculatorTab({ me }: Props) {
 
         {invalidUsd ? <div className="vx-warn">USD: сумма должна быть кратна 100.</div> : null}
         {invalidEur ? <div className="vx-warn">EUR: сумма должна быть кратна 10.</div> : null}
-        {invalidVndSell || invalidVndBuy ? <div className="vx-warn">VND: сумма должна быть кратна 10000.</div> : null}
+        {invalidVndSell || invalidVndBuy ? <div className="vx-warn">VND: сумма должна быть кратна 100000.</div> : null}
 
         <div className="vx-sp12" />
 
