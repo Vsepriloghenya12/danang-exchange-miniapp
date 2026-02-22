@@ -424,11 +424,11 @@ export default function App() {
   const logoSrc = logoCandidates[Math.min(logoIdx, logoCandidates.length - 1)];
 
   const renderTab = (k: TabKey) => {
-    if (k === "rates") return <RatesTab me={me} />;
+    if (k === "rates") return <RatesTab />;
     if (k === "calc") return <CalculatorTab me={me} />;
     if (k === "atm") return <AtmTab />;
     if (k === "guide") return <GuideTab />;
-    if (k === "reviews") return <ReviewsTab me={me} />;
+    if (k === "reviews") return <ReviewsTab />;
     return null;
   };
 
