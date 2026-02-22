@@ -436,8 +436,7 @@ const logoCandidates = useMemo(() => {
     >
       {/* Background (in poputchiki style). Replace the file to change the scene:
           webapp/public/brand/danang-bg.svg (or .jpg/.png with same name in CSS) */}
-      <div className="bg-danang" aria-hidden="true" style={bgSrc ? { backgroundImage: `url(${bgSrc})` } : undefined} />
-
+      
       <div className="container">
         <div className="card vx-topCard">
           <div className="vx-topRow">
