@@ -67,6 +67,9 @@ app.use(
 
 if (fs.existsSync(webDist)) {
   app.use(express.static(webDist));
+  // Standalone admin dashboard (PC). Served from the same build output.
+  // Open: https://<domain>/admin
+  app.get("/admin", (_req, res) => res.sendFile(path.join(webDist, "admin.html")));
   app.get("*", (_req, res) => res.sendFile(path.join(webDist, "index.html")));
 } else {
   app.get("/", (_req, res) => res.send("WebApp build not found. Run npm run build."));

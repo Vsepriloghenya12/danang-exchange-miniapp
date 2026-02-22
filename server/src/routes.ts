@@ -72,6 +72,21 @@ export function createApiRouter(opts: {
     return { user: v.user, status, isOwner };
   }
 
+  // Admin access for a standalone PC dashboard.
+  // If ADMIN_WEB_KEY is set, requests with header `x-admin-key: <key>` are treated as owner.
+  function requireAdmin(req: express.Request) {
+    const envKey = String(process.env.ADMIN_WEB_KEY || "").trim();
+    const key = String(req.headers["x-admin-key"] || "").trim();
+    if (envKey && key && key === envKey) {
+      return {
+        user: { id: 0, username: "admin", first_name: "Admin" },
+        status: "standard" as UserStatus,
+        isOwner: true
+      };
+    }
+    return requireAuth(req);
+  }
+
   router.get("/health", (_req, res) => res.json({ ok: true }));
 
   router.post("/auth", (req, res) => {
@@ -119,7 +134,7 @@ export function createApiRouter(opts: {
 
   router.get("/admin/rates/today", (req, res) => {
     try {
-      const { isOwner } = requireAuth(req);
+      const { isOwner } = requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const store = readStore();
@@ -133,7 +148,7 @@ export function createApiRouter(opts: {
 
   router.post("/admin/rates/today", (req, res) => {
     try {
-      const { isOwner, user } = requireAuth(req);
+      const { isOwner, user } = requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const body = req.body || {};
@@ -201,7 +216,7 @@ export function createApiRouter(opts: {
   // --------------------
   router.get("/admin/users", (req, res) => {
     try {
-      const { isOwner } = requireAuth(req);
+      const { isOwner } = requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const store = readStore();
@@ -213,7 +228,7 @@ export function createApiRouter(opts: {
 
   router.post("/admin/users/:tgId/status", (req, res) => {
     try {
-      const { isOwner } = requireAuth(req);
+      const { isOwner } = requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const tgId = Number(req.params.tgId);
@@ -249,7 +264,7 @@ export function createApiRouter(opts: {
   // список заявок (для владельца)
   router.get("/admin/requests", (req, res) => {
     try {
-      const { isOwner } = requireAuth(req);
+      const { isOwner } = requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const store = readStore();
@@ -266,7 +281,7 @@ export function createApiRouter(opts: {
   // изменить статус заявки (и отправить пуш пользователю через Telegram)
   router.post("/admin/requests/:id/state", async (req, res) => {
     try {
-      const { isOwner, user } = requireAuth(req);
+      const { isOwner, user } = requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const id = String(req.params.id || "");

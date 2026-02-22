@@ -62,7 +62,8 @@ body{
   pointer-events: none;
   z-index: 0;
   background-color: var(--sky);
-  background-image: url("/brand/danang-bg.svg");
+  /* Relative URL so it works even if the app is hosted under a subpath */
+  background-image: url("brand/danang-bg.svg");
   background-size: 150% 190%;
   background-repeat: no-repeat;
   background-position: center center;
@@ -202,6 +203,151 @@ label, input, select, textarea{ color: var(--text); }
   border-radius: 16px;
 }
 
+/* Link button (used in standalone admin) */
+.vx-btnGhost{
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(9,23,33,.14);
+  background: rgba(255,255,255,.78);
+  color: rgba(9,23,33,.92);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+}
+.vx-btnGhost:hover{ filter: brightness(0.98); }
+
+/* Standalone PC admin page layout */
+.vx-adminStandalone .container,
+.vx-adminStandalone .vx-adminContainer{
+  max-width: 1100px;
+}
+
+/* =========================
+   PC Admin Dashboard (CRM)
+   ========================= */
+.vx-adminDash{ display:flex; flex-direction:column; gap: 12px; }
+
+.vx-adminToolbar{ padding: 12px 14px; }
+.vx-adminToolbarRow{ display:flex; align-items:center; justify-content:space-between; gap: 10px; flex-wrap: wrap; }
+.vx-adminTabs{ display:flex; gap: 8px; flex-wrap: wrap; }
+
+.vx-chip,
+.vx-chipOn{
+  border-radius: 999px;
+  border: 1px solid rgba(9,23,33,0.14);
+  background: rgba(255,255,255,0.76);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+  user-select:none;
+}
+.vx-chipOn{
+  background: rgba(255,179,87,.28);
+  border-color: rgba(255,179,87,.55);
+  color: rgba(26,18,8,.92);
+  box-shadow: 0 10px 24px rgba(255,179,87,.12);
+}
+
+.vx-adminToolbarRight{ display:flex; align-items:center; gap: 10px; }
+.vx-adminMeta{ font-size: 12px; color: var(--muted2); font-weight: 800; }
+
+.vx-adminFilters{ display:flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.vx-adminSearch{ flex: 1 1 320px; min-width: 220px; height: 44px; }
+.vx-adminSel{ flex: 0 0 auto; min-width: 170px; height: 44px; }
+.vx-adminClear{ height: 44px; }
+
+.vx-adminGrid{ display:grid; grid-template-columns: 1.7fr 1fr; gap: 12px; }
+.vx-adminPanel{ padding: 14px; }
+.vx-adminSide{ position: sticky; top: 12px; height: calc(100vh - 40px); overflow: hidden; }
+
+.vx-panelHead{ display:flex; align-items:baseline; justify-content:space-between; gap: 10px; margin-bottom: 10px; }
+
+.vx-adminTableWrap{ border: 1px solid rgba(9,23,33,0.10); border-radius: 18px; background: rgba(255,255,255,0.55); overflow: auto; max-height: calc(100vh - 220px); }
+.vx-tablePC{ width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.vx-tablePC th,
+.vx-tablePC td{ padding: 10px 10px; border-bottom: 1px solid rgba(9,23,33,0.08); font-size: 12.5px; vertical-align: top; }
+.vx-tablePC th{ position: sticky; top: 0; background: rgba(255,255,255,0.72); text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; color: var(--muted2); font-weight: 950; z-index: 2; }
+.vx-tablePC tr{ cursor: pointer; }
+.vx-tablePC tr:hover{ background: rgba(255,255,255,0.45); }
+.vx-tablePC tr.isSel{ background: rgba(255,179,87,.16); }
+.mono{ font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+.vx-actions{ min-width: 280px; }
+.vx-mini{
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(9,23,33,0.14);
+  background: rgba(255,255,255,0.78);
+  color: rgba(9,23,33,0.92);
+  font-weight: 900;
+  font-size: 12px;
+  cursor: pointer;
+  margin-right: 6px;
+  margin-top: 4px;
+}
+.vx-mini:hover{ filter: brightness(0.985); }
+.vx-miniDanger{ border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.10); color: rgba(185,28,28,0.92); }
+
+.vx-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 950;
+  border: 1px solid rgba(9,23,33,0.12);
+  background: rgba(255,255,255,0.68);
+}
+.vx-st-new{ border-color: rgba(255,179,87,.48); background: rgba(255,179,87,.18); color: rgba(26,18,8,.92); }
+.vx-st-in_progress{ border-color: rgba(6,182,212,.38); background: rgba(6,182,212,.12); color: rgba(7,89,133,.92); }
+.vx-st-done{ border-color: rgba(34,197,94,.38); background: rgba(34,197,94,.12); color: rgba(20,83,45,.92); }
+.vx-st-canceled{ border-color: rgba(239,68,68,.38); background: rgba(239,68,68,.10); color: rgba(185,28,28,.92); }
+
+.vx-empty{ font-size: 13px; color: var(--muted2); font-weight: 800; padding: 12px 2px; }
+
+.vx-clientCard{ border: 1px solid rgba(9,23,33,0.10); border-radius: 18px; background: rgba(255,255,255,0.58); padding: 12px; }
+.vx-clientName{ font-weight: 950; font-size: 14px; }
+.vx-clientMeta{ font-size: 12px; font-weight: 800; color: var(--muted2); margin-top: 4px; }
+.vx-clientBtns{ display:flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
+.vx-sideList{ margin-top: 10px; }
+.vx-sideTitle{ font-size: 12px; font-weight: 950; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+.vx-sideScroll{ overflow: auto; max-height: calc(100vh - 360px); padding-right: 2px; }
+.vx-sideItem{ border: 1px solid rgba(9,23,33,0.10); border-radius: 16px; background: rgba(255,255,255,0.62); padding: 10px; margin-bottom: 8px; cursor: pointer; }
+.vx-sideItem:hover{ filter: brightness(0.99); }
+.vx-sideItem.on{ background: rgba(255,179,87,.16); border-color: rgba(255,179,87,.35); }
+.vx-sideTop{ display:flex; align-items:center; justify-content:space-between; gap: 8px; }
+.vx-sideMid{ margin-top: 6px; font-size: 12px; font-weight: 900; }
+.vx-sideBot{ margin-top: 4px; font-size: 11.5px; color: var(--muted2); font-weight: 800; }
+.vx-sideActions{ margin-top: 8px; display:flex; flex-wrap: wrap; gap: 6px; }
+
+.vx-clientList{ display:grid; gap: 8px; }
+.vx-clientRow{ border: 1px solid rgba(9,23,33,0.10); border-radius: 18px; background: rgba(255,255,255,0.58); padding: 12px; cursor: pointer; }
+.vx-clientRow:hover{ filter: brightness(0.99); }
+.vx-clientRow.on{ background: rgba(255,179,87,.16); border-color: rgba(255,179,87,.35); }
+.vx-clientRowTop{ display:flex; align-items:center; justify-content:space-between; gap: 10px; }
+.vx-clientRowName{ font-weight: 950; font-size: 13.5px; }
+.vx-clientRowMeta{ font-size: 12px; color: var(--muted2); font-weight: 800; margin-top: 4px; }
+
+.vx-ratesGrid{ display:grid; gap: 8px; }
+.vx-rateRowPC{ display:grid; grid-template-columns: 70px 1fr 1fr; gap: 8px; align-items:center; }
+.vx-codePC{ font-weight: 950; font-size: 13px; color: rgba(9,23,33,.90); }
+.vx-inPC{ height: 44px; border-radius: 16px; }
+
+@media (max-width: 980px){
+  .vx-adminGrid{ grid-template-columns: 1fr; }
+  .vx-adminSide{ position: relative; top: 0; height: auto; }
+  .vx-adminTableWrap{ max-height: 60vh; }
+  .vx-sideScroll{ max-height: 50vh; }
+}
+
 /* Utilities */
 .vx-m0{ margin: 0 !important; }
 .vx-mt6{ margin-top: 6px !important; }
@@ -319,8 +465,8 @@ label, input, select, textarea{ color: var(--text); }
 }
 
 /* Swipe / tab change animation */
-.vx-animInL{ animation: vxSlideInL 180ms ease both; }
-.vx-animInR{ animation: vxSlideInR 180ms ease both; }
+.vx-animInL{ animation: vxSlideInL 220ms cubic-bezier(.22,.9,.22,1) both; }
+.vx-animInR{ animation: vxSlideInR 220ms cubic-bezier(.22,.9,.22,1) both; }
 @keyframes vxSlideInL{
   from{ transform: translateX(22px); opacity: .55; }
   to{ transform: translateX(0); opacity: 1; }
@@ -328,6 +474,31 @@ label, input, select, textarea{ color: var(--text); }
 @keyframes vxSlideInR{
   from{ transform: translateX(-22px); opacity: .55; }
   to{ transform: translateX(0); opacity: 1; }
+}
+
+/* Two-pane swipe animation (enter + exit at the same time) */
+.vx-swipeWrap{
+  display: grid;
+}
+.vx-pane{
+  grid-area: 1 / 1;
+  will-change: transform, opacity, filter;
+}
+.vx-enter{ animation: vxEnter 260ms cubic-bezier(.22,.9,.22,1) both; }
+.vx-exit{ animation: vxExit 260ms cubic-bezier(.22,.9,.22,1) both; }
+
+.vx-enterFromR{ --vx-from-x: 26px; }
+.vx-enterFromL{ --vx-from-x: -26px; }
+.vx-exitToL{ --vx-to-x: -26px; }
+.vx-exitToR{ --vx-to-x: 26px; }
+
+@keyframes vxEnter{
+  from{ transform: translateX(var(--vx-from-x, 0)); opacity: .55; filter: blur(1.2px); }
+  to{ transform: translateX(0); opacity: 1; filter: blur(0); }
+}
+@keyframes vxExit{
+  from{ transform: translateX(0); opacity: 1; filter: blur(0); }
+  to{ transform: translateX(var(--vx-to-x, 0)); opacity: .40; filter: blur(1.2px); }
 }
 
 /* Allow horizontal swipes without breaking vertical scroll */

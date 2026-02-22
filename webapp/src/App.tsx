@@ -8,7 +8,6 @@ import CalculatorTab from "./tabs/CalculatorTab";
 import AtmTab from "./tabs/AtmTab";
 import GuideTab from "./tabs/GuideTab";
 import ReviewsTab from "./tabs/ReviewsTab";
-import AdminTab from "./tabs/AdminTab";
 
 type Me = {
   ok: boolean;
@@ -19,7 +18,7 @@ type Me = {
   error?: string;
 };
 
-type TabKey = "rates" | "calc" | "atm" | "guide" | "reviews" | "admin";
+type TabKey = "rates" | "calc" | "atm" | "guide" | "reviews";
 
 const UI = {
   title: "Обмен валют — Дананг",
@@ -80,14 +79,6 @@ function IconStar({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M12 2l3 7 7 .6-5.3 4.6 1.7 6.8L12 18l-6.4 3 1.7-6.8L2 9.6 9 9l3-7z" />
-    </svg>
-  );
-}
-function IconSettings({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-      <path d="M19.4 15a7.8 7.8 0 0 0 .1-6l2-1.2-2-3.4-2.3.8a8 8 0 0 0-5.2-3L11 0H13l-.9 2.2a8 8 0 0 0-5.2 3l-2.3-.8-2 3.4 2 1.2a7.8 7.8 0 0 0 .1 6l-2 1.2 2 3.4 2.3-.8a8 8 0 0 0 5.2 3L11 24h2l.9-2.2a8 8 0 0 0 5.2-3l2.3.8 2-3.4-2-1.2z" />
     </svg>
   );
 }
@@ -196,26 +187,23 @@ export default function App() {
     };
   }, [tg, isDemo]);
 
-  useEffect(() => {
-    if (tab === "admin" && !me.isOwner) changeTab("rates");
-  }, [tab, me.isOwner]);
-
   const bottomTabs: Array<{ key: TabKey; label: string; show: boolean; icon: React.ReactNode }> = [
     { key: "rates", label: "Курс", show: true, icon: <IconSwap className="vx-i" /> },
     { key: "calc", label: "Калькулятор", show: true, icon: <IconCalc className="vx-i" /> },
     { key: "atm", label: "Банкоматы", show: true, icon: <IconAtm className="vx-i" /> },
     { key: "guide", label: "Гид", show: true, icon: <IconGuide className="vx-i" /> },
     { key: "reviews", label: "Отзывы", show: true, icon: <IconStar className="vx-i" /> },
-    { key: "admin", label: "Упр.", show: !!me.isOwner, icon: <IconSettings className="vx-i" /> },
   ];
 
-  const visibleTabKeys = useMemo(() => bottomTabs.filter((t) => t.show).map((t) => t.key), [me.isOwner]);
+  const visibleTabKeys = useMemo(() => bottomTabs.filter((t) => t.show).map((t) => t.key), []);
 
   const changeTab = (next: TabKey) => {
     if (next === tab) return;
     const i = visibleTabKeys.indexOf(tab);
     const j = visibleTabKeys.indexOf(next);
     const dir: "left" | "right" = j > i ? "left" : "right";
+    // Kick off a transition (exit old + enter new)
+    setTransition((tr) => ({ from: tab, to: next, dir, id: (tr?.id ?? 0) + 1 }));
     setAnim((a) => ({ dir, token: a.token + 1 }));
     setTab(next);
   };
@@ -317,26 +305,54 @@ export default function App() {
     if (dx > 0 && i > 0) changeTab(visibleTabKeys[i - 1]);
   };
 
-  // Logo loader: try several extensions (so you can drop .png/.svg/.jpg/.webp)
-  // + add a cache-buster (Telegram can be very aggressive with caching static files).
+  // Logo loader (robust for ANY hosting path):
+  // 1) try relative URLs (brand/logo.*) — works if app is hosted under /something/
+  // 2) try absolute URLs (/brand/logo.*) — works if app is hosted at domain root
+  // 3) add cache-buster (Telegram caching can be aggressive)
   const logoCandidates = useMemo(() => {
-    const base = import.meta.env.BASE_URL || "/";
-    const b = base.endsWith("/") ? base : base + "/";
     const v = String(Date.now());
+    const rel = (p: string) => `${p}?v=${v}`;
+    const abs = (p: string) => `/${p}?v=${v}`;
+    // Bundled fallback (works even if you put the logo next to the style file in src/brand/)
+    const bundled = new URL("./brand/logo.png", import.meta.url).toString();
     return [
-      `${b}brand/logo.svg?v=${v}`,
-      `${b}brand/logo.png?v=${v}`,
-      `${b}brand/logo.jpg?v=${v}`,
-      `${b}brand/logo.jpeg?v=${v}`,
-      `${b}brand/logo.webp?v=${v}`,
+      rel("brand/logo.svg"),
+      rel("brand/logo.png"),
+      rel("brand/logo.jpg"),
+      rel("brand/logo.jpeg"),
+      rel("brand/logo.webp"),
+      abs("brand/logo.svg"),
+      abs("brand/logo.png"),
+      abs("brand/logo.jpg"),
+      abs("brand/logo.jpeg"),
+      abs("brand/logo.webp"),
+      bundled,
     ];
   }, []);
   const [logoIdx, setLogoIdx] = useState(0);
   const [logoOk, setLogoOk] = useState(false);
   const logoSrc = logoCandidates[Math.min(logoIdx, logoCandidates.length - 1)];
 
-  const animClass = anim.dir === "left" ? "vx-animInL" : "vx-animInR";
-  const animKey = `${tab}-${anim.token}`;
+  // Improved swipe animation: keep previous tab for a short exit animation.
+  const [transition, setTransition] = useState<
+    | null
+    | { from: TabKey; to: TabKey; dir: "left" | "right"; id: number }
+  >(null);
+
+  const renderTab = (k: TabKey) => {
+    if (k === "rates") return <RatesTab me={me} />;
+    if (k === "calc") return <CalculatorTab me={me} />;
+    if (k === "atm") return <AtmTab />;
+    if (k === "guide") return <GuideTab />;
+    if (k === "reviews") return <ReviewsTab me={me} />;
+    return null;
+  };
+
+  useEffect(() => {
+    if (!transition) return;
+    const t = window.setTimeout(() => setTransition(null), 260);
+    return () => window.clearTimeout(t);
+  }, [transition]);
 
   return (
     <div
@@ -401,14 +417,30 @@ export default function App() {
         </div>
 
         <div className="vx-body">
-          <div className={"vx-card2 " + animClass} key={animKey}>
-            {tab === "rates" ? <RatesTab me={me} /> : null}
-            {tab === "calc" ? <CalculatorTab me={me} /> : null}
-            {tab === "atm" ? <AtmTab /> : null}
-            {tab === "guide" ? <GuideTab /> : null}
-            {tab === "reviews" ? <ReviewsTab me={me} /> : null}
-            {tab === "admin" && me.isOwner ? <AdminTab me={me} /> : null}
-          </div>
+          {transition ? (
+            <div className="vx-swipeWrap" key={transition.id}>
+              <div
+                className={
+                  "vx-card2 vx-pane vx-exit " +
+                  (transition.dir === "left" ? "vx-exitToL" : "vx-exitToR")
+                }
+              >
+                {renderTab(transition.from)}
+              </div>
+              <div
+                className={
+                  "vx-card2 vx-pane vx-enter " +
+                  (transition.dir === "left" ? "vx-enterFromR" : "vx-enterFromL")
+                }
+              >
+                {renderTab(transition.to)}
+              </div>
+            </div>
+          ) : (
+            <div className={"vx-card2 " + (anim.dir === "left" ? "vx-animInL" : "vx-animInR")} key={`${tab}-${anim.token}`}>
+              {renderTab(tab)}
+            </div>
+          )}
         </div>
       </div>
 
