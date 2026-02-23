@@ -989,55 +989,65 @@ label, input, select, textarea{ color: var(--text); }
 .vx-title18{ font-size: 18px; font-weight: 950; letter-spacing: -0.015em; }
 
 /* =========================
-   FIX OVERRIDES (2026-02-23)
-   Эти правила намеренно в самом конце файла, чтобы 100% перебить старые.
+   HARD FIX: Tabs slider layout + background
+   (prevents “all tabs on first page”)
    ========================= */
 
-/* Фон: всегда ниже UI, но выше базового синего body */
-.vx-bg{ z-index: 0 !important; }
-.container{ z-index: 2 !important; }
+/* Prefer vx-bg (App.tsx sets --bg-url inline). Old .bg-danang may stay unused. */
+.vx-bg{
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(1200px 700px at 18% -10%, rgba(46,233,209,0.22), transparent 60%),
+    radial-gradient(900px 600px at 92% 8%, rgba(122,247,232,0.14), transparent 55%),
+    radial-gradient(900px 600px at 50% 115%, rgba(255,77,109,0.11), transparent 58%),
+    linear-gradient(180deg, rgba(10,14,28,0.10), rgba(10,14,28,0.30)),
+    var(--bg-url);
+  background-repeat: no-repeat;
+  background-size: 150% 190%;
+  background-position: center center;
+}
 
-/* Слайдер вкладок: жёсткая обрезка, чтобы контент НЕ "протекал" на соседние вкладки */
+/* UI always above */
+.vx-page{ position: relative; }
+.container{ position: relative; z-index: 2; }
+
+/* Slider: always horizontal, never wraps */
 .vx-pagesWrap{
-  position: relative !important;
-  width: 100% !important;
+  position: relative;
+  width: 100%;
   overflow: hidden !important;
-  border-radius: 22px !important;
-  isolation: isolate !important;
-  contain: layout paint !important;
+  border-radius: 22px;
 }
 
 .vx-pagesTrack{
   display: flex !important;
   flex-wrap: nowrap !important;
-  will-change: transform !important;
-  transform: translate3d(0,0,0) !important;
-  transition: transform 260ms cubic-bezier(.22,.9,.22,1) !important;
+  align-items: stretch;
+  will-change: transform;
+  transition: transform 260ms cubic-bezier(.2,.8,.2,1);
+  backface-visibility: hidden;
+  transform: translate3d(0,0,0);
 }
 
 .vx-pagePane{
   flex: 0 0 100% !important;
   min-width: 100% !important;
   width: 100% !important;
-  min-height: 1px !important;
-  overflow: hidden !important;
-  contain: paint !important;
+  overflow: hidden;
+}
+
+.vx-pagePane:not(.vx-pageActive){
+  pointer-events: none;
 }
 
 .vx-card2{
-  width: 100% !important;
-  max-width: 100% !important;
-  overflow: hidden !important;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
-/* Если внутри .row используется .btn — возвращаем ему «золотой» стиль */
-.vx-body .row button.btn,
-.vx-body .calcRow button.btn,
-.vx-body .calc-row button.btn,
-.vx-body .exchangeRow button.btn,
-.vx-body .exchange-row button.btn{
-  background: rgba(255,179,87,.94) !important;
-  color: rgba(26,18,8,.92) !important;
-  border: 0 !important;
-  box-shadow: 0 14px 34px rgba(255,179,87,0.18) !important;
-}
+/* Hide bottom bar while keyboard is open */
+.vx-kbOpen .vx-bottomWrap{ display: none; }

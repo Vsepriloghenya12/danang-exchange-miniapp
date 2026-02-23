@@ -116,23 +116,20 @@ export default function App() {
   const tg = getTg();
 
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
-  const [tab, setTab] = useState<TabKey>("rates");
-
-  // keyboard (so bottom bar can hide while typing)
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
-  const vvBaseHeightRef = useRef<number>(
-    typeof window !== "undefined" ? window.visualViewport?.height ?? window.innerHeight : 0
-  );
-
-  // Telegram homescreen shortcut status
+  const [active, setActive] = useState<TabKey>("rates");
   const [hsStatus, setHsStatus] = useState<string | null>(null);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   const tabs: TabKey[] = ["rates", "calc", "atm", "guide", "reviews"];
-  const tabIndex = Math.max(0, tabs.indexOf(tab));
+  const activeIndex = Math.max(0, tabs.indexOf(active));
+
+  // Prevent double-swipes triggering multiple tab changes quickly
+  const swipeLockRef = useRef(false);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const isDemo = useMemo(() => new URLSearchParams(window.location.search).get("demo") === "1", []);
 
-  // --- AUTH ---
+  // ---------- AUTH ----------
   useEffect(() => {
     tg?.ready?.();
     tg?.expand?.();
@@ -143,7 +140,8 @@ export default function App() {
       return;
     }
 
-    const useInit = isDemo ? "demo" : initData;
+    const fakeInit = "demo";
+    const useInit = isDemo ? fakeInit : initData;
 
     (async () => {
       if (isDemo) {
@@ -163,7 +161,7 @@ export default function App() {
     })();
   }, [tg, isDemo]);
 
-  // --- Telegram Home Screen shortcut ---
+  // ---------- Homescreen shortcut ----------
   useEffect(() => {
     if (!tg || isDemo) return;
     if (!tg.checkHomeScreenStatus) return;
@@ -186,25 +184,14 @@ export default function App() {
     };
   }, [tg, isDemo]);
 
-  // --- Keyboard detection ---
+  // ---------- Keyboard detection (hide bar in CSS) ----------
+  const vvBaseHeightRef = useRef<number>(
+    typeof window !== "undefined" ? window.visualViewport?.height ?? window.innerHeight : 0
+  );
+
   useEffect(() => {
     const vv = window.visualViewport;
-
-    // Fallback: if VisualViewport is missing, hide bar while any input is focused.
-    if (!vv) {
-      const onFocusIn = (e: any) => {
-        const t = e?.target as HTMLElement | null;
-        const tag = t?.tagName;
-        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") setKeyboardOpen(true);
-      };
-      const onFocusOut = () => setKeyboardOpen(false);
-      window.addEventListener("focusin", onFocusIn);
-      window.addEventListener("focusout", onFocusOut);
-      return () => {
-        window.removeEventListener("focusin", onFocusIn);
-        window.removeEventListener("focusout", onFocusOut);
-      };
-    }
+    if (!vv) return;
 
     const isFieldFocused = () => {
       const el = document.activeElement as HTMLElement | null;
@@ -221,7 +208,6 @@ export default function App() {
         setKeyboardOpen(false);
         return;
       }
-
       const base = vvBaseHeightRef.current || vv.height;
       setKeyboardOpen(vv.height < base - 120);
     };
@@ -242,8 +228,8 @@ export default function App() {
     };
   }, []);
 
-  // --- Background loader ---
-  // Put background here: webapp/public/brand/danang-bg.(svg|jpg|png|webp)
+  // ---------- Background loader ----------
+  // Put your background here: webapp/public/brand/danang-bg.(svg|jpg|png|webp)
   const bgCandidates = useMemo(() => {
     const v = String(Date.now());
     const baseRaw = (import.meta as any)?.env?.BASE_URL || "/";
@@ -251,10 +237,7 @@ export default function App() {
     const rel = (p: string) => `${base}${p}?v=${v}`;
     const abs = (p: string) => `/${p}?v=${v}`;
     const exts = ["svg", "jpg", "png", "webp"];
-    return [
-      ...exts.map((ext) => rel(`brand/danang-bg.${ext}`)),
-      ...exts.map((ext) => abs(`brand/danang-bg.${ext}`)),
-    ];
+    return [...exts.map((ext) => rel(`brand/danang-bg.${ext}`)), ...exts.map((ext) => abs(`brand/danang-bg.${ext}`))];
   }, []);
 
   const [bgSrc, setBgSrc] = useState<string | null>(null);
@@ -275,15 +258,13 @@ export default function App() {
           return;
         }
       }
-      setBgSrc(null);
     })();
     return () => {
       cancelled = true;
     };
   }, [bgCandidates]);
 
-  // --- Logo loader ---
-  // Put logo here: webapp/public/brand/logo.(png|svg|jpg|webp)
+  // ---------- Logo loader ----------
   const logoCandidates = useMemo(() => {
     const v = String(Date.now());
     const rel = (p: string) => `${p}?v=${v}`;
@@ -308,19 +289,7 @@ export default function App() {
   const [logoOk, setLogoOk] = useState(false);
   const logoSrc = logoCandidates[Math.min(logoIdx, logoCandidates.length - 1)];
 
-  const bottomTabs = useMemo(
-    () => [
-      { key: "rates" as const, label: "Курс", show: true, icon: <IconSwap className="vx-i" /> },
-      { key: "calc" as const, label: "Калькулятор", show: true, icon: <IconCalc className="vx-i" /> },
-      { key: "atm" as const, label: "Банкоматы", show: true, icon: <IconAtm className="vx-i" /> },
-      { key: "guide" as const, label: "Гид", show: true, icon: <IconGuide className="vx-i" /> },
-      { key: "reviews" as const, label: "Отзывы", show: true, icon: <IconStar className="vx-i" /> },
-    ],
-    []
-  );
-
-  // IMPORTANT: RatesTab and ReviewsTab DO NOT accept props in this project.
-  // CalculatorTab receives me.
+  // ---------- Tabs (keep mounted => no flashing) ----------
   const pages = useMemo(
     () => ({
       rates: <RatesTab />,
@@ -332,9 +301,21 @@ export default function App() {
     [me]
   );
 
-  // --- Swipe / tab change ---
-  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
-  const swipeLockRef = useRef(false);
+  const bottomTabs = useMemo(
+    () => [
+      { key: "rates" as const, label: "Курс", show: true, icon: <IconSwap className="vx-i" /> },
+      { key: "calc" as const, label: "Калькулятор", show: true, icon: <IconCalc className="vx-i" /> },
+      { key: "atm" as const, label: "Банкоматы", show: true, icon: <IconAtm className="vx-i" /> },
+      { key: "guide" as const, label: "Гид", show: true, icon: <IconGuide className="vx-i" /> },
+      { key: "reviews" as const, label: "Отзывы", show: true, icon: <IconStar className="vx-i" /> },
+    ],
+    []
+  );
+
+  const goToIndex = (idx: number) => {
+    const clamped = Math.max(0, Math.min(tabs.length - 1, idx));
+    setActive(tabs[clamped]);
+  };
 
   const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (keyboardOpen) return;
@@ -366,14 +347,13 @@ export default function App() {
     const dx = t.clientX - s.x;
     const dy = t.clientY - s.y;
 
-    // Horizontal swipe only
     if (Math.abs(dx) < 70) return;
     if (Math.abs(dx) < Math.abs(dy) * 1.3) return;
 
     swipeLockRef.current = true;
 
-    if (dx < 0 && tabIndex < tabs.length - 1) setTab(tabs[tabIndex + 1]);
-    if (dx > 0 && tabIndex > 0) setTab(tabs[tabIndex - 1]);
+    if (dx < 0) goToIndex(activeIndex + 1);
+    else goToIndex(activeIndex - 1);
 
     window.setTimeout(() => {
       swipeLockRef.current = false;
@@ -383,27 +363,23 @@ export default function App() {
   const trackStyle: React.CSSProperties = useMemo(
     () => ({
       width: `${tabs.length * 100}%`,
-      transform: `translate3d(${-tabIndex * 100}%,0,0)`,
+      transform: `translate3d(${-activeIndex * 100}%,0,0)`,
     }),
-    [tabIndex, tabs.length]
+    [activeIndex]
   );
 
   return (
     <div className={"vx-page" + (keyboardOpen ? " vx-kbOpen" : "")}> 
       <style>{`@import url('${UI.fontImport}');`}</style>
 
-      {/* Background layer (poputchiki style). */}
+      {/* Background (under all UI) */}
       <div
         className="vx-bg"
         aria-hidden="true"
-        style={
-          {
-            ["--bg-url" as any]: bgSrc ? `url(\"${bgSrc}\")` : "none",
-          } as React.CSSProperties
-        }
+        style={{ ["--bg-url" as any]: bgSrc ? `url(\"${bgSrc}\")` : "none" } as React.CSSProperties}
       />
 
-      <div className="container">
+      <div className="container" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <div className="card vx-topCard">
           <div className="vx-topRow">
             <div className="vx-logo" aria-label="Лого">
@@ -453,24 +429,19 @@ export default function App() {
           ) : null}
         </div>
 
-        <div className="vx-body">
-          <div className="vx-pagesWrap" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-            <div className="vx-pagesTrack" style={trackStyle}>
-              {tabs.map((k) => (
-                <div
-                  key={k}
-                  className={"vx-pagePane" + (k === tab ? " vx-pageActive" : "")}
-                  style={{ flex: "0 0 100%", minWidth: "100%", width: "100%" }}
-                >
-                  <div className="vx-card2">{pages[k]}</div>
-                </div>
-              ))}
-            </div>
+        {/* Slider (tabs do NOT remount => no flashing) */}
+        <div className="vx-pagesWrap">
+          <div className="vx-pagesTrack" style={trackStyle}>
+            {tabs.map((k) => (
+              <div key={k} className={"vx-pagePane" + (k === active ? " vx-pageActive" : "")}> 
+                <div className="vx-card2">{pages[k]}</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      <BottomBar active={tab} onChange={setTab} items={bottomTabs} />
+      <BottomBar active={active} onChange={setActive} items={bottomTabs} />
     </div>
   );
 }
