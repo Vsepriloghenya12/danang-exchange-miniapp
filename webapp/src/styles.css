@@ -987,3 +987,57 @@ label, input, select, textarea{ color: var(--text); }
 .vx-admin .hr{ margin: 8px 0; }
 
 .vx-title18{ font-size: 18px; font-weight: 950; letter-spacing: -0.015em; }
+
+/* =========================
+   FIX OVERRIDES (2026-02-23)
+   Эти правила намеренно в самом конце файла, чтобы 100% перебить старые.
+   ========================= */
+
+/* Фон: всегда ниже UI, но выше базового синего body */
+.vx-bg{ z-index: 0 !important; }
+.container{ z-index: 2 !important; }
+
+/* Слайдер вкладок: жёсткая обрезка, чтобы контент НЕ "протекал" на соседние вкладки */
+.vx-pagesWrap{
+  position: relative !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  border-radius: 22px !important;
+  isolation: isolate !important;
+  contain: layout paint !important;
+}
+
+.vx-pagesTrack{
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  will-change: transform !important;
+  transform: translate3d(0,0,0) !important;
+  transition: transform 260ms cubic-bezier(.22,.9,.22,1) !important;
+}
+
+.vx-pagePane{
+  flex: 0 0 100% !important;
+  min-width: 100% !important;
+  width: 100% !important;
+  min-height: 1px !important;
+  overflow: hidden !important;
+  contain: paint !important;
+}
+
+.vx-card2{
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Если внутри .row используется .btn — возвращаем ему «золотой» стиль */
+.vx-body .row button.btn,
+.vx-body .calcRow button.btn,
+.vx-body .calc-row button.btn,
+.vx-body .exchangeRow button.btn,
+.vx-body .exchange-row button.btn{
+  background: rgba(255,179,87,.94) !important;
+  color: rgba(26,18,8,.92) !important;
+  border: 0 !important;
+  box-shadow: 0 14px 34px rgba(255,179,87,0.18) !important;
+}

@@ -114,25 +114,25 @@ function BottomBar({
 
 export default function App() {
   const tg = getTg();
+
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
+  const [tab, setTab] = useState<TabKey>("rates");
 
-  const tabs: TabKey[] = ["rates", "calc", "atm", "guide", "reviews"];
-  const [active, setActive] = useState<TabKey>("rates");
-  const activeIndex = tabs.indexOf(active);
-
-  // keyboard (чтобы можно было скрывать нижний бар стилями)
+  // keyboard (so bottom bar can hide while typing)
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const vvBaseHeightRef = useRef<number>(
     typeof window !== "undefined" ? window.visualViewport?.height ?? window.innerHeight : 0
   );
 
-  // swipe
-  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
-  const lockRef = useRef(false);
+  // Telegram homescreen shortcut status
+  const [hsStatus, setHsStatus] = useState<string | null>(null);
+
+  const tabs: TabKey[] = ["rates", "calc", "atm", "guide", "reviews"];
+  const tabIndex = Math.max(0, tabs.indexOf(tab));
 
   const isDemo = useMemo(() => new URLSearchParams(window.location.search).get("demo") === "1", []);
 
-  // AUTH
+  // --- AUTH ---
   useEffect(() => {
     tg?.ready?.();
     tg?.expand?.();
@@ -143,8 +143,7 @@ export default function App() {
       return;
     }
 
-    const fakeInit = "demo";
-    const useInit = isDemo ? fakeInit : initData;
+    const useInit = isDemo ? "demo" : initData;
 
     (async () => {
       if (isDemo) {
@@ -164,10 +163,48 @@ export default function App() {
     })();
   }, [tg, isDemo]);
 
-  // Keyboard detection
+  // --- Telegram Home Screen shortcut ---
+  useEffect(() => {
+    if (!tg || isDemo) return;
+    if (!tg.checkHomeScreenStatus) return;
+
+    const onChecked = (e: any) => {
+      if (e?.status) setHsStatus(String(e.status));
+    };
+    const onAdded = () => setHsStatus("added");
+
+    tg.onEvent?.("homeScreenChecked", onChecked);
+    tg.onEvent?.("homeScreenAdded", onAdded);
+
+    try {
+      tg.checkHomeScreenStatus?.((status) => setHsStatus(String(status)));
+    } catch {}
+
+    return () => {
+      tg.offEvent?.("homeScreenChecked", onChecked);
+      tg.offEvent?.("homeScreenAdded", onAdded);
+    };
+  }, [tg, isDemo]);
+
+  // --- Keyboard detection ---
   useEffect(() => {
     const vv = window.visualViewport;
-    if (!vv) return;
+
+    // Fallback: if VisualViewport is missing, hide bar while any input is focused.
+    if (!vv) {
+      const onFocusIn = (e: any) => {
+        const t = e?.target as HTMLElement | null;
+        const tag = t?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") setKeyboardOpen(true);
+      };
+      const onFocusOut = () => setKeyboardOpen(false);
+      window.addEventListener("focusin", onFocusIn);
+      window.addEventListener("focusout", onFocusOut);
+      return () => {
+        window.removeEventListener("focusin", onFocusIn);
+        window.removeEventListener("focusout", onFocusOut);
+      };
+    }
 
     const isFieldFocused = () => {
       const el = document.activeElement as HTMLElement | null;
@@ -184,6 +221,7 @@ export default function App() {
         setKeyboardOpen(false);
         return;
       }
+
       const base = vvBaseHeightRef.current || vv.height;
       setKeyboardOpen(vv.height < base - 120);
     };
@@ -204,7 +242,8 @@ export default function App() {
     };
   }, []);
 
-  // ✅ фон: берём из webapp/public/brand/danang-bg.(svg|jpg|png|webp)
+  // --- Background loader ---
+  // Put background here: webapp/public/brand/danang-bg.(svg|jpg|png|webp)
   const bgCandidates = useMemo(() => {
     const v = String(Date.now());
     const baseRaw = (import.meta as any)?.env?.BASE_URL || "/";
@@ -236,11 +275,38 @@ export default function App() {
           return;
         }
       }
+      setBgSrc(null);
     })();
     return () => {
       cancelled = true;
     };
   }, [bgCandidates]);
+
+  // --- Logo loader ---
+  // Put logo here: webapp/public/brand/logo.(png|svg|jpg|webp)
+  const logoCandidates = useMemo(() => {
+    const v = String(Date.now());
+    const rel = (p: string) => `${p}?v=${v}`;
+    const abs = (p: string) => `/${p}?v=${v}`;
+    const bundled = new URL("./brand/logo.png", import.meta.url).toString();
+    return [
+      rel("brand/logo.svg"),
+      rel("brand/logo.png"),
+      rel("brand/logo.jpg"),
+      rel("brand/logo.jpeg"),
+      rel("brand/logo.webp"),
+      abs("brand/logo.svg"),
+      abs("brand/logo.png"),
+      abs("brand/logo.jpg"),
+      abs("brand/logo.jpeg"),
+      abs("brand/logo.webp"),
+      bundled,
+    ];
+  }, []);
+
+  const [logoIdx, setLogoIdx] = useState(0);
+  const [logoOk, setLogoOk] = useState(false);
+  const logoSrc = logoCandidates[Math.min(logoIdx, logoCandidates.length - 1)];
 
   const bottomTabs = useMemo(
     () => [
@@ -253,7 +319,8 @@ export default function App() {
     []
   );
 
-  // ✅ вкладки НЕ размонтируются => нет мигания
+  // IMPORTANT: RatesTab and ReviewsTab DO NOT accept props in this project.
+  // CalculatorTab receives me.
   const pages = useMemo(
     () => ({
       rates: <RatesTab />,
@@ -265,14 +332,13 @@ export default function App() {
     [me]
   );
 
-  const goToIndex = (nextIndex: number) => {
-    const clamped = Math.max(0, Math.min(tabs.length - 1, nextIndex));
-    setActive(tabs[clamped]);
-  };
+  // --- Swipe / tab change ---
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const swipeLockRef = useRef(false);
 
   const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (keyboardOpen) return;
-    if (lockRef.current) return;
+    if (swipeLockRef.current) return;
 
     const target = e.target as HTMLElement | null;
     const tag = target?.tagName;
@@ -289,7 +355,7 @@ export default function App() {
     swipeStartRef.current = null;
     if (!s) return;
     if (keyboardOpen) return;
-    if (lockRef.current) return;
+    if (swipeLockRef.current) return;
 
     const target = e.target as HTMLElement | null;
     if (target?.closest?.(".vx-bottomWrap")) return;
@@ -300,72 +366,111 @@ export default function App() {
     const dx = t.clientX - s.x;
     const dy = t.clientY - s.y;
 
+    // Horizontal swipe only
     if (Math.abs(dx) < 70) return;
     if (Math.abs(dx) < Math.abs(dy) * 1.3) return;
 
-    lockRef.current = true;
-    if (dx < 0) goToIndex(activeIndex + 1);
-    else goToIndex(activeIndex - 1);
+    swipeLockRef.current = true;
+
+    if (dx < 0 && tabIndex < tabs.length - 1) setTab(tabs[tabIndex + 1]);
+    if (dx > 0 && tabIndex > 0) setTab(tabs[tabIndex - 1]);
 
     window.setTimeout(() => {
-      lockRef.current = false;
+      swipeLockRef.current = false;
     }, 280);
   };
 
   const trackStyle: React.CSSProperties = useMemo(
     () => ({
-      display: "flex",
-      flexWrap: "nowrap",
       width: `${tabs.length * 100}%`,
-      transform: `translate3d(${-activeIndex * 100}%,0,0)`,
-      transition: "transform 260ms cubic-bezier(.2,.8,.2,1)",
-      willChange: "transform",
-      backfaceVisibility: "hidden",
+      transform: `translate3d(${-tabIndex * 100}%,0,0)`,
     }),
-    [activeIndex, tabs.length]
+    [tabIndex, tabs.length]
   );
 
   return (
-    <div className={"vx-page" + (keyboardOpen ? " vx-kbOpen" : "")}>
+    <div className={"vx-page" + (keyboardOpen ? " vx-kbOpen" : "")}> 
       <style>{`@import url('${UI.fontImport}');`}</style>
 
-      {/* ✅ фон отдельным слоем (никогда не перекроет UI) */}
+      {/* Background layer (poputchiki style). */}
       <div
         className="vx-bg"
         aria-hidden="true"
         style={
           {
-            ["--bg-url" as any]: bgSrc ? `url("${bgSrc}")` : "none",
+            ["--bg-url" as any]: bgSrc ? `url(\"${bgSrc}\")` : "none",
           } as React.CSSProperties
         }
       />
 
       <div className="container">
         <div className="card vx-topCard">
-          <div className="vx-title">{UI.title}</div>
-          <div className="vx-topSub">
-            {me.ok && me.user
-              ? `Вы: ${me.user.first_name ?? ""} ${me.user.username ? "(@" + me.user.username + ")" : ""} • статус: ${me.status}`
-              : me.error ?? "Авторизация..."}
+          <div className="vx-topRow">
+            <div className="vx-logo" aria-label="Лого">
+              {!logoOk ? <span className="vx-logoFallback">DX</span> : null}
+              <img
+                className="vx-logoImg"
+                src={logoSrc}
+                alt=""
+                onLoad={() => setLogoOk(true)}
+                onError={() => {
+                  setLogoOk(false);
+                  setLogoIdx((i) => (i < logoCandidates.length - 1 ? i + 1 : i));
+                }}
+              />
+            </div>
+
+            <div className="vx-topText">
+              <div className="vx-title">{UI.title}</div>
+              <div className="vx-topSub">
+                {me.ok && me.user
+                  ? `Вы: ${me.user.first_name ?? ""} ${me.user.username ? "(@" + me.user.username + ")" : ""} • статус: ${me.status}`
+                  : me.error ?? "Авторизация..."}
+              </div>
+            </div>
           </div>
+
+          {tg?.addToHomeScreen && tg?.checkHomeScreenStatus && hsStatus !== "unsupported" ? (
+            <div className="vx-installRow">
+              {hsStatus === "added" ? (
+                <div className="small">Установлено на телефон ✅</div>
+              ) : (
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => {
+                    try {
+                      tg.addToHomeScreen?.();
+                    } catch {
+                      tg.showAlert?.("Не получилось установить. Попробуй обновить Telegram.");
+                    }
+                  }}
+                >
+                  Установить на телефон
+                </button>
+              )}
+            </div>
+          ) : null}
         </div>
 
-        <div className="vx-pagesWrap" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-          <div className="vx-pagesTrack" style={trackStyle}>
-            {tabs.map((k) => (
-              <div
-                key={k}
-                className={"vx-pagePane" + (k === active ? " vx-pageActive" : "")}
-                style={{ flex: "0 0 100%", minWidth: "100%", width: "100%" }}
-              >
-                <div className="vx-card2">{pages[k]}</div>
-              </div>
-            ))}
+        <div className="vx-body">
+          <div className="vx-pagesWrap" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+            <div className="vx-pagesTrack" style={trackStyle}>
+              {tabs.map((k) => (
+                <div
+                  key={k}
+                  className={"vx-pagePane" + (k === tab ? " vx-pageActive" : "")}
+                  style={{ flex: "0 0 100%", minWidth: "100%", width: "100%" }}
+                >
+                  <div className="vx-card2">{pages[k]}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      <BottomBar active={active} onChange={setActive} items={bottomTabs} />
+      <BottomBar active={tab} onChange={setTab} items={bottomTabs} />
     </div>
   );
 }
