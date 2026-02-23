@@ -20,6 +20,8 @@ type Me = {
 
 type TabKey = "rates" | "calc" | "atm" | "guide" | "reviews";
 
+type AnimClass = "" | "vx-animInL" | "vx-animInR";
+
 const UI = {
   title: "Обмен валют — Дананг",
   fontImport:
@@ -91,7 +93,7 @@ function BottomBar({
   const visible = items.filter((i) => i.show);
   return (
     <div className="vx-bottomWrap">
-      <div className="vx-bottomBar" style={{ ["--cols" as any]: String(visible.length) }}>
+      <div className="vx-bottomBar">
         {visible.map((t) => {
           const isActive = active === t.key;
           return (
@@ -115,21 +117,21 @@ function BottomBar({
 export default function App() {
   const tg = getTg();
 
+  const tabOrder: TabKey[] = ["rates", "calc", "atm", "guide", "reviews"];
+
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
-  const [active, setActive] = useState<TabKey>("rates");
+  const [tab, setTab] = useState<TabKey>("rates");
+  const [anim, setAnim] = useState<AnimClass>("");
   const [hsStatus, setHsStatus] = useState<string | null>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
 
-  const tabs: TabKey[] = ["rates", "calc", "atm", "guide", "reviews"];
-  const activeIndex = Math.max(0, tabs.indexOf(active));
-
-  // Prevent double-swipes triggering multiple tab changes quickly
-  const swipeLockRef = useRef(false);
-  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+  // Keyboard detection: hide bottom bar while typing so it doesn't jump above the keyboard.
+  const vvBaseHeightRef = useRef<number>(
+    typeof window !== "undefined" ? window.visualViewport?.height ?? window.innerHeight : 0
+  );
 
   const isDemo = useMemo(() => new URLSearchParams(window.location.search).get("demo") === "1", []);
 
-  // ---------- AUTH ----------
   useEffect(() => {
     tg?.ready?.();
     tg?.expand?.();
@@ -161,7 +163,7 @@ export default function App() {
     })();
   }, [tg, isDemo]);
 
-  // ---------- Homescreen shortcut ----------
+  // Homescreen shortcut ("установить на телефон")
   useEffect(() => {
     if (!tg || isDemo) return;
     if (!tg.checkHomeScreenStatus) return;
@@ -184,14 +186,25 @@ export default function App() {
     };
   }, [tg, isDemo]);
 
-  // ---------- Keyboard detection (hide bar in CSS) ----------
-  const vvBaseHeightRef = useRef<number>(
-    typeof window !== "undefined" ? window.visualViewport?.height ?? window.innerHeight : 0
-  );
-
+  // VisualViewport keyboard detection
   useEffect(() => {
     const vv = window.visualViewport;
-    if (!vv) return;
+
+    // Fallback: if VisualViewport is missing, hide bar while any input is focused.
+    if (!vv) {
+      const onFocusIn = (e: any) => {
+        const t = e?.target as HTMLElement | null;
+        const tag = t?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") setKeyboardOpen(true);
+      };
+      const onFocusOut = () => setKeyboardOpen(false);
+      window.addEventListener("focusin", onFocusIn);
+      window.addEventListener("focusout", onFocusOut);
+      return () => {
+        window.removeEventListener("focusin", onFocusIn);
+        window.removeEventListener("focusout", onFocusOut);
+      };
+    }
 
     const isFieldFocused = () => {
       const el = document.activeElement as HTMLElement | null;
@@ -203,13 +216,16 @@ export default function App() {
 
     const update = () => {
       const focused = isFieldFocused();
+
       if (!focused) {
         vvBaseHeightRef.current = vv.height;
         setKeyboardOpen(false);
         return;
       }
+
       const base = vvBaseHeightRef.current || vv.height;
-      setKeyboardOpen(vv.height < base - 120);
+      const open = vv.height < base - 120;
+      setKeyboardOpen(open);
     };
 
     const onResize = () => update();
@@ -228,8 +244,7 @@ export default function App() {
     };
   }, []);
 
-  // ---------- Background loader ----------
-  // Put your background here: webapp/public/brand/danang-bg.(svg|jpg|png|webp)
+  // Background loader: webapp/public/brand/danang-bg.(svg|jpg|png|webp)
   const bgCandidates = useMemo(() => {
     const v = String(Date.now());
     const baseRaw = (import.meta as any)?.env?.BASE_URL || "/";
@@ -237,7 +252,10 @@ export default function App() {
     const rel = (p: string) => `${base}${p}?v=${v}`;
     const abs = (p: string) => `/${p}?v=${v}`;
     const exts = ["svg", "jpg", "png", "webp"];
-    return [...exts.map((ext) => rel(`brand/danang-bg.${ext}`)), ...exts.map((ext) => abs(`brand/danang-bg.${ext}`))];
+    return [
+      ...exts.map((ext) => rel(`brand/danang-bg.${ext}`)),
+      ...exts.map((ext) => abs(`brand/danang-bg.${ext}`)),
+    ];
   }, []);
 
   const [bgSrc, setBgSrc] = useState<string | null>(null);
@@ -264,7 +282,7 @@ export default function App() {
     };
   }, [bgCandidates]);
 
-  // ---------- Logo loader ----------
+  // Logo loader (robust for ANY hosting path)
   const logoCandidates = useMemo(() => {
     const v = String(Date.now());
     const rel = (p: string) => `${p}?v=${v}`;
@@ -289,46 +307,41 @@ export default function App() {
   const [logoOk, setLogoOk] = useState(false);
   const logoSrc = logoCandidates[Math.min(logoIdx, logoCandidates.length - 1)];
 
-  // ---------- Tabs (keep mounted => no flashing) ----------
-  const pages = useMemo(
-    () => ({
-      rates: <RatesTab />,
-      calc: <CalculatorTab me={me} />,
-      atm: <AtmTab />,
-      guide: <GuideTab />,
-      reviews: <ReviewsTab />,
-    }),
-    [me]
-  );
+  const bottomTabs: Array<{ key: TabKey; label: string; show: boolean; icon: React.ReactNode }> = [
+    { key: "rates", label: "Курс", show: true, icon: <IconSwap className="vx-i" /> },
+    { key: "calc", label: "Калькулятор", show: true, icon: <IconCalc className="vx-i" /> },
+    { key: "atm", label: "Банкоматы", show: true, icon: <IconAtm className="vx-i" /> },
+    { key: "guide", label: "Гид", show: true, icon: <IconGuide className="vx-i" /> },
+    { key: "reviews", label: "Отзывы", show: true, icon: <IconStar className="vx-i" /> },
+  ];
 
-  const bottomTabs = useMemo(
-    () => [
-      { key: "rates" as const, label: "Курс", show: true, icon: <IconSwap className="vx-i" /> },
-      { key: "calc" as const, label: "Калькулятор", show: true, icon: <IconCalc className="vx-i" /> },
-      { key: "atm" as const, label: "Банкоматы", show: true, icon: <IconAtm className="vx-i" /> },
-      { key: "guide" as const, label: "Гид", show: true, icon: <IconGuide className="vx-i" /> },
-      { key: "reviews" as const, label: "Отзывы", show: true, icon: <IconStar className="vx-i" /> },
-    ],
-    []
-  );
+  const changeTab = (next: TabKey) => {
+    if (next === tab) return;
 
-  const goToIndex = (idx: number) => {
-    const clamped = Math.max(0, Math.min(tabs.length - 1, idx));
-    setActive(tabs[clamped]);
+    const i = tabOrder.indexOf(tab);
+    const j = tabOrder.indexOf(next);
+    setAnim(j > i ? "vx-animInL" : "vx-animInR");
+    setTab(next);
   };
+
+  // Clear the animation class after it plays (so it can retrigger)
+  useEffect(() => {
+    if (!anim) return;
+    const t = window.setTimeout(() => setAnim(""), 260);
+    return () => window.clearTimeout(t);
+  }, [anim]);
+
+  // Swipe navigation between tabs
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (keyboardOpen) return;
-    if (swipeLockRef.current) return;
-
     const target = e.target as HTMLElement | null;
     const tag = target?.tagName;
     if (target?.closest?.(".vx-bottomWrap")) return;
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-
-    const t = e.touches?.[0];
-    if (!t) return;
-    swipeStartRef.current = { x: t.clientX, y: t.clientY };
+    if (!e.touches?.[0]) return;
+    swipeStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   };
 
   const onTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
@@ -336,7 +349,6 @@ export default function App() {
     swipeStartRef.current = null;
     if (!s) return;
     if (keyboardOpen) return;
-    if (swipeLockRef.current) return;
 
     const target = e.target as HTMLElement | null;
     if (target?.closest?.(".vx-bottomWrap")) return;
@@ -350,36 +362,41 @@ export default function App() {
     if (Math.abs(dx) < 70) return;
     if (Math.abs(dx) < Math.abs(dy) * 1.3) return;
 
-    swipeLockRef.current = true;
+    const i = tabOrder.indexOf(tab);
+    if (i < 0) return;
 
-    if (dx < 0) goToIndex(activeIndex + 1);
-    else goToIndex(activeIndex - 1);
-
-    window.setTimeout(() => {
-      swipeLockRef.current = false;
-    }, 280);
+    if (dx < 0 && i < tabOrder.length - 1) changeTab(tabOrder[i + 1]);
+    if (dx > 0 && i > 0) changeTab(tabOrder[i - 1]);
   };
 
-  const trackStyle: React.CSSProperties = useMemo(
+  // Keep tabs mounted (no remount => no flicker), but show only active
+  const pages = useMemo(
     () => ({
-      width: `${tabs.length * 100}%`,
-      transform: `translate3d(${-activeIndex * 100}%,0,0)`,
+      rates: <RatesTab />,
+      calc: <CalculatorTab me={me} />,
+      atm: <AtmTab />,
+      guide: <GuideTab />,
+      reviews: <ReviewsTab />,
     }),
-    [activeIndex]
+    [me]
   );
 
   return (
-    <div className={"vx-page" + (keyboardOpen ? " vx-kbOpen" : "")}> 
+    <div
+      className={"vx-page" + (keyboardOpen ? " vx-kbOpen" : "")}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       <style>{`@import url('${UI.fontImport}');`}</style>
 
-      {/* Background (under all UI) */}
+      {/* Background: injected via bgSrc */}
       <div
-        className="vx-bg"
+        className="bg-danang"
         aria-hidden="true"
-        style={{ ["--bg-url" as any]: bgSrc ? `url(\"${bgSrc}\")` : "none" } as React.CSSProperties}
+        style={{ backgroundImage: bgSrc ? `url(\"${bgSrc}\")` : undefined }}
       />
 
-      <div className="container" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <div className="container">
         <div className="card vx-topCard">
           <div className="vx-topRow">
             <div className="vx-logo" aria-label="Лого">
@@ -391,7 +408,7 @@ export default function App() {
                 onLoad={() => setLogoOk(true)}
                 onError={() => {
                   setLogoOk(false);
-                  setLogoIdx((i) => (i < logoCandidates.length - 1 ? i + 1 : i));
+                  setLogoIdx((x) => (x < logoCandidates.length - 1 ? x + 1 : x));
                 }}
               />
             </div>
@@ -429,19 +446,43 @@ export default function App() {
           ) : null}
         </div>
 
-        {/* Slider (tabs do NOT remount => no flashing) */}
-        <div className="vx-pagesWrap">
-          <div className="vx-pagesTrack" style={trackStyle}>
-            {tabs.map((k) => (
-              <div key={k} className={"vx-pagePane" + (k === active ? " vx-pageActive" : "")}> 
-                <div className="vx-card2">{pages[k]}</div>
-              </div>
-            ))}
+        <div className="vx-body">
+          <div className="vx-card2">
+            <div
+              className={"vx-tabPane " + (tab === "rates" ? "is-active " + anim : "")}
+              style={{ display: tab === "rates" ? "block" : "none" }}
+            >
+              {pages.rates}
+            </div>
+            <div
+              className={"vx-tabPane " + (tab === "calc" ? "is-active " + anim : "")}
+              style={{ display: tab === "calc" ? "block" : "none" }}
+            >
+              {pages.calc}
+            </div>
+            <div
+              className={"vx-tabPane " + (tab === "atm" ? "is-active " + anim : "")}
+              style={{ display: tab === "atm" ? "block" : "none" }}
+            >
+              {pages.atm}
+            </div>
+            <div
+              className={"vx-tabPane " + (tab === "guide" ? "is-active " + anim : "")}
+              style={{ display: tab === "guide" ? "block" : "none" }}
+            >
+              {pages.guide}
+            </div>
+            <div
+              className={"vx-tabPane " + (tab === "reviews" ? "is-active " + anim : "")}
+              style={{ display: tab === "reviews" ? "block" : "none" }}
+            >
+              {pages.reviews}
+            </div>
           </div>
         </div>
       </div>
 
-      <BottomBar active={active} onChange={setActive} items={bottomTabs} />
+      <BottomBar active={tab} onChange={changeTab} items={bottomTabs} />
     </div>
   );
 }

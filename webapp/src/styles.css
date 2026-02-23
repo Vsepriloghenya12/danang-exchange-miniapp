@@ -989,65 +989,7 @@ label, input, select, textarea{ color: var(--text); }
 .vx-title18{ font-size: 18px; font-weight: 950; letter-spacing: -0.015em; }
 
 /* =========================
-   HARD FIX: Tabs slider layout + background
-   (prevents “all tabs on first page”)
+   Tabs visibility (keep mounted, show only active)
    ========================= */
-
-/* Prefer vx-bg (App.tsx sets --bg-url inline). Old .bg-danang may stay unused. */
-.vx-bg{
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(1200px 700px at 18% -10%, rgba(46,233,209,0.22), transparent 60%),
-    radial-gradient(900px 600px at 92% 8%, rgba(122,247,232,0.14), transparent 55%),
-    radial-gradient(900px 600px at 50% 115%, rgba(255,77,109,0.11), transparent 58%),
-    linear-gradient(180deg, rgba(10,14,28,0.10), rgba(10,14,28,0.30)),
-    var(--bg-url);
-  background-repeat: no-repeat;
-  background-size: 150% 190%;
-  background-position: center center;
-}
-
-/* UI always above */
-.vx-page{ position: relative; }
-.container{ position: relative; z-index: 2; }
-
-/* Slider: always horizontal, never wraps */
-.vx-pagesWrap{
-  position: relative;
-  width: 100%;
-  overflow: hidden !important;
-  border-radius: 22px;
-}
-
-.vx-pagesTrack{
-  display: flex !important;
-  flex-wrap: nowrap !important;
-  align-items: stretch;
-  will-change: transform;
-  transition: transform 260ms cubic-bezier(.2,.8,.2,1);
-  backface-visibility: hidden;
-  transform: translate3d(0,0,0);
-}
-
-.vx-pagePane{
-  flex: 0 0 100% !important;
-  min-width: 100% !important;
-  width: 100% !important;
-  overflow: hidden;
-}
-
-.vx-pagePane:not(.vx-pageActive){
-  pointer-events: none;
-}
-
-.vx-card2{
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-/* Hide bottom bar while keyboard is open */
-.vx-kbOpen .vx-bottomWrap{ display: none; }
+.vx-tabPane{ width: 100%; max-width: 100%; }
+.vx-tabPane:not(.is-active){ display: none; }
