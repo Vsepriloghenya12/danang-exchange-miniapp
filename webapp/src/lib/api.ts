@@ -13,6 +13,17 @@ export async function apiGetTodayRates(): Promise<TodayRatesResponse> {
   const r = await fetch("/api/rates/today");
   return r.json();
 }
+// Совместимость со старой вкладкой "Курс", где используется market rates.
+// Если на сервере нет /api/rates/market — не падаем.
+export async function apiGetMarketRates(): Promise<any> {
+  try {
+    const r = await fetch("/api/rates/market");
+    if (!r.ok) return { ok: false, error: `http_${r.status}` };
+    return await r.json();
+  } catch {
+    return { ok: false, error: "network" };
+  }
+}
 
 export async function apiAdminSetTodayRates(initData: string, rates: any) {
   const r = await fetch("/api/admin/rates/today", {
