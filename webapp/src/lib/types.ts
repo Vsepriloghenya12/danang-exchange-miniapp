@@ -29,3 +29,13 @@ export type AuthResponse =
       isOwner: boolean;
     }
   | { ok: false; error: string };
+
+export type Atm = {
+  id: string;
+  title: string;
+  area?: string;
+  note?: string;
+  mapUrl?: string;
+};
+
+export type AtmsResponse = { ok: boolean; atms: Atm[] };

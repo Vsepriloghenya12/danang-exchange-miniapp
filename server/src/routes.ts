@@ -4,6 +4,7 @@ import {
   writeStore,
   upsertUserFromTelegram,
   type UserStatus,
+  type StoredAtm,
   normalizeStatus,
   parseStatusInput
 } from "./store.js";
@@ -11,6 +12,10 @@ import { validateTelegramInitData } from "./telegramValidate.js";
 
 type ReceiveMethod = "cash" | "transfer" | "atm";
 type Currency = "RUB" | "USD" | "USDT" | "VND"; // заявки пока только эти 4
+
+function makeId(prefix = "atm") {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
 
 const statusLabel: Record<UserStatus, string> = {
   standard: "стандарт",
@@ -163,6 +168,66 @@ export function createApiRouter(opts: {
 
       writeStore(store);
       res.json({ ok: true, date: today, data: store.ratesByDate[today] });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // --------------------
+  // ATMs (public list + owner editor)
+  // --------------------
+  router.get("/atms", (_req, res) => {
+    const store = readStore();
+    res.json({ ok: true, atms: store.atms || [] });
+  });
+
+  // Сохраняем ВСЮ таблицу банкоматов целиком (проще и надёжнее для админки)
+  router.post("/admin/atms", (req, res) => {
+    try {
+      const { isOwner, user } = requireAuth(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const raw = req.body?.atms ?? req.body;
+      if (!Array.isArray(raw)) {
+        return res.status(400).json({ ok: false, error: "bad_payload", hint: "body: { atms: [...] }" });
+      }
+
+      const cleaned: StoredAtm[] = [];
+      for (const it of raw) {
+        const title = String(it?.title ?? "").trim();
+        const area = String(it?.area ?? "").trim();
+        const note = String(it?.note ?? "").trim();
+        const mapUrl = String(it?.mapUrl ?? it?.map_url ?? "").trim();
+
+        // пропускаем полностью пустые строки
+        if (!title && !area && !note && !mapUrl) continue;
+
+        if (!title) {
+          return res.status(400).json({ ok: false, error: "atm_title_required" });
+        }
+        if (!mapUrl) {
+          return res.status(400).json({ ok: false, error: "atm_map_required" });
+        }
+
+        const id = String(it?.id ?? "").trim() || makeId();
+
+        cleaned.push({
+          id,
+          title,
+          area: area || undefined,
+          note: note || undefined,
+          mapUrl,
+          updated_at: new Date().toISOString()
+        });
+      }
+
+      const store = readStore();
+      store.atms = cleaned;
+      // чтобы было понятно кто менял (опционально)
+      (store as any).atms_updated_by = user.id;
+      writeStore(store);
+
+      res.json({ ok: true, atms: cleaned });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }

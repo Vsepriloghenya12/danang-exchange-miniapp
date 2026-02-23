@@ -1,4 +1,4 @@
-import type { AuthResponse, TodayRatesResponse } from "./types";
+import type { AtmsResponse, AuthResponse, TodayRatesResponse } from "./types";
 
 export async function apiAuth(initData: string): Promise<AuthResponse> {
   const r = await fetch("/api/auth", {
@@ -49,6 +49,23 @@ export async function apiAddReview(initData: string, rating: number, text: strin
     method: "POST",
     headers: { "content-type": "application/json", "x-telegram-init-data": initData },
     body: JSON.stringify({ rating, text })
+  });
+  return r.json();
+}
+
+// --------------------
+// ATMs
+// --------------------
+export async function apiGetAtms(): Promise<AtmsResponse> {
+  const r = await fetch("/api/atms");
+  return r.json();
+}
+
+export async function apiAdminSetAtms(initData: string, atms: any) {
+  const r = await fetch("/api/admin/atms", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-telegram-init-data": initData },
+    body: JSON.stringify({ atms })
   });
   return r.json();
 }

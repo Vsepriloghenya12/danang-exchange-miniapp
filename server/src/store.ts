@@ -20,11 +20,21 @@ export type StoredUser = {
   last_seen_at: string;
 };
 
+export type StoredAtm = {
+  id: string;
+  title: string;
+  area?: string;
+  note?: string;
+  mapUrl?: string;
+  updated_at?: string;
+};
+
 export type Store = {
   config: {
     groupChatId?: number;
   };
   users: Record<string, StoredUser>;
+  atms: StoredAtm[];
   ratesByDate: Record<
     string,
     {
@@ -48,6 +58,7 @@ function defaultStore(): Store {
   return {
     config: {},
     users: {},
+    atms: [],
     ratesByDate: {},
     requests: [],
     reviews: []
@@ -124,6 +135,7 @@ export function readStore(): Store {
     ...parsed,
     config: { ...(parsed?.config || {}) },
     users: { ...(parsed?.users || {}) },
+    atms: Array.isArray(parsed?.atms) ? parsed.atms : [],
     ratesByDate: { ...(parsed?.ratesByDate || {}) },
     requests: Array.isArray(parsed?.requests) ? parsed.requests : [],
     reviews: Array.isArray(parsed?.reviews) ? parsed.reviews : []

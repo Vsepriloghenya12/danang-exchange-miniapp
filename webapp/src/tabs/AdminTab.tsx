@@ -1,10 +1,20 @@
 import React, { useEffect, useState } from "react";
 import {
   apiAdminSetTodayRates,
+  apiAdminSetAtms,
   apiAdminSetUserStatus,
   apiAdminUsers,
+  apiGetAtms,
   apiGetTodayRates
 } from "../lib/api";
+
+type AtmEdit = {
+  id: string;
+  title: string;
+  area: string;
+  note: string;
+  mapUrl: string;
+};
 
 const STATUS_OPTIONS = [
   { value: "standard", label: "Стандарт" },
@@ -53,6 +63,63 @@ const RateRow = React.memo(function RateRow(props: RateRowProps) {
   );
 });
 
+type AtmRowProps = {
+  index: number;
+  atm: AtmEdit;
+  onPatch: (id: string, patch: Partial<AtmEdit>) => void;
+  onRemove: (id: string) => void;
+  onMove: (id: string, dir: -1 | 1) => void;
+};
+
+const AtmRow = React.memo(function AtmRow(props: AtmRowProps) {
+  const a = props.atm;
+  return (
+    <div className="vx-atmRow">
+      <div className="vx-atmTop">
+        <div className="vx-atmNum">{props.index + 1}.</div>
+        <div className="vx-atmBtns">
+          <button type="button" className="vx-ghostBtn" onClick={() => props.onMove(a.id, -1)} title="Вверх">
+            ↑
+          </button>
+          <button type="button" className="vx-ghostBtn" onClick={() => props.onMove(a.id, 1)} title="Вниз">
+            ↓
+          </button>
+          <button type="button" className="vx-dangerBtn" onClick={() => props.onRemove(a.id)} title="Удалить">
+            Удалить
+          </button>
+        </div>
+      </div>
+
+      <div className="vx-atmGrid">
+        <input
+          className="input"
+          value={a.title}
+          onChange={(e) => props.onPatch(a.id, { title: e.target.value })}
+          placeholder="Название банкомата (например Vietcombank ATM)"
+        />
+        <input
+          className="input"
+          value={a.area}
+          onChange={(e) => props.onPatch(a.id, { area: e.target.value })}
+          placeholder="Район / адрес"
+        />
+        <input
+          className="input"
+          value={a.note}
+          onChange={(e) => props.onPatch(a.id, { note: e.target.value })}
+          placeholder="Комментарий (комиссия, лимиты и т.п.)"
+        />
+        <input
+          className="input"
+          value={a.mapUrl}
+          onChange={(e) => props.onPatch(a.id, { mapUrl: e.target.value })}
+          placeholder="Ссылка на Google/Apple Maps"
+        />
+      </div>
+    </div>
+  );
+});
+
 function statusLabelAny(s: any) {
   const v = String(s ?? "").toLowerCase().trim();
   if (v === "gold") return "Золото";
@@ -90,6 +157,8 @@ export default function AdminTab({ me }: any) {
 
   const [users, setUsers] = useState<any[]>([]);
 
+  const [atms, setAtms] = useState<AtmEdit[]>([]);
+
   const clearRates = () => {
     setRubBuy(""); setRubSell("");
     setUsdtBuy(""); setUsdtSell("");
@@ -101,6 +170,25 @@ export default function AdminTab({ me }: any) {
   const loadUsers = async () => {
     const r = await apiAdminUsers(me.initData);
     if (r.ok) setUsers(r.users);
+  };
+
+  const makeClientId = () => {
+    const c: any = globalThis as any;
+    if (c?.crypto?.randomUUID) return c.crypto.randomUUID();
+    return `atm_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  };
+
+  const toEdit = (x: any): AtmEdit => ({
+    id: String(x?.id ?? "").trim() || makeClientId(),
+    title: String(x?.title ?? ""),
+    area: String(x?.area ?? ""),
+    note: String(x?.note ?? ""),
+    mapUrl: String(x?.mapUrl ?? x?.map_url ?? "")
+  });
+
+  const loadAtms = async () => {
+    const r = await apiGetAtms();
+    if (r?.ok) setAtms(Array.isArray((r as any).atms) ? (r as any).atms.map(toEdit) : []);
   };
 
   const loadRates = async () => {
@@ -117,6 +205,7 @@ export default function AdminTab({ me }: any) {
 
   useEffect(() => {
     loadUsers();
+    loadAtms();
     // ВАЖНО: не подставляем сохранённые курсы автоматически — всё начинается пустым.
     clearRates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,6 +249,69 @@ export default function AdminTab({ me }: any) {
     const r = await apiAdminSetUserStatus(me.initData, tgId, status);
     if (r.ok) loadUsers();
     else alert(r.error || "Ошибка");
+  };
+
+  const patchAtm = (id: string, patch: Partial<AtmEdit>) => {
+    setAtms((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  };
+
+  const addAtm = () => {
+    setAtms((prev) => [...prev, { id: makeClientId(), title: "", area: "", note: "", mapUrl: "" }]);
+  };
+
+  const removeAtm = (id: string) => {
+    setAtms((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const moveAtm = (id: string, dir: -1 | 1) => {
+    setAtms((prev) => {
+      const i = prev.findIndex((x) => x.id === id);
+      if (i < 0) return prev;
+      const j = i + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = prev.slice();
+      const tmp = next[i];
+      next[i] = next[j];
+      next[j] = tmp;
+      return next;
+    });
+  };
+
+  const saveAtms = async () => {
+    try {
+      const cleaned = atms
+        .map((a) => ({
+          id: a.id,
+          title: a.title.trim(),
+          area: a.area.trim(),
+          note: a.note.trim(),
+          mapUrl: a.mapUrl.trim()
+        }))
+        .filter((a) => a.title || a.area || a.note || a.mapUrl);
+
+      for (const a of cleaned) {
+        if (!a.title) throw new Error("Заполни название банкомата");
+        if (!a.mapUrl) throw new Error(`Банкомат “${a.title}”: добавь ссылку на карту`);
+      }
+
+      const payload = cleaned.map((a) => ({
+        id: a.id,
+        title: a.title,
+        area: a.area || undefined,
+        note: a.note || undefined,
+        mapUrl: a.mapUrl
+      }));
+
+      const r = await apiAdminSetAtms(me.initData, payload);
+      if (r.ok) {
+        alert("Банкоматы сохранены ✅");
+        loadAtms();
+      } else {
+        alert(r.error || "Ошибка");
+      }
+    } catch (e: any) {
+      alert(e?.message || "Проверь данные");
+    }
   };
 
   return (
@@ -217,6 +369,41 @@ export default function AdminTab({ me }: any) {
             </div>
           ))
         )}
+      </div>
+
+      <div className="card">
+        <div className="small">Банкоматы (список для вкладки “Банкоматы”)</div>
+        <div className="hr" />
+
+        {atms.length === 0 ? <div className="small">Список пуст. Нажми “Добавить банкомат”.</div> : null}
+
+        {atms.map((a, idx) => (
+          <AtmRow
+            key={a.id}
+            index={idx}
+            atm={a}
+            onPatch={patchAtm}
+            onRemove={removeAtm}
+            onMove={moveAtm}
+          />
+        ))}
+
+        <div className="vx-mt10">
+          <div className="row vx-rowWrap" style={{ gap: 8 }}>
+            <button type="button" className="btn" onClick={addAtm}>
+              Добавить банкомат
+            </button>
+            <button type="button" className="btn" onClick={saveAtms}>
+              Сохранить список
+            </button>
+            <button type="button" className="btn" onClick={loadAtms}>
+              Загрузить текущий
+            </button>
+          </div>
+          <div className="vx-help vx-mt8">
+            Подсказка: вставляй ссылку прямо из Google/Apple Maps ("Поделиться" → "Копировать ссылку").
+          </div>
+        </div>
       </div>
     </div>
   );
