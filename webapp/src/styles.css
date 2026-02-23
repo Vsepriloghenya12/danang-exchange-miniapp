@@ -921,6 +921,9 @@ label, input, select, textarea{ color: var(--text); }
   color:#0f172a;
   border:1px solid rgba(255,179,87,.35);
 }
+.vx-pagesWrap{ overflow: hidden; width: 100%; }
+.vx-pagesTrack{ display:flex; flex-wrap:nowrap; }
+.vx-pagePane{ flex:0 0 100%; min-width:100%; width:100%; }
 
 /* ещё компактнее блоки курса в управлении */
 .vx-admin .vx-rateRow{ padding: 6px 0; align-items:center; }
