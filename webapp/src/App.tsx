@@ -20,10 +20,25 @@ type Me = {
 
 type TabKey = "rates" | "calc" | "atm" | "guide" | "reviews";
 
+type SlideState =
+  | null
+  | {
+      from: TabKey;
+      to: TabKey;
+      dir: "left" | "right";
+      pages: [TabKey, TabKey];
+      startX: number;
+      endX: number;
+      x: number;
+      running: boolean;
+    };
+
 const UI = {
   title: "Обмен валют — Дананг",
   fontImport:
     "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap",
+  accent: "#22c55e",
+  accent2: "#06b6d4",
 };
 
 function IconSwap({ className = "" }: { className?: string }) {
@@ -91,7 +106,7 @@ function BottomBar({
   const visible = items.filter((i) => i.show);
   return (
     <div className="vx-bottomWrap">
-      <div className="vx-bottomBar" style={{ ["--cols" as any]: String(visible.length) }}>
+      <div className="vx-bottomBar">
         {visible.map((t) => {
           const isActive = active === t.key;
           return (
@@ -114,25 +129,21 @@ function BottomBar({
 
 export default function App() {
   const tg = getTg();
+
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
-
-  const tabs: TabKey[] = ["rates", "calc", "atm", "guide", "reviews"];
-  const [active, setActive] = useState<TabKey>("rates");
-  const activeIndex = tabs.indexOf(active);
-
-  // чтобы не “поднимался” бар при клавиатуре
+  const [tab, setTab] = useState<TabKey>("rates");
+  const [hsStatus, setHsStatus] = useState<string | null>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  // ✅ slide объявлен ДО changeTab
+  const [slide, setSlide] = useState<SlideState>(null);
+
   const vvBaseHeightRef = useRef<number>(
     typeof window !== "undefined" ? window.visualViewport?.height ?? window.innerHeight : 0
   );
 
-  // slider drag state
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const [drag, setDrag] = useState<{ down: boolean; dx: number; w: number }>({ down: false, dx: 0, w: 1 });
-
   const isDemo = useMemo(() => new URLSearchParams(window.location.search).get("demo") === "1", []);
 
-  // auth
   useEffect(() => {
     tg?.ready();
     tg?.expand();
@@ -164,10 +175,92 @@ export default function App() {
     })();
   }, [tg, isDemo]);
 
-  // keyboard detection (hide bottom bar while typing)
+  // Homescreen shortcut
+  useEffect(() => {
+    if (!tg || isDemo) return;
+    if (!tg.checkHomeScreenStatus) return;
+
+    const onChecked = (e: any) => {
+      if (e?.status) setHsStatus(String(e.status));
+    };
+    const onAdded = () => setHsStatus("added");
+
+    tg.onEvent?.("homeScreenChecked", onChecked);
+    tg.onEvent?.("homeScreenAdded", onAdded);
+
+    try {
+      tg.checkHomeScreenStatus?.((status) => setHsStatus(String(status)));
+    } catch {}
+
+    return () => {
+      tg.offEvent?.("homeScreenChecked", onChecked);
+      tg.offEvent?.("homeScreenAdded", onAdded);
+    };
+  }, [tg, isDemo]);
+
+  const bottomTabs: Array<{ key: TabKey; label: string; show: boolean; icon: React.ReactNode }> = [
+    { key: "rates", label: "Курс", show: true, icon: <IconSwap className="vx-i" /> },
+    { key: "calc", label: "Калькулятор", show: true, icon: <IconCalc className="vx-i" /> },
+    { key: "atm", label: "Банкоматы", show: true, icon: <IconAtm className="vx-i" /> },
+    { key: "guide", label: "Гид", show: true, icon: <IconGuide className="vx-i" /> },
+    { key: "reviews", label: "Отзывы", show: true, icon: <IconStar className="vx-i" /> },
+  ];
+
+  const visibleTabKeys = useMemo(() => bottomTabs.filter((t) => t.show).map((t) => t.key), []);
+
+  const changeTab = (next: TabKey) => {
+    if (next === tab) return;
+    if (slide) return; // prevent double-trigger while animating
+
+    const i = visibleTabKeys.indexOf(tab);
+    const j = visibleTabKeys.indexOf(next);
+    if (i < 0 || j < 0) return;
+
+    const dir: "left" | "right" = j > i ? "left" : "right";
+    const pages: [TabKey, TabKey] = dir === "left" ? [tab, next] : [next, tab];
+    const startX = dir === "left" ? 0 : -50;
+    const endX = dir === "left" ? -50 : 0;
+
+    setSlide({
+      from: tab,
+      to: next,
+      dir,
+      pages,
+      startX,
+      endX,
+      x: startX,
+      running: false,
+    });
+
+    setTab(next);
+  };
+
+  useEffect(() => {
+    if (!slide || slide.running) return;
+    const raf = window.requestAnimationFrame(() => {
+      setSlide((s) => (s ? { ...s, running: true, x: s.endX } : s));
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [slide]);
+
+  // Keyboard detection (hide bottom bar while typing)
   useEffect(() => {
     const vv = window.visualViewport;
-    if (!vv) return;
+
+    if (!vv) {
+      const onFocusIn = (e: any) => {
+        const t = e?.target as HTMLElement | null;
+        const tag = t?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") setKeyboardOpen(true);
+      };
+      const onFocusOut = () => setKeyboardOpen(false);
+      window.addEventListener("focusin", onFocusIn);
+      window.addEventListener("focusout", onFocusOut);
+      return () => {
+        window.removeEventListener("focusin", onFocusIn);
+        window.removeEventListener("focusout", onFocusOut);
+      };
+    }
 
     const isFieldFocused = () => {
       const el = document.activeElement as HTMLElement | null;
@@ -185,156 +278,243 @@ export default function App() {
         return;
       }
       const base = vvBaseHeightRef.current || vv.height;
-      setKeyboardOpen(vv.height < base - 120);
+      const open = vv.height < base - 120;
+      setKeyboardOpen(open);
     };
 
-    vv.addEventListener("resize", update);
-    window.addEventListener("focusin", update);
-    window.addEventListener("focusout", () => setTimeout(update, 60));
+    const onResize = () => update();
+    const onFocusIn = () => update();
+    const onFocusOut = () => window.setTimeout(update, 60);
+
+    vv.addEventListener("resize", onResize);
+    window.addEventListener("focusin", onFocusIn);
+    window.addEventListener("focusout", onFocusOut);
     update();
 
     return () => {
-      vv.removeEventListener("resize", update);
-      window.removeEventListener("focusin", update);
-      window.removeEventListener("focusout", () => setTimeout(update, 60));
+      vv.removeEventListener("resize", onResize);
+      window.removeEventListener("focusin", onFocusIn);
+      window.removeEventListener("focusout", onFocusOut);
     };
   }, []);
 
-  const bottomTabs = useMemo(
-    () => [
-      { key: "rates" as const, label: "Курс", show: true, icon: <IconSwap className="vx-i" /> },
-      { key: "calc" as const, label: "Калькулятор", show: true, icon: <IconCalc className="vx-i" /> },
-      { key: "atm" as const, label: "Банкоматы", show: true, icon: <IconAtm className="vx-i" /> },
-      { key: "guide" as const, label: "Гид", show: true, icon: <IconGuide className="vx-i" /> },
-      { key: "reviews" as const, label: "Отзывы", show: true, icon: <IconStar className="vx-i" /> },
-    ],
-    []
-  );
-
-  // keep tabs mounted (no remount => no “flash”)
-  const pages = useMemo(
-    () => ({
-      rates: <RatesTab />,
-      calc: <CalculatorTab me={me} />,
-      atm: <AtmTab />,
-      guide: <GuideTab />,
-      reviews: <ReviewsTab />,
-    }),
-    [me]
-  );
-
-  const setTabSafe = (k: TabKey) => setActive(k);
-
-  const beginDrag = (clientX: number) => {
-    if (keyboardOpen) return;
-    if (!wrapRef.current) return;
-    const w = Math.max(1, wrapRef.current.getBoundingClientRect().width);
-    setDrag({ down: true, dx: 0, w });
-    (wrapRef.current as any).dataset.dragging = "1";
-    (wrapRef.current as any).style.userSelect = "none";
-  };
-
-  const moveDrag = (clientX: number, startX: number) => {
-    setDrag((d) => {
-      if (!d.down) return d;
-      return { ...d, dx: clientX - startX };
-    });
-  };
-
-  const endDrag = () => {
-    if (!drag.down) return;
-    const threshold = drag.w * 0.22;
-    let nextIndex = activeIndex;
-
-    if (drag.dx < -threshold) nextIndex = Math.min(tabs.length - 1, activeIndex + 1);
-    if (drag.dx > threshold) nextIndex = Math.max(0, activeIndex - 1);
-
-    setDrag({ down: false, dx: 0, w: drag.w });
-    if (wrapRef.current) (wrapRef.current as any).dataset.dragging = "0";
-    if (nextIndex !== activeIndex) setActive(tabs[nextIndex]);
-  };
-
-  // touch swipe
-  const startRef = useRef<{ x: number; y: number } | null>(null);
-  const dragStartXRef = useRef<number>(0);
+  // Swipe navigation
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (keyboardOpen) return;
     const target = e.target as HTMLElement | null;
     const tag = target?.tagName;
     if (target?.closest?.(".vx-bottomWrap")) return;
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-    const t = e.touches?.[0];
+    if (!e.touches?.[0]) return;
+    swipeStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+
+  const onTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const s = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!s) return;
+    if (keyboardOpen) return;
+
+    const target = e.target as HTMLElement | null;
+    if (target?.closest?.(".vx-bottomWrap")) return;
+
+    const t = e.changedTouches?.[0];
     if (!t) return;
-    startRef.current = { x: t.clientX, y: t.clientY };
-    dragStartXRef.current = t.clientX;
-    beginDrag(t.clientX);
+
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+
+    if (Math.abs(dx) < 70) return;
+    if (Math.abs(dx) < Math.abs(dy) * 1.3) return;
+
+    const i = visibleTabKeys.indexOf(tab);
+    if (i < 0) return;
+
+    if (dx < 0 && i < visibleTabKeys.length - 1) changeTab(visibleTabKeys[i + 1]);
+    if (dx > 0 && i > 0) changeTab(visibleTabKeys[i - 1]);
   };
 
-  const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!startRef.current) return;
-    const t = e.touches?.[0];
-    if (!t) return;
+  // ✅ Background loader: ищет brand/danang-bg.(svg|jpg|png|webp)
+  const bgCandidates = useMemo(() => {
+    const v = String(Date.now());
+    const baseRaw = (import.meta as any)?.env?.BASE_URL || "/";
+    const base = String(baseRaw).endsWith("/") ? String(baseRaw) : String(baseRaw) + "/";
+    const rel = (p: string) => `${base}${p}?v=${v}`;
+    const abs = (p: string) => `/${p}?v=${v}`;
+    const exts = ["svg", "jpg", "png", "webp"];
+    const relList = exts.map((ext) => rel(`brand/danang-bg.${ext}`));
+    const absList = exts.map((ext) => abs(`brand/danang-bg.${ext}`));
+    return [...relList, ...absList];
+  }, []);
 
-    const dx = t.clientX - startRef.current.x;
-    const dy = t.clientY - startRef.current.y;
+  const [bgSrc, setBgSrc] = useState<string | null>(null);
 
-    // если это вертикальный скролл — не трогаем
-    if (Math.abs(dy) > Math.abs(dx) * 1.15) return;
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      for (const src of bgCandidates) {
+        const ok = await new Promise<boolean>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+          img.src = src;
+        });
+        if (cancelled) return;
+        if (ok) {
+          setBgSrc(src);
+          return;
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bgCandidates]);
 
-    // горизонтальный — двигаем трек
-    e.preventDefault();
-    moveDrag(t.clientX, dragStartXRef.current);
+  // ✅ Реальный фон (его раньше не было в JSX)
+  const bgStyle = useMemo<React.CSSProperties>(
+    () => ({
+      position: "fixed",
+      left: "50%",
+      transform: "translateX(-50%)",
+      width: "calc(min(480px, 100vw) + 32px)",
+      top: "-16px",
+      height: "calc(100dvh + 32px)",
+      pointerEvents: "none",
+      zIndex: 0,
+      backgroundColor: "#5ac4e9",
+      backgroundImage: bgSrc ? `url("${bgSrc}")` : undefined,
+      backgroundSize: "150% 190%",
+      backgroundRepeat: "no-repeat",
+      backgroundPosition: "center center",
+    }),
+    [bgSrc]
+  );
+
+  const logoCandidates = useMemo(() => {
+    const v = String(Date.now());
+    const rel = (p: string) => `${p}?v=${v}`;
+    const abs = (p: string) => `/${p}?v=${v}`;
+    const bundled = new URL("./brand/logo.png", import.meta.url).toString();
+    return [
+      rel("brand/logo.svg"),
+      rel("brand/logo.png"),
+      rel("brand/logo.jpg"),
+      rel("brand/logo.jpeg"),
+      rel("brand/logo.webp"),
+      abs("brand/logo.svg"),
+      abs("brand/logo.png"),
+      abs("brand/logo.jpg"),
+      abs("brand/logo.jpeg"),
+      abs("brand/logo.webp"),
+      bundled,
+    ];
+  }, []);
+
+  const [logoIdx, setLogoIdx] = useState(0);
+  const [logoOk, setLogoOk] = useState(false);
+  const logoSrc = logoCandidates[Math.min(logoIdx, logoCandidates.length - 1)];
+
+  const renderTab = (k: TabKey) => {
+    if (k === "rates") return <RatesTab />;
+    if (k === "calc") return <CalculatorTab me={me} />;
+    if (k === "atm") return <AtmTab />;
+    if (k === "guide") return <GuideTab />;
+    if (k === "reviews") return <ReviewsTab />;
+    return null;
   };
 
-  const onTouchEnd = () => {
-    startRef.current = null;
-    endDrag();
+  const onTrackEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
+    if (!slide || !slide.running) return;
+    if (e.propertyName !== "transform") return;
+    setSlide(null);
   };
-
-  // transform: base + drag
-  const dragPercent = drag.down ? (drag.dx / drag.w) * 100 : 0;
-  const trackX = -activeIndex * 100 + dragPercent;
 
   return (
-    <div className={"vx-page" + (keyboardOpen ? " vx-kbOpen" : "")}>
-      <style>{`@import url('${UI.fontImport}');`}</style>
+    <div
+      className={"vx-page" + (keyboardOpen ? " vx-kbOpen" : "")}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* ✅ Фон */}
+      <div aria-hidden="true" style={bgStyle} />
 
-      <div className="container">
+      {/* ✅ UI всегда выше фона */}
+      <div className="container" style={{ position: "relative", zIndex: 1 }}>
         <div className="card vx-topCard">
-          <div className="vx-title">{UI.title}</div>
-          <div className="vx-topSub">
-            {me.ok && me.user
-              ? `Вы: ${me.user.first_name ?? ""} ${me.user.username ? "(@" + me.user.username + ")" : ""} • статус: ${me.status}`
-              : me.error ?? "Авторизация..."}
+          <div className="vx-topRow">
+            <div className="vx-logo" aria-label="Лого">
+              {!logoOk ? <span className="vx-logoFallback">DX</span> : null}
+              <img
+                className="vx-logoImg"
+                src={logoSrc}
+                alt=""
+                onLoad={() => setLogoOk(true)}
+                onError={() => {
+                  setLogoOk(false);
+                  setLogoIdx((i) => (i < logoCandidates.length - 1 ? i + 1 : i));
+                }}
+              />
+            </div>
+
+            <div className="vx-topText">
+              <div className="vx-title">{UI.title}</div>
+              <div className="vx-topSub">
+                {me.ok && me.user
+                  ? `Вы: ${me.user.first_name ?? ""} ${me.user.username ? "(@" + me.user.username + ")" : ""} • статус: ${me.status}`
+                  : me.error ?? "Авторизация..."}
+              </div>
+            </div>
           </div>
+
+          {tg?.addToHomeScreen && tg?.checkHomeScreenStatus && hsStatus !== "unsupported" ? (
+            <div className="vx-installRow">
+              {hsStatus === "added" ? (
+                <div className="small">Установлено на телефон ✅</div>
+              ) : (
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => {
+                    try {
+                      tg.addToHomeScreen?.();
+                    } catch {
+                      tg.showAlert?.("Не получилось установить. Попробуй обновить Telegram.");
+                    }
+                  }}
+                >
+                  Установить на телефон
+                </button>
+              )}
+            </div>
+          ) : null}
         </div>
 
-        <div
-          className="vx-pagesWrap"
-          ref={wrapRef}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-        >
-          <div
-            className="vx-pagesTrack"
-            style={{
-              transform: `translate3d(${trackX}%,0,0)`,
-            }}
-          >
-            {tabs.map((k) => (
+        <div className="vx-body">
+          <div className="vx-swipeWrap">
+            {slide ? (
               <div
-                key={k}
-                className={"vx-pagePane" + (k === active ? " vx-pageActive" : "")}
+                className={"vx-slideTrack" + (!slide.running ? " vx-slideNoTrans" : "")}
+                style={{ transform: `translate3d(${slide.x}%,0,0)` }}
+                onTransitionEnd={onTrackEnd}
               >
-                <div className="vx-card2">{pages[k]}</div>
+                <div className="vx-slidePage">
+                  <div className="vx-card2">{renderTab(slide.pages[0])}</div>
+                </div>
+                <div className="vx-slidePage">
+                  <div className="vx-card2">{renderTab(slide.pages[1])}</div>
+                </div>
               </div>
-            ))}
+            ) : (
+              <div className="vx-card2">{renderTab(tab)}</div>
+            )}
           </div>
         </div>
       </div>
 
-      <BottomBar active={active} onChange={setTabSafe} items={bottomTabs} />
+      <BottomBar active={tab} onChange={changeTab} items={bottomTabs} />
     </div>
   );
 }
