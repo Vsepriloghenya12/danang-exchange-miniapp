@@ -2,35 +2,11 @@
 
 :root{
   color-scheme: light;
-
-  /* Poputchiki-like palette (glass) */
-  --sky: #5ac4e9;
-  --text: rgba(9, 23, 33, 0.92);
-  --muted: rgba(9, 23, 33, 0.68);
-  --muted2: rgba(9, 23, 33, 0.52);
-  --ph: rgba(9, 23, 33, 0.42);
-
-  /* More transparent blocks (as requested) */
-  --panel: rgba(255,255,255,.66);
-  --panel2: rgba(255,255,255,.52);
-
-  --stroke: rgba(9, 23, 33, 0.10);
-  --stroke2: rgba(9, 23, 33, 0.14);
-
-  --sun: #ffb357;
-  --sun2: #ffd8a1;
-
-  --shadow: 0 14px 38px rgba(9,23,33,.18);
-  --shadow2: 0 10px 26px rgba(9,23,33,.14);
-  --ring: 0 0 0 4px rgba(255,179,87,.22);
-
-  --appMax: 420px;
-  --bgBleed: 16px;
 }
 
 body{
   margin: 0;
-  background: var(--sky);
+  background: #f7fbff;
 }
 
 /* =========================
@@ -40,119 +16,51 @@ body{
   min-height: 100vh;
   padding: 14px 12px;
   box-sizing: border-box;
-  color: var(--text);
+  color: #0f172a;
   font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  background: var(--sky);
-  overflow-x: hidden;
+  background:
+    radial-gradient(1200px 600px at 20% -10%, rgba(34,197,94,0.18), transparent 55%),
+    radial-gradient(900px 600px at 90% 0%, rgba(6,182,212,0.14), transparent 55%),
+    linear-gradient(180deg, rgba(247,251,255,1), rgba(244,255,248,1));
 }
 .vx-page *{ box-sizing: border-box; }
 
-/* Background image centered to app width (poputchiki trick).
-   Replace this file to change background:
-   webapp/public/brand/danang-bg.svg */
-.bg-danang{
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(min(var(--appMax), 100vw) + (var(--bgBleed) * 2));
-  top: calc(-1 * var(--bgBleed));
-  height: calc(100dvh + (var(--bgBleed) * 2));
-  pointer-events: none;
-  z-index: 0;
-  background-color: var(--sky);
-  /* Relative URL so it works even if the app is hosted under a subpath */
-  background-image: none;
-  background-size: 150% 190%;
-  background-repeat: no-repeat;
-  background-position: center center;
-}
-
-/* App content above background */
-.container{ position: relative; z-index: 2; max-width: 420px; margin: 0 auto; }
-
-/* (container moved above; keep for safety in case of future diffs) */
+.container{ max-width: 420px; margin: 0 auto; }
 
 .h1{ font-size: 22px; font-weight: 900; letter-spacing: -0.02em; margin: 0 0 8px 0; }
 .h2{ font-size: 18px; font-weight: 900; letter-spacing: -0.015em; margin: 0 0 10px 0; }
 .h3{ font-size: 15px; font-weight: 900; margin: 0 0 8px 0; }
 .small{ font-size: 13px; opacity: 0.85; }
 
-.vx-muted{ font-size: 12px; color: var(--muted2); font-weight: 800; }
+.vx-muted{ font-size: 12px; color: rgba(15,23,42,0.55); font-weight: 800; }
 
-.hr{ height: 1px; background: rgba(9,23,33,0.10); margin: 10px 0; }
+.hr{ height: 1px; background: rgba(15,23,42,0.10); margin: 10px 0; }
 
 .card{
   border-radius: 24px;
-  border: 1px solid var(--stroke);
-  background: var(--panel);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(16px);
+  border: 1px solid rgba(15,23,42,0.10);
+  background: rgba(255,255,255,0.80);
+  box-shadow: 0 10px 30px rgba(2,6,23,0.08);
+  backdrop-filter: blur(10px);
   padding: 14px;
 }
-
-/* Top header (logo + title) */
-.vx-topCard{ padding: 14px 14px 12px; }
-.vx-topRow{
-  display:flex;
-  align-items:center;
-  gap: 12px;
-  padding-bottom: 10px;
-  margin-bottom: 10px;
-  border-bottom: 1px solid rgba(9,23,33,.10);
-}
-.vx-logo{
-  width: 46px;
-  height: 46px;
-  border-radius: 16px;
-  border: 1px solid rgba(9,23,33,.10);
-  background: rgba(9,23,33,.06);
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  flex-shrink: 0;
-  position: relative;
-  box-shadow: 0 10px 22px rgba(9,23,33,.10);
-}
-.vx-logoImg{
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  position: relative;
-  z-index: 1;
-}
-.vx-logoFallback{
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-weight: 900;
-  font-size: 14px;
-  letter-spacing: .02em;
-  color: rgba(9,23,33,.72);
-  pointer-events: none;
-  z-index: 0;
-}
-.vx-topText{ min-width: 0; display:flex; flex-direction:column; line-height: 1.15; }
-.vx-title{ font-size: 18px; font-weight: 900; letter-spacing: .2px; color: var(--text); }
-.vx-topSub{ font-size: 12.5px; font-weight: 800; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .tabs{ display: none !important; } /* на всякий случай */
 
 /* Не даём белому тексту "протекать" из старых тем */
 .card,
 .h1, .h2, .h3, .small,
-label, input, select, textarea{ color: var(--text); }
+label, input, select, textarea{ color: #0f172a; }
 
 /* Forms */
 .vx-page input,
 .vx-page select{
   height: 48px;
   border-radius: 18px;
-  border: 1px solid var(--stroke2);
-  background: rgba(255,255,255,0.70);
+  border: 1px solid rgba(15,23,42,0.16);
+  background: rgba(255,255,255,0.92);
   padding: 0 14px;
   font-weight: 800;
   font-size: 15px;
@@ -161,8 +69,8 @@ label, input, select, textarea{ color: var(--text); }
 }
 .vx-page textarea{
   border-radius: 18px;
-  border: 1px solid var(--stroke2);
-  background: rgba(255,255,255,0.70);
+  border: 1px solid rgba(15,23,42,0.16);
+  background: rgba(255,255,255,0.92);
   padding: 12px 14px;
   font-weight: 700;
   font-size: 14px;
@@ -170,14 +78,7 @@ label, input, select, textarea{ color: var(--text); }
   max-width: 100%;
 }
 .vx-page input::placeholder,
-.vx-page textarea::placeholder{ color: var(--ph); }
-
-.vx-page input:focus,
-.vx-page select:focus,
-.vx-page textarea:focus{
-  border-color: rgba(255,179,87,.62);
-  box-shadow: var(--ring);
-}
+.vx-page textarea::placeholder{ color: rgba(15,23,42,0.45); }
 
 .input{ width: 100%; } /* старые компоненты */
 .row{ display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
@@ -191,9 +92,9 @@ label, input, select, textarea{ color: var(--text); }
   cursor: pointer;
   font-weight: 900;
   letter-spacing: -0.01em;
-  color: rgba(26,18,8,.92);
-  background: rgba(255,179,87,.94);
-  box-shadow: 0 14px 34px rgba(255,179,87,0.18);
+  color: #fff;
+  background: linear-gradient(135deg, #0ea5e9, #22c55e);
+  box-shadow: 0 14px 34px rgba(14,165,233,0.18);
 }
 .btn:disabled{ opacity: .55; cursor: not-allowed; }
 .vx-btnSm{
@@ -201,151 +102,6 @@ label, input, select, textarea{ color: var(--text); }
   padding: 0 12px;
   font-size: 13px;
   border-radius: 16px;
-}
-
-/* Link button (used in standalone admin) */
-.vx-btnGhost{
-  height: 48px;
-  padding: 0 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(9,23,33,.14);
-  background: rgba(255,255,255,.78);
-  color: rgba(9,23,33,.92);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 900;
-}
-.vx-btnGhost:hover{ filter: brightness(0.98); }
-
-/* Standalone PC admin page layout */
-.vx-adminStandalone .container,
-.vx-adminStandalone .vx-adminContainer{
-  max-width: 1100px;
-}
-
-/* =========================
-   PC Admin Dashboard (CRM)
-   ========================= */
-.vx-adminDash{ display:flex; flex-direction:column; gap: 12px; }
-
-.vx-adminToolbar{ padding: 12px 14px; }
-.vx-adminToolbarRow{ display:flex; align-items:center; justify-content:space-between; gap: 10px; flex-wrap: wrap; }
-.vx-adminTabs{ display:flex; gap: 8px; flex-wrap: wrap; }
-
-.vx-chip,
-.vx-chipOn{
-  border-radius: 999px;
-  border: 1px solid rgba(9,23,33,0.14);
-  background: rgba(255,255,255,0.76);
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 950;
-  cursor: pointer;
-  user-select:none;
-}
-.vx-chipOn{
-  background: rgba(255,179,87,.28);
-  border-color: rgba(255,179,87,.55);
-  color: rgba(26,18,8,.92);
-  box-shadow: 0 10px 24px rgba(255,179,87,.12);
-}
-
-.vx-adminToolbarRight{ display:flex; align-items:center; gap: 10px; }
-.vx-adminMeta{ font-size: 12px; color: var(--muted2); font-weight: 800; }
-
-.vx-adminFilters{ display:flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-.vx-adminSearch{ flex: 1 1 320px; min-width: 220px; height: 44px; }
-.vx-adminSel{ flex: 0 0 auto; min-width: 170px; height: 44px; }
-.vx-adminClear{ height: 44px; }
-
-.vx-adminGrid{ display:grid; grid-template-columns: 1.7fr 1fr; gap: 12px; }
-.vx-adminPanel{ padding: 14px; }
-.vx-adminSide{ position: sticky; top: 12px; height: calc(100vh - 40px); overflow: hidden; }
-
-.vx-panelHead{ display:flex; align-items:baseline; justify-content:space-between; gap: 10px; margin-bottom: 10px; }
-
-.vx-adminTableWrap{ border: 1px solid rgba(9,23,33,0.10); border-radius: 18px; background: rgba(255,255,255,0.55); overflow: auto; max-height: calc(100vh - 220px); }
-.vx-tablePC{ width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-.vx-tablePC th,
-.vx-tablePC td{ padding: 10px 10px; border-bottom: 1px solid rgba(9,23,33,0.08); font-size: 12.5px; vertical-align: top; }
-.vx-tablePC th{ position: sticky; top: 0; background: rgba(255,255,255,0.72); text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; color: var(--muted2); font-weight: 950; z-index: 2; }
-.vx-tablePC tr{ cursor: pointer; }
-.vx-tablePC tr:hover{ background: rgba(255,255,255,0.45); }
-.vx-tablePC tr.isSel{ background: rgba(255,179,87,.16); }
-.mono{ font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-
-.vx-actions{ min-width: 280px; }
-.vx-mini{
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(9,23,33,0.14);
-  background: rgba(255,255,255,0.78);
-  color: rgba(9,23,33,0.92);
-  font-weight: 900;
-  font-size: 12px;
-  cursor: pointer;
-  margin-right: 6px;
-  margin-top: 4px;
-}
-.vx-mini:hover{ filter: brightness(0.985); }
-.vx-miniDanger{ border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.10); color: rgba(185,28,28,0.92); }
-
-.vx-badge{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 950;
-  border: 1px solid rgba(9,23,33,0.12);
-  background: rgba(255,255,255,0.68);
-}
-.vx-st-new{ border-color: rgba(255,179,87,.48); background: rgba(255,179,87,.18); color: rgba(26,18,8,.92); }
-.vx-st-in_progress{ border-color: rgba(6,182,212,.38); background: rgba(6,182,212,.12); color: rgba(7,89,133,.92); }
-.vx-st-done{ border-color: rgba(34,197,94,.38); background: rgba(34,197,94,.12); color: rgba(20,83,45,.92); }
-.vx-st-canceled{ border-color: rgba(239,68,68,.38); background: rgba(239,68,68,.10); color: rgba(185,28,28,.92); }
-
-.vx-empty{ font-size: 13px; color: var(--muted2); font-weight: 800; padding: 12px 2px; }
-
-.vx-clientCard{ border: 1px solid rgba(9,23,33,0.10); border-radius: 18px; background: rgba(255,255,255,0.58); padding: 12px; }
-.vx-clientName{ font-weight: 950; font-size: 14px; }
-.vx-clientMeta{ font-size: 12px; font-weight: 800; color: var(--muted2); margin-top: 4px; }
-.vx-clientBtns{ display:flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
-
-.vx-sideList{ margin-top: 10px; }
-.vx-sideTitle{ font-size: 12px; font-weight: 950; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
-.vx-sideScroll{ overflow: auto; max-height: calc(100vh - 360px); padding-right: 2px; }
-.vx-sideItem{ border: 1px solid rgba(9,23,33,0.10); border-radius: 16px; background: rgba(255,255,255,0.62); padding: 10px; margin-bottom: 8px; cursor: pointer; }
-.vx-sideItem:hover{ filter: brightness(0.99); }
-.vx-sideItem.on{ background: rgba(255,179,87,.16); border-color: rgba(255,179,87,.35); }
-.vx-sideTop{ display:flex; align-items:center; justify-content:space-between; gap: 8px; }
-.vx-sideMid{ margin-top: 6px; font-size: 12px; font-weight: 900; }
-.vx-sideBot{ margin-top: 4px; font-size: 11.5px; color: var(--muted2); font-weight: 800; }
-.vx-sideActions{ margin-top: 8px; display:flex; flex-wrap: wrap; gap: 6px; }
-
-.vx-clientList{ display:grid; gap: 8px; }
-.vx-clientRow{ border: 1px solid rgba(9,23,33,0.10); border-radius: 18px; background: rgba(255,255,255,0.58); padding: 12px; cursor: pointer; }
-.vx-clientRow:hover{ filter: brightness(0.99); }
-.vx-clientRow.on{ background: rgba(255,179,87,.16); border-color: rgba(255,179,87,.35); }
-.vx-clientRowTop{ display:flex; align-items:center; justify-content:space-between; gap: 10px; }
-.vx-clientRowName{ font-weight: 950; font-size: 13.5px; }
-.vx-clientRowMeta{ font-size: 12px; color: var(--muted2); font-weight: 800; margin-top: 4px; }
-
-.vx-ratesGrid{ display:grid; gap: 8px; }
-.vx-rateRowPC{ display:grid; grid-template-columns: 70px 1fr 1fr; gap: 8px; align-items:center; }
-.vx-codePC{ font-weight: 950; font-size: 13px; color: rgba(9,23,33,.90); }
-.vx-inPC{ height: 44px; border-radius: 16px; }
-
-@media (max-width: 980px){
-  .vx-adminGrid{ grid-template-columns: 1fr; }
-  .vx-adminSide{ position: relative; top: 0; height: auto; }
-  .vx-adminTableWrap{ max-height: 60vh; }
-  .vx-sideScroll{ max-height: 50vh; }
 }
 
 /* Utilities */
@@ -363,16 +119,15 @@ label, input, select, textarea{ color: var(--text); }
    Layout helpers used by App
    ========================= */
 .vx-body{
-  /* enough space for the fixed bottom bar, but not so much that pages start scrolling */
-  padding-bottom: calc(118px + env(safe-area-inset-bottom));
+  padding-bottom: calc(170px + env(safe-area-inset-bottom));
 }
 
 .vx-card2{
   border-radius: 26px;
-  border: 1px solid var(--stroke);
-  background: var(--panel);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(16px);
+  border: 1px solid rgba(15,23,42,0.10);
+  background: rgba(255,255,255,0.82);
+  box-shadow: 0 12px 34px rgba(2,6,23,0.10);
+  backdrop-filter: blur(12px);
   padding: 14px;
 }
 
@@ -383,7 +138,7 @@ label, input, select, textarea{ color: var(--text); }
   box-shadow: none !important;
   padding: 0 !important;
 }
-.vx-card2 :where(h1,h2,h3,h4,p,div,span,small,label,li){ color: var(--text); }
+.vx-card2 :where(h1,h2,h3,h4,p,div,span,small,label,li){ color: #0f172a; }
 .vx-card2 button:not(.vx-primary):not(.btn),
 .vx-card2 button:not(.vx-primary):not(.btn) *{ color: inherit; }
 
@@ -398,17 +153,16 @@ label, input, select, textarea{ color: var(--text); }
   padding-bottom: calc(12px + env(safe-area-inset-bottom));
   box-sizing: border-box;
   pointer-events: none;
-  transition: transform 0.18s ease, opacity 0.18s ease;
 }
 .vx-bottomBar{
   pointer-events: auto;
   max-width: 420px;
   margin: 0 auto;
   border-radius: 28px;
-  border: 1px solid var(--stroke);
-  background: var(--panel2);
-  box-shadow: var(--shadow2);
-  backdrop-filter: blur(16px);
+  border: 1px solid rgba(15,23,42,0.10);
+  background: rgba(255,255,255,0.88);
+  box-shadow: 0 12px 30px rgba(2,6,23,0.14);
+  backdrop-filter: blur(12px);
   padding: 4px;
   display: flex;
 }
@@ -423,7 +177,7 @@ label, input, select, textarea{ color: var(--text); }
   align-items: center;
   justify-content: center;
   gap: 4px;
-  color: var(--muted2);
+  color: rgba(15,23,42,0.55);
   font-weight: 800;
   font-size: 10px;
   letter-spacing: -0.01em;
@@ -432,13 +186,13 @@ label, input, select, textarea{ color: var(--text); }
   flex: 1 1 0;
   min-width: 0;
 }
-.vx-navBtnActive{ color: var(--text); }
+.vx-navBtnActive{ color: #0f172a; }
 .vx-navPill{
   position: absolute;
   inset: 0;
   border-radius: 22px;
-  background: rgba(255,179,87,.22);
-  border: 1px solid rgba(255,179,87,.40);
+  background: linear-gradient(135deg, rgba(34,197,94,0.20), rgba(6,182,212,0.16));
+  border: 1px solid rgba(15,23,42,0.08);
 }
 .vx-navIcon{
   position: relative;
@@ -458,49 +212,6 @@ label, input, select, textarea{ color: var(--text); }
 }
 .vx-bottomBar button{ -webkit-tap-highlight-color: transparent; }
 
-/* When keyboard is open on mobile, don't lift the bottom bar over inputs */
-.vx-kbOpen .vx-bottomWrap{
-  transform: translateY(140%);
-  opacity: 0;
-}
-
-/* Swipe / tab change animation */
-.vx-animInL{ animation: vxSlideInL 220ms cubic-bezier(.22,.9,.22,1) both; }
-.vx-animInR{ animation: vxSlideInR 220ms cubic-bezier(.22,.9,.22,1) both; }
-@keyframes vxSlideInL{
-  from{ transform: translateX(22px); opacity: .55; }
-  to{ transform: translateX(0); opacity: 1; }
-}
-@keyframes vxSlideInR{
-  from{ transform: translateX(-22px); opacity: .55; }
-  to{ transform: translateX(0); opacity: 1; }
-}
-
-/* Swipe pager (stable, no jitter) */
-.vx-swipeWrap{
-  position: relative;
-  overflow: hidden;
-  border-radius: 26px;
-}
-.vx-slideTrack{
-  display: flex;
-  width: 200%;
-  will-change: transform;
-  backface-visibility: hidden;
-  transform: translate3d(0,0,0);
-  transition: transform 260ms cubic-bezier(.22,.9,.22,1);
-}
-.vx-slideTrack.vx-slideNoTrans{ transition: none; }
-.vx-slidePage{
-  width: 50%;
-  flex: 0 0 50%;
-  min-width: 0;
-} 
-
-/* Allow horizontal swipes without breaking vertical scroll */
-.vx-page{ touch-action: pan-y; overscroll-behavior-x: none; }
-.vx-body{ touch-action: pan-y; }
-
 /* Починка строк "валюта + сумма + кнопка" если где-то остались старые классы */
 .vx-body .row,
 .vx-body .calcRow,
@@ -508,7 +219,7 @@ label, input, select, textarea{ color: var(--text); }
 .vx-body .exchangeRow,
 .vx-body .exchange-row{
   display: grid !important;
-  grid-template-columns: 110px 1fr auto;
+  grid-template-columns: 92px 1fr auto;
   gap: 10px;
   align-items: center;
 }
@@ -517,7 +228,7 @@ label, input, select, textarea{ color: var(--text); }
 .vx-body .calc-row select,
 .vx-body .exchangeRow select,
 .vx-body .exchange-row select{
-  width: 110px;
+  width: 92px;
   padding-right: 28px;
 }
 .vx-body .row input,
@@ -546,78 +257,12 @@ label, input, select, textarea{ color: var(--text); }
    ========================= */
 .vx-rates2{ display:flex; flex-direction:column; gap:10px; }
 .vx-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
-.vx-meta{ font-size:12px; color: var(--muted2); font-weight: 800; }
-.vx-note{
-  margin-top: 10px;
-  font-size: 12px;
-  font-weight: 900;
-  line-height: 1.35;
-  border: 1px solid rgba(9,23,33,0.10);
-  background: rgba(255,255,255,0.58);
-  border-radius: 16px;
-  padding: 10px 12px;
-  color: rgba(9,23,33,0.78);
-}
-
-/* Compact meta line */
-.vx-metaLine{
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  align-items: center;
-}
-.vx-metaLine span{ white-space: nowrap; }
-
-/* Compact single-column rates list (fits one screen, no "blocks" per row) */
-.vx-rateList{
-  border: 1px solid var(--stroke);
-  background: rgba(255,255,255,0.42);
-  border-radius: 18px;
-  padding: 6px 8px;
-  font-variant-numeric: tabular-nums;
-}
-.vx-rateHdr{
-  display:flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 2px 0 4px;
-  font-size: 10.5px;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted2);
-}
-.vx-rateLine{
-  display:flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 4px 0;
-  border-top: 1px solid rgba(9,23,33,0.10);
-}
-.vx-ratePair2{
-  font-size: 12px;
-  font-weight: 950;
-  color: rgba(9,23,33,0.90);
-  line-height: 1.1;
-}
-.vx-rateNums{
-  display:flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: 10px;
-  white-space: nowrap;
-}
-.vx-rateN{
-  font-size: 12.5px;
-  font-weight: 950;
-  color: var(--text);
-}
-.vx-rateNMuted{ color: rgba(9,23,33,0.72); }
+.vx-meta{ font-size:12px; color: rgba(15,23,42,0.55); font-weight: 800; }
+.vx-note{ font-size:12px; color: rgba(15,23,42,0.55); font-weight: 800; margin-top: 2px; }
 
 .vx-table{
-  border: 1px solid var(--stroke);
-  background: rgba(255,255,255,0.46);
+  border: 1px solid rgba(15,23,42,0.10);
+  background: rgba(255,255,255,0.62);
   border-radius: 18px;
   overflow: hidden;
 }
@@ -629,34 +274,33 @@ label, input, select, textarea{ color: var(--text); }
   align-items:center;
   font-variant-numeric: tabular-nums;
 }
-.vx-tr + .vx-tr{ border-top: 1px solid rgba(9,23,33,0.08); }
+.vx-tr + .vx-tr{ border-top: 1px solid rgba(15,23,42,0.08); }
 
 .vx-th{
-  background: rgba(255,255,255,0.60);
+  background: rgba(255,255,255,0.78);
   font-size: 11px;
   font-weight: 950;
-  color: var(--muted2);
+  color: rgba(15,23,42,0.65);
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
-.vx-pair{ font-size: 13px; font-weight: 950; color: var(--text); }
-.vx-sub{ font-size: 11px; font-weight: 800; color: var(--muted2); margin-top: 2px; }
-.vx-num{ justify-self:end; font-size: 13px; font-weight: 950; color: var(--text); }
-.vx-dash{ color: rgba(9,23,33,0.35); }
+.vx-pair{ font-size: 13px; font-weight: 950; color:#0f172a; }
+.vx-sub{ font-size: 11px; font-weight: 800; color: rgba(15,23,42,0.55); margin-top: 2px; }
+.vx-num{ justify-self:end; font-size: 13px; font-weight: 950; color:#0f172a; }
+.vx-dash{ color: rgba(15,23,42,0.35); }
 
 /* =========================
    Calculator tab
    ========================= */
 .vx-calc{ display:flex; flex-direction:column; gap:12px; }
 .vx-calcTitle{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
-.vx-calcTitle .vx-muted{ font-size:12px; color: var(--muted2); font-weight:800; }
+.vx-calcTitle .vx-muted{ font-size:12px; color: rgba(15,23,42,0.55); font-weight:800; }
 
 .vx-calcBox{
-  border: 1px solid var(--stroke);
-  background: rgba(255,255,255,0.46);
-  border-radius: 22px;
+  border: 1px solid rgba(15,23,42,0.10);
+  background: rgba(255,255,255,0.62);
+  border-radius: 18px;
   padding: 12px;
-  overflow: hidden;
 }
 
 .vx-exRow{
@@ -667,13 +311,6 @@ label, input, select, textarea{ color: var(--text); }
 }
 .vx-exRow select{ width: 92px; padding-right: 28px; }
 .vx-exRow input{ width: 100%; min-width: 0; }
-
-@media (max-width: 360px){
-  .vx-exRow{ grid-template-columns: 84px 1fr 44px; }
-  .vx-exRow select{ width: 84px; }
-  .vx-iconBtn{ min-width: 44px; }
-  .vx-blankBtn{ width: 44px; }
-}
 
 .vx-iconBtn{
   height: 48px;
@@ -698,7 +335,7 @@ label, input, select, textarea{ color: var(--text); }
   margin-top: 12px;
   font-size: 12px;
   font-weight: 950;
-  color: var(--muted);
+  color: rgba(15,23,42,0.70);
 }
 .vx-methods{
   display: flex;
@@ -709,27 +346,27 @@ label, input, select, textarea{ color: var(--text); }
 
 .vx-pill{
   border-radius: 999px;
-  border: 1px solid rgba(9,23,33,0.12);
-  background: rgba(255,255,255,0.50);
+  border: 1px solid rgba(15,23,42,0.12);
+  background: rgba(255,255,255,0.70);
   padding: 10px 12px;
   font-size: 12px;
   font-weight: 900;
-  color: var(--text);
+  color: #0f172a;
   cursor:pointer;
   user-select:none;
 }
 .vx-pillActive{
-  border-color: rgba(255,179,87,0.35);
-  background: rgba(255,179,87,.22);
+  border-color: rgba(15,23,42,0.10);
+  background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(6,182,212,0.18));
 }
 
 .vx-rateLine{
   margin-top: 10px;
   font-size: 12px;
   font-weight: 900;
-  color: var(--muted);
+  color: rgba(15,23,42,0.72);
 }
-.vx-rateLine b{ color: var(--text); }
+.vx-rateLine b{ color: rgba(15,23,42,0.92); }
 
 .vx-primary{
   height: 52px;
@@ -739,13 +376,13 @@ label, input, select, textarea{ color: var(--text); }
   cursor: pointer;
   font-weight: 950;
   letter-spacing: -0.01em;
-  color: rgba(26,18,8,.92);
-  background: rgba(255,179,87,.94);
-  box-shadow: 0 18px 40px rgba(255,179,87,0.18);
+  color: white;
+  background: linear-gradient(135deg, var(--vx-accent, #22c55e), var(--vx-accent2, #06b6d4));
+  box-shadow: 0 18px 40px rgba(34,197,94,0.22);
 }
 .vx-primary:disabled{ opacity: 0.55; cursor: not-allowed; }
 
-.vx-help{ font-size: 12px; color: var(--muted); font-weight: 700; line-height: 1.35; }
+.vx-help{ font-size: 12px; color: rgba(15,23,42,0.60); font-weight: 700; line-height: 1.35; }
 
 /* =========================
    Admin tab
@@ -783,6 +420,57 @@ label, input, select, textarea{ color: var(--text); }
 }
 .vx-in{ width: 100%; min-width: 0; box-sizing: border-box; }
 
+/* Банкоматы — управление */
+.vx-atmRow{
+  padding: 12px 0;
+  border-top: 1px solid rgba(15,23,42,0.08);
+}
+.vx-atmRow:first-of-type{ border-top: 0; padding-top: 0; }
+.vx-atmTop{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.vx-atmNum{
+  font-weight: 950;
+  color: rgba(15,23,42,0.72);
+}
+.vx-atmBtns{ display:flex; gap: 8px; flex-wrap: wrap; }
+.vx-ghostBtn,
+.vx-dangerBtn{
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(15,23,42,0.16);
+  background: rgba(255,255,255,0.92);
+  font-weight: 900;
+  cursor: pointer;
+}
+.vx-dangerBtn{
+  border-color: rgba(239,68,68,0.25);
+  background: rgba(239,68,68,0.06);
+}
+.vx-atmGrid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+/* Банкоматы — публичная вкладка */
+.vx-atmItem{ padding: 10px 0; border-top: 1px solid rgba(15,23,42,0.08); }
+.vx-atmItem:first-of-type{ border-top: 0; padding-top: 0; }
+.vx-linkBtn{
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(15,23,42,0.16);
+  background: rgba(255,255,255,0.92);
+  font-weight: 950;
+  cursor: pointer;
+}
+
 /* =========================
    Reviews tab
    ========================= */
@@ -798,8 +486,8 @@ label, input, select, textarea{ color: var(--text); }
   letter-spacing: -0.015em;
 }
 .vx-revCompose{
-  border: 1px solid var(--stroke);
-  background: rgba(255,255,255,0.46);
+  border: 1px solid rgba(15,23,42,0.10);
+  background: rgba(255,255,255,0.62);
   border-radius: 18px;
   padding: 12px;
   display: flex;
@@ -832,8 +520,8 @@ label, input, select, textarea{ color: var(--text); }
 
 .vx-revList{ display: flex; flex-direction: column; gap: 10px; }
 .vx-revCard{
-  border: 1px solid var(--stroke);
-  background: rgba(255,255,255,0.46);
+  border: 1px solid rgba(15,23,42,0.10);
+  background: rgba(255,255,255,0.62);
   border-radius: 18px;
   padding: 12px;
 }
@@ -845,151 +533,3 @@ label, input, select, textarea{ color: var(--text); }
 /* =========================
    Minor tabs helpers
    ========================= */
-
-/* =========================
-   Global utilities
-   ========================= */
-.vx-gap6{ gap: 6px !important; }
-.vx-gap8{ gap: 8px !important; }
-.vx-between{ justify-content: space-between !important; }
-.vx-center{ align-items: center !important; }
-
-/* helper for the install row in the header */
-.vx-installRow{ margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-
-/* =========================
-   Calculator extra states
-   ========================= */
-.vx-sectionTitle{
-  margin-top: 10px;
-  font-size: 12px;
-  font-weight: 900;
-  color: rgba(15,23,42,0.62);
-}
-
-.vx-warn{
-  margin-top: 10px;
-  font-size: 12px;
-  font-weight: 900;
-  color: rgba(185,28,28,0.85);
-  line-height: 1.35;
-}
-
-/* placeholder cell instead of a button (keeps the grid aligned) */
-.vx-blankBtn{ width: 52px; height: 48px; }
-
-/* optional validation styles (used in newer calculator versions) */
-.vx-inputInvalid{
-  border-color: rgba(185,28,28,0.55) !important;
-  box-shadow: 0 0 0 3px rgba(185,28,28,0.12) !important;
-}
-.vx-noteWarn{
-  border-color: rgba(185,28,28,0.20) !important;
-  background: rgba(185,28,28,0.06) !important;
-  color: rgba(185,28,28,0.88) !important;
-}
-.vx-pillDisabled{ opacity: 0.35; cursor: not-allowed; filter: grayscale(0.2); }
-
-/* =========================
-   Admin compact controls
-   ========================= */
-.vx-adminHead{ display:flex; align-items:flex-end; justify-content:space-between; gap:10px; }
-.vx-adminHead .h1{ margin:0; }
-
-.vx-adminSeg{
-  margin-top:10px;
-  display:flex;
-  gap:6px;
-  padding:6px;
-  border-radius: 22px;
-  border:1px solid var(--stroke);
-  background: rgba(255,255,255,0.46);
-}
-.vx-adminSeg button{
-  flex:1 1 0;
-  height:40px;
-  border-radius: 16px;
-  border:0;
-  cursor:pointer;
-  font-weight: 950;
-  font-size: 13px;
-  background: transparent;
-  color: rgba(15,23,42,0.62);
-}
-.vx-adminSeg .on{
-  background: rgba(255,179,87,.22);
-  color:#0f172a;
-  border:1px solid rgba(255,179,87,.35);
-}
-/* ---- Background layer ---- */
-.vx-bg{
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-
-  /* чтобы фон был как “попутчики”: подсветки + оверлей + картинка */
-  background:
-    radial-gradient(1200px 700px at 18% -10%, rgba(46,233,209,0.22), transparent 60%),
-    radial-gradient(900px 600px at 92% 8%, rgba(122,247,232,0.14), transparent 55%),
-    radial-gradient(900px 600px at 50% 115%, rgba(255,77,109,0.11), transparent 58%),
-    linear-gradient(180deg, rgba(10,14,28,0.10), rgba(10,14,28,0.30)),
-    var(--bg-url);
-  background-repeat: no-repeat;
-  background-size: 150% 190%;
-  background-position: center center;
-}
-
-/* UI above background */
-.vx-page{ position: relative; min-height: 100vh; background: #5ac4e9; }
-.container{ position: relative; z-index: 1; }
-
-/* ---- Slider: prevent “bleeding” into neighbor tabs ---- */
-.vx-pagesWrap{
-  position: relative;
-  width: 100%;
-  overflow: hidden;      /* ключевое */
-  border-radius: 22px;
-}
-
-.vx-pagesTrack{
-  display: flex;
-  flex-wrap: nowrap;
-}
-
-.vx-pagePane{
-  flex: 0 0 100%;
-  min-width: 100%;
-  width: 100%;
-  overflow: hidden;      /* ключевое: обрезаем контент */
-}
-
-.vx-card2{
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden;      /* ключевое: тени/блоки не “ползут” */
-}
-
-/* optional: hide bottom bar while keyboard is open */
-.vx-kbOpen .vx-bottomWrap{ display: none; }
-.vx-pagesWrap{ overflow: hidden; width: 100%; }
-.vx-pagesTrack{ display:flex; flex-wrap:nowrap; }
-.vx-pagePane{ flex:0 0 100%; min-width:100%; width:100%; }
-
-/* ещё компактнее блоки курса в управлении */
-.vx-admin .vx-rateRow{ padding: 6px 0; align-items:center; }
-.vx-admin .vx-code{ width: 54px; flex: 0 0 54px; padding-top:0; font-size: 13px; }
-.vx-admin input.vx-in{ height: 40px; border-radius: 16px; font-size: 14px; }
-.vx-admin .vx-field{ flex: 1 1 120px; }
-
-/* карточки внутри управления — чуть плотнее */
-.vx-admin .card{ padding: 12px; border-radius: 22px; }
-.vx-admin .hr{ margin: 8px 0; }
-
-.vx-title18{ font-size: 18px; font-weight: 950; letter-spacing: -0.015em; }
-
-/* =========================
-   Tabs visibility (keep mounted, show only active)
-   ========================= */
-.vx-tabPane{ width: 100%; max-width: 100%; }
-.vx-tabPane:not(.is-active){ display: none; }

@@ -30,19 +30,12 @@ export type AuthResponse =
     }
   | { ok: false; error: string };
 
-export type MarketRatesResponse =
-  | {
-      ok: true;
-      updated_at: string;
-      source: string;
-      stale: boolean;
-      g: Record<string, number>;
-    }
-  | {
-      ok: false;
-      error: string;
-      stale: boolean;
-      updated_at?: string;
-      source?: string;
-      g?: Record<string, number>;
-    };
+export type Atm = {
+  id: string;
+  title: string;
+  area?: string;
+  note?: string;
+  mapUrl?: string;
+};
+
+export type AtmsResponse = { ok: boolean; atms: Atm[] };

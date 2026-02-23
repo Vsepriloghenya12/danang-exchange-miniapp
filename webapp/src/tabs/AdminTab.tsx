@@ -1,24 +1,25 @@
 import React, { useEffect, useState } from "react";
 import {
   apiAdminSetTodayRates,
-  apiAdminGetRequests,
-  apiAdminSetRequestState,
+  apiAdminSetAtms,
   apiAdminSetUserStatus,
   apiAdminUsers,
+  apiGetAtms,
   apiGetTodayRates
 } from "../lib/api";
+
+type AtmEdit = {
+  id: string;
+  title: string;
+  area: string;
+  note: string;
+  mapUrl: string;
+};
 
 const STATUS_OPTIONS = [
   { value: "standard", label: "Стандарт" },
   { value: "silver", label: "Серебро" },
   { value: "gold", label: "Золото" }
-] as const;
-
-const REQUEST_STATE_OPTIONS = [
-  { value: "new", label: "Принята" },
-  { value: "in_progress", label: "В работе" },
-  { value: "done", label: "Готово" },
-  { value: "canceled", label: "Отменена" }
 ] as const;
 
 type RateRowProps = {
@@ -62,6 +63,63 @@ const RateRow = React.memo(function RateRow(props: RateRowProps) {
   );
 });
 
+type AtmRowProps = {
+  index: number;
+  atm: AtmEdit;
+  onPatch: (id: string, patch: Partial<AtmEdit>) => void;
+  onRemove: (id: string) => void;
+  onMove: (id: string, dir: -1 | 1) => void;
+};
+
+const AtmRow = React.memo(function AtmRow(props: AtmRowProps) {
+  const a = props.atm;
+  return (
+    <div className="vx-atmRow">
+      <div className="vx-atmTop">
+        <div className="vx-atmNum">{props.index + 1}.</div>
+        <div className="vx-atmBtns">
+          <button type="button" className="vx-ghostBtn" onClick={() => props.onMove(a.id, -1)} title="Вверх">
+            ↑
+          </button>
+          <button type="button" className="vx-ghostBtn" onClick={() => props.onMove(a.id, 1)} title="Вниз">
+            ↓
+          </button>
+          <button type="button" className="vx-dangerBtn" onClick={() => props.onRemove(a.id)} title="Удалить">
+            Удалить
+          </button>
+        </div>
+      </div>
+
+      <div className="vx-atmGrid">
+        <input
+          className="input"
+          value={a.title}
+          onChange={(e) => props.onPatch(a.id, { title: e.target.value })}
+          placeholder="Название банкомата (например Vietcombank ATM)"
+        />
+        <input
+          className="input"
+          value={a.area}
+          onChange={(e) => props.onPatch(a.id, { area: e.target.value })}
+          placeholder="Район / адрес"
+        />
+        <input
+          className="input"
+          value={a.note}
+          onChange={(e) => props.onPatch(a.id, { note: e.target.value })}
+          placeholder="Комментарий (комиссия, лимиты и т.п.)"
+        />
+        <input
+          className="input"
+          value={a.mapUrl}
+          onChange={(e) => props.onPatch(a.id, { mapUrl: e.target.value })}
+          placeholder="Ссылка на Google/Apple Maps"
+        />
+      </div>
+    </div>
+  );
+});
+
 function statusLabelAny(s: any) {
   const v = String(s ?? "").toLowerCase().trim();
   if (v === "gold") return "Золото";
@@ -81,8 +139,6 @@ function toNumStrict(label: string, s: string) {
 }
 
 export default function AdminTab({ me }: any) {
-  const [section, setSection] = useState<"rates" | "users" | "requests">("rates");
-
   // По умолчанию ВСЁ пустое (без подстановки старых значений)
   const [usdBuy, setUsdBuy] = useState("");
   const [usdSell, setUsdSell] = useState("");
@@ -100,7 +156,8 @@ export default function AdminTab({ me }: any) {
   const [thbSell, setThbSell] = useState("");
 
   const [users, setUsers] = useState<any[]>([]);
-  const [requests, setRequests] = useState<any[]>([]);
+
+  const [atms, setAtms] = useState<AtmEdit[]>([]);
 
   const clearRates = () => {
     setRubBuy(""); setRubSell("");
@@ -115,9 +172,23 @@ export default function AdminTab({ me }: any) {
     if (r.ok) setUsers(r.users);
   };
 
-  const loadRequests = async () => {
-    const r = await apiAdminGetRequests(me.initData);
-    if (r.ok) setRequests(r.requests || []);
+  const makeClientId = () => {
+    const c: any = globalThis as any;
+    if (c?.crypto?.randomUUID) return c.crypto.randomUUID();
+    return `atm_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  };
+
+  const toEdit = (x: any): AtmEdit => ({
+    id: String(x?.id ?? "").trim() || makeClientId(),
+    title: String(x?.title ?? ""),
+    area: String(x?.area ?? ""),
+    note: String(x?.note ?? ""),
+    mapUrl: String(x?.mapUrl ?? x?.map_url ?? "")
+  });
+
+  const loadAtms = async () => {
+    const r = await apiGetAtms();
+    if (r?.ok) setAtms(Array.isArray((r as any).atms) ? (r as any).atms.map(toEdit) : []);
   };
 
   const loadRates = async () => {
@@ -134,7 +205,7 @@ export default function AdminTab({ me }: any) {
 
   useEffect(() => {
     loadUsers();
-    loadRequests();
+    loadAtms();
     // ВАЖНО: не подставляем сохранённые курсы автоматически — всё начинается пустым.
     clearRates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,129 +251,160 @@ export default function AdminTab({ me }: any) {
     else alert(r.error || "Ошибка");
   };
 
-  const setRequestState = async (id: string, state: string) => {
-    const r = await apiAdminSetRequestState(me.initData, id, state);
-    if (r.ok) loadRequests();
-    else alert(r.error || "Ошибка");
+  const patchAtm = (id: string, patch: Partial<AtmEdit>) => {
+    setAtms((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  };
+
+  const addAtm = () => {
+    setAtms((prev) => [...prev, { id: makeClientId(), title: "", area: "", note: "", mapUrl: "" }]);
+  };
+
+  const removeAtm = (id: string) => {
+    setAtms((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const moveAtm = (id: string, dir: -1 | 1) => {
+    setAtms((prev) => {
+      const i = prev.findIndex((x) => x.id === id);
+      if (i < 0) return prev;
+      const j = i + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = prev.slice();
+      const tmp = next[i];
+      next[i] = next[j];
+      next[j] = tmp;
+      return next;
+    });
+  };
+
+  const saveAtms = async () => {
+    try {
+      const cleaned = atms
+        .map((a) => ({
+          id: a.id,
+          title: a.title.trim(),
+          area: a.area.trim(),
+          note: a.note.trim(),
+          mapUrl: a.mapUrl.trim()
+        }))
+        .filter((a) => a.title || a.area || a.note || a.mapUrl);
+
+      for (const a of cleaned) {
+        if (!a.title) throw new Error("Заполни название банкомата");
+        if (!a.mapUrl) throw new Error(`Банкомат “${a.title}”: добавь ссылку на карту`);
+      }
+
+      const payload = cleaned.map((a) => ({
+        id: a.id,
+        title: a.title,
+        area: a.area || undefined,
+        note: a.note || undefined,
+        mapUrl: a.mapUrl
+      }));
+
+      const r = await apiAdminSetAtms(me.initData, payload);
+      if (r.ok) {
+        alert("Банкоматы сохранены ✅");
+        loadAtms();
+      } else {
+        alert(r.error || "Ошибка");
+      }
+    } catch (e: any) {
+      alert(e?.message || "Проверь данные");
+    }
   };
 
   return (
-    <div className="card vx-admin">
+    <div className="card">
+<div className="h1">Управление</div>
 
-      <div className="vx-adminHead">
-        <div className="h1">Управление</div>
-        <div className="vx-muted">только для владельца</div>
-      </div>
+      <div className="card">
+        <div className="small">Курс на сегодня (BUY/SELL к VND) — заполняется каждый день</div>
+        <div className="hr" />
 
-      <div className="vx-adminSeg">
-        <button className={section === "rates" ? "on" : ""} onClick={() => setSection("rates")}>Курс</button>
-        <button className={section === "users" ? "on" : ""} onClick={() => setSection("users")}>Клиенты</button>
-        <button className={section === "requests" ? "on" : ""} onClick={() => setSection("requests")}>Заявки</button>
-      </div>
+        <RateRow code="RUB"  buy={rubBuy}  sell={rubSell}  setBuy={setRubBuy}  setSell={setRubSell} />
+        <RateRow code="USDT" buy={usdtBuy} sell={usdtSell} setBuy={setUsdtBuy} setSell={setUsdtSell} />
+        <RateRow code="USD"  buy={usdBuy}  sell={usdSell}  setBuy={setUsdBuy}  setSell={setUsdSell} />
+        <RateRow code="EUR"  buy={eurBuy}  sell={eurSell}  setBuy={setEurBuy}  setSell={setEurSell} />
+        <RateRow code="THB"  buy={thbBuy}  sell={thbSell}  setBuy={setThbBuy}  setSell={setThbSell} />
 
-      {section === "rates" ? (
-        <div className="card vx-mt10">
-          <div className="small">Курс на сегодня (BUY/SELL к VND) — заполняется каждый день</div>
-          <div className="hr" />
-
-          <RateRow code="RUB" buy={rubBuy} sell={rubSell} setBuy={setRubBuy} setSell={setRubSell} />
-          <RateRow code="USDT" buy={usdtBuy} sell={usdtSell} setBuy={setUsdtBuy} setSell={setUsdtSell} />
-          <RateRow code="USD" buy={usdBuy} sell={usdSell} setBuy={setUsdBuy} setSell={setUsdSell} />
-          <RateRow code="EUR" buy={eurBuy} sell={eurSell} setBuy={setEurBuy} setSell={setEurSell} />
-          <RateRow code="THB" buy={thbBuy} sell={thbSell} setBuy={setThbBuy} setSell={setThbSell} />
-
-          <div className="vx-mt10">
-            <div className="row vx-rowWrap vx-gap8">
-              <button className="btn" onClick={saveRates}>Сохранить</button>
-              <button className="btn" onClick={clearRates}>Очистить</button>
-              <button className="btn" onClick={loadRates}>Загрузить</button>
-            </div>
+        <div className="vx-mt10">
+          <div className="row vx-rowWrap" style={{ gap: 8 }}>
+            <button className="btn" onClick={saveRates}>Сохранить курс</button>
+            <button className="btn" onClick={clearRates}>Очистить</button>
+            <button className="btn" onClick={loadRates}>Загрузить текущий</button>
           </div>
         </div>
-      ) : null}
+      </div>
 
-      {section === "users" ? (
-        <div className="card vx-mt10">
-          <div className="row vx-between vx-center">
-            <div className="small">Клиенты и статусы</div>
-            <button className="btn vx-btnSm" onClick={loadUsers}>Обновить</button>
-          </div>
-          <div className="hr" />
+      <div className="card">
+        <div className="small">Клиенты и статусы</div>
+        <div className="hr" />
 
-          {users.length === 0 ? (
-            <div className="small">Пока нет клиентов (они появятся после входа в мини-апп).</div>
-          ) : (
-            users.map((u) => (
-              <div key={u.tg_id} className="vx-mb10">
-                <div>
-                  <b>{u.first_name ?? ""} {u.last_name ?? ""}</b>{" "}
-                  <span className="small">
-                    {u.username ? "@" + u.username : ""} • id:{u.tg_id} • статус: {statusLabelAny(u.status)}
-                  </span>
-                </div>
-
-                <div className="row vx-mt6 vx-rowWrap vx-gap6">
-                  {STATUS_OPTIONS.map((s) => (
-                    <button
-                      key={s.value}
-                      className="btn vx-btnSm"
-                      onClick={() => setStatus(u.tg_id, s.value)}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="hr" />
+        {users.length === 0 ? (
+          <div className="small">Пока нет клиентов (они появятся после входа в мини-апп).</div>
+        ) : (
+          users.map((u) => (
+            <div key={u.tg_id} className="vx-mb10">
+              <div>
+                <b>{u.first_name ?? ""} {u.last_name ?? ""}</b>{" "}
+                <span className="small">
+                  {u.username ? "@" + u.username : ""} • id:{u.tg_id} • статус: {statusLabelAny(u.status)}
+                </span>
               </div>
-            ))
-          )}
-        </div>
-      ) : null}
 
-      {section === "requests" ? (
-        <div className="card vx-mt10">
-          <div className="row vx-between vx-center">
-            <div className="small">Заявки</div>
-            <button className="btn vx-btnSm" onClick={loadRequests}>Обновить</button>
+              <div className="row vx-mt6 vx-rowWrap">
+                {STATUS_OPTIONS.map((s) => (
+                  <button
+                    key={s.value}
+                    className="btn vx-btnSm"
+                    onClick={() => setStatus(u.tg_id, s.value)}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="hr" />
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="card">
+        <div className="small">Банкоматы (список для вкладки “Банкоматы”)</div>
+        <div className="hr" />
+
+        {atms.length === 0 ? <div className="small">Список пуст. Нажми “Добавить банкомат”.</div> : null}
+
+        {atms.map((a, idx) => (
+          <AtmRow
+            key={a.id}
+            index={idx}
+            atm={a}
+            onPatch={patchAtm}
+            onRemove={removeAtm}
+            onMove={moveAtm}
+          />
+        ))}
+
+        <div className="vx-mt10">
+          <div className="row vx-rowWrap" style={{ gap: 8 }}>
+            <button type="button" className="btn" onClick={addAtm}>
+              Добавить банкомат
+            </button>
+            <button type="button" className="btn" onClick={saveAtms}>
+              Сохранить список
+            </button>
+            <button type="button" className="btn" onClick={loadAtms}>
+              Загрузить текущий
+            </button>
           </div>
-          <div className="hr" />
-
-          {requests.length === 0 ? (
-            <div className="small">Пока нет заявок.</div>
-          ) : (
-            requests.map((r) => {
-              const who = r?.from?.username ? "@" + r.from.username : (r?.from?.first_name || "") || `id ${r?.from?.id}`;
-              const shortId = String(r.id || "").slice(-6);
-              const created = r.created_at ? new Date(r.created_at).toLocaleString("ru-RU") : "";
-              const stateLabel = REQUEST_STATE_OPTIONS.find((x) => x.value === r.state)?.label || r.state;
-
-              return (
-                <div key={r.id} className="vx-mb10">
-                  <div>
-                    <b>#{shortId}</b>{" "}
-                    <span className="small">{created}</span>
-                  </div>
-                  <div className="small">
-                    {who} • {r.sellCurrency} → {r.buyCurrency} • отдаёт: {r.sellAmount} • получит: {r.buyAmount}
-                  </div>
-                  <div className="small">Статус: <b>{stateLabel}</b></div>
-
-                  <div className="row vx-mt6 vx-rowWrap vx-gap6">
-                    {REQUEST_STATE_OPTIONS.map((s) => (
-                      <button key={s.value} className="btn vx-btnSm" onClick={() => setRequestState(r.id, s.value)}>
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="hr" />
-                </div>
-              );
-            })
-          )}
+          <div className="vx-help vx-mt8">
+            Подсказка: вставляй ссылку прямо из Google/Apple Maps ("Поделиться" → "Копировать ссылку").
+          </div>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }
