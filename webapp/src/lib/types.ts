@@ -46,3 +46,14 @@ export type MarketRatesResponse =
       source?: string;
       g?: Record<string, number>;
     };
+
+
+export type AtmItem = {
+  id: string;
+  title: string;
+  address?: string;
+  note?: string;
+  mapUrl: string;
+};
+
+export type AtmsResponse = { ok: boolean; atms: AtmItem[]; error?: string };

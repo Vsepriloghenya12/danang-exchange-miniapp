@@ -1,23 +1,56 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { apiGetAtms } from "../lib/api";
+import type { AtmItem } from "../lib/types";
 
-const ATMS = [
-  { title: "Vietcombank ATM", area: "Hai Chau", note: "Обычно выдает VND" },
-  { title: "BIDV ATM", area: "My Khe", note: "Проверить комиссию" },
-  { title: "TPBank LiveBank", area: "Center", note: "Иногда выгоднее" }
-];
+function openMap(url: string) {
+  const tg = (window as any).Telegram?.WebApp;
+  if (tg?.openLink) tg.openLink(url);
+  else window.open(url, "_blank", "noopener,noreferrer");
+}
 
 export default function AtmTab() {
+  const [atms, setAtms] = useState<AtmItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await apiGetAtms();
+        if (r.ok) setAtms(Array.isArray(r.atms) ? r.atms : []);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
   return (
     <div className="card">
       <div className="h1">Банкоматы</div>
-      <div className="small">Пока статический список (позже сделаем редактирование владельцем).</div>
+      <div className="small">Список заполняется владельцем в админке.</div>
       <div className="hr" />
-      {ATMS.map((a, i) => (
-        <div key={i} className="vx-mb10">
-          <div><b>{a.title}</b></div>
-          <div className="small">{a.area} • {a.note}</div>
-        </div>
-      ))}
+
+      {loading ? (
+        <div className="small">Загрузка…</div>
+      ) : atms.length === 0 ? (
+        <div className="small">Пока нет добавленных банкоматов.</div>
+      ) : (
+        atms.map((a) => (
+          <div key={a.id} className="vx-mb10">
+            <div>
+              <b>{a.title}</b>
+            </div>
+            <div className="small">
+              {[a.address, a.note].filter(Boolean).join(" • ")}
+            </div>
+            <div className="vx-mt6">
+              <button className="btn vx-btnSm" type="button" onClick={() => openMap(a.mapUrl)}>
+                Открыть на карте
+              </button>
+            </div>
+            <div className="hr" />
+          </div>
+        ))
+      )}
     </div>
   );
 }

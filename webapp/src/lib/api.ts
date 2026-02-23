@@ -1,4 +1,4 @@
-import type { AuthResponse, TodayRatesResponse, MarketRatesResponse } from "./types";
+import type { AuthResponse, TodayRatesResponse, MarketRatesResponse, AtmItem, AtmsResponse } from "./types";
 
 // Admin auth helper:
 // - Telegram Mini App uses initData via header x-telegram-init-data
@@ -82,6 +82,28 @@ export async function apiAddReview(initData: string, rating: number, text: strin
     method: "POST",
     headers: { "content-type": "application/json", "x-telegram-init-data": initData },
     body: JSON.stringify({ rating, text })
+  });
+  return r.json();
+}
+
+
+export async function apiGetAtms(): Promise<AtmsResponse> {
+  const r = await fetch("/api/atms");
+  return r.json();
+}
+
+export async function apiAdminGetAtms(initData: string): Promise<AtmsResponse> {
+  const r = await fetch("/api/admin/atms", {
+    headers: { ...adminAuthHeaders(initData) }
+  });
+  return r.json();
+}
+
+export async function apiAdminSetAtms(initData: string, atms: AtmItem[]) {
+  const r = await fetch("/api/admin/atms", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(initData) },
+    body: JSON.stringify({ atms })
   });
   return r.json();
 }

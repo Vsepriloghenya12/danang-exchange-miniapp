@@ -6,6 +6,14 @@ export type UserStatus = "standard" | "silver" | "gold";
 
 export type RequestState = "new" | "in_progress" | "done" | "canceled";
 
+export type AtmItem = {
+  id: string;
+  title: string;
+  address?: string;
+  note?: string;
+  mapUrl: string;
+};
+
 export type Rates = {
   USD: { buy_vnd: number; sell_vnd: number };
   RUB: { buy_vnd: number; sell_vnd: number };
@@ -37,6 +45,7 @@ export type Store = {
   >;
   requests: StoredRequest[];
   reviews: any[];
+  atms: AtmItem[];
 };
 
 export type StoredRequest = {
@@ -69,7 +78,8 @@ function defaultStore(): Store {
     users: {},
     ratesByDate: {},
     requests: [],
-    reviews: []
+    reviews: [],
+    atms: []
   };
 }
 
@@ -145,7 +155,8 @@ export function readStore(): Store {
     users: { ...(parsed?.users || {}) },
     ratesByDate: { ...(parsed?.ratesByDate || {}) },
     requests: Array.isArray(parsed?.requests) ? (parsed.requests as any) : [],
-    reviews: Array.isArray(parsed?.reviews) ? parsed.reviews : []
+    reviews: Array.isArray(parsed?.reviews) ? parsed.reviews : [],
+    atms: Array.isArray(parsed?.atms) ? parsed.atms : []
   };
 
   let dirty = false;
