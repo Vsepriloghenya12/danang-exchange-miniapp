@@ -1,15 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   apiAdminSetTodayRates,
   apiAdminGetRequests,
   apiAdminSetRequestState,
   apiAdminSetUserStatus,
   apiAdminUsers,
-  apiGetTodayRates,
-  apiAdminGetAtms,
-  apiAdminSetAtms
+  apiGetTodayRates
 } from "../lib/api";
-import type { AtmItem } from "../lib/types";
 
 const STATUS_OPTIONS = [
   { value: "standard", label: "Стандарт" },
@@ -72,6 +69,13 @@ function statusLabelAny(s: any) {
   return "Стандарт";
 }
 
+function statusValueAny(s: any): "standard" | "silver" | "gold" {
+  const v = String(s ?? "").toLowerCase().trim();
+  if (v === "gold") return "gold";
+  if (v === "silver") return "silver";
+  return "standard";
+}
+
 function nStr(v: any) {
   const s = String(v ?? "");
   return s === "0" ? "" : s;
@@ -83,21 +87,8 @@ function toNumStrict(label: string, s: string) {
   return n;
 }
 
-function mkAtmId() {
-  return (
-    (globalThis as any).crypto?.randomUUID?.() ||
-    `atm_${Date.now()}_${Math.random().toString(16).slice(2)}`
-  );
-}
-
-function openMap(url: string) {
-  const tg = (window as any).Telegram?.WebApp;
-  if (tg?.openLink) tg.openLink(url);
-  else window.open(url, "_blank", "noopener,noreferrer");
-}
-
 export default function AdminTab({ me }: any) {
-  const [section, setSection] = useState<"rates" | "users" | "requests" | "atms">("rates");
+  const [section, setSection] = useState<"rates" | "users" | "requests">("rates");
 
   // По умолчанию ВСЁ пустое (без подстановки старых значений)
   const [usdBuy, setUsdBuy] = useState("");
@@ -118,22 +109,12 @@ export default function AdminTab({ me }: any) {
   const [users, setUsers] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
 
-  // ATMs
-  const [atms, setAtms] = useState<AtmItem[]>([]);
-  const [atmsBusy, setAtmsBusy] = useState(false);
-  const atmsLoadedRef = useRef(false);
-
   const clearRates = () => {
-    setRubBuy("");
-    setRubSell("");
-    setUsdtBuy("");
-    setUsdtSell("");
-    setUsdBuy("");
-    setUsdSell("");
-    setEurBuy("");
-    setEurSell("");
-    setThbBuy("");
-    setThbSell("");
+    setRubBuy(""); setRubSell("");
+    setUsdtBuy(""); setUsdtSell("");
+    setUsdBuy(""); setUsdSell("");
+    setEurBuy(""); setEurSell("");
+    setThbBuy(""); setThbSell("");
   };
 
   const loadUsers = async () => {
@@ -151,82 +132,11 @@ export default function AdminTab({ me }: any) {
     const rates = (r as any)?.data?.rates;
     if (!rates) return;
 
-    if (rates.USD) {
-      setUsdBuy(nStr(rates.USD.buy_vnd));
-      setUsdSell(nStr(rates.USD.sell_vnd));
-    }
-    if (rates.RUB) {
-      setRubBuy(nStr(rates.RUB.buy_vnd));
-      setRubSell(nStr(rates.RUB.sell_vnd));
-    }
-    if (rates.USDT) {
-      setUsdtBuy(nStr(rates.USDT.buy_vnd));
-      setUsdtSell(nStr(rates.USDT.sell_vnd));
-    }
-    if (rates.EUR) {
-      setEurBuy(nStr(rates.EUR.buy_vnd));
-      setEurSell(nStr(rates.EUR.sell_vnd));
-    }
-    if (rates.THB) {
-      setThbBuy(nStr(rates.THB.buy_vnd));
-      setThbSell(nStr(rates.THB.sell_vnd));
-    }
-  };
-
-  const loadAtms = async () => {
-    setAtmsBusy(true);
-    try {
-      const r = await apiAdminGetAtms(me.initData);
-      if (r.ok) setAtms(Array.isArray(r.atms) ? r.atms : []);
-      else alert(r.error || "Ошибка");
-    } finally {
-      setAtmsBusy(false);
-    }
-  };
-
-  const saveAtms = async () => {
-    // минимальная валидация
-    for (const a of atms) {
-      if (!a.title?.trim() || !a.mapUrl?.trim()) {
-        alert("Заполни у каждого банкомата: Название и Ссылку на карты");
-        return;
-      }
-    }
-
-    setAtmsBusy(true);
-    try {
-      const r = await apiAdminSetAtms(me.initData, atms);
-      if (r.ok) alert("Список банкоматов сохранён ✅");
-      else alert(r.error || "Ошибка");
-    } finally {
-      setAtmsBusy(false);
-    }
-  };
-
-  const addAtm = () => {
-    setAtms((p) => [
-      ...p,
-      { id: mkAtmId(), title: "", address: "", note: "", mapUrl: "" }
-    ]);
-  };
-
-  const updAtm = (id: string, patch: Partial<AtmItem>) => {
-    setAtms((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-  };
-
-  const delAtm = (id: string) => setAtms((p) => p.filter((x) => x.id !== id));
-
-  const moveAtm = (id: string, dir: -1 | 1) => {
-    setAtms((p) => {
-      const idx = p.findIndex((x) => x.id === id);
-      const j = idx + dir;
-      if (idx < 0 || j < 0 || j >= p.length) return p;
-      const next = p.slice();
-      const t = next[idx];
-      next[idx] = next[j];
-      next[j] = t;
-      return next;
-    });
+    if (rates.USD) { setUsdBuy(nStr(rates.USD.buy_vnd)); setUsdSell(nStr(rates.USD.sell_vnd)); }
+    if (rates.RUB) { setRubBuy(nStr(rates.RUB.buy_vnd)); setRubSell(nStr(rates.RUB.sell_vnd)); }
+    if (rates.USDT) { setUsdtBuy(nStr(rates.USDT.buy_vnd)); setUsdtSell(nStr(rates.USDT.sell_vnd)); }
+    if (rates.EUR) { setEurBuy(nStr(rates.EUR.buy_vnd)); setEurSell(nStr(rates.EUR.sell_vnd)); }
+    if (rates.THB) { setThbBuy(nStr(rates.THB.buy_vnd)); setThbSell(nStr(rates.THB.sell_vnd)); }
   };
 
   useEffect(() => {
@@ -236,15 +146,6 @@ export default function AdminTab({ me }: any) {
     clearRates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Ленивая загрузка банкоматов, чтобы лишний раз не дергать сервер
-  useEffect(() => {
-    if (section !== "atms") return;
-    if (atmsLoadedRef.current) return;
-    atmsLoadedRef.current = true;
-    loadAtms();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [section]);
 
   const saveRates = async () => {
     try {
@@ -294,24 +195,16 @@ export default function AdminTab({ me }: any) {
 
   return (
     <div className="card vx-admin">
+
       <div className="vx-adminHead">
         <div className="h1">Управление</div>
         <div className="vx-muted">только для владельца</div>
       </div>
 
       <div className="vx-adminSeg">
-        <button className={section === "rates" ? "on" : ""} onClick={() => setSection("rates")}>
-          Курс
-        </button>
-        <button className={section === "users" ? "on" : ""} onClick={() => setSection("users")}>
-          Клиенты
-        </button>
-        <button className={section === "requests" ? "on" : ""} onClick={() => setSection("requests")}>
-          Заявки
-        </button>
-        <button className={section === "atms" ? "on" : ""} onClick={() => setSection("atms")}>
-          Банкоматы
-        </button>
+        <button className={section === "rates" ? "on" : ""} onClick={() => setSection("rates")}>Курс</button>
+        <button className={section === "users" ? "on" : ""} onClick={() => setSection("users")}>Клиенты</button>
+        <button className={section === "requests" ? "on" : ""} onClick={() => setSection("requests")}>Заявки</button>
       </div>
 
       {section === "rates" ? (
@@ -327,15 +220,9 @@ export default function AdminTab({ me }: any) {
 
           <div className="vx-mt10">
             <div className="row vx-rowWrap vx-gap8">
-              <button className="btn" onClick={saveRates}>
-                Сохранить
-              </button>
-              <button className="btn" onClick={clearRates}>
-                Очистить
-              </button>
-              <button className="btn" onClick={loadRates}>
-                Загрузить
-              </button>
+              <button className="btn" onClick={saveRates}>Сохранить</button>
+              <button className="btn" onClick={clearRates}>Очистить</button>
+              <button className="btn" onClick={loadRates}>Загрузить</button>
             </div>
           </div>
         </div>
@@ -345,9 +232,7 @@ export default function AdminTab({ me }: any) {
         <div className="card vx-mt10">
           <div className="row vx-between vx-center">
             <div className="small">Клиенты и статусы</div>
-            <button className="btn vx-btnSm" onClick={loadUsers}>
-              Обновить
-            </button>
+            <button className="btn vx-btnSm" onClick={loadUsers}>Обновить</button>
           </div>
           <div className="hr" />
 
@@ -357,20 +242,25 @@ export default function AdminTab({ me }: any) {
             users.map((u) => (
               <div key={u.tg_id} className="vx-mb10">
                 <div>
-                  <b>
-                    {u.first_name ?? ""} {u.last_name ?? ""}
-                  </b>{" "}
+                  <b>{u.first_name ?? ""} {u.last_name ?? ""}</b>{" "}
                   <span className="small">
                     {u.username ? "@" + u.username : ""} • id:{u.tg_id} • статус: {statusLabelAny(u.status)}
                   </span>
                 </div>
 
                 <div className="row vx-mt6 vx-rowWrap vx-gap6">
-                  {STATUS_OPTIONS.map((s) => (
-                    <button key={s.value} className="btn vx-btnSm" onClick={() => setStatus(u.tg_id, s.value)}>
-                      {s.label}
-                    </button>
-                  ))}
+                  {STATUS_OPTIONS.map((s) => {
+                    const isOn = statusValueAny(u.status) === s.value;
+                    return (
+                      <button
+                        key={s.value}
+                        className={`btn vx-btnSm${isOn ? " vx-btnOn" : ""}`}
+                        onClick={() => setStatus(u.tg_id, s.value)}
+                      >
+                        {s.label}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 <div className="hr" />
@@ -384,9 +274,7 @@ export default function AdminTab({ me }: any) {
         <div className="card vx-mt10">
           <div className="row vx-between vx-center">
             <div className="small">Заявки</div>
-            <button className="btn vx-btnSm" onClick={loadRequests}>
-              Обновить
-            </button>
+            <button className="btn vx-btnSm" onClick={loadRequests}>Обновить</button>
           </div>
           <div className="hr" />
 
@@ -394,9 +282,7 @@ export default function AdminTab({ me }: any) {
             <div className="small">Пока нет заявок.</div>
           ) : (
             requests.map((r) => {
-              const who = r?.from?.username
-                ? "@" + r.from.username
-                : (r?.from?.first_name || "") || `id ${r?.from?.id}`;
+              const who = r?.from?.username ? "@" + r.from.username : (r?.from?.first_name || "") || `id ${r?.from?.id}`;
               const shortId = String(r.id || "").slice(-6);
               const created = r.created_at ? new Date(r.created_at).toLocaleString("ru-RU") : "";
               const stateLabel = REQUEST_STATE_OPTIONS.find((x) => x.value === r.state)?.label || r.state;
@@ -404,14 +290,13 @@ export default function AdminTab({ me }: any) {
               return (
                 <div key={r.id} className="vx-mb10">
                   <div>
-                    <b>#{shortId}</b> <span className="small">{created}</span>
+                    <b>#{shortId}</b>{" "}
+                    <span className="small">{created}</span>
                   </div>
                   <div className="small">
                     {who} • {r.sellCurrency} → {r.buyCurrency} • отдаёт: {r.sellAmount} • получит: {r.buyAmount}
                   </div>
-                  <div className="small">
-                    Статус: <b>{stateLabel}</b>
-                  </div>
+                  <div className="small">Статус: <b>{stateLabel}</b></div>
 
                   <div className="row vx-mt6 vx-rowWrap vx-gap6">
                     {REQUEST_STATE_OPTIONS.map((s) => (
@@ -425,98 +310,6 @@ export default function AdminTab({ me }: any) {
                 </div>
               );
             })
-          )}
-        </div>
-      ) : null}
-
-      {section === "atms" ? (
-        <div className="card vx-mt10">
-          <div className="small">Банкоматы (показываются на вкладке “Банкоматы” в мини‑аппе)</div>
-          <div className="hr" />
-
-          <div className="row vx-rowWrap vx-gap8">
-            <button className="btn" type="button" onClick={addAtm} disabled={atmsBusy}>
-              Добавить
-            </button>
-            <button
-              className="btn"
-              type="button"
-              onClick={saveAtms}
-              disabled={atmsBusy || atms.length === 0}
-            >
-              Сохранить
-            </button>
-            <button className="btn" type="button" onClick={loadAtms} disabled={atmsBusy}>
-              Загрузить
-            </button>
-          </div>
-
-          <div className="vx-mt10" />
-
-          {atms.length === 0 ? (
-            <div className="small">Пока пусто. Нажми “Добавить”.</div>
-          ) : (
-            atms.map((a, idx) => (
-              <div key={a.id} className="vx-mb10">
-                <div className="small">
-                  <b>#{idx + 1}</b>
-                </div>
-
-                <input
-                  className="input vx-mt6"
-                  value={a.title}
-                  onChange={(e) => updAtm(a.id, { title: e.target.value })}
-                  placeholder="Название (например: Vietcombank ATM)"
-                />
-
-                <input
-                  className="input vx-mt6"
-                  value={a.address || ""}
-                  onChange={(e) => updAtm(a.id, { address: e.target.value })}
-                  placeholder="Адрес / район (необязательно)"
-                />
-
-                <input
-                  className="input vx-mt6"
-                  value={a.note || ""}
-                  onChange={(e) => updAtm(a.id, { note: e.target.value })}
-                  placeholder="Комментарий (комиссия, лимиты и т.д.)"
-                />
-
-                <input
-                  className="input vx-mt6"
-                  value={a.mapUrl}
-                  onChange={(e) => updAtm(a.id, { mapUrl: e.target.value })}
-                  placeholder="Ссылка на Google/Apple Maps"
-                />
-
-                <div className="row vx-mt6 vx-rowWrap vx-gap6">
-                  <button className="btn vx-btnSm" type="button" onClick={() => moveAtm(a.id, -1)}>
-                    ↑
-                  </button>
-                  <button className="btn vx-btnSm" type="button" onClick={() => moveAtm(a.id, 1)}>
-                    ↓
-                  </button>
-                  <button className="btn vx-btnSm" type="button" onClick={() => delAtm(a.id)}>
-                    Удалить
-                  </button>
-                  <button
-                    className="btn vx-btnSm"
-                    type="button"
-                    onClick={() => a.mapUrl && openMap(a.mapUrl)}
-                    disabled={!a.mapUrl}
-                  >
-                    Открыть
-                  </button>
-                </div>
-
-                {!a.title.trim() || !a.mapUrl.trim() ? (
-                  <div className="small vx-mt6">⚠️ Нужно заполнить Название и Ссылку на карты</div>
-                ) : null}
-
-                <div className="hr" />
-              </div>
-            ))
           )}
         </div>
       ) : null}

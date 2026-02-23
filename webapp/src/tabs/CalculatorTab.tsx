@@ -728,7 +728,7 @@ export default function CalculatorTab({ me }: Props) {
 
         {invalidUsd ? <div className="vx-warn">USD: сумма должна быть кратна 100.</div> : null}
         {invalidEur ? <div className="vx-warn">EUR: сумма должна быть кратна 10.</div> : null}
-        {invalidVndSell || invalidVndBuy ? <div className="vx-warn">VND: сумма должна быть кратна 100000.</div> : null}
+        {invalidVndSell || invalidVndBuy ? <div className="vx-warn">сумма получения в банкомате должна быть кратной 100,000 VND. Вы можете ввести сумму получения и калькулятор посчитает сумму к оплате.</div> : null}
 
         <div className="vx-sp12" />
 
