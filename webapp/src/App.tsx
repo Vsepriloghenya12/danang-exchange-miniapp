@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { getTg } from "./lib/telegram";
 import { apiAuth } from "./lib/api";
 import type { UserStatus } from "./lib/types";
@@ -8,6 +8,7 @@ import CalculatorTab from "./tabs/CalculatorTab";
 import AtmTab from "./tabs/AtmTab";
 import GuideTab from "./tabs/GuideTab";
 import ReviewsTab from "./tabs/ReviewsTab";
+import AdminTab from "./tabs/AdminTab";
 
 type Me = {
   ok: boolean;
@@ -18,14 +19,15 @@ type Me = {
   error?: string;
 };
 
-type TabKey = "rates" | "calc" | "atm" | "guide" | "reviews";
-
-type AnimClass = "" | "vx-animInL" | "vx-animInR";
+type TabKey = "rates" | "calc" | "atm" | "guide" | "reviews" | "admin";
 
 const UI = {
   title: "Обмен валют — Дананг",
+  // Если Google Fonts не грузится в Telegram — будет фолбэк на системный шрифт.
   fontImport:
     "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap",
+  accent: "#22c55e",
+  accent2: "#06b6d4",
 };
 
 function IconSwap({ className = "" }: { className?: string }) {
@@ -52,6 +54,7 @@ function IconCalc({ className = "" }: { className?: string }) {
     </svg>
   );
 }
+
 function IconAtm({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
@@ -80,6 +83,14 @@ function IconStar({ className = "" }: { className?: string }) {
     </svg>
   );
 }
+function IconSettings({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
+      <path d="M19.4 15a7.8 7.8 0 0 0 .1-6l2-1.2-2-3.4-2.3.8a8 8 0 0 0-5.2-3L11 0H13l-.9 2.2a8 8 0 0 0-5.2 3l-2.3-.8-2 3.4 2 1.2a7.8 7.8 0 0 0 .1 6l-2 1.2 2 3.4 2.3-.8a8 8 0 0 0 5.2 3L11 24h2l.9-2.2a8 8 0 0 0 5.2-3l2.3.8 2-3.4-2-1.2z" />
+    </svg>
+  );
+}
 
 function BottomBar({
   active,
@@ -92,7 +103,7 @@ function BottomBar({
 }) {
   const visible = items.filter((i) => i.show);
   return (
-    <div className="vx-bottomWrap">
+    <div className="vx-bottomWrap" style={{ ["--cols" as any]: String(visible.length) }}>
       <div className="vx-bottomBar">
         {visible.map((t) => {
           const isActive = active === t.key;
@@ -116,25 +127,14 @@ function BottomBar({
 
 export default function App() {
   const tg = getTg();
-
-  const tabOrder: TabKey[] = ["rates", "calc", "atm", "guide", "reviews"];
-
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
   const [tab, setTab] = useState<TabKey>("rates");
-  const [anim, setAnim] = useState<AnimClass>("");
-  const [hsStatus, setHsStatus] = useState<string | null>(null);
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
-  // Keyboard detection: hide bottom bar while typing so it doesn't jump above the keyboard.
-  const vvBaseHeightRef = useRef<number>(
-    typeof window !== "undefined" ? window.visualViewport?.height ?? window.innerHeight : 0
-  );
-
-  const isDemo = useMemo(() => new URLSearchParams(window.location.search).get("demo") === "1", []);
+  const isDemo = useMemo(() => new URLSearchParams(location.search).get("demo") === "1", []);
 
   useEffect(() => {
-    tg?.ready?.();
-    tg?.expand?.();
+    tg?.ready();
+    tg?.expand();
 
     const initData = tg?.initData || "";
     if (!initData && !isDemo) {
@@ -163,149 +163,9 @@ export default function App() {
     })();
   }, [tg, isDemo]);
 
-  // Homescreen shortcut ("установить на телефон")
   useEffect(() => {
-    if (!tg || isDemo) return;
-    if (!tg.checkHomeScreenStatus) return;
-
-    const onChecked = (e: any) => {
-      if (e?.status) setHsStatus(String(e.status));
-    };
-    const onAdded = () => setHsStatus("added");
-
-    tg.onEvent?.("homeScreenChecked", onChecked);
-    tg.onEvent?.("homeScreenAdded", onAdded);
-
-    try {
-      tg.checkHomeScreenStatus?.((status) => setHsStatus(String(status)));
-    } catch {}
-
-    return () => {
-      tg.offEvent?.("homeScreenChecked", onChecked);
-      tg.offEvent?.("homeScreenAdded", onAdded);
-    };
-  }, [tg, isDemo]);
-
-  // VisualViewport keyboard detection
-  useEffect(() => {
-    const vv = window.visualViewport;
-
-    // Fallback: if VisualViewport is missing, hide bar while any input is focused.
-    if (!vv) {
-      const onFocusIn = (e: any) => {
-        const t = e?.target as HTMLElement | null;
-        const tag = t?.tagName;
-        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") setKeyboardOpen(true);
-      };
-      const onFocusOut = () => setKeyboardOpen(false);
-      window.addEventListener("focusin", onFocusIn);
-      window.addEventListener("focusout", onFocusOut);
-      return () => {
-        window.removeEventListener("focusin", onFocusIn);
-        window.removeEventListener("focusout", onFocusOut);
-      };
-    }
-
-    const isFieldFocused = () => {
-      const el = document.activeElement as HTMLElement | null;
-      if (!el) return false;
-      const tag = el.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
-      return el.getAttribute?.("contenteditable") === "true";
-    };
-
-    const update = () => {
-      const focused = isFieldFocused();
-
-      if (!focused) {
-        vvBaseHeightRef.current = vv.height;
-        setKeyboardOpen(false);
-        return;
-      }
-
-      const base = vvBaseHeightRef.current || vv.height;
-      const open = vv.height < base - 120;
-      setKeyboardOpen(open);
-    };
-
-    const onResize = () => update();
-    const onFocusIn = () => update();
-    const onFocusOut = () => window.setTimeout(update, 60);
-
-    vv.addEventListener("resize", onResize);
-    window.addEventListener("focusin", onFocusIn);
-    window.addEventListener("focusout", onFocusOut);
-    update();
-
-    return () => {
-      vv.removeEventListener("resize", onResize);
-      window.removeEventListener("focusin", onFocusIn);
-      window.removeEventListener("focusout", onFocusOut);
-    };
-  }, []);
-
-  // Background loader: webapp/public/brand/danang-bg.(svg|jpg|png|webp)
-  const bgCandidates = useMemo(() => {
-    const v = String(Date.now());
-    const baseRaw = (import.meta as any)?.env?.BASE_URL || "/";
-    const base = String(baseRaw).endsWith("/") ? String(baseRaw) : String(baseRaw) + "/";
-    const rel = (p: string) => `${base}${p}?v=${v}`;
-    const abs = (p: string) => `/${p}?v=${v}`;
-    const exts = ["svg", "jpg", "png", "webp"];
-    return [
-      ...exts.map((ext) => rel(`brand/danang-bg.${ext}`)),
-      ...exts.map((ext) => abs(`brand/danang-bg.${ext}`)),
-    ];
-  }, []);
-
-  const [bgSrc, setBgSrc] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      for (const src of bgCandidates) {
-        const ok = await new Promise<boolean>((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve(true);
-          img.onerror = () => resolve(false);
-          img.src = src;
-        });
-        if (cancelled) return;
-        if (ok) {
-          setBgSrc(src);
-          return;
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [bgCandidates]);
-
-  // Logo loader (robust for ANY hosting path)
-  const logoCandidates = useMemo(() => {
-    const v = String(Date.now());
-    const rel = (p: string) => `${p}?v=${v}`;
-    const abs = (p: string) => `/${p}?v=${v}`;
-    const bundled = new URL("./brand/logo.png", import.meta.url).toString();
-    return [
-      rel("brand/logo.svg"),
-      rel("brand/logo.png"),
-      rel("brand/logo.jpg"),
-      rel("brand/logo.jpeg"),
-      rel("brand/logo.webp"),
-      abs("brand/logo.svg"),
-      abs("brand/logo.png"),
-      abs("brand/logo.jpg"),
-      abs("brand/logo.jpeg"),
-      abs("brand/logo.webp"),
-      bundled,
-    ];
-  }, []);
-
-  const [logoIdx, setLogoIdx] = useState(0);
-  const [logoOk, setLogoOk] = useState(false);
-  const logoSrc = logoCandidates[Math.min(logoIdx, logoCandidates.length - 1)];
+    if (tab === "admin" && !me.isOwner) setTab("rates");
+  }, [tab, me.isOwner]);
 
   const bottomTabs: Array<{ key: TabKey; label: string; show: boolean; icon: React.ReactNode }> = [
     { key: "rates", label: "Курс", show: true, icon: <IconSwap className="vx-i" /> },
@@ -313,176 +173,293 @@ export default function App() {
     { key: "atm", label: "Банкоматы", show: true, icon: <IconAtm className="vx-i" /> },
     { key: "guide", label: "Гид", show: true, icon: <IconGuide className="vx-i" /> },
     { key: "reviews", label: "Отзывы", show: true, icon: <IconStar className="vx-i" /> },
+    { key: "admin", label: "Упр.", show: !!me.isOwner, icon: <IconSettings className="vx-i" /> },
   ];
 
-  const changeTab = (next: TabKey) => {
-    if (next === tab) return;
-
-    const i = tabOrder.indexOf(tab);
-    const j = tabOrder.indexOf(next);
-    setAnim(j > i ? "vx-animInL" : "vx-animInR");
-    setTab(next);
-  };
-
-  // Clear the animation class after it plays (so it can retrigger)
-  useEffect(() => {
-    if (!anim) return;
-    const t = window.setTimeout(() => setAnim(""), 260);
-    return () => window.clearTimeout(t);
-  }, [anim]);
-
-  // Swipe navigation between tabs
-  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
-
-  const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (keyboardOpen) return;
-    const target = e.target as HTMLElement | null;
-    const tag = target?.tagName;
-    if (target?.closest?.(".vx-bottomWrap")) return;
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-    if (!e.touches?.[0]) return;
-    swipeStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  };
-
-  const onTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    const s = swipeStartRef.current;
-    swipeStartRef.current = null;
-    if (!s) return;
-    if (keyboardOpen) return;
-
-    const target = e.target as HTMLElement | null;
-    if (target?.closest?.(".vx-bottomWrap")) return;
-
-    const t = e.changedTouches?.[0];
-    if (!t) return;
-
-    const dx = t.clientX - s.x;
-    const dy = t.clientY - s.y;
-
-    if (Math.abs(dx) < 70) return;
-    if (Math.abs(dx) < Math.abs(dy) * 1.3) return;
-
-    const i = tabOrder.indexOf(tab);
-    if (i < 0) return;
-
-    if (dx < 0 && i < tabOrder.length - 1) changeTab(tabOrder[i + 1]);
-    if (dx > 0 && i > 0) changeTab(tabOrder[i - 1]);
-  };
-
-  // Keep tabs mounted (no remount => no flicker), but show only active
-  const pages = useMemo(
-    () => ({
-      rates: <RatesTab />,
-      calc: <CalculatorTab me={me} />,
-      atm: <AtmTab />,
-      guide: <GuideTab />,
-      reviews: <ReviewsTab />,
-    }),
-    [me]
-  );
-
   return (
-    <div
-      className={"vx-page" + (keyboardOpen ? " vx-kbOpen" : "")}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-    >
-      <style>{`@import url('${UI.fontImport}');`}</style>
+    <div className="vx-page">
+      <style>{`
+        @import url('${UI.fontImport}');
 
-      {/* Background: injected via bgSrc */}
-      <div
-        className="bg-danang"
-        aria-hidden="true"
-        style={{ backgroundImage: bgSrc ? `url(\"${bgSrc}\")` : undefined }}
-      />
+        .vx-page{
+          min-height: 100vh;
+          padding: 14px 12px;
+          box-sizing: border-box;
+          color: #0f172a;
+          font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+          -webkit-font-smoothing: antialiased;
+          text-rendering: optimizeLegibility;
+          background:
+            radial-gradient(1200px 600px at 20% -10%, rgba(34,197,94,0.18), transparent 55%),
+            radial-gradient(900px 600px at 90% 0%, rgba(6,182,212,0.14), transparent 55%),
+            linear-gradient(180deg, rgba(247,251,255,1), rgba(244,255,248,1));
+        }
+
+        /* Базовая типографика */
+        .vx-page *{ box-sizing: border-box; }
+        .vx-page .h1{ font-size: 22px; font-weight: 900; letter-spacing: -0.02em; }
+        .vx-page .small{ font-size: 13px; opacity: 0.85; }
+
+        /* Заголовки внутри вкладок (часто используются классы .h2/.h3) */
+        .vx-page .h2{ font-size: 18px; font-weight: 900; letter-spacing: -0.015em; margin: 0 0 10px 0; }
+        .vx-page .h3{ font-size: 15px; font-weight: 900; margin: 0 0 8px 0; }
+        .vx-page h2{ font-size: 18px; font-weight: 900; margin: 0 0 10px 0; }
+        .vx-page h3{ font-size: 15px; font-weight: 900; margin: 0 0 8px 0; }
+
+        /* Приводим карточки к единому премиум-стилю (и для твоих табов тоже) */
+        .vx-page .container{ max-width: 420px; margin: 0 auto; }
+        .vx-page .card{
+          border-radius: 24px;
+          border: 1px solid rgba(15,23,42,0.10);
+          background: rgba(255,255,255,0.80);
+          box-shadow: 0 10px 30px rgba(2,6,23,0.08);
+          backdrop-filter: blur(10px);
+          padding: 14px;
+        }
+
+        /* На всякий случай: если где-то оставалась старая верхняя панель вкладок */
+        .vx-page .tabs{ display: none !important; }
+
+        /* Не ломаем твой layout: гарантируем, что в карточках/формах текст не белый */
+        .vx-page .card,
+        .vx-page .h1,
+        .vx-page .small,
+        .vx-page label,
+        .vx-page input,
+        .vx-page select,
+        .vx-page textarea{ color: #0f172a !important; }
+        .vx-page input::placeholder,
+        .vx-page textarea::placeholder{
+          color: rgba(15,23,42,0.45) !important;
+        }
+        .vx-page input,
+        .vx-page select,
+        .vx-page textarea{
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+
+        /* Формы — делаем одинаковые высоты и аккуратные радиусы */
+        .vx-page input,
+        .vx-page select{
+          height: 48px;
+          border-radius: 18px;
+          border: 1px solid rgba(15,23,42,0.16);
+          background: rgba(255,255,255,0.92);
+          padding: 0 14px;
+          font-weight: 800;
+          font-size: 15px;
+          outline: none;
+        }
+        .vx-page textarea{
+          border-radius: 18px;
+          border: 1px solid rgba(15,23,42,0.16);
+          background: rgba(255,255,255,0.92);
+          padding: 12px 14px;
+          font-weight: 700;
+        }
+        .vx-page button{ border-radius: 18px; }
+
+        .vx-body{
+          /* много места под плавающий бар, чтобы ничего не перекрывалось */
+          padding-bottom: calc(170px + env(safe-area-inset-bottom));
+        }
+
+        /* Обёртка-карточка для секций (чтобы курс/калькулятор выглядели как бар) */
+        .vx-card2{
+          border-radius: 26px;
+          border: 1px solid rgba(15,23,42,0.10);
+          background: rgba(255,255,255,0.82);
+          box-shadow: 0 12px 34px rgba(2,6,23,0.10);
+          backdrop-filter: blur(12px);
+          padding: 14px;
+        }
+        /* Если внутри табов уже есть .card — убираем двойные рамки */
+        .vx-card2 .card{
+          background: transparent !important;
+          border: 0 !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+        }
+        /* Фикс белого текста внутри секций, но НЕ трогаем кнопки */
+        .vx-card2 :where(h1,h2,h3,h4,p,div,span,small,label,li){
+          color: #0f172a;
+        }
+        .vx-card2 button,
+        .vx-card2 button *{
+          color: inherit;
+        }
+
+        .vx-stack{
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .vx-stack > *{
+          width: 100%;
+          min-width: 0;
+        }
+
+        /* Bottom bar (плавающий) */
+        .vx-bottomWrap{
+          position: fixed;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 999;
+          padding: 0 12px;
+          padding-bottom: calc(12px + env(safe-area-inset-bottom));
+          box-sizing: border-box;
+          pointer-events: none;
+        }
+        .vx-bottomBar{
+          pointer-events: auto;
+          max-width: 420px;
+          margin: 0 auto;
+          border-radius: 28px;
+          border: 1px solid rgba(15,23,42,0.10);
+          background: rgba(255,255,255,0.88);
+          box-shadow: 0 12px 30px rgba(2,6,23,0.14);
+          backdrop-filter: blur(12px);
+          padding: 4px;
+          display: grid;
+          grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+        }
+        .vx-navBtn{
+          position: relative;
+          border: 0;
+          background: transparent;
+          border-radius: 22px;
+          padding: 10px 6px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          color: rgba(15,23,42,0.55);
+          font-weight: 800;
+          font-size: 10px;
+          letter-spacing: -0.01em;
+          cursor: pointer;
+          user-select: none;
+        }
+        .vx-navBtnActive{ color: #0f172a; }
+        .vx-navPill{
+          position: absolute;
+          inset: 0;
+          border-radius: 22px;
+          background: linear-gradient(135deg, rgba(34,197,94,0.20), rgba(6,182,212,0.16));
+          border: 1px solid rgba(15,23,42,0.08);
+        }
+        .vx-navIcon{
+          position: relative;
+          width: 36px;
+          height: 36px;
+          display: grid;
+          place-items: center;
+        }
+        .vx-i{ width: 20px; height: 20px; }
+        .vx-navLabel{
+          position: relative;
+          max-width: 80px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          line-height: 1;
+        }
+
+        /* Telegram WebView иногда даёт странные стили кнопкам */
+        .vx-bottomBar button{ -webkit-tap-highlight-color: transparent; }
+
+        /* --- Починка раскладки калькулятора (без доступа к внутренним файлам) ---
+           Подхватываем самые типичные классы/структуры: row/calcRow и т.п.
+           Если у тебя внутри другие классы — всё равно подействует на select+input в строках.
+        */
+        .vx-body .row,
+        .vx-body .calcRow,
+        .vx-body .calc-row,
+        .vx-body .exchangeRow,
+        .vx-body .exchange-row{
+          display: grid !important;
+          grid-template-columns: 92px 1fr auto;
+          gap: 10px;
+          align-items: center;
+        }
+        .vx-body .row select,
+        .vx-body .calcRow select,
+        .vx-body .calc-row select,
+        .vx-body .exchangeRow select,
+        .vx-body .exchange-row select{
+          width: 92px;
+          padding-right: 28px;
+        }
+        .vx-body .row input,
+        .vx-body .calcRow input,
+        .vx-body .calc-row input,
+        .vx-body .exchangeRow input,
+        .vx-body .exchange-row input{
+          width: 100%;
+          min-width: 0;
+        }
+        .vx-body .row button,
+        .vx-body .calcRow button,
+        .vx-body .calc-row button,
+        .vx-body .exchangeRow button,
+        .vx-body .exchange-row button{
+          height: 48px;
+          min-width: 48px;
+          padding: 0;
+          border: 1px solid rgba(15,23,42,0.16);
+          background: rgba(255,255,255,0.92);
+          box-shadow: 0 6px 16px rgba(2,6,23,0.06);
+        }
+      `}</style>
 
       <div className="container">
-        <div className="card vx-topCard">
-          <div className="vx-topRow">
-            <div className="vx-logo" aria-label="Лого">
-              {!logoOk ? <span className="vx-logoFallback">DX</span> : null}
-              <img
-                className="vx-logoImg"
-                src={logoSrc}
-                alt=""
-                onLoad={() => setLogoOk(true)}
-                onError={() => {
-                  setLogoOk(false);
-                  setLogoIdx((x) => (x < logoCandidates.length - 1 ? x + 1 : x));
-                }}
-              />
-            </div>
-
-            <div className="vx-topText">
-              <div className="vx-title">{UI.title}</div>
-              <div className="vx-topSub">
-                {me.ok && me.user
-                  ? `Вы: ${me.user.first_name ?? ""} ${me.user.username ? "(@" + me.user.username + ")" : ""} • статус: ${me.status}`
-                  : me.error ?? "Авторизация..."}
-              </div>
-            </div>
+        <div className="card">
+          <div className="h1">{UI.title}</div>
+          <div className="small">
+            {me.ok && me.user
+              ? `Вы: ${me.user.first_name ?? ""} ${me.user.username ? "(@" + me.user.username + ")" : ""} • статус: ${me.status}`
+              : me.error ?? "Авторизация..."}
           </div>
-
-          {tg?.addToHomeScreen && tg?.checkHomeScreenStatus && hsStatus !== "unsupported" ? (
-            <div className="vx-installRow">
-              {hsStatus === "added" ? (
-                <div className="small">Установлено на телефон ✅</div>
-              ) : (
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={() => {
-                    try {
-                      tg.addToHomeScreen?.();
-                    } catch {
-                      tg.showAlert?.("Не получилось установить. Попробуй обновить Telegram.");
-                    }
-                  }}
-                >
-                  Установить на телефон
-                </button>
-              )}
-            </div>
-          ) : null}
         </div>
 
         <div className="vx-body">
-          <div className="vx-card2">
-            <div
-              className={"vx-tabPane " + (tab === "rates" ? "is-active " + anim : "")}
-              style={{ display: tab === "rates" ? "block" : "none" }}
-            >
-              {pages.rates}
+          {tab === "rates" && (
+            <div className="vx-card2">
+              <RatesTab me={me} />
             </div>
-            <div
-              className={"vx-tabPane " + (tab === "calc" ? "is-active " + anim : "")}
-              style={{ display: tab === "calc" ? "block" : "none" }}
-            >
-              {pages.calc}
+          )}
+          {tab === "calc" && (
+            <div className="vx-card2">
+              <CalculatorTab me={me} />
             </div>
-            <div
-              className={"vx-tabPane " + (tab === "atm" ? "is-active " + anim : "")}
-              style={{ display: tab === "atm" ? "block" : "none" }}
-            >
-              {pages.atm}
+          )}
+          {tab === "atm" && (
+            <div className="vx-card2">
+              <AtmTab />
             </div>
-            <div
-              className={"vx-tabPane " + (tab === "guide" ? "is-active " + anim : "")}
-              style={{ display: tab === "guide" ? "block" : "none" }}
-            >
-              {pages.guide}
+          )}
+          {tab === "guide" && (
+            <div className="vx-card2">
+              <GuideTab />
             </div>
-            <div
-              className={"vx-tabPane " + (tab === "reviews" ? "is-active " + anim : "")}
-              style={{ display: tab === "reviews" ? "block" : "none" }}
-            >
-              {pages.reviews}
+          )}
+          {tab === "reviews" && (
+            <div className="vx-card2">
+              <ReviewsTab me={me} />
             </div>
-          </div>
+          )}
+          {tab === "admin" && me.isOwner && (
+            <div className="vx-card2">
+              <AdminTab me={me} />
+            </div>
+          )}
         </div>
       </div>
 
-      <BottomBar active={tab} onChange={changeTab} items={bottomTabs} />
+      <BottomBar active={tab} onChange={setTab} items={bottomTabs} />
     </div>
   );
 }

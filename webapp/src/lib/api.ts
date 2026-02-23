@@ -13,6 +13,15 @@ export async function apiGetTodayRates(): Promise<TodayRatesResponse> {
   const r = await fetch("/api/rates/today");
   return r.json();
 }
+
+// Админское чтение сегодняшних курсов (если используется отдельной админ-панелью)
+export async function apiAdminGetTodayRates(initData: string): Promise<TodayRatesResponse> {
+  const r = await fetch("/api/admin/rates/today", {
+    headers: { "x-telegram-init-data": initData }
+  });
+  return r.json();
+}
+
 // Совместимость со старой вкладкой "Курс", где используется market rates.
 // Если на сервере нет /api/rates/market — не падаем.
 export async function apiGetMarketRates(): Promise<any> {
@@ -79,4 +88,34 @@ export async function apiAdminSetAtms(initData: string, atms: any) {
     body: JSON.stringify({ atms })
   });
   return r.json();
+}
+
+// --------------------
+// Admin: requests (совместимость)
+// --------------------
+
+// Получить список заявок (владелец)
+export async function apiAdminGetRequests(initData: string) {
+  try {
+    const r = await fetch("/api/admin/requests", {
+      headers: { "x-telegram-init-data": initData }
+    });
+    return await r.json();
+  } catch {
+    return { ok: false, error: "network" };
+  }
+}
+
+// Поменять состояние заявки (владелец)
+export async function apiAdminSetRequestState(initData: string, requestId: string, state: string) {
+  try {
+    const r = await fetch(`/api/admin/requests/${encodeURIComponent(requestId)}/state`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-telegram-init-data": initData },
+      body: JSON.stringify({ state })
+    });
+    return await r.json();
+  } catch {
+    return { ok: false, error: "network" };
+  }
 }
