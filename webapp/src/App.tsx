@@ -114,20 +114,19 @@ function BottomBar({
 
 export default function App() {
   const tg = getTg();
-
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
 
   const tabs: TabKey[] = ["rates", "calc", "atm", "guide", "reviews"];
   const [active, setActive] = useState<TabKey>("rates");
   const activeIndex = tabs.indexOf(active);
 
-  // чтобы нижний бар не мешал при клавиатуре (если у тебя это стилями скрывается)
+  // keyboard (чтобы можно было скрывать нижний бар стилями)
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const vvBaseHeightRef = useRef<number>(
     typeof window !== "undefined" ? window.visualViewport?.height ?? window.innerHeight : 0
   );
 
-  // swipe tracking
+  // swipe
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const lockRef = useRef(false);
 
@@ -205,6 +204,44 @@ export default function App() {
     };
   }, []);
 
+  // ✅ фон: берём из webapp/public/brand/danang-bg.(svg|jpg|png|webp)
+  const bgCandidates = useMemo(() => {
+    const v = String(Date.now());
+    const baseRaw = (import.meta as any)?.env?.BASE_URL || "/";
+    const base = String(baseRaw).endsWith("/") ? String(baseRaw) : String(baseRaw) + "/";
+    const rel = (p: string) => `${base}${p}?v=${v}`;
+    const abs = (p: string) => `/${p}?v=${v}`;
+    const exts = ["svg", "jpg", "png", "webp"];
+    return [
+      ...exts.map((ext) => rel(`brand/danang-bg.${ext}`)),
+      ...exts.map((ext) => abs(`brand/danang-bg.${ext}`)),
+    ];
+  }, []);
+
+  const [bgSrc, setBgSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      for (const src of bgCandidates) {
+        const ok = await new Promise<boolean>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+          img.src = src;
+        });
+        if (cancelled) return;
+        if (ok) {
+          setBgSrc(src);
+          return;
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bgCandidates]);
+
   const bottomTabs = useMemo(
     () => [
       { key: "rates" as const, label: "Курс", show: true, icon: <IconSwap className="vx-i" /> },
@@ -216,7 +253,7 @@ export default function App() {
     []
   );
 
-  // ✅ Важно: вкладки НЕ размонтируются => нет мигания/перезагрузки
+  // ✅ вкладки НЕ размонтируются => нет мигания
   const pages = useMemo(
     () => ({
       rates: <RatesTab />,
@@ -291,6 +328,17 @@ export default function App() {
   return (
     <div className={"vx-page" + (keyboardOpen ? " vx-kbOpen" : "")}>
       <style>{`@import url('${UI.fontImport}');`}</style>
+
+      {/* ✅ фон отдельным слоем (никогда не перекроет UI) */}
+      <div
+        className="vx-bg"
+        aria-hidden="true"
+        style={
+          {
+            ["--bg-url" as any]: bgSrc ? `url("${bgSrc}")` : "none",
+          } as React.CSSProperties
+        }
+      />
 
       <div className="container">
         <div className="card vx-topCard">
