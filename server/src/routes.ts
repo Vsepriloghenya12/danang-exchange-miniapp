@@ -7,7 +7,6 @@ import {
   type UserStatus,
   type RequestState,
   type StoredRequest,
-  type AtmItem,
   normalizeStatus,
   parseStatusInput
 } from "./store.js";
@@ -133,6 +132,70 @@ export function createApiRouter(opts: {
     return res.status(503).json(snap);
   });
 
+  // --------------------
+  // ATMs
+  // --------------------
+  // публичный список банкоматов
+  router.get("/atms", (_req, res) => {
+    const store = readStore();
+    res.json({ ok: true, atms: Array.isArray((store as any).atms) ? (store as any).atms : [] });
+  });
+
+  // список для владельца (через Telegram initData или x-admin-key)
+  router.get("/admin/atms", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const store = readStore();
+      res.json({ ok: true, atms: Array.isArray((store as any).atms) ? (store as any).atms : [] });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // сохранить список (полностью перезаписываем)
+  router.post("/admin/atms", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const body = req.body || {};
+      const list = body.atms ?? body.items ?? body.list;
+      if (!Array.isArray(list)) {
+        return res.status(400).json({ ok: false, error: "bad_atms_list" });
+      }
+
+      const cleaned = list.map((x: any) => {
+        const title = String(x?.title ?? "").trim();
+        const mapUrl = String(x?.mapUrl ?? x?.map_url ?? "").trim();
+        const address = String(x?.address ?? "").trim();
+        const note = String(x?.note ?? "").trim();
+
+        return {
+          id: String(x?.id ?? "").trim() || randomUUID(),
+          title,
+          mapUrl,
+          ...(address ? { address } : {}),
+          ...(note ? { note } : {})
+        };
+      });
+
+      for (const a of cleaned) {
+        if (!a.title || !a.mapUrl) {
+          return res.status(400).json({ ok: false, error: "atm_title_or_map_missing" });
+        }
+      }
+
+      const store: any = readStore();
+      store.atms = cleaned;
+      writeStore(store);
+      res.json({ ok: true, atms: store.atms });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
   router.get("/admin/rates/today", (req, res) => {
     try {
       const { isOwner } = requireAdmin(req);
@@ -212,72 +275,6 @@ export function createApiRouter(opts: {
     }
   });
 
-
-
-  // --------------------
-  // ATMs
-  // --------------------
-  // публичный список
-  router.get("/atms", (_req, res) => {
-    const store = readStore();
-    res.json({ ok: true, atms: Array.isArray(store.atms) ? store.atms : [] });
-  });
-
-  // список для владельца
-  router.get("/admin/atms", (req, res) => {
-    try {
-      const { isOwner } = requireAdmin(req);
-      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-
-      const store = readStore();
-      res.json({ ok: true, atms: Array.isArray(store.atms) ? store.atms : [] });
-    } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
-    }
-  });
-
-  // сохранить список (полностью заменяет)
-  router.post("/admin/atms", (req, res) => {
-    try {
-      const { isOwner } = requireAdmin(req);
-      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-
-      const list = (req.body || {})?.atms;
-      if (!Array.isArray(list)) {
-        return res.status(400).json({ ok: false, error: "bad_atms_list" });
-      }
-
-      const cleaned: AtmItem[] = list.map((x: any) => {
-        const id = String(x?.id || "").trim() || randomUUID();
-        const title = String(x?.title || "").trim();
-        const mapUrl = String(x?.mapUrl || x?.map_url || "").trim();
-        const address = String(x?.address || "").trim();
-        const note = String(x?.note || "").trim();
-
-        return {
-          id,
-          title,
-          mapUrl,
-          ...(address ? { address } : {}),
-          ...(note ? { note } : {})
-        };
-      });
-
-      for (const a of cleaned) {
-        if (!a.title || !a.mapUrl) {
-          return res.status(400).json({ ok: false, error: "atm_title_or_map_missing" });
-        }
-      }
-
-      const store = readStore();
-      store.atms = cleaned;
-      writeStore(store);
-
-      res.json({ ok: true, atms: store.atms });
-    } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
-    }
-  });
   // --------------------
   // Admin users
   // --------------------

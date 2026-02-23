@@ -203,9 +203,30 @@ label, input, select, textarea{ color: var(--text); }
   border-radius: 16px;
 }
 
-/* Highlight selected status button in admin (standard/silver/gold) */
-.btn.vx-btnOn{
-  box-shadow: var(--ring), 0 16px 40px rgba(255,179,87,0.26);
+/* Status buttons (admin): active button changes color */
+.btn.vx-statusBtn{
+  background: rgba(255,255,255,.78);
+  border: 1px solid rgba(9,23,33,.14);
+  box-shadow: none;
+  color: rgba(9,23,33,.90);
+}
+.btn.vx-statusBtn:hover{ filter: brightness(0.985); }
+
+.btn.vx-statusBtn.vx-btnOn{ border: 0; }
+
+.btn.vx-statusBtn.vx-btnOn.vx-status-standard{
+  background: rgba(9,23,33,.88);
+  color: rgba(255,255,255,.96);
+}
+
+.btn.vx-statusBtn.vx-btnOn.vx-status-silver{
+  background: rgba(190,198,210,.95);
+  color: rgba(9,23,33,.92);
+}
+
+.btn.vx-statusBtn.vx-btnOn.vx-status-gold{
+  background: rgba(255,179,87,.96);
+  color: rgba(26,18,8,.92);
 }
 
 /* Link button (used in standalone admin) */

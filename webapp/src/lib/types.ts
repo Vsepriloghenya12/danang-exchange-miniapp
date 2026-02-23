@@ -47,7 +47,6 @@ export type MarketRatesResponse =
       g?: Record<string, number>;
     };
 
-
 export type AtmItem = {
   id: string;
   title: string;
@@ -56,4 +55,8 @@ export type AtmItem = {
   mapUrl: string;
 };
 
-export type AtmsResponse = { ok: boolean; atms: AtmItem[]; error?: string };
+export type AtmsResponse = {
+  ok: boolean;
+  atms: AtmItem[];
+  error?: string;
+};

@@ -26,7 +26,7 @@ export default function AtmTab() {
   return (
     <div className="card">
       <div className="h1">Банкоматы</div>
-      <div className="small">Список заполняется владельцем в админке.</div>
+      <div className="small">Список заполняется владельцем в “Управлении”.</div>
       <div className="hr" />
 
       {loading ? (
@@ -39,14 +39,14 @@ export default function AtmTab() {
             <div>
               <b>{a.title}</b>
             </div>
-            <div className="small">
-              {[a.address, a.note].filter(Boolean).join(" • ")}
-            </div>
+            <div className="small">{[a.address, a.note].filter(Boolean).join(" • ")}</div>
+
             <div className="vx-mt6">
-              <button className="btn vx-btnSm" type="button" onClick={() => openMap(a.mapUrl)}>
+              <button className="btn vx-btnSm" onClick={() => openMap(a.mapUrl)}>
                 Открыть на карте
               </button>
             </div>
+
             <div className="hr" />
           </div>
         ))
