@@ -360,6 +360,8 @@ export function createApiRouter(opts: {
 
       store.requests = store.requests || [];
       store.requests.push({
+        id: makeId("req"),
+        state: "new",
         sellCurrency,
         buyCurrency,
         sellAmount,
@@ -372,6 +374,58 @@ export function createApiRouter(opts: {
       writeStore(store);
 
       res.json({ ok: true });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // --------------------
+  // Admin: requests list + state update
+  // (нужно для админ-панели; не влияет на пользовательскую часть)
+  // --------------------
+
+  router.get("/admin/requests", (req, res) => {
+    try {
+      const { isOwner } = requireAuth(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const store = readStore();
+      const list = (store.requests || []).map((r: any, idx: number) => {
+        // совместимость со старыми записями без id/state
+        const id = String(r?.id || "").trim() || `legacy_${idx}`;
+        const state = String(r?.state || "").trim() || "new";
+        return { ...r, id, state };
+      });
+
+      // по умолчанию — свежие сверху
+      list.sort((a: any, b: any) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+
+      res.json({ ok: true, requests: list });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  router.post("/admin/requests/:id/state", (req, res) => {
+    try {
+      const { isOwner } = requireAuth(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const id = String(req.params.id || "").trim();
+      const state = String(req.body?.state ?? "").trim();
+      if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
+      if (!state) return res.status(400).json({ ok: false, error: "bad_state" });
+
+      const store = readStore();
+      const arr = store.requests || [];
+      const i = arr.findIndex((r: any, idx: number) => String(r?.id || `legacy_${idx}`) === id);
+      if (i === -1) return res.status(404).json({ ok: false, error: "not_found" });
+
+      arr[i] = { ...arr[i], id: arr[i]?.id || id, state, state_updated_at: new Date().toISOString() };
+      store.requests = arr;
+      writeStore(store);
+
+      res.json({ ok: true, id, state });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
