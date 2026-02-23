@@ -924,16 +924,17 @@ label, input, select, textarea{ color: var(--text); }
 /* --- Tabs slider: keep pages mounted to avoid flashing --- */
 .vx-pagesWrap{
   position: relative;
+  width: 100%;
   overflow: hidden;
   border-radius: 22px;
-  /* чтобы свайп не вызывал “резину” */
   overscroll-behavior: none;
   touch-action: pan-y;
 }
 
 .vx-pagesTrack{
-  display: flex;
-  width: 500%; /* 5 вкладок */
+  display: flex !important;
+  flex-wrap: nowrap !important;          /* важно: НЕ переносить */
+  align-items: stretch;
   will-change: transform;
   transition: transform 260ms cubic-bezier(.2,.8,.2,1);
   backface-visibility: hidden;
@@ -944,10 +945,11 @@ label, input, select, textarea{ color: var(--text); }
   transition: none !important;
 }
 
+/* важно: каждая вкладка = 100% ширины */
 .vx-pagePane{
-  width: 20%; /* 1/5 */
-  flex: 0 0 20%;
-  padding: 0;
+  flex: 0 0 100% !important;
+  min-width: 100% !important;
+  width: 100% !important;
 }
 
 /* Чтобы элементы вне активной вкладки не ловили клики */
@@ -955,7 +957,7 @@ label, input, select, textarea{ color: var(--text); }
   pointer-events: none;
 }
 
-/* при клавиатуре можно скрывать бар (если у тебя так сделано) */
+/* скрывать бар при клавиатуре (если у тебя это включено) */
 .vx-kbOpen .vx-bottomWrap{
   display: none;
 }
