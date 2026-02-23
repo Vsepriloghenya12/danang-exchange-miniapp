@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import Dashboard from "./Dashboard";
+import AdminTab from "../tabs/AdminTab";
 
 // Standalone admin dashboard for PC.
 // Auth is done via ADMIN_WEB_KEY (server env) passed in header x-admin-key.
@@ -90,7 +90,9 @@ export default function AdminStandalone() {
             </div>
           </div>
         ) : (
-          <Dashboard token={`adminkey:${adminKey}`} />
+          // We reuse existing AdminTab UI, but instead of Telegram initData we pass a special token.
+          // api.ts detects the prefix "adminkey:" and sends x-admin-key.
+          <AdminTab me={{ initData: `adminkey:${adminKey}` }} />
         )}
       </div>
     </div>
