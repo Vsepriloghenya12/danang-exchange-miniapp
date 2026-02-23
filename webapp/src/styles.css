@@ -921,6 +921,44 @@ label, input, select, textarea{ color: var(--text); }
   color:#0f172a;
   border:1px solid rgba(255,179,87,.35);
 }
+/* --- Tabs slider: keep pages mounted to avoid flashing --- */
+.vx-pagesWrap{
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  /* чтобы свайп не вызывал “резину” */
+  overscroll-behavior: none;
+  touch-action: pan-y;
+}
+
+.vx-pagesTrack{
+  display: flex;
+  width: 500%; /* 5 вкладок */
+  will-change: transform;
+  transition: transform 260ms cubic-bezier(.2,.8,.2,1);
+  backface-visibility: hidden;
+  transform: translate3d(0,0,0);
+}
+
+.vx-pagesWrap[data-dragging="1"] .vx-pagesTrack{
+  transition: none !important;
+}
+
+.vx-pagePane{
+  width: 20%; /* 1/5 */
+  flex: 0 0 20%;
+  padding: 0;
+}
+
+/* Чтобы элементы вне активной вкладки не ловили клики */
+.vx-pagePane:not(.vx-pageActive){
+  pointer-events: none;
+}
+
+/* при клавиатуре можно скрывать бар (если у тебя так сделано) */
+.vx-kbOpen .vx-bottomWrap{
+  display: none;
+}
 
 /* ещё компактнее блоки курса в управлении */
 .vx-admin .vx-rateRow{ padding: 6px 0; align-items:center; }
