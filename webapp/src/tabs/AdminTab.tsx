@@ -343,10 +343,18 @@ export default function AdminTab({ me }: any) {
                 <div className="row vx-mt6 vx-rowWrap vx-gap6">
                   {STATUS_OPTIONS.map((s) => {
                     const isOn = statusValueAny(u.status) === s.value;
+                    const activeStyle = isOn
+                      ? (s.value === "standard"
+                          ? { background: "rgba(9,23,33,.88)", color: "rgba(255,255,255,.96)", border: 0 }
+                          : s.value === "silver"
+                            ? { background: "rgba(190,198,210,.95)", color: "rgba(9,23,33,.92)", border: 0 }
+                            : { background: "rgba(255,179,87,.96)", color: "rgba(26,18,8,.92)", border: 0 })
+                      : undefined;
                     return (
                       <button
                         key={s.value}
                         className={`btn vx-btnSm vx-statusBtn vx-status-${s.value}${isOn ? " vx-btnOn" : ""}`}
+                        style={activeStyle as any}
                         onClick={() => setStatus(u.tg_id, s.value)}
                       >
                         {s.label}
