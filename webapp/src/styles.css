@@ -508,7 +508,7 @@ label, input, select, textarea{ color: var(--text); }
 .vx-body .exchangeRow,
 .vx-body .exchange-row{
   display: grid !important;
-  grid-template-columns: 92px 1fr auto;
+  grid-template-columns: 110px 1fr auto;
   gap: 10px;
   align-items: center;
 }
@@ -517,7 +517,7 @@ label, input, select, textarea{ color: var(--text); }
 .vx-body .calc-row select,
 .vx-body .exchangeRow select,
 .vx-body .exchange-row select{
-  width: 92px;
+  width: 110px;
   padding-right: 28px;
 }
 .vx-body .row input,
