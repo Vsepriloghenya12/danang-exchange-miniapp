@@ -1,23 +1,46 @@
 import express from "express";
+import { randomUUID } from "node:crypto";
 import {
   readStore,
   writeStore,
   upsertUserFromTelegram,
+  defaultBonuses,
   type UserStatus,
+  type RequestState,
+  type StoredRequest,
+  type BonusesConfig,
+  type BonusesTier,
   normalizeStatus,
-  parseStatusInput,
-  normalizeBonusConfig
+  parseStatusInput
 } from "./store.js";
 import { validateTelegramInitData } from "./telegramValidate.js";
+import { getMarketSnapshot } from "./marketRates.js";
 
 type ReceiveMethod = "cash" | "transfer" | "atm";
-type Currency = "RUB" | "USD" | "USDT" | "VND"; // заявки пока только эти 4
+type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB";
 
 const statusLabel: Record<UserStatus, string> = {
   standard: "стандарт",
   silver: "серебро",
   gold: "золото"
 };
+
+const requestStateLabel: Record<RequestState, string> = {
+  new: "принята",
+  in_progress: "в работе",
+  done: "готово",
+  canceled: "отменена"
+};
+
+function parseRequestState(s: any): RequestState | null {
+  const v = String(s ?? "").toLowerCase().trim();
+  if (!v) return null;
+  if (["new", "принята", "новая", "создана"].includes(v)) return "new";
+  if (["in_progress", "inprogress", "process", "в работе", "вработе"].includes(v)) return "in_progress";
+  if (["done", "готово", "готова", "выполнена"].includes(v)) return "done";
+  if (["canceled", "cancelled", "отменена", "отмена"].includes(v)) return "canceled";
+  return null;
+}
 
 export function createApiRouter(opts: {
   botToken: string;
@@ -52,6 +75,21 @@ export function createApiRouter(opts: {
     return { user: v.user, status, isOwner };
   }
 
+  // Admin access for a standalone PC dashboard.
+  // If ADMIN_WEB_KEY is set, requests with header `x-admin-key: <key>` are treated as owner.
+  function requireAdmin(req: express.Request) {
+    const envKey = String(process.env.ADMIN_WEB_KEY || "").trim();
+    const key = String(req.headers["x-admin-key"] || "").trim();
+    if (envKey && key && key === envKey) {
+      return {
+        user: { id: 0, username: "admin", first_name: "Admin" },
+        status: "standard" as UserStatus,
+        isOwner: true
+      };
+    }
+    return requireAuth(req);
+  }
+
   router.get("/health", (_req, res) => res.json({ ok: true }));
 
   router.post("/auth", (req, res) => {
@@ -81,49 +119,6 @@ export function createApiRouter(opts: {
   });
 
   // --------------------
-  // Public config (bonuses)
-  // --------------------
-  router.get("/config/bonuses", (_req, res) => {
-    const store = readStore();
-    const bonuses = normalizeBonusConfig(store.config?.bonuses);
-    res.json({ ok: true, bonuses });
-  });
-
-  // --------------------
-  // Admin config (bonuses)
-  // --------------------
-  router.get("/admin/bonuses", (req, res) => {
-    try {
-      const { isOwner } = requireAuth(req);
-      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-
-      const store = readStore();
-      const bonuses = normalizeBonusConfig(store.config?.bonuses);
-      res.json({ ok: true, bonuses });
-    } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
-    }
-  });
-
-  router.post("/admin/bonuses", (req, res) => {
-    try {
-      const { isOwner } = requireAuth(req);
-      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-
-      const incoming = (req.body && (req.body.bonuses ?? req.body)) || {};
-
-      const store = readStore();
-      store.config = store.config || {};
-      store.config.bonuses = normalizeBonusConfig(incoming);
-      writeStore(store);
-
-      res.json({ ok: true, bonuses: store.config.bonuses });
-    } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
-    }
-  });
-
-  // --------------------
   // Rates
   // --------------------
   router.get("/rates/today", (_req, res) => {
@@ -133,18 +128,181 @@ export function createApiRouter(opts: {
     res.json({ ok: true, date: today, data });
   });
 
-  // Backward-compat: некоторые старые версии фронта запрашивали «рыночные» курсы.
-  // Сейчас отдельного источника нет — отдаём то же, что и /rates/today.
-  router.get("/rates/market", (_req, res) => {
+  // Рыночные курсы "G" для кросс-пар (обновление ~каждые 15 минут)
+  router.get("/market", async (_req, res) => {
+    const snap = await getMarketSnapshot();
+    if (snap.ok) return res.json(snap);
+    return res.status(503).json(snap);
+  });
+
+  // --------------------
+  // Bonuses (надбавки)
+  // --------------------
+  router.get("/bonuses", (_req, res) => {
     const store = readStore();
-    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
-    const data = store.ratesByDate?.[today] || null;
-    res.json({ ok: true, date: today, data });
+    const bonuses = (store.config as any).bonuses || defaultBonuses();
+    res.json({ ok: true, bonuses });
+  });
+
+  router.get("/admin/bonuses", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const store = readStore();
+      const bonuses = (store.config as any).bonuses || defaultBonuses();
+      res.json({ ok: true, bonuses });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  function cleanBonuses(input: any): BonusesConfig {
+    const src = input && typeof input === "object" ? input : {};
+    const base = defaultBonuses();
+
+    const bool = (v: any, d: boolean) => (typeof v === "boolean" ? v : d);
+    const num = (v: any, d: number) => {
+      const n = Number(String(v ?? "").replace(",", ".").trim());
+      return Number.isFinite(n) ? n : d;
+    };
+
+    const cleanTier = (t: any): BonusesTier | null => {
+      const min = num(t?.min, NaN);
+      const maxRaw = t?.max;
+      const max = maxRaw === "" || maxRaw == null ? undefined : num(maxRaw, NaN);
+      if (!Number.isFinite(min) || min < 0) return null;
+      if (max !== undefined && (!Number.isFinite(max) || max <= min)) return null;
+
+      return {
+        min,
+        ...(max !== undefined ? { max } : {}),
+        standard: num(t?.standard, 0),
+        silver: num(t?.silver, 0),
+        gold: num(t?.gold, 0)
+      };
+    };
+
+    const cleanTierList = (arr: any, fallback: BonusesTier[]) => {
+      if (!Array.isArray(arr)) return fallback;
+      const list = arr.map(cleanTier).filter(Boolean) as BonusesTier[];
+      if (list.length === 0) return fallback;
+      // сортируем по min
+      list.sort((a, b) => a.min - b.min);
+      return list;
+    };
+
+    const cleanMethodRow = (row: any, fb: { RUB: number; USD: number; USDT: number }) => {
+      return {
+        RUB: num(row?.RUB, fb.RUB),
+        USD: num(row?.USD, fb.USD),
+        USDT: num(row?.USDT, fb.USDT)
+      };
+    };
+
+    const out: BonusesConfig = {
+      enabled: {
+        tiers: bool(src?.enabled?.tiers, base.enabled.tiers),
+        methods: bool(src?.enabled?.methods, base.enabled.methods)
+      },
+      tiers: {
+        RUB: cleanTierList(src?.tiers?.RUB, base.tiers.RUB),
+        USD: cleanTierList(src?.tiers?.USD, base.tiers.USD),
+        USDT: cleanTierList(src?.tiers?.USDT, base.tiers.USDT)
+      },
+      methods: {
+        transfer: cleanMethodRow(src?.methods?.transfer, base.methods.transfer),
+        atm: cleanMethodRow(src?.methods?.atm, base.methods.atm)
+      }
+    };
+
+    return out;
+  }
+
+  router.post("/admin/bonuses", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const body = req.body || {};
+      const bonuses = cleanBonuses(body.bonuses ?? body);
+
+      const store = readStore();
+      store.config = { ...(store.config || {}), bonuses };
+      writeStore(store);
+      res.json({ ok: true, bonuses });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // --------------------
+  // ATMs
+  // --------------------
+  // публичный список банкоматов
+  router.get("/atms", (_req, res) => {
+    const store = readStore();
+    res.json({ ok: true, atms: Array.isArray((store as any).atms) ? (store as any).atms : [] });
+  });
+
+  // список для владельца (через Telegram initData или x-admin-key)
+  router.get("/admin/atms", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const store = readStore();
+      res.json({ ok: true, atms: Array.isArray((store as any).atms) ? (store as any).atms : [] });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // сохранить список (полностью перезаписываем)
+  router.post("/admin/atms", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const body = req.body || {};
+      const list = body.atms ?? body.items ?? body.list;
+      if (!Array.isArray(list)) {
+        return res.status(400).json({ ok: false, error: "bad_atms_list" });
+      }
+
+      const cleaned = list.map((x: any) => {
+        const title = String(x?.title ?? "").trim();
+        const mapUrl = String(x?.mapUrl ?? x?.map_url ?? "").trim();
+        const address = String(x?.address ?? "").trim();
+        const note = String(x?.note ?? "").trim();
+
+        return {
+          id: String(x?.id ?? "").trim() || randomUUID(),
+          title,
+          mapUrl,
+          ...(address ? { address } : {}),
+          ...(note ? { note } : {})
+        };
+      });
+
+      for (const a of cleaned) {
+        if (!a.title || !a.mapUrl) {
+          return res.status(400).json({ ok: false, error: "atm_title_or_map_missing" });
+        }
+      }
+
+      const store: any = readStore();
+      store.atms = cleaned;
+      writeStore(store);
+      res.json({ ok: true, atms: store.atms });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
   });
 
   router.get("/admin/rates/today", (req, res) => {
     try {
-      const { isOwner } = requireAuth(req);
+      const { isOwner } = requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const store = readStore();
@@ -158,7 +316,7 @@ export function createApiRouter(opts: {
 
   router.post("/admin/rates/today", (req, res) => {
     try {
-      const { isOwner, user } = requireAuth(req);
+      const { isOwner, user } = requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const body = req.body || {};
@@ -226,7 +384,7 @@ export function createApiRouter(opts: {
   // --------------------
   router.get("/admin/users", (req, res) => {
     try {
-      const { isOwner } = requireAuth(req);
+      const { isOwner } = requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const store = readStore();
@@ -236,42 +394,9 @@ export function createApiRouter(opts: {
     }
   });
 
-  // --------------------
-  // Admin requests history
-  // --------------------
-  router.get("/admin/requests", (req, res) => {
-    try {
-      const { isOwner } = requireAuth(req);
-      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-
-      const rawLimit = (req.query as any)?.limit;
-      const rawTgId = (req.query as any)?.tg_id;
-
-      const limit = Math.min(Math.max(Number(rawLimit ?? 200), 1), 2000);
-      const tgId = rawTgId !== undefined && rawTgId !== null && String(rawTgId).trim() !== "" ? Number(rawTgId) : undefined;
-
-      const store = readStore();
-      let items = Array.isArray(store.requests) ? store.requests.slice() : [];
-
-      if (Number.isFinite(tgId as any)) {
-        items = items.filter((x: any) => Number(x?.from?.id) === tgId);
-      }
-
-      items.sort((a: any, b: any) => {
-        const ta = Date.parse(a?.created_at || "") || 0;
-        const tb = Date.parse(b?.created_at || "") || 0;
-        return tb - ta;
-      });
-
-      res.json({ ok: true, requests: items.slice(0, limit) });
-    } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
-    }
-  });
-
   router.post("/admin/users/:tgId/status", (req, res) => {
     try {
-      const { isOwner } = requireAuth(req);
+      const { isOwner } = requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const tgId = Number(req.params.tgId);
@@ -302,8 +427,83 @@ export function createApiRouter(opts: {
   });
 
   // --------------------
-  // Requests (пока только 4 валюты)
+  // Requests
   // --------------------
+  // список заявок (для владельца)
+  router.get("/admin/requests", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const store = readStore();
+      const requests = [...(store.requests || [])].sort((a, b) =>
+        String(b.created_at).localeCompare(String(a.created_at))
+      );
+
+      return res.json({ ok: true, requests });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // изменить статус заявки (и отправить пуш пользователю через Telegram)
+  router.post("/admin/requests/:id/state", async (req, res) => {
+    try {
+      const { isOwner, user } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const id = String(req.params.id || "");
+      const next = parseRequestState(req.body?.state);
+      if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
+      if (!next) {
+        return res.status(400).json({
+          ok: false,
+          error: "bad_state",
+          hint: "state: new | in_progress | done | canceled"
+        });
+      }
+
+      const store = readStore();
+      const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
+      if (!r) return res.status(404).json({ ok: false, error: "not_found" });
+
+      r.state = next;
+      r.state_updated_at = new Date().toISOString();
+      r.state_updated_by = user.id;
+      writeStore(store);
+
+      // Уведомление пользователю (это и будет "push" на телефоне через Telegram)
+      const shortId = id.slice(-6);
+      const text =
+        `📣 Статус заявки обновлён\n` +
+        `🆔 #${shortId}\n` +
+        `🔁 ${r.sellCurrency} → ${r.buyCurrency}\n` +
+        `💸 Отдаёте: ${r.sellAmount}\n` +
+        `🎯 Получаете: ${r.buyAmount}\n` +
+        `📌 Сейчас: ${requestStateLabel[next]}`;
+
+      // бот может писать пользователю только если он уже нажал /start (в нашем случае это так)
+      const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          chat_id: r.from.id,
+          text,
+          disable_web_page_preview: true
+        })
+      });
+      const tgJson: any = await tgRes.json();
+      if (!tgJson?.ok) {
+        // не фейлим весь запрос, но возвращаем предупреждение
+        return res.json({ ok: true, request: r, warn: tgJson?.description || "tg_send_failed" });
+      }
+
+      return res.json({ ok: true, request: r });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
   router.post("/requests", async (req, res) => {
     try {
       const { user, status } = requireAuth(req);
@@ -315,7 +515,7 @@ export function createApiRouter(opts: {
       const buyAmount = Number(p.buyAmount);
       const receiveMethod = String(p.receiveMethod || "").toLowerCase() as ReceiveMethod;
 
-      const allowedCur = new Set<Currency>(["RUB", "USD", "USDT", "VND"]);
+      const allowedCur = new Set<Currency>(["RUB", "USD", "USDT", "VND", "EUR", "THB"]);
       const allowedMethod = new Set<ReceiveMethod>(["cash", "transfer", "atm"]);
 
       if (!allowedCur.has(sellCurrency) || !allowedCur.has(buyCurrency) || sellCurrency === buyCurrency) {
@@ -380,19 +580,37 @@ export function createApiRouter(opts: {
       }
 
       store.requests = store.requests || [];
-      store.requests.push({
+      const request: StoredRequest = {
+        id: randomUUID(),
+        state: "new",
         sellCurrency,
         buyCurrency,
         sellAmount,
         buyAmount,
+        payMethod: String(p.payMethod || ""),
         receiveMethod,
         from: user,
         status: normalizeStatus(status),
         created_at: new Date().toISOString()
-      });
+      };
+      store.requests.push(request);
       writeStore(store);
 
-      res.json({ ok: true });
+      // Доп. подтверждение пользователю в личку (тоже пуш): можно выключить, если не нужно.
+      // Важно: бот сможет написать только тем, кто уже нажал /start.
+      try {
+        const shortId = request.id.slice(-6);
+        await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            chat_id: user.id,
+            text: `✅ Заявка принята\n🆔 #${shortId}\nМы скоро напишем, когда изменится статус.`
+          })
+        });
+      } catch {}
+
+      res.json({ ok: true, id: request.id, state: request.state });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }

@@ -4,6 +4,16 @@ import { fileURLToPath } from "node:url";
 
 export type UserStatus = "standard" | "silver" | "gold";
 
+export type RequestState = "new" | "in_progress" | "done" | "canceled";
+
+export type AtmItem = {
+  id: string;
+  title: string;
+  address?: string;
+  note?: string;
+  mapUrl: string;
+};
+
 export type Rates = {
   USD: { buy_vnd: number; sell_vnd: number };
   RUB: { buy_vnd: number; sell_vnd: number };
@@ -20,146 +30,10 @@ export type StoredUser = {
   last_seen_at: string;
 };
 
-export type BonusTier = {
-  /** Верхняя граница (строго меньше). null = последняя ступень без верхней границы */
-  upTo: number | null;
-  standard: number;
-  silver: number;
-  gold: number;
-};
-
-export type BonusConfig = {
-  enabled: {
-    /** Надбавка по статусу/сумме */
-    status: boolean;
-    /** Надбавка за способ получения (перевод/банкомат) */
-    method: boolean;
-  };
-
-  /** Если хоть что-то выбрано «Наличные» (payMethod или receiveMethod) — отменяем надбавку способа */
-  cashCancelsMethodBonus: boolean;
-
-  /** Ступени надбавки по статусу/сумме */
-  statusTiers: {
-    RUB: { tiers: BonusTier[] };
-    USD: { tiers: BonusTier[] };
-    USDT: { tiers: BonusTier[] };
-  };
-
-  /** Надбавка за способ получения (только когда покупаем VND) */
-  methodBonuses: {
-    RUB: { transfer: number; atm: number };
-    USD: { transfer: number; atm: number };
-    USDT: { transfer: number; atm: number };
-  };
-};
-
-export function defaultBonusConfig(): BonusConfig {
-  return {
-    enabled: { status: true, method: true },
-    cashCancelsMethodBonus: true,
-    statusTiers: {
-      RUB: {
-        tiers: [
-          { upTo: 50_000, standard: 0, silver: 1, gold: 2 },
-          { upTo: 100_000, standard: 1, silver: 2, gold: 3 },
-          { upTo: 200_000, standard: 2, silver: 3, gold: 4 },
-          { upTo: null, standard: 3, silver: 4, gold: 5 }
-        ]
-      },
-      USD: {
-        tiers: [
-          { upTo: 1000, standard: 0, silver: 100, gold: 150 },
-          { upTo: 3000, standard: 100, silver: 150, gold: 200 },
-          { upTo: null, standard: 150, silver: 200, gold: 250 }
-        ]
-      },
-      // по умолчанию USDT = USD
-      USDT: {
-        tiers: [
-          { upTo: 1000, standard: 0, silver: 100, gold: 150 },
-          { upTo: 3000, standard: 100, silver: 150, gold: 200 },
-          { upTo: null, standard: 150, silver: 200, gold: 250 }
-        ]
-      }
-    },
-    methodBonuses: {
-      RUB: { transfer: 1, atm: 1 },
-      USD: { transfer: 100, atm: 100 },
-      USDT: { transfer: 100, atm: 100 }
-    }
-  };
-}
-
-function toNum(x: any, fallback: number) {
-  const n = Number(x);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function toUpTo(x: any, fallback: number | null) {
-  if (x === null) return null;
-  if (x === undefined) return fallback;
-  const n = Number(x);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-export function normalizeBonusConfig(raw: any): BonusConfig {
-  const d = defaultBonusConfig();
-  const r = raw && typeof raw === "object" ? raw : {};
-
-  const enabled = {
-    status: typeof r.enabled?.status === "boolean" ? r.enabled.status : d.enabled.status,
-    method: typeof r.enabled?.method === "boolean" ? r.enabled.method : d.enabled.method
-  };
-
-  const cashCancelsMethodBonus =
-    typeof r.cashCancelsMethodBonus === "boolean" ? r.cashCancelsMethodBonus : d.cashCancelsMethodBonus;
-
-  const normTiers = (cur: "RUB" | "USD" | "USDT") => {
-    const def = d.statusTiers[cur].tiers;
-    const arr = Array.isArray(r.statusTiers?.[cur]?.tiers) ? r.statusTiers[cur].tiers : [];
-    return {
-      tiers: def.map((t, i) => {
-        const src = arr[i] || {};
-        return {
-          upTo: toUpTo(src.upTo, t.upTo),
-          standard: toNum(src.standard, t.standard),
-          silver: toNum(src.silver, t.silver),
-          gold: toNum(src.gold, t.gold)
-        };
-      })
-    };
-  };
-
-  const normMethod = (cur: "RUB" | "USD" | "USDT") => {
-    const def = d.methodBonuses[cur];
-    const src = r.methodBonuses?.[cur] || {};
-    return {
-      transfer: toNum(src.transfer, def.transfer),
-      atm: toNum(src.atm, def.atm)
-    };
-  };
-
-  return {
-    enabled,
-    cashCancelsMethodBonus,
-    statusTiers: {
-      RUB: normTiers("RUB"),
-      USD: normTiers("USD"),
-      USDT: normTiers("USDT")
-    },
-    methodBonuses: {
-      RUB: normMethod("RUB"),
-      USD: normMethod("USD"),
-      USDT: normMethod("USDT")
-    }
-  };
-}
-
 export type Store = {
   config: {
     groupChatId?: number;
-    bonuses?: BonusConfig;
+    bonuses?: BonusesConfig;
   };
   users: Record<string, StoredUser>;
   ratesByDate: Record<
@@ -170,8 +44,52 @@ export type Store = {
       rates: Rates;
     }
   >;
-  requests: any[];
+  requests: StoredRequest[];
   reviews: any[];
+  atms: AtmItem[];
+};
+
+export type BonusesTier = {
+  min: number;
+  max?: number; // если не задано — бесконечность
+  standard: number;
+  silver: number;
+  gold: number;
+};
+
+export type BonusesConfig = {
+  enabled: {
+    tiers: boolean;
+    methods: boolean;
+  };
+  // надбавки по статусам/суммам (в той же единице, что и курс: VND за 1 единицу валюты)
+  tiers: {
+    RUB: BonusesTier[];
+    USD: BonusesTier[];
+    USDT: BonusesTier[];
+  };
+  // надбавки за способ получения (для получения VND)
+  methods: {
+    transfer: { RUB: number; USD: number; USDT: number };
+    atm: { RUB: number; USD: number; USDT: number };
+  };
+};
+
+export type StoredRequest = {
+  id: string;
+  state: RequestState;
+  state_updated_at?: string;
+  state_updated_by?: number;
+  sellCurrency: string;
+  buyCurrency: string;
+  sellAmount: number;
+  buyAmount: number;
+  payMethod?: string;
+  receiveMethod: string;
+  from: { id: number; username?: string; first_name?: string; last_name?: string };
+  // статус клиента (standard/silver/gold) на момент заявки
+  status: UserStatus;
+  created_at: string;
 };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -183,13 +101,41 @@ const STORE_PATH =
 
 function defaultStore(): Store {
   return {
-    config: {
-      bonuses: defaultBonusConfig()
-    },
+    config: { bonuses: defaultBonuses() },
     users: {},
     ratesByDate: {},
     requests: [],
-    reviews: []
+    reviews: [],
+    atms: []
+  };
+}
+
+export function defaultBonuses(): BonusesConfig {
+  // значения повторяют текущую логику калькулятора (по умолчанию)
+  const rub: BonusesTier[] = [
+    { min: 0, max: 50_000, standard: 0, silver: 1, gold: 2 },
+    { min: 50_000, max: 100_000, standard: 1, silver: 2, gold: 3 },
+    { min: 100_000, max: 200_000, standard: 2, silver: 3, gold: 4 },
+    { min: 200_000, standard: 3, silver: 4, gold: 5 }
+  ];
+
+  const usd: BonusesTier[] = [
+    { min: 0, max: 1000, standard: 0, silver: 100, gold: 150 },
+    { min: 1000, max: 3000, standard: 100, silver: 150, gold: 200 },
+    { min: 3000, standard: 150, silver: 200, gold: 250 }
+  ];
+
+  return {
+    enabled: { tiers: true, methods: true },
+    tiers: {
+      RUB: rub,
+      USD: usd,
+      USDT: usd
+    },
+    methods: {
+      transfer: { RUB: 1, USD: 100, USDT: 100 },
+      atm: { RUB: 1, USD: 100, USDT: 100 }
+    }
   };
 }
 
@@ -264,21 +210,39 @@ export function readStore(): Store {
     config: { ...(parsed?.config || {}) },
     users: { ...(parsed?.users || {}) },
     ratesByDate: { ...(parsed?.ratesByDate || {}) },
-    requests: Array.isArray(parsed?.requests) ? parsed.requests : [],
-    reviews: Array.isArray(parsed?.reviews) ? parsed.reviews : []
+    requests: Array.isArray(parsed?.requests) ? (parsed.requests as any) : [],
+    reviews: Array.isArray(parsed?.reviews) ? parsed.reviews : [],
+    atms: Array.isArray(parsed?.atms) ? parsed.atms : []
   };
+
+  let dirty = false;
+
+  // бонусы: если нет — ставим дефолт
+  if (!store.config.bonuses) {
+    store.config.bonuses = defaultBonuses();
+    dirty = true;
+  }
 
   // миграция статусов
   for (const k of Object.keys(store.users || {})) {
     store.users[k].status = normalizeStatus(store.users[k].status);
   }
+
   for (const r of store.requests || []) {
-    r.status = normalizeStatus(r.status);
+    // старые заявки могли не иметь этих полей
+    if (!r.id) {
+      r.id = `req_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      dirty = true;
+    }
+    if (!r.state) {
+      r.state = "new";
+      dirty = true;
+    }
+    // status (статус клиента) нормализуем
+    r.status = normalizeStatus((r as any).status);
   }
 
-  // миграция бонусов
-  store.config = store.config || {};
-  store.config.bonuses = normalizeBonusConfig(store.config.bonuses);
+  if (dirty) writeStore(store);
 
   return store;
 }

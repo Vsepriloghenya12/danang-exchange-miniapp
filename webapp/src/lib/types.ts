@@ -21,11 +21,6 @@ export type TodayRatesResponse = {
   };
 };
 
-// Backward-compat: старые версии UI могут запрашивать «рыночные» курсы.
-export type MarketRatesResponse =
-  | { ok: true; date: string; data: any }
-  | { ok: false; error: string };
-
 export type AuthResponse =
   | {
       ok: true;
@@ -35,31 +30,66 @@ export type AuthResponse =
     }
   | { ok: false; error: string };
 
-export type StoredUser = {
-  tg_id: number;
-  username?: string;
-  first_name?: string;
-  last_name?: string;
-  status: UserStatus;
-  created_at: string;
-  last_seen_at: string;
+export type MarketRatesResponse =
+  | {
+      ok: true;
+      updated_at: string;
+      source: string;
+      stale: boolean;
+      g: Record<string, number>;
+    }
+  | {
+      ok: false;
+      error: string;
+      stale: boolean;
+      updated_at?: string;
+      source?: string;
+      g?: Record<string, number>;
+    };
+
+export type AtmItem = {
+  id: string;
+  title: string;
+  address?: string;
+  note?: string;
+  mapUrl: string;
 };
 
-export type RequestRecord = {
-  sellCurrency: string;
-  buyCurrency: string;
-  sellAmount: number;
-  buyAmount: number;
-  receiveMethod: ReceiveMethod;
-  from: { id: number; username?: string; first_name?: string; last_name?: string };
-  status: UserStatus;
-  created_at: string;
+export type AtmsResponse = {
+  ok: boolean;
+  atms: AtmItem[];
+  error?: string;
 };
 
-export type AdminRequestsResponse =
-  | { ok: true; requests: RequestRecord[] }
-  | { ok: false; error: string };
+// --------------------
+// Bonuses (надбавки)
+// --------------------
+export type BonusesTier = {
+  min: number;
+  max?: number;
+  standard: number;
+  silver: number;
+  gold: number;
+};
 
-export type AdminUsersResponse =
-  | { ok: true; users: StoredUser[] }
-  | { ok: false; error: string };
+export type BonusesConfig = {
+  enabled: {
+    tiers: boolean;
+    methods: boolean;
+  };
+  tiers: {
+    RUB: BonusesTier[];
+    USD: BonusesTier[];
+    USDT: BonusesTier[];
+  };
+  methods: {
+    transfer: { RUB: number; USD: number; USDT: number };
+    atm: { RUB: number; USD: number; USDT: number };
+  };
+};
+
+export type BonusesResponse = {
+  ok: boolean;
+  bonuses: BonusesConfig;
+  error?: string;
+};
