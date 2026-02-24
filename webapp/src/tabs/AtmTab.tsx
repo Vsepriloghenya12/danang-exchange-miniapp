@@ -1,6 +1,6 @@
 import React from "react";
 
-const FIND_ATM_URL = "https://www.google.com/maps/search/?api=1&query=Vietcombank%20ATM";
+const FIND_ATM_URL = "https://www.google.com/maps/@/data=!3m1!4b1!4m2!11m1!2sgilh91bdh1BmzcYuNnwZdqS4KxLjpQ?g_ep=CAISEjI1LjIyLjAuNzYzNTE5NzAyMBgAILffASpiLDk0MjY3MzIzOTQyNzUzMTYsOTQyMjQ4MjUsOTQyMjcyNDcsOTQyMjcyNDgsOTQyMzExODgsNDcwNzE3MDQsNDcwNjk1MDgsOTQyMTg2NDEsOTQyMDMwMTksNDcwODQzMDRCAlZO";
 
 function getTg() {
   return (window as any).Telegram?.WebApp;
