@@ -85,3 +85,23 @@ export async function apiAddReview(initData: string, rating: number, text: strin
   });
   return r.json();
 }
+
+// --------------------
+// Admin: requests history (операции)
+// --------------------
+export async function apiAdminGetRequests(
+  initData: string,
+  opts?: { limit?: number; tgId?: number }
+) {
+  const limit = opts?.limit ?? 300;
+  const tg = opts?.tgId;
+
+  const qs = new URLSearchParams();
+  qs.set("limit", String(limit));
+  if (typeof tg === "number" && Number.isFinite(tg)) qs.set("tg_id", String(tg));
+
+  const r = await fetch(`/api/admin/requests?${qs.toString()}`, {
+    headers: { "x-telegram-init-data": initData }
+  });
+  return r.json();
+}

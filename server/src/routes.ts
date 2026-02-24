@@ -236,6 +236,39 @@ export function createApiRouter(opts: {
     }
   });
 
+  // --------------------
+  // Admin requests history
+  // --------------------
+  router.get("/admin/requests", (req, res) => {
+    try {
+      const { isOwner } = requireAuth(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const rawLimit = (req.query as any)?.limit;
+      const rawTgId = (req.query as any)?.tg_id;
+
+      const limit = Math.min(Math.max(Number(rawLimit ?? 200), 1), 2000);
+      const tgId = rawTgId !== undefined && rawTgId !== null && String(rawTgId).trim() !== "" ? Number(rawTgId) : undefined;
+
+      const store = readStore();
+      let items = Array.isArray(store.requests) ? store.requests.slice() : [];
+
+      if (Number.isFinite(tgId as any)) {
+        items = items.filter((x: any) => Number(x?.from?.id) === tgId);
+      }
+
+      items.sort((a: any, b: any) => {
+        const ta = Date.parse(a?.created_at || "") || 0;
+        const tb = Date.parse(b?.created_at || "") || 0;
+        return tb - ta;
+      });
+
+      res.json({ ok: true, requests: items.slice(0, limit) });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
   router.post("/admin/users/:tgId/status", (req, res) => {
     try {
       const { isOwner } = requireAuth(req);

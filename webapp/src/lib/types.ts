@@ -34,3 +34,32 @@ export type AuthResponse =
       isOwner: boolean;
     }
   | { ok: false; error: string };
+
+export type StoredUser = {
+  tg_id: number;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  status: UserStatus;
+  created_at: string;
+  last_seen_at: string;
+};
+
+export type RequestRecord = {
+  sellCurrency: string;
+  buyCurrency: string;
+  sellAmount: number;
+  buyAmount: number;
+  receiveMethod: ReceiveMethod;
+  from: { id: number; username?: string; first_name?: string; last_name?: string };
+  status: UserStatus;
+  created_at: string;
+};
+
+export type AdminRequestsResponse =
+  | { ok: true; requests: RequestRecord[] }
+  | { ok: false; error: string };
+
+export type AdminUsersResponse =
+  | { ok: true; users: StoredUser[] }
+  | { ok: false; error: string };
