@@ -6,12 +6,10 @@ import {
   apiAdminSetUserStatus,
   apiAdminUsers,
   apiGetTodayRates,
-  apiAdminGetAtms,
-  apiAdminSetAtms,
   apiAdminGetBonuses,
   apiAdminSetBonuses
 } from "../lib/api";
-import type { AtmItem, BonusesConfig, BonusesTier } from "../lib/types";
+import type { BonusesConfig, BonusesTier } from "../lib/types";
 
 const STATUS_OPTIONS = [
   { value: "standard", label: "Стандарт" },
@@ -92,15 +90,42 @@ function toNumStrict(label: string, s: string) {
   return n;
 }
 
-function mkId() {
-  return (
-    (globalThis as any).crypto?.randomUUID?.() ||
-    `atm_${Date.now()}_${Math.random().toString(16).slice(2)}`
-  );
+// Защита от «битых» данных в store.json (например, bonuses = {}), чтобы UI не падал.
+function normalizeBonuses(input: any): BonusesConfig {
+  const src = input && typeof input === "object" ? input : {};
+  const num = (v: any, d = 0) => {
+    const n = Number(String(v ?? "").replace(",", ".").trim());
+    return Number.isFinite(n) ? n : d;
+  };
+  const tierList = (arr: any) => (Array.isArray(arr) ? arr : []);
+
+  return {
+    enabled: {
+      tiers: typeof src?.enabled?.tiers === "boolean" ? src.enabled.tiers : true,
+      methods: typeof src?.enabled?.methods === "boolean" ? src.enabled.methods : true
+    },
+    tiers: {
+      RUB: tierList(src?.tiers?.RUB),
+      USD: tierList(src?.tiers?.USD),
+      USDT: tierList(src?.tiers?.USDT)
+    },
+    methods: {
+      transfer: {
+        RUB: num(src?.methods?.transfer?.RUB, 0),
+        USD: num(src?.methods?.transfer?.USD, 0),
+        USDT: num(src?.methods?.transfer?.USDT, 0)
+      },
+      atm: {
+        RUB: num(src?.methods?.atm?.RUB, 0),
+        USD: num(src?.methods?.atm?.USD, 0),
+        USDT: num(src?.methods?.atm?.USDT, 0)
+      }
+    }
+  };
 }
 
 export default function AdminTab({ me }: any) {
-  const [section, setSection] = useState<"rates" | "users" | "requests" | "atms" | "bonuses">("rates");
+  const [section, setSection] = useState<"rates" | "users" | "requests" | "bonuses">("rates");
 
   // По умолчанию ВСЁ пустое (без подстановки старых значений)
   const [usdBuy, setUsdBuy] = useState("");
@@ -120,10 +145,6 @@ export default function AdminTab({ me }: any) {
 
   const [users, setUsers] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
-
-  const [atms, setAtms] = useState<AtmItem[]>([]);
-  const [atmsBusy, setAtmsBusy] = useState(false);
-  const [atmsLoaded, setAtmsLoaded] = useState(false);
 
   const [bonuses, setBonuses] = useState<BonusesConfig | null>(null);
   const [bonusesBusy, setBonusesBusy] = useState(false);
@@ -167,24 +188,6 @@ export default function AdminTab({ me }: any) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Загружаем банкоматы только когда пользователь открыл этот раздел
-  useEffect(() => {
-    if (section === "atms" && !atmsLoaded) {
-      (async () => {
-        setAtmsBusy(true);
-        try {
-          const r = await apiAdminGetAtms(me.initData);
-          if (r.ok) setAtms(Array.isArray(r.atms) ? r.atms : []);
-          else alert(r.error || "Ошибка загрузки банкоматов");
-          setAtmsLoaded(true);
-        } finally {
-          setAtmsBusy(false);
-        }
-      })();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [section, atmsLoaded]);
-
   // Загружаем надбавки только когда пользователь открыл этот раздел
   useEffect(() => {
     if (section === "bonuses" && !bonusesLoaded) {
@@ -193,7 +196,7 @@ export default function AdminTab({ me }: any) {
         try {
           const r = await apiAdminGetBonuses(me.initData);
           if (r.ok) {
-            setBonuses(r.bonuses);
+            setBonuses(normalizeBonuses((r as any).bonuses));
             setBonusesLoaded(true);
           } else {
             alert(r.error || "Ошибка загрузки надбавок");
@@ -250,65 +253,6 @@ export default function AdminTab({ me }: any) {
     const r = await apiAdminSetRequestState(me.initData, id, state);
     if (r.ok) loadRequests();
     else alert(r.error || "Ошибка");
-  };
-
-  const addAtm = () => {
-    setAtms((p) => [...p, { id: mkId(), title: "", address: "", note: "", mapUrl: "" }]);
-  };
-
-  const updAtm = (id: string, patch: Partial<AtmItem>) => {
-    setAtms((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-  };
-
-  const delAtm = (id: string) => setAtms((p) => p.filter((x) => x.id !== id));
-
-  const moveAtm = (id: string, dir: -1 | 1) => {
-    setAtms((p) => {
-      const idx = p.findIndex((x) => x.id === id);
-      const j = idx + dir;
-      if (idx < 0 || j < 0 || j >= p.length) return p;
-      const next = p.slice();
-      const t = next[idx];
-      next[idx] = next[j];
-      next[j] = t;
-      return next;
-    });
-  };
-
-  const saveAtms = async () => {
-    const hasBad = atms.some((a) => !a.title?.trim() || !a.mapUrl?.trim());
-    if (hasBad) {
-      alert("Заполни у каждого банкомата: Название и Ссылку на карту");
-      return;
-    }
-
-    setAtmsBusy(true);
-    try {
-      const r = await apiAdminSetAtms(me.initData, atms);
-      if (r.ok) {
-        alert("Список банкоматов сохранён ✅");
-        setAtmsLoaded(true);
-      } else {
-        alert(r.error || "Ошибка сохранения банкоматов");
-      }
-    } finally {
-      setAtmsBusy(false);
-    }
-  };
-
-  const reloadAtms = async () => {
-    setAtmsBusy(true);
-    try {
-      const r = await apiAdminGetAtms(me.initData);
-      if (r.ok) {
-        setAtms(Array.isArray(r.atms) ? r.atms : []);
-        setAtmsLoaded(true);
-      } else {
-        alert(r.error || "Ошибка загрузки банкоматов");
-      }
-    } finally {
-      setAtmsBusy(false);
-    }
   };
 
   // --------------------
@@ -374,7 +318,7 @@ export default function AdminTab({ me }: any) {
     try {
       const r = await apiAdminSetBonuses(me.initData, bonuses);
       if (r.ok) {
-        setBonuses(r.bonuses);
+        setBonuses(normalizeBonuses((r as any).bonuses));
         setBonusesLoaded(true);
         alert("Надбавки сохранены ✅");
       } else {
@@ -390,7 +334,7 @@ export default function AdminTab({ me }: any) {
     try {
       const r = await apiAdminGetBonuses(me.initData);
       if (r.ok) {
-        setBonuses(r.bonuses);
+        setBonuses(normalizeBonuses((r as any).bonuses));
         setBonusesLoaded(true);
       } else {
         alert(r.error || "Ошибка загрузки надбавок");
@@ -413,7 +357,6 @@ export default function AdminTab({ me }: any) {
         <button className={section === "bonuses" ? "on" : ""} onClick={() => setSection("bonuses")}>Надбавки</button>
         <button className={section === "users" ? "on" : ""} onClick={() => setSection("users")}>Клиенты</button>
         <button className={section === "requests" ? "on" : ""} onClick={() => setSection("requests")}>Заявки</button>
-        <button className={section === "atms" ? "on" : ""} onClick={() => setSection("atms")}>Банкоматы</button>
       </div>
 
       {section === "rates" ? (
@@ -740,70 +683,7 @@ export default function AdminTab({ me }: any) {
         </div>
       ) : null}
 
-      {section === "atms" ? (
-        <div className="card vx-mt10">
-          <div className="row vx-between vx-center">
-            <div className="small">Банкоматы (вкладка “Банкоматы” берёт список отсюда)</div>
-            <div className="row vx-rowWrap vx-gap6">
-              <button className="btn vx-btnSm" onClick={addAtm} disabled={atmsBusy}>Добавить</button>
-              <button className="btn vx-btnSm" onClick={saveAtms} disabled={atmsBusy || atms.length === 0}>Сохранить</button>
-              <button className="btn vx-btnSm" onClick={reloadAtms} disabled={atmsBusy}>Загрузить</button>
-            </div>
-          </div>
-
-          <div className="hr" />
-
-          {atms.length === 0 ? (
-            <div className="small">Пока пусто. Нажми “Добавить”.</div>
-          ) : (
-            atms.map((a, idx) => (
-              <div key={a.id} className="vx-mb10">
-                <div className="small"><b>#{idx + 1}</b></div>
-
-                <input
-                  className="input vx-mt6"
-                  value={a.title}
-                  onChange={(e) => updAtm(a.id, { title: e.target.value })}
-                  placeholder="Название банкомата"
-                />
-
-                <input
-                  className="input vx-mt6"
-                  value={a.address || ""}
-                  onChange={(e) => updAtm(a.id, { address: e.target.value })}
-                  placeholder="Адрес / район (необязательно)"
-                />
-
-                <input
-                  className="input vx-mt6"
-                  value={a.note || ""}
-                  onChange={(e) => updAtm(a.id, { note: e.target.value })}
-                  placeholder="Комментарий (комиссия, лимиты и т.д.)"
-                />
-
-                <input
-                  className="input vx-mt6"
-                  value={a.mapUrl}
-                  onChange={(e) => updAtm(a.id, { mapUrl: e.target.value })}
-                  placeholder="Ссылка на Google/Apple Maps"
-                />
-
-                <div className="row vx-mt6 vx-rowWrap vx-gap6">
-                  <button className="btn vx-btnSm" onClick={() => moveAtm(a.id, -1)} disabled={idx === 0 || atmsBusy}>↑</button>
-                  <button className="btn vx-btnSm" onClick={() => moveAtm(a.id, 1)} disabled={idx === atms.length - 1 || atmsBusy}>↓</button>
-                  <button className="btn vx-btnSm" onClick={() => delAtm(a.id)} disabled={atmsBusy}>Удалить</button>
-                </div>
-
-                {(!a.title.trim() || !a.mapUrl.trim()) ? (
-                  <div className="small vx-mt6">⚠️ Заполни Название и Ссылку на карту</div>
-                ) : null}
-
-                <div className="hr" />
-              </div>
-            ))
-          )}
-        </div>
-      ) : null}
+      {/* Банкоматы больше не редактируются владельцем — вкладка удалена */}
     </div>
   );
 }

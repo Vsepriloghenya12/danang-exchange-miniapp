@@ -140,7 +140,17 @@ export function createApiRouter(opts: {
   // --------------------
   router.get("/bonuses", (_req, res) => {
     const store = readStore();
-    const bonuses = (store.config as any).bonuses || defaultBonuses();
+    // Нормализуем/мигрируем, чтобы старые store.json (где bonuses мог быть пустым объектом)
+    // не ломали фронт (например, bonuses.enabled может отсутствовать).
+    const current = (store.config as any)?.bonuses;
+    const bonuses = cleanBonuses(current);
+
+    // Если по дороге что-то «починили» — сохраним обратно, чтобы больше не повторялось.
+    if (JSON.stringify(current ?? null) !== JSON.stringify(bonuses)) {
+      store.config = { ...(store.config || {}), bonuses };
+      writeStore(store);
+    }
+
     res.json({ ok: true, bonuses });
   });
 
@@ -150,7 +160,14 @@ export function createApiRouter(opts: {
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const store = readStore();
-      const bonuses = (store.config as any).bonuses || defaultBonuses();
+      const current = (store.config as any)?.bonuses;
+      const bonuses = cleanBonuses(current);
+
+      if (JSON.stringify(current ?? null) !== JSON.stringify(bonuses)) {
+        store.config = { ...(store.config || {}), bonuses };
+        writeStore(store);
+      }
+
       res.json({ ok: true, bonuses });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
