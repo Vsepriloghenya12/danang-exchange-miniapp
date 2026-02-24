@@ -270,10 +270,7 @@ function sellStep(cur: Currency): number {
   return 1;
 }
 
-function vndStepForReceive(receiveMethod: ReceiveMethod): number {
-  // Донги округляем до 10k, но если получаем в банкомате — требуем кратность 100k
-  return receiveMethod === "atm" ? 100000 : 100000;
-}
+const ATM_VND_STEP = 100000;
 
 export default function CalculatorTab({ me }: Props) {
   const tg = getTg();
@@ -401,29 +398,22 @@ export default function CalculatorTab({ me }: Props) {
   const invalidEur = sellCurrency === "EUR" && sellText.trim() !== "" && !isMultiple(sellAmount, 10);
 
   const invalidVndSell = sellCurrency === "VND" && sellText.trim() !== "" && !isMultiple(sellAmount, 100000);
-  const invalidVndBuy = buyCurrency === "VND" && buyText.trim() !== "" && !isMultiple(buyAmount, 100000);
+  const invalidVndBuy =
+    buyCurrency === "VND" && receiveMethod === "atm" && buyText.trim() !== "" && !isMultiple(buyAmount, ATM_VND_STEP);
 
-  const invalidAtmVnd =
-    buyCurrency === "VND" &&
-    receiveMethod === "atm" &&
-    buyText.trim() !== "" &&
-    !isMultiple(buyAmount, 100000);
-
-  const hasInvalid = invalidUsd || invalidEur || invalidVndSell || invalidVndBuy || invalidAtmVnd;
+  const hasInvalid = invalidUsd || invalidEur || invalidVndSell || invalidVndBuy;
 
   // ======= Recalc =======
   useEffect(() => {
     if (!canCalc) return;
-
-    const vndOutStep = vndStepForReceive(receiveMethod);
 
     const formatComputed = (cur: Currency, n: number) => {
       if (!Number.isFinite(n)) return "";
       let v = n;
       // Always show integers
       if (cur === "VND") {
-        // For computed VND, keep it aligned to 10k (or 100k for ATM)
-        v = roundDown(v, vndOutStep);
+        // VND показываем без принудительного округления (для банкомата только предупреждаем)
+        v = Math.floor(v);
       } else {
         v = Math.floor(v);
       }
@@ -539,7 +529,7 @@ export default function CalculatorTab({ me }: Props) {
 
   const atmVndNote =
     buyCurrency === "VND" && receiveMethod === "atm"
-      ? "Сумма получения в банкомате должна быть кратна 100000 VND."
+      ? "сумма получения в банкомате должна быть кратной 100,000 VND. Вы можете ввести сумму получения и калькулятор посчитает сумму к оплате."
       : null;
 
   function swapCurrencies() {
@@ -649,7 +639,7 @@ export default function CalculatorTab({ me }: Props) {
             inputMode="numeric"
             placeholder="Получаю"
             value={buyText}
-            className={invalidAtmVnd || invalidVndBuy ? "vx-inputInvalid" : ""}
+            className={invalidVndBuy ? "vx-inputInvalid" : ""}
             onChange={(e) => {
               lastEdited.current = "buy";
               setBuyText(e.target.value);
@@ -710,9 +700,7 @@ export default function CalculatorTab({ me }: Props) {
         {usdNote ? <div className="vx-note">{usdNote}</div> : null}
         {eurNote ? <div className="vx-note">{eurNote}</div> : null}
 
-        {atmVndNote ? (
-          <div className={"vx-note " + (invalidAtmVnd ? "vx-noteWarn" : "")}>{atmVndNote}</div>
-        ) : null}
+        {atmVndNote ? <div className={"vx-note " + (invalidVndBuy ? "vx-noteWarn" : "")}>{atmVndNote}</div> : null}
 
         {rateInfo ? (
           <div className="vx-rateLine">
@@ -728,7 +716,13 @@ export default function CalculatorTab({ me }: Props) {
 
         {invalidUsd ? <div className="vx-warn">USD: сумма должна быть кратна 100.</div> : null}
         {invalidEur ? <div className="vx-warn">EUR: сумма должна быть кратна 10.</div> : null}
-        {invalidVndSell || invalidVndBuy ? <div className="vx-warn">сумма получения в банкомате должна быть кратной 100,000 VND. Вы можете ввести сумму получения и калькулятор посчитает сумму к оплате.</div> : null}
+        {invalidVndSell || invalidVndBuy ? (
+          <div className="vx-warn">
+            {invalidVndBuy
+              ? "сумма получения в банкомате должна быть кратной 100,000 VND. Вы можете ввести сумму получения и калькулятор посчитает сумму к оплате."
+              : "VND: сумма должна быть кратной 100 000."}
+          </div>
+        ) : null}
 
         <div className="vx-sp12" />
 
