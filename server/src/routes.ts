@@ -133,6 +133,15 @@ export function createApiRouter(opts: {
     res.json({ ok: true, date: today, data });
   });
 
+  // Backward-compat: некоторые старые версии фронта запрашивали «рыночные» курсы.
+  // Сейчас отдельного источника нет — отдаём то же, что и /rates/today.
+  router.get("/rates/market", (_req, res) => {
+    const store = readStore();
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+    const data = store.ratesByDate?.[today] || null;
+    res.json({ ok: true, date: today, data });
+  });
+
   router.get("/admin/rates/today", (req, res) => {
     try {
       const { isOwner } = requireAuth(req);

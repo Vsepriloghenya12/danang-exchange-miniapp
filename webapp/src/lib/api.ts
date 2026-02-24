@@ -1,4 +1,4 @@
-import type { AuthResponse, TodayRatesResponse } from "./types";
+import type { AuthResponse, TodayRatesResponse, MarketRatesResponse } from "./types";
 
 export async function apiAuth(initData: string): Promise<AuthResponse> {
   const r = await fetch("/api/auth", {
@@ -11,6 +11,15 @@ export async function apiAuth(initData: string): Promise<AuthResponse> {
 
 export async function apiGetTodayRates(): Promise<TodayRatesResponse> {
   const r = await fetch("/api/rates/today");
+  return r.json();
+}
+
+// Backward-compat: older versions of RatesTab import this.
+// В текущей версии «рыночный курс» не обязателен, но экспорт нужен, чтобы сборка не падала.
+export async function apiGetMarketRates(): Promise<MarketRatesResponse> {
+  const r = await fetch("/api/rates/market");
+  // сервер может не иметь этого роута на старых деплоях
+  if (!r.ok) return { ok: false, error: "market_rates_unavailable" } as any;
   return r.json();
 }
 

@@ -21,6 +21,11 @@ export type TodayRatesResponse = {
   };
 };
 
+// Backward-compat: старые версии UI могут запрашивать «рыночные» курсы.
+export type MarketRatesResponse =
+  | { ok: true; date: string; data: any }
+  | { ok: false; error: string };
+
 export type AuthResponse =
   | {
       ok: true;
@@ -29,34 +34,3 @@ export type AuthResponse =
       isOwner: boolean;
     }
   | { ok: false; error: string };
-
-export type MarketRatesResponse =
-  | {
-      ok: true;
-      updated_at: string;
-      source: string;
-      stale: boolean;
-      g: Record<string, number>;
-    }
-  | {
-      ok: false;
-      error: string;
-      stale: boolean;
-      updated_at?: string;
-      source?: string;
-      g?: Record<string, number>;
-    };
-
-export type AtmItem = {
-  id: string;
-  title: string;
-  address?: string;
-  note?: string;
-  mapUrl: string;
-};
-
-export type AtmsResponse = {
-  ok: boolean;
-  atms: AtmItem[];
-  error?: string;
-};
