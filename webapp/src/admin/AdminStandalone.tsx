@@ -92,7 +92,9 @@ export default function AdminStandalone() {
         ) : (
           // We reuse existing AdminTab UI, but instead of Telegram initData we pass a special token.
           // api.ts detects the prefix "adminkey:" and sends x-admin-key.
+          <div className="vx-card2">
           <AdminTab me={{ initData: `adminkey:${adminKey}` }} />
+        </div>
         )}
       </div>
     </div>

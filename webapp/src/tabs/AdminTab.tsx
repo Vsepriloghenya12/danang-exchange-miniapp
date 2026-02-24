@@ -345,7 +345,7 @@ export default function AdminTab({ me }: any) {
   };
 
   return (
-    <div className="card vx-admin">
+    <div className="vx-admin">
 
       <div className="vx-adminHead">
         <div className="h1">Управление</div>
@@ -360,7 +360,7 @@ export default function AdminTab({ me }: any) {
       </div>
 
       {section === "rates" ? (
-        <div className="card vx-mt10">
+        <div className="vx-mt10 vx-adminSection">
           <div className="small">Курс на сегодня (BUY/SELL к VND) — заполняется каждый день</div>
           <div className="hr" />
 
@@ -381,7 +381,7 @@ export default function AdminTab({ me }: any) {
       ) : null}
 
       {section === "bonuses" ? (
-        <div className="card vx-mt10">
+        <div className="vx-mt10 vx-adminSection">
           <div className="row vx-between vx-center">
             <div className="small">Надбавки (статусы / способ получения)</div>
             <div className="row vx-rowWrap vx-gap6">
@@ -590,7 +590,7 @@ export default function AdminTab({ me }: any) {
       ) : null}
 
       {section === "users" ? (
-        <div className="card vx-mt10">
+        <div className="vx-mt10 vx-adminSection">
           <div className="row vx-between vx-center">
             <div className="small">Клиенты и статусы</div>
             <button className="btn vx-btnSm" onClick={loadUsers}>Обновить</button>
@@ -640,7 +640,7 @@ export default function AdminTab({ me }: any) {
       ) : null}
 
       {section === "requests" ? (
-        <div className="card vx-mt10">
+        <div className="vx-mt10 vx-adminSection">
           <div className="row vx-between vx-center">
             <div className="small">Заявки</div>
             <button className="btn vx-btnSm" onClick={loadRequests}>Обновить</button>
