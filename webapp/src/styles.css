@@ -887,6 +887,5 @@ label, input, select, textarea{ color: var(--text); }
 
 
 @media (max-width: 420px){
-  .vx-atmBtnGrid{ grid-template-columns: 1fr; }
-  .vx-atmVideoGrid{ grid-template-columns: 1fr; }
+  .vx-atmBtnGrid{ grid-template-columns: 1fr 1fr; }
 }
