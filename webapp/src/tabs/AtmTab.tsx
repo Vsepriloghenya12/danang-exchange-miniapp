@@ -12,14 +12,13 @@ export default function AtmTab() {
   const videos = useMemo(
     () => [
       { key: "vietcombank" as const, title: "Видео инструкция для VIETCOMBANK", src: "/videos/vietcombank.mp4" },
-      { key: "bidv" as const, title: "Видео инструкция для BIDV", src: "/videos/bidv.mp4" },
+      { key: "bidv" as const, title: "Видео инструкция для BIDV", src: "/videos/bidv.mp4" }
     ],
     []
   );
 
   const [openKey, setOpenKey] = useState<(typeof videos)[number]["key"] | null>(null);
   const playerRef = useRef<HTMLDivElement | null>(null);
-
   const active = useMemo(() => videos.find((v) => v.key === openKey) || null, [videos, openKey]);
 
   useEffect(() => {
@@ -39,7 +38,6 @@ export default function AtmTab() {
 
       <div className="vx-sp12" />
 
-      {/* Buttons (two in a row) */}
       <div className="vx-atmBtnGrid">
         {videos.map((v) => (
           <button
@@ -53,7 +51,6 @@ export default function AtmTab() {
         ))}
       </div>
 
-      {/* Video opens below after button click */}
       {active && (
         <div className="vx-atmVideoCard vx-mt10" ref={playerRef}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
