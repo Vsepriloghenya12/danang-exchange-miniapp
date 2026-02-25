@@ -884,6 +884,16 @@ label, input, select, textarea{ color: var(--text); }
   border: 1px solid rgba(9,23,33,0.10);
   background: rgba(255,255,255,0.55);
 }
+.vx-atmBtnGrid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.vx-atmBtnGrid .vx-atmBtn{ width: 100%; }
+.vx-atmBtnOn{
+  /* слегка “нажатое” состояние */
+  filter: brightness(0.985);
+}
 
 @media (max-width: 420px){
   .vx-atmBtnGrid{ grid-template-columns: 1fr; }
