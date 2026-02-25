@@ -172,8 +172,12 @@ function methodBonusForRate(
   bonuses?: BonusesConfig | null
 ): number {
   if (buyCurrency !== "VND") return 0;
-  // Если хоть что-то наличными — бонус за способ не даём
-  if (payMethod === "cash" || receiveMethod === "cash") return 0;
+
+  // Надбавка зависит от СПОСОБА ПОЛУЧЕНИЯ (перевод/банкомат).
+  // Оплата (нал/перевод) на неё не влияет.
+  // Наличными (cash) надбавка не применяется.
+  void payMethod;
+  if (receiveMethod === "cash") return 0;
   if (receiveMethod !== "transfer" && receiveMethod !== "atm") return 0;
 
   // configurable bonuses from server

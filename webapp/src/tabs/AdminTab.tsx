@@ -436,7 +436,7 @@ export default function AdminTab({ me }: any) {
 
               <div className="vx-sp12" />
 
-              <div className="h3">Надбавки за способ получения (только если нет наличных)</div>
+              <div className="h3">Надбавки за способ получения</div>
 
               <div className="row vx-rowWrap vx-gap8">
                 <div className="vx-field">
