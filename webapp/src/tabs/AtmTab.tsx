@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
-const FIND_ATM_URL = "https://www.google.com/maps/@/data=!3m1!4b1!4m2!11m1!2sgilh91bdh1BmzcYuNnwZdqS4KxLjpQ?g_ep=CAISEjI1LjIyLjAuNzYzNTE5NzAyMBgAILffASpiLDk0MjY3MzIzOTQyNzUzMTYsOTQyMjQ4MjUsOTQyMjcyNDcsOTQyMjcyNDgsOTQyMzExODgsNDcwNzE3MDQsNDcwNjk1MDgsOTQyMTg2NDEsOTQyMDMwMTksNDcwODQzMDRCAlZO";
+const FIND_ATM_URL = "https://www.google.com/maps/search/ATM+Vietcombank+near+me/";
 
 function openLink(url: string) {
   const tg = (window as any).Telegram?.WebApp;
@@ -9,6 +9,27 @@ function openLink(url: string) {
 }
 
 export default function AtmTab() {
+  const videos = useMemo(
+    () => [
+      { key: "vietcombank" as const, title: "Видео инструкция для VIETCOMBANK", src: "/videos/vietcombank.mp4" },
+      { key: "bidv" as const, title: "Видео инструкция для BIDV", src: "/videos/bidv.mp4" },
+    ],
+    []
+  );
+
+  const [openKey, setOpenKey] = useState<(typeof videos)[number]["key"] | null>(null);
+  const playerRef = useRef<HTMLDivElement | null>(null);
+
+  const active = useMemo(() => videos.find((v) => v.key === openKey) || null, [videos, openKey]);
+
+  useEffect(() => {
+    if (!active) return;
+    const t = window.setTimeout(() => {
+      playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, [active]);
+
   return (
     <div className="card">
       <div className="h1">Банкоматы</div>
@@ -18,17 +39,35 @@ export default function AtmTab() {
 
       <div className="vx-sp12" />
 
-      <div className="vx-atmVideoGrid">
-        <div className="vx-atmVideoCard">
-          <div className="vx-atmVideoTitle">Видео инструкция для VIETCOMBANK</div>
-          <video className="vx-atmVideo" controls playsInline preload="metadata" src="/videos/vietcombank.mp4" />
-        </div>
-
-        <div className="vx-atmVideoCard">
-          <div className="vx-atmVideoTitle">Видео инструкция для BIDV</div>
-          <video className="vx-atmVideo" controls playsInline preload="metadata" src="/videos/bidv.mp4" />
-        </div>
+      {/* Buttons (two in a row) */}
+      <div className="vx-atmBtnGrid">
+        {videos.map((v) => (
+          <button
+            key={v.key}
+            type="button"
+            className={`btn vx-btnSm vx-atmBtn ${openKey === v.key ? "vx-atmBtnOn" : ""}`}
+            onClick={() => setOpenKey(v.key)}
+          >
+            {v.title}
+          </button>
+        ))}
       </div>
+
+      {/* Video opens below after button click */}
+      {active && (
+        <div className="vx-atmVideoCard vx-mt10" ref={playerRef}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div className="vx-atmVideoTitle" style={{ marginBottom: 0 }}>
+              {active.title}
+            </div>
+            <button type="button" className="vx-btnGhost vx-btnSm" onClick={() => setOpenKey(null)}>
+              Закрыть
+            </button>
+          </div>
+          <div className="vx-sp10" />
+          <video className="vx-atmVideo" controls playsInline autoPlay preload="metadata" src={active.src} />
+        </div>
+      )}
 
       <div className="vx-sp12" />
 
