@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   apiAdminSetTodayRates,
   apiAdminGetRequests,
@@ -131,6 +131,10 @@ function normalizeBonuses(input: any): BonusesConfig {
 export default function AdminTab({ me }: any) {
   const [section, setSection] = useState<"rates" | "users" | "requests" | "bonuses" | "reviews">("rates");
 
+  // фильтры/раскрытие истории
+  const [requestsUserFilter, setRequestsUserFilter] = useState<number | "all">("all");
+  const [openUser, setOpenUser] = useState<Record<string, boolean>>({});
+
   // По умолчанию ВСЁ пустое (без подстановки старых значений)
   const [usdBuy, setUsdBuy] = useState("");
   const [usdSell, setUsdSell] = useState("");
@@ -177,6 +181,34 @@ export default function AdminTab({ me }: any) {
     const r = await apiAdminGetRequests(me.initData);
     if (r.ok) setRequests(r.requests || []);
   };
+
+  const userIdOf = (x: any) => {
+    const v = x?.from?.id ?? x?.from?.tg_id ?? x?.tg_id ?? x?.user_id;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const sortedRequests = useMemo(() => {
+    const arr = Array.isArray(requests) ? [...requests] : [];
+    arr.sort((a, b) => {
+      const ta = a?.created_at ? new Date(a.created_at).getTime() : 0;
+      const tb = b?.created_at ? new Date(b.created_at).getTime() : 0;
+      return tb - ta;
+    });
+    return arr;
+  }, [requests]);
+
+  const requestsByUser = useMemo(() => {
+    const map = new Map<number, any[]>();
+    for (const r of sortedRequests) {
+      const uid = userIdOf(r);
+      if (!uid) continue;
+      const list = map.get(uid) || [];
+      list.push(r);
+      map.set(uid, list);
+    }
+    return map;
+  }, [sortedRequests]);
 
   const loadRates = async () => {
     const r = await apiGetTodayRates();
@@ -691,6 +723,18 @@ export default function AdminTab({ me }: any) {
                   </span>
                 </div>
 
+                {(() => {
+                  const list = requestsByUser.get(Number(u.tg_id)) || [];
+                  const total = list.length;
+                  const done = list.filter((x) => x.state === "done").length;
+                  const last = list[0]?.created_at ? new Date(list[0].created_at).toLocaleString("ru-RU") : "";
+                  return (
+                    <div className="small vx-mt6">
+                      История: <b>{total}</b> заявок{total ? ` • готово: ${done}` : ""}{last ? ` • последняя: ${last}` : ""}
+                    </div>
+                  );
+                })()}
+
                 <div className="row vx-mt6 vx-rowWrap vx-gap6">
                   {STATUS_OPTIONS.map((s) => {
                     const isOn = statusValueAny(u.status) === s.value;
@@ -714,6 +758,51 @@ export default function AdminTab({ me }: any) {
                   })}
                 </div>
 
+                <div className="vx-mt8">
+                  <button
+                    className="btn vx-btnSm"
+                    onClick={() => setOpenUser((p) => ({ ...p, [String(u.tg_id)]: !p[String(u.tg_id)] }))}
+                  >
+                    {openUser[String(u.tg_id)] ? "Скрыть заявки" : "Показать заявки"}
+                  </button>
+                </div>
+
+                {openUser[String(u.tg_id)] ? (
+                  <div className="vx-mt10">
+                    {(requestsByUser.get(Number(u.tg_id)) || []).length === 0 ? (
+                      <div className="small">У клиента пока нет заявок.</div>
+                    ) : (
+                      (requestsByUser.get(Number(u.tg_id)) || []).slice(0, 20).map((r) => {
+                        const shortId = String(r.id || "").slice(-6);
+                        const created = r.created_at ? new Date(r.created_at).toLocaleString("ru-RU") : "";
+                        const stateLabel = REQUEST_STATE_OPTIONS.find((x) => x.value === r.state)?.label || r.state;
+                        return (
+                          <div key={r.id} className="vx-mb10">
+                            <div>
+                              <b>#{shortId}</b> <span className="small">{created}</span>
+                            </div>
+                            <div className="small">
+                              {r.sellCurrency} → {r.buyCurrency} • отдаёт: {r.sellAmount} • получит: {r.buyAmount}
+                            </div>
+                            <div className="small">Статус: <b>{stateLabel}</b></div>
+                            <div className="row vx-mt6 vx-rowWrap vx-gap6">
+                              {REQUEST_STATE_OPTIONS.map((s) => (
+                                <button key={s.value} className="btn vx-btnSm" onClick={() => setRequestState(r.id, s.value)}>
+                                  {s.label}
+                                </button>
+                              ))}
+                            </div>
+                            <div className="hr" />
+                          </div>
+                        );
+                      })
+                    )}
+                    {(requestsByUser.get(Number(u.tg_id)) || []).length > 20 ? (
+                      <div className="small">Показаны последние 20. Полная история — во вкладке «Заявки».</div>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 <div className="hr" />
               </div>
             ))
@@ -725,14 +814,33 @@ export default function AdminTab({ me }: any) {
         <div className="vx-mt10 vx-adminSection">
           <div className="row vx-between vx-center">
             <div className="small">Заявки</div>
-            <button className="btn vx-btnSm" onClick={loadRequests}>Обновить</button>
+            <div className="row vx-rowWrap vx-gap6">
+              <select
+                className="input vx-in"
+                value={String(requestsUserFilter)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setRequestsUserFilter(v === "all" ? "all" : Number(v));
+                }}
+              >
+                <option value="all">Все клиенты</option>
+                {users.map((u) => (
+                  <option key={u.tg_id} value={String(u.tg_id)}>
+                    {(u.username ? "@" + u.username : (u.first_name || "Клиент")) + " (" + u.tg_id + ")"}
+                  </option>
+                ))}
+              </select>
+              <button className="btn vx-btnSm" onClick={loadRequests}>Обновить</button>
+            </div>
           </div>
           <div className="hr" />
 
-          {requests.length === 0 ? (
+          {sortedRequests.length === 0 ? (
             <div className="small">Пока нет заявок.</div>
           ) : (
-            requests.map((r) => {
+            sortedRequests
+              .filter((r) => (requestsUserFilter === "all" ? true : userIdOf(r) === requestsUserFilter))
+              .map((r) => {
               const who = r?.from?.username ? "@" + r.from.username : (r?.from?.first_name || "") || `id ${r?.from?.id}`;
               const shortId = String(r.id || "").slice(-6);
               const created = r.created_at ? new Date(r.created_at).toLocaleString("ru-RU") : "";
