@@ -738,6 +738,27 @@ label, input, select, textarea{ color: var(--text); }
 .vx-revRating{ opacity: 0.85; font-weight: 900; }
 .vx-revTextOut{ margin-top: 6px; white-space: pre-wrap; opacity: 0.92; }
 
+.vx-checkRow{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 850;
+  cursor: pointer;
+}
+.vx-checkRow input{ transform: translateY(1px); }
+
+.vx-revReply{
+  margin-top: 10px;
+  border-top: 1px dashed var(--stroke);
+  padding-top: 10px;
+  opacity: 0.95;
+}
+.vx-revReplyH{
+  font-weight: 950;
+  font-size: 12px;
+  opacity: 0.78;
+}
+
 /* =========================
    Minor tabs helpers
    ========================= */
@@ -833,6 +854,14 @@ label, input, select, textarea{ color: var(--text); }
 /* =========================
    ATM tab: video blocks
    ========================= */
+.vx-atmBtnGrid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.vx-atmBtnGrid .vx-atmBtn{ width: 100%; }
+.vx-atmBtnOn{ filter: brightness(0.985); }
+
 .vx-atmVideoGrid{
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -855,17 +884,8 @@ label, input, select, textarea{ color: var(--text); }
   border: 1px solid rgba(9,23,33,0.10);
   background: rgba(255,255,255,0.55);
 }
-.vx-atmBtnGrid{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-.vx-atmBtnGrid .vx-atmBtn{ width: 100%; }
-.vx-atmBtnOn{
-  /* слегка “нажатое” состояние */
-  filter: brightness(0.985);
-}
 
 @media (max-width: 420px){
+  .vx-atmBtnGrid{ grid-template-columns: 1fr; }
   .vx-atmVideoGrid{ grid-template-columns: 1fr; }
 }

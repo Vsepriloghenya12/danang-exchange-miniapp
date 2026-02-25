@@ -85,11 +85,51 @@ export async function apiGetReviews() {
   return r.json();
 }
 
-export async function apiAddReview(initData: string, rating: number, text: string) {
+export async function apiGetReviewEligible(initData: string) {
+  const r = await fetch("/api/reviews/eligible", {
+    headers: { "x-telegram-init-data": initData }
+  });
+  return r.json();
+}
+
+export async function apiAddReview(initData: string, params: { requestId: string; text: string; anonymous: boolean }) {
   const r = await fetch("/api/reviews", {
     method: "POST",
     headers: { "content-type": "application/json", "x-telegram-init-data": initData },
-    body: JSON.stringify({ rating, text })
+    body: JSON.stringify(params)
+  });
+  return r.json();
+}
+
+// Admin reviews moderation
+export async function apiAdminGetReviews(token: string) {
+  const r = await fetch("/api/admin/reviews", {
+    headers: { ...adminAuthHeaders(token) }
+  });
+  return r.json();
+}
+
+export async function apiAdminApproveReview(token: string, id: string) {
+  const r = await fetch(`/api/admin/reviews/${encodeURIComponent(id)}/approve`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(token) }
+  });
+  return r.json();
+}
+
+export async function apiAdminRejectReview(token: string, id: string) {
+  const r = await fetch(`/api/admin/reviews/${encodeURIComponent(id)}/reject`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(token) }
+  });
+  return r.json();
+}
+
+export async function apiAdminReplyReview(token: string, id: string, text: string) {
+  const r = await fetch(`/api/admin/reviews/${encodeURIComponent(id)}/reply`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
+    body: JSON.stringify({ text })
   });
   return r.json();
 }

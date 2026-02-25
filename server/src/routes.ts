@@ -8,6 +8,8 @@ import {
   type UserStatus,
   type RequestState,
   type StoredRequest,
+  type StoredReview,
+  type ReviewState,
   type BonusesConfig,
   type BonusesTier,
   normalizeStatus,
@@ -18,6 +20,15 @@ import { getMarketSnapshot } from "./marketRates.js";
 
 type ReceiveMethod = "cash" | "transfer" | "atm";
 type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB";
+
+type PublicReview = {
+  id: string;
+  created_at: string;
+  text: string;
+  displayName: string;
+  anonymous: boolean;
+  company_reply?: { text: string; created_at: string };
+};
 
 const statusLabel: Record<UserStatus, string> = {
   standard: "стандарт",
@@ -630,6 +641,209 @@ export function createApiRouter(opts: {
       res.json({ ok: true, id: request.id, state: request.state });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // --------------------
+  // Reviews (без звёзд):
+  // - оставить отзыв можно только по выполненной заявке (state=done)
+  // - отзыв сначала попадает на модерацию (pending)
+  // - виден пользователям только после approve
+  // - владелец может отвечать от имени компании
+  // --------------------
+
+  function reviewDisplayName(r: StoredReview): string {
+    if (r.anonymous) return "Анонимно";
+    if (r.username) return `@${r.username}`;
+    const fn = String(r.first_name || "").trim();
+    const ln = String(r.last_name || "").trim();
+    const full = [fn, ln].filter(Boolean).join(" ").trim();
+    if (full) return full;
+    return `ID ${r.tg_id}`;
+  }
+
+  function toPublicReview(r: StoredReview): PublicReview {
+    return {
+      id: r.id,
+      created_at: r.created_at,
+      text: r.text,
+      displayName: reviewDisplayName(r),
+      anonymous: Boolean(r.anonymous),
+      ...(r.company_reply?.text
+        ? { company_reply: { text: r.company_reply.text, created_at: r.company_reply.created_at } }
+        : {})
+    };
+  }
+
+  // Публичный список: только одобренные
+  router.get("/reviews", (_req, res) => {
+    const store = readStore();
+    const list = (store.reviews || [])
+      .filter((r) => r && r.state === "approved")
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+      .map(toPublicReview);
+    res.json({ ok: true, reviews: list });
+  });
+
+  // Список сделок, по которым пользователь МОЖЕТ оставить отзыв
+  router.get("/reviews/eligible", (req, res) => {
+    try {
+      const { user } = requireAuth(req);
+      const store = readStore();
+
+      const mineDone = (store.requests || [])
+        .filter((x) => x?.from?.id === user.id && x.state === "done")
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+
+      const reviewed = new Set(
+        (store.reviews || [])
+          .filter((r) => r && (r.state === "pending" || r.state === "approved"))
+          .map((r) => String(r.requestId))
+      );
+
+      const eligible = mineDone
+        .filter((r) => !reviewed.has(String(r.id)))
+        .map((r) => ({
+          id: r.id,
+          created_at: r.created_at,
+          sellCurrency: r.sellCurrency,
+          buyCurrency: r.buyCurrency,
+          sellAmount: r.sellAmount,
+          buyAmount: r.buyAmount
+        }));
+
+      return res.json({ ok: true, eligible });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // Создать отзыв (pending)
+  router.post("/reviews", (req, res) => {
+    try {
+      const { user } = requireAuth(req);
+      const text = String(req.body?.text || "").trim();
+      const anonymous = Boolean(req.body?.anonymous);
+      const requestId = String(req.body?.requestId || req.body?.request_id || "").trim();
+
+      if (!requestId) return res.status(400).json({ ok: false, error: "request_id_missing" });
+      if (text.length < 3) return res.status(400).json({ ok: false, error: "text_too_short" });
+
+      const store = readStore();
+      const reqObj = (store.requests || []).find((x) => String(x.id) === requestId);
+      if (!reqObj) return res.status(404).json({ ok: false, error: "request_not_found" });
+      if (reqObj.from?.id !== user.id) return res.status(403).json({ ok: false, error: "not_your_request" });
+      if (reqObj.state !== "done") return res.status(400).json({ ok: false, error: "request_not_done" });
+
+      const exists = (store.reviews || []).some(
+        (r) => r && String(r.requestId) === requestId && (r.state === "pending" || r.state === "approved")
+      );
+      if (exists) return res.status(400).json({ ok: false, error: "already_reviewed" });
+
+      const review: StoredReview = {
+        id: randomUUID(),
+        requestId,
+        tg_id: user.id,
+        username: user.username,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        text,
+        anonymous,
+        state: "pending" as ReviewState,
+        created_at: new Date().toISOString()
+      };
+
+      store.reviews = store.reviews || [];
+      store.reviews.push(review);
+      writeStore(store);
+
+      return res.json({ ok: true, id: review.id, state: review.state });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // ---- Admin moderation ----
+  router.get("/admin/reviews", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const store = readStore();
+      const list = (store.reviews || []).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+      const counts = {
+        pending: list.filter((r) => r.state === "pending").length,
+        approved: list.filter((r) => r.state === "approved").length,
+        rejected: list.filter((r) => r.state === "rejected").length
+      };
+
+      return res.json({ ok: true, reviews: list, counts });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  router.post("/admin/reviews/:id/approve", (req, res) => {
+    try {
+      const { isOwner, user } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      const id = String(req.params.id || "").trim();
+      if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
+
+      const store = readStore();
+      const r = (store.reviews || []).find((x) => String(x.id) === id);
+      if (!r) return res.status(404).json({ ok: false, error: "not_found" });
+
+      r.state = "approved";
+      r.approved_at = new Date().toISOString();
+      r.approved_by = user.id;
+      writeStore(store);
+      return res.json({ ok: true, review: r });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  router.post("/admin/reviews/:id/reject", (req, res) => {
+    try {
+      const { isOwner, user } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      const id = String(req.params.id || "").trim();
+      if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
+
+      const store = readStore();
+      const r = (store.reviews || []).find((x) => String(x.id) === id);
+      if (!r) return res.status(404).json({ ok: false, error: "not_found" });
+
+      r.state = "rejected";
+      r.rejected_at = new Date().toISOString();
+      r.rejected_by = user.id;
+      writeStore(store);
+      return res.json({ ok: true, review: r });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  router.post("/admin/reviews/:id/reply", (req, res) => {
+    try {
+      const { isOwner, user } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      const id = String(req.params.id || "").trim();
+      if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
+
+      const text = String(req.body?.text || "").trim();
+      if (text.length < 1) return res.status(400).json({ ok: false, error: "text_required" });
+
+      const store = readStore();
+      const r = (store.reviews || []).find((x) => String(x.id) === id);
+      if (!r) return res.status(404).json({ ok: false, error: "not_found" });
+
+      r.company_reply = { text, created_at: new Date().toISOString(), by: user.id };
+      writeStore(store);
+      return res.json({ ok: true, review: r });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 

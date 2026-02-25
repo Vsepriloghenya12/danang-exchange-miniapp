@@ -7,7 +7,11 @@ import {
   apiAdminUsers,
   apiGetTodayRates,
   apiAdminGetBonuses,
-  apiAdminSetBonuses
+  apiAdminSetBonuses,
+  apiAdminGetReviews,
+  apiAdminApproveReview,
+  apiAdminRejectReview,
+  apiAdminReplyReview
 } from "../lib/api";
 import type { BonusesConfig, BonusesTier } from "../lib/types";
 
@@ -125,7 +129,7 @@ function normalizeBonuses(input: any): BonusesConfig {
 }
 
 export default function AdminTab({ me }: any) {
-  const [section, setSection] = useState<"rates" | "users" | "requests" | "bonuses">("rates");
+  const [section, setSection] = useState<"rates" | "users" | "requests" | "bonuses" | "reviews">("rates");
 
   // По умолчанию ВСЁ пустое (без подстановки старых значений)
   const [usdBuy, setUsdBuy] = useState("");
@@ -149,6 +153,12 @@ export default function AdminTab({ me }: any) {
   const [bonuses, setBonuses] = useState<BonusesConfig | null>(null);
   const [bonusesBusy, setBonusesBusy] = useState(false);
   const [bonusesLoaded, setBonusesLoaded] = useState(false);
+
+  const [reviewsLoaded, setReviewsLoaded] = useState(false);
+  const [reviewsBusy, setReviewsBusy] = useState(false);
+  const [adminReviews, setAdminReviews] = useState<any[]>([]);
+  const [reviewsFilter, setReviewsFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
 
   const clearRates = () => {
     setRubBuy(""); setRubSell("");
@@ -208,6 +218,77 @@ export default function AdminTab({ me }: any) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section, bonusesLoaded]);
+
+  // Загружаем отзывы только когда владелец открыл этот раздел
+  useEffect(() => {
+    if (section === "reviews" && !reviewsLoaded) {
+      (async () => {
+        setReviewsBusy(true);
+        try {
+          const r = await apiAdminGetReviews(me.initData);
+          if (r.ok) {
+            setAdminReviews(Array.isArray(r.reviews) ? r.reviews : []);
+            setReviewsLoaded(true);
+          } else {
+            alert(r.error || "Ошибка загрузки отзывов");
+          }
+        } finally {
+          setReviewsBusy(false);
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section, reviewsLoaded]);
+
+  const reloadReviews = async () => {
+    setReviewsBusy(true);
+    try {
+      const r = await apiAdminGetReviews(me.initData);
+      if (r.ok) {
+        setAdminReviews(Array.isArray(r.reviews) ? r.reviews : []);
+        setReviewsLoaded(true);
+      } else {
+        alert(r.error || "Ошибка загрузки отзывов");
+      }
+    } finally {
+      setReviewsBusy(false);
+    }
+  };
+
+  const approveReview = async (id: string) => {
+    setReviewsBusy(true);
+    try {
+      const r = await apiAdminApproveReview(me.initData, id);
+      if (!r.ok) alert(r.error || "Ошибка");
+      await reloadReviews();
+    } finally {
+      setReviewsBusy(false);
+    }
+  };
+
+  const rejectReview = async (id: string) => {
+    setReviewsBusy(true);
+    try {
+      const r = await apiAdminRejectReview(me.initData, id);
+      if (!r.ok) alert(r.error || "Ошибка");
+      await reloadReviews();
+    } finally {
+      setReviewsBusy(false);
+    }
+  };
+
+  const replyReview = async (id: string, text: string) => {
+    const t = String(text || "").trim();
+    if (!t) return;
+    setReviewsBusy(true);
+    try {
+      const r = await apiAdminReplyReview(me.initData, id, t);
+      if (!r.ok) alert(r.error || "Ошибка");
+      await reloadReviews();
+    } finally {
+      setReviewsBusy(false);
+    }
+  };
 
   const saveRates = async () => {
     try {
@@ -355,6 +436,7 @@ export default function AdminTab({ me }: any) {
       <div className="vx-adminSeg">
         <button className={section === "rates" ? "on" : ""} onClick={() => setSection("rates")}>Курс</button>
         <button className={section === "bonuses" ? "on" : ""} onClick={() => setSection("bonuses")}>Надбавки</button>
+        <button className={section === "reviews" ? "on" : ""} onClick={() => setSection("reviews")}>Отзывы</button>
         <button className={section === "users" ? "on" : ""} onClick={() => setSection("users")}>Клиенты</button>
         <button className={section === "requests" ? "on" : ""} onClick={() => setSection("requests")}>Заявки</button>
       </div>
@@ -679,6 +761,97 @@ export default function AdminTab({ me }: any) {
                 </div>
               );
             })
+          )}
+        </div>
+      ) : null}
+
+      {section === "reviews" ? (
+        <div className="vx-mt10 vx-adminSection">
+          <div className="row vx-between vx-center">
+            <div className="small">Отзывы (модерация)</div>
+            <button className="btn vx-btnSm" onClick={reloadReviews} disabled={reviewsBusy}>
+              Обновить
+            </button>
+          </div>
+
+          <div className="row vx-rowWrap vx-gap6 vx-mt6">
+            <button className={"btn vx-btnSm " + (reviewsFilter === "pending" ? "vx-btnOn" : "")} onClick={() => setReviewsFilter("pending")}>
+              На модерации
+            </button>
+            <button className={"btn vx-btnSm " + (reviewsFilter === "approved" ? "vx-btnOn" : "")} onClick={() => setReviewsFilter("approved")}>
+              Опубликованные
+            </button>
+            <button className={"btn vx-btnSm " + (reviewsFilter === "rejected" ? "vx-btnOn" : "")} onClick={() => setReviewsFilter("rejected")}>
+              Отклонённые
+            </button>
+            <button className={"btn vx-btnSm " + (reviewsFilter === "all" ? "vx-btnOn" : "")} onClick={() => setReviewsFilter("all")}>
+              Все
+            </button>
+          </div>
+
+          <div className="hr" />
+
+          {adminReviews.length === 0 ? (
+            <div className="small">Пока нет отзывов.</div>
+          ) : (
+            adminReviews
+              .filter((r) => (reviewsFilter === "all" ? true : r.state === reviewsFilter))
+              .map((r) => {
+                const who = r?.username ? "@" + r.username : (r?.first_name || "") || `id ${r?.tg_id}`;
+                const created = r.created_at ? new Date(r.created_at).toLocaleString("ru-RU") : "";
+                const reqShort = String(r.requestId || "").slice(-6);
+                const stateLabel = r.state === "pending" ? "на модерации" : r.state === "approved" ? "опубликован" : "отклонён";
+                const draft = replyDrafts[String(r.id)] ?? (r.company_reply?.text || "");
+
+                return (
+                  <div key={r.id} className="vx-mb10">
+                    <div className="row vx-between vx-center">
+                      <div>
+                        <b>#{reqShort}</b> <span className="small">{created}</span>
+                      </div>
+                      <div className="small">{stateLabel}</div>
+                    </div>
+
+                    <div className="small">
+                      От: <b>{who}</b> • tg_id: {r.tg_id}
+                      {r.anonymous ? <span> • (попросил анонимно)</span> : null}
+                    </div>
+
+                    <div className="vx-mt6" style={{ whiteSpace: "pre-wrap" }}>{r.text}</div>
+
+                    <div className="row vx-rowWrap vx-gap6 vx-mt6">
+                      {r.state !== "approved" ? (
+                        <button className="btn vx-btnSm" onClick={() => approveReview(r.id)} disabled={reviewsBusy}>
+                          Опубликовать
+                        </button>
+                      ) : null}
+                      {r.state !== "rejected" ? (
+                        <button className="btn vx-btnSm" onClick={() => rejectReview(r.id)} disabled={reviewsBusy}>
+                          Отклонить
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <div className="vx-mt10">
+                      <div className="vx-lbl">Ответ компании</div>
+                      <textarea
+                        className="input vx-in"
+                        rows={2}
+                        value={draft}
+                        onChange={(e) => setReplyDrafts((p) => ({ ...p, [String(r.id)]: e.target.value }))}
+                        placeholder="Напишите ответ (будет виден пользователям)"
+                      />
+                      <div className="vx-mt6">
+                        <button className="btn vx-btnSm" onClick={() => replyReview(r.id, draft)} disabled={reviewsBusy || !String(draft || "").trim()}>
+                          Сохранить ответ
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="hr" />
+                  </div>
+                );
+              })
           )}
         </div>
       ) : null}

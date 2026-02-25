@@ -45,8 +45,32 @@ export type Store = {
     }
   >;
   requests: StoredRequest[];
-  reviews: any[];
+  reviews: StoredReview[];
   atms: AtmItem[];
+};
+
+export type ReviewState = "pending" | "approved" | "rejected";
+
+export type StoredReview = {
+  id: string;
+  requestId: string;
+  tg_id: number;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  text: string;
+  anonymous: boolean;
+  state: ReviewState;
+  created_at: string;
+  approved_at?: string;
+  approved_by?: number;
+  rejected_at?: string;
+  rejected_by?: number;
+  company_reply?: {
+    text: string;
+    created_at: string;
+    by?: number;
+  };
 };
 
 export type BonusesTier = {
@@ -211,7 +235,7 @@ export function readStore(): Store {
     users: { ...(parsed?.users || {}) },
     ratesByDate: { ...(parsed?.ratesByDate || {}) },
     requests: Array.isArray(parsed?.requests) ? (parsed.requests as any) : [],
-    reviews: Array.isArray(parsed?.reviews) ? parsed.reviews : [],
+    reviews: Array.isArray(parsed?.reviews) ? (parsed.reviews as any) : [],
     atms: Array.isArray(parsed?.atms) ? parsed.atms : []
   };
 
@@ -240,6 +264,45 @@ export function readStore(): Store {
     }
     // status (статус клиента) нормализуем
     r.status = normalizeStatus((r as any).status);
+  }
+
+  // миграция отзывов (старый формат со звёздами)
+  if (Array.isArray((store as any).reviews)) {
+    const migrated: StoredReview[] = [];
+    for (const x of (store as any).reviews) {
+      if (!x || typeof x !== "object") continue;
+      const id = String((x as any).id || "").trim() || `rev_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      const requestId = String((x as any).requestId || (x as any).request_id || "").trim();
+      // если старый формат не содержал requestId — такой отзыв не сможем связать со сделкой; пропустим
+      if (!requestId) continue;
+
+      const stateRaw = String((x as any).state || (x as any).status || "approved").toLowerCase().trim();
+      const state: any = ["pending", "approved", "rejected"].includes(stateRaw) ? stateRaw : "approved";
+
+      migrated.push({
+        id,
+        requestId,
+        tg_id: Number((x as any).tg_id ?? (x as any).tgId ?? 0) || 0,
+        username: (x as any).username,
+        first_name: (x as any).first_name,
+        last_name: (x as any).last_name,
+        text: String((x as any).text || "").trim(),
+        anonymous: Boolean((x as any).anonymous),
+        state,
+        created_at: String((x as any).created_at || new Date().toISOString()),
+        ...(state === "approved" ? { approved_at: String((x as any).approved_at || (x as any).created_at || new Date().toISOString()) } : {}),
+        ...(state === "rejected" ? { rejected_at: String((x as any).rejected_at || new Date().toISOString()) } : {}),
+        ...(typeof (x as any).company_reply === "object" && (x as any).company_reply?.text
+          ? { company_reply: { text: String((x as any).company_reply.text), created_at: String((x as any).company_reply.created_at || new Date().toISOString()) } }
+          : {})
+      });
+    }
+
+    // если при миграции что-то поменялось (или были старые отзывы без requestId) — перезапишем
+    if (JSON.stringify((store as any).reviews) !== JSON.stringify(migrated)) {
+      (store as any).reviews = migrated;
+      dirty = true;
+    }
   }
 
   if (dirty) writeStore(store);
