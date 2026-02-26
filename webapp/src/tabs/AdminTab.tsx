@@ -128,8 +128,26 @@ function normalizeBonuses(input: any): BonusesConfig {
   };
 }
 
-export default function AdminTab({ me }: any) {
-  const [section, setSection] = useState<"rates" | "users" | "requests" | "bonuses" | "reviews">("rates");
+type AdminSection = "rates" | "users" | "requests" | "bonuses" | "reviews";
+
+export default function AdminTab({
+  me,
+  forcedSection,
+  hideHeader,
+  hideSeg
+}: {
+  me: any;
+  forcedSection?: AdminSection;
+  hideHeader?: boolean;
+  hideSeg?: boolean;
+}) {
+  const [section, setSection] = useState<AdminSection>(forcedSection || "rates");
+
+  // Allow the parent to fully control which section is displayed.
+  useEffect(() => {
+    if (!forcedSection) return;
+    setSection(forcedSection);
+  }, [forcedSection]);
 
   // По умолчанию ВСЁ пустое (без подстановки старых значений)
   const [usdBuy, setUsdBuy] = useState("");
@@ -428,18 +446,21 @@ export default function AdminTab({ me }: any) {
   return (
     <div className="vx-admin">
 
-      <div className="vx-adminHead">
-        <div className="h1">Управление</div>
-        <div className="vx-muted">только для владельца</div>
-      </div>
+      {!hideHeader ? (
+        <div className="vx-adminHead">
+          <div className="h1">Управление</div>
+        </div>
+      ) : null}
 
-      <div className="vx-adminSeg">
-        <button className={section === "rates" ? "on" : ""} onClick={() => setSection("rates")}>Курс</button>
-        <button className={section === "bonuses" ? "on" : ""} onClick={() => setSection("bonuses")}>Надбавки</button>
-        <button className={section === "reviews" ? "on" : ""} onClick={() => setSection("reviews")}>Отзывы</button>
-        <button className={section === "users" ? "on" : ""} onClick={() => setSection("users")}>Клиенты</button>
-        <button className={section === "requests" ? "on" : ""} onClick={() => setSection("requests")}>Заявки</button>
-      </div>
+      {!hideSeg ? (
+        <div className="vx-adminSeg">
+          <button className={section === "rates" ? "on" : ""} onClick={() => setSection("rates")}>Курс</button>
+          <button className={section === "bonuses" ? "on" : ""} onClick={() => setSection("bonuses")}>Надбавки</button>
+          <button className={section === "reviews" ? "on" : ""} onClick={() => setSection("reviews")}>Отзывы</button>
+          <button className={section === "users" ? "on" : ""} onClick={() => setSection("users")}>Клиенты</button>
+          <button className={section === "requests" ? "on" : ""} onClick={() => setSection("requests")}>Заявки</button>
+        </div>
+      ) : null}
 
       {section === "rates" ? (
         <div className="vx-mt10 vx-adminSection">

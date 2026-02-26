@@ -52,7 +52,33 @@ export default function OwnerPortal() {
     }
   });
 
+  // keep a draft input so we don't treat partial/incorrect values as a "logged in" session
+  const [draftKey, setDraftKey] = useState<string>(key);
+
   const token = useMemo(() => (key ? `adminkey:${key}` : ""), [key]);
+  const me = useMemo(() => ({ initData: token }), [token]);
+
+  type Tab = "rates" | "bonuses" | "reviews" | "clients" | "requests" | "reports";
+  const [tab, setTab] = useState<Tab>("rates");
+
+  const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  function humanizeErr(text: string) {
+    const t = String(text || "").trim();
+    if (t === "bad_admin_key") return "Неверный ключ";
+    if (t === "admin_key_not_configured") return "На сервере не задан ADMIN_WEB_KEY";
+    if (t === "No initData") return "Нет авторизации";
+    return t || "Ошибка";
+  }
+
+  function showErr(text: string) {
+    setBanner({ type: "err", text: humanizeErr(text) });
+  }
+
+  function showOk(text: string) {
+    setBanner({ type: "ok", text });
+    window.setTimeout(() => setBanner(null), 1800);
+  }
 
   const [adminsText, setAdminsText] = useState<string>("");
   const [tpl, setTpl] = useState<string>(DEFAULT_TEMPLATE);
@@ -73,21 +99,30 @@ export default function OwnerPortal() {
 
   async function loadAll() {
     if (!token) return;
+    setBanner(null);
     const [a, t, c] = await Promise.allSettled([
       apiAdminGetAdmins(token),
       apiAdminGetPublishTemplate(token),
-      apiAdminGetContacts(token),
+      apiAdminGetContacts(token)
     ]);
 
     if (a.status === "fulfilled" && a.value?.ok) {
       setAdminsText((a.value.adminTgIds || []).join(","));
+    } else if (a.status === "fulfilled" && !a.value?.ok) {
+      showErr(a.value?.error || "Ошибка");
+    } else if (a.status === "rejected") {
+      showErr("Ошибка");
     }
     if (t.status === "fulfilled" && t.value?.ok) {
       const s = String(t.value.template || "").trim();
       setTpl(s || DEFAULT_TEMPLATE);
+    } else if (t.status === "fulfilled" && !t.value?.ok) {
+      showErr(t.value?.error || "Ошибка");
     }
     if (c.status === "fulfilled" && c.value?.ok) {
       setContacts(Array.isArray(c.value.contacts) ? c.value.contacts : []);
+    } else if (c.status === "fulfilled" && !c.value?.ok) {
+      showErr(c.value?.error || "Ошибка");
     }
   }
 
@@ -113,12 +148,13 @@ export default function OwnerPortal() {
     };
   }, [tpl, token]);
 
-  function onLogin() {
+  async function onLogin() {
     try {
-      localStorage.setItem(LS_KEY, key);
+      localStorage.setItem(LS_KEY, draftKey);
     } catch {
       // ignore
     }
+    setKey(draftKey);
   }
 
   function logout() {
@@ -128,6 +164,8 @@ export default function OwnerPortal() {
       // ignore
     }
     setKey("");
+    setDraftKey("");
+    setBanner(null);
   }
 
   async function saveAdmins() {
@@ -140,25 +178,25 @@ export default function OwnerPortal() {
 
     const r = await apiAdminSetAdmins(token, list);
     if (!r?.ok) {
-      alert(r?.error || "Ошибка");
+      showErr(r?.error || "Ошибка");
       return;
     }
-    alert("Сохранено ✅");
+    showOk("Сохранено ✅");
   }
 
   async function publishNow() {
     const r = await apiAdminPublish(token, { template: tpl, imageDataUrl });
     if (!r?.ok) {
-      alert(r?.error || "Ошибка публикации");
+      showErr(r?.error || "Ошибка публикации");
       return;
     }
-    alert("Опубликовано ✅");
+    showOk("Опубликовано ✅");
   }
 
   async function upsertContact() {
     const username = normU(cUsername);
     if (!username) {
-      alert("Укажи username");
+      showErr("Укажи username");
       return;
     }
 
@@ -169,7 +207,7 @@ export default function OwnerPortal() {
     } as any);
 
     if (!r?.ok) {
-      alert(r?.error || "Ошибка");
+      showErr(r?.error || "Ошибка");
       return;
     }
 
@@ -180,7 +218,7 @@ export default function OwnerPortal() {
     const c = await apiAdminGetContacts(token);
     if (c?.ok) setContacts(c.contacts);
 
-    alert("Сохранено ✅");
+    showOk("Сохранено ✅");
   }
 
   async function runReport() {
@@ -192,7 +230,7 @@ export default function OwnerPortal() {
       ...(tgIdNum ? { tgId: tgIdNum } : {}),
     });
     if (!r?.ok) {
-      alert(r?.error || "Ошибка отчёта");
+      showErr(r?.error || "Ошибка отчёта");
       return;
     }
     setReport(r);
@@ -203,12 +241,11 @@ export default function OwnerPortal() {
       <div className="vx-adminPage">
         <div className="vx-adminCard">
           <div className="h1">Управление владельца</div>
-          <div className="small">Открой /admin в браузере. Введите ADMIN_WEB_KEY.</div>
           <div className="vx-sp12" />
           <input
             className="input vx-in"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
+            value={draftKey}
+            onChange={(e) => setDraftKey(e.target.value)}
             placeholder="ADMIN_WEB_KEY"
             type="password"
           />
@@ -225,8 +262,8 @@ export default function OwnerPortal() {
     <div className="vx-adminPage">
       <div className="vx-adminTop">
         <div>
-          <div className="h1">Управление владельца</div>
-          <div className="small">/admin • ключ сохранён в браузере</div>
+          <div className="h1">Управление</div>
+          <div className="small">/admin</div>
         </div>
         <div className="row" style={{ gap: 8 }}>
           <button className="btn" type="button" onClick={loadAll}>
@@ -238,124 +275,175 @@ export default function OwnerPortal() {
         </div>
       </div>
 
-      <div className="vx-adminGrid">
-        <div className="card">
-          <div className="small"><b>Публикация курса в группу</b></div>
-          <div className="vx-muted">Плейсхолдеры: <b>{"{{date}}"}</b> и <b>{"{{rates}}"}</b></div>
-          <div className="vx-sp10" />
-          <textarea
-            className="vx-revText"
-            rows={10}
-            value={tpl}
-            onChange={(e) => setTpl(e.target.value)}
-          />
+      {banner ? (
+        <div className={banner.type === "err" ? "vx-toast vx-toastErr" : "vx-toast vx-toastOk"}>
+          {banner.text}
+        </div>
+      ) : null}
 
-          <div className="vx-sp10" />
+      <div className="vx-adminSeg" style={{ marginTop: 0 }}>
+        <button className={tab === "rates" ? "on" : ""} onClick={() => setTab("rates")}>Курс</button>
+        <button className={tab === "bonuses" ? "on" : ""} onClick={() => setTab("bonuses")}>Надбавки</button>
+        <button className={tab === "reviews" ? "on" : ""} onClick={() => setTab("reviews")}>Отзывы</button>
+        <button className={tab === "clients" ? "on" : ""} onClick={() => setTab("clients")}>Клиенты</button>
+        <button className={tab === "requests" ? "on" : ""} onClick={() => setTab("requests")}>Заявки</button>
+        <button className={tab === "reports" ? "on" : ""} onClick={() => setTab("reports")}>Отчёты</button>
+      </div>
 
-          <div className="vx-rowWrap" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (!f) return;
-                const r = new FileReader();
-                r.onload = () => setImageDataUrl(String(r.result || "") || null);
-                r.readAsDataURL(f);
-              }}
-            />
-            {imageDataUrl ? (
-              <button className="btn vx-btnSm" type="button" onClick={() => setImageDataUrl(null)}>
-                Убрать картинку
-              </button>
-            ) : null}
+      <div className="vx-mt10" />
+
+      {tab === "rates" ? (
+        <>
+          <div className="card">
+            <AdminTab me={me} forcedSection="rates" hideHeader hideSeg />
           </div>
 
-          {imageDataUrl ? (
-            <div className="vx-sp10">
-              <img src={imageDataUrl} alt="" style={{ width: "100%", borderRadius: 12 }} />
+          <div className="vx-sp12" />
+
+          <div className="card">
+            <div className="small"><b>Публикация в группу</b></div>
+            <div className="vx-sp10" />
+            <textarea className="vx-revText" rows={10} value={tpl} onChange={(e) => setTpl(e.target.value)} />
+
+            <div className="vx-sp10" />
+
+            <div className="vx-rowWrap" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  const r = new FileReader();
+                  r.onload = () => setImageDataUrl(String(r.result || "") || null);
+                  r.readAsDataURL(f);
+                }}
+              />
+              {imageDataUrl ? (
+                <button className="btn vx-btnSm" type="button" onClick={() => setImageDataUrl(null)}>
+                  Убрать картинку
+                </button>
+              ) : null}
             </div>
-          ) : null}
 
-          <div className="vx-sp10" />
-          <button className="btn" type="button" onClick={publishNow}>
-            Опубликовать
-          </button>
-        </div>
+            {imageDataUrl ? (
+              <div className="vx-sp10">
+                <img src={imageDataUrl} alt="" style={{ width: "100%", borderRadius: 12 }} />
+              </div>
+            ) : null}
 
-        <div className="card">
-          <div className="small"><b>Админы (tg_id)</b></div>
-          <div className="vx-muted">Только эти люди увидят вкладку “Админ” в мини-аппе.</div>
-          <div className="vx-sp10" />
-          <input
-            className="input vx-in"
-            value={adminsText}
-            onChange={(e) => setAdminsText(e.target.value)}
-            placeholder="11111111,22222222"
-          />
-          <div className="vx-sp10" />
-          <button className="btn" type="button" onClick={saveAdmins}>
-            Сохранить
-          </button>
-        </div>
+            <div className="vx-sp10" />
+            <button className="btn" type="button" onClick={publishNow}>
+              Опубликовать
+            </button>
+          </div>
 
-        <div className="card">
-          <div className="small"><b>Контакты по username</b></div>
-          <div className="vx-muted">Можно заранее задать статус клиенту, даже если он ещё не заходил в мини-апп.</div>
-          <div className="vx-sp10" />
+          <div className="vx-sp12" />
 
-          <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="card">
+            <div className="small"><b>Админы (tg_id)</b></div>
+            <div className="vx-sp10" />
             <input
               className="input vx-in"
-              value={cUsername}
-              onChange={(e) => setCUsername(e.target.value)}
-              placeholder="username (без @)"
-              style={{ flex: "1 1 220px" }}
+              value={adminsText}
+              onChange={(e) => setAdminsText(e.target.value)}
+              placeholder="11111111,22222222"
             />
-            <select className="input vx-in" value={cStatus} onChange={(e) => setCStatus(e.target.value as any)}>
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s.v} value={s.v}>
-                  {s.l}
-                </option>
-              ))}
-            </select>
+            <div className="vx-sp10" />
+            <button className="btn" type="button" onClick={saveAdmins}>
+              Сохранить
+            </button>
+          </div>
+        </>
+      ) : null}
+
+      {tab === "bonuses" ? (
+        <div className="card">
+          <AdminTab me={me} forcedSection="bonuses" hideHeader hideSeg />
+        </div>
+      ) : null}
+
+      {tab === "reviews" ? (
+        <div className="card">
+          <AdminTab me={me} forcedSection="reviews" hideHeader hideSeg />
+        </div>
+      ) : null}
+
+      {tab === "clients" ? (
+        <>
+          <div className="card">
+            <div className="small"><b>Контакт по username</b></div>
+            <div className="vx-sp10" />
+
+            <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input
+                className="input vx-in"
+                value={cUsername}
+                onChange={(e) => setCUsername(e.target.value)}
+                placeholder="username (без @)"
+                style={{ flex: "1 1 220px" }}
+              />
+              <select className="input vx-in" value={cStatus} onChange={(e) => setCStatus(e.target.value as any)}>
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s.v} value={s.v}>
+                    {s.l}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="vx-sp8" />
+            <input
+              className="input vx-in"
+              value={cFullName}
+              onChange={(e) => setCFullName(e.target.value)}
+              placeholder="ФИО (опционально)"
+            />
+
+            <div className="vx-sp10" />
+            <button className="btn" type="button" onClick={upsertContact}>
+              Сохранить
+            </button>
+
+            <div className="hr" />
+            <div className="small"><b>Список</b></div>
+            {contacts.length === 0 ? (
+              <div className="vx-muted">Пока пусто.</div>
+            ) : (
+              <div className="vx-contactList">
+                {contacts
+                  .slice()
+                  .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))
+                  .slice(0, 50)
+                  .map((c) => (
+                    <div key={c.id} className="vx-contactRow">
+                      <div><b>{c.username ? "@" + c.username : c.tg_id ? "id " + c.tg_id : c.id}</b></div>
+                      <div className="vx-muted">{c.fullName || ""}{c.status ? ` • ${c.status}` : ""}</div>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
 
-          <div className="vx-sp8" />
-          <input
-            className="input vx-in"
-            value={cFullName}
-            onChange={(e) => setCFullName(e.target.value)}
-            placeholder="ФИО (опционально)"
-          />
+          <div className="vx-sp12" />
 
-          <div className="vx-sp10" />
-          <button className="btn" type="button" onClick={upsertContact}>
-            Добавить / обновить
-          </button>
+          <div className="card">
+            <AdminTab me={me} forcedSection="users" hideHeader hideSeg />
+          </div>
+        </>
+      ) : null}
 
-          <div className="hr" />
-          <div className="small"><b>Список контактов</b></div>
-          {contacts.length === 0 ? (
-            <div className="vx-muted">Пока пусто.</div>
-          ) : (
-            <div className="vx-contactList">
-              {contacts
-                .slice()
-                .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))
-                .slice(0, 50)
-                .map((c) => (
-                  <div key={c.id} className="vx-contactRow">
-                    <div><b>{c.username ? "@" + c.username : c.tg_id ? "id " + c.tg_id : c.id}</b></div>
-                    <div className="vx-muted">{c.fullName || ""}{c.status ? ` • ${c.status}` : ""}</div>
-                  </div>
-                ))}
-            </div>
-          )}
+      {tab === "requests" ? (
+        <div className="card">
+          <AdminTab me={me} forcedSection="requests" hideHeader hideSeg />
         </div>
+      ) : null}
 
+      {tab === "reports" ? (
         <div className="card">
           <div className="small"><b>Отчёты</b></div>
+          <div className="vx-sp10" />
+
           <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <div style={{ flex: "1 1 160px" }}>
               <div className="vx-muted">С</div>
@@ -389,11 +477,7 @@ export default function OwnerPortal() {
             </div>
           ) : null}
         </div>
-      </div>
-
-      {/* Existing owner tools (rates, bonuses, requests, users, reviews) */}
-      <div className="vx-sp12" />
-      <AdminTab me={{ initData: token }} />
+      ) : null}
     </div>
   );
 }

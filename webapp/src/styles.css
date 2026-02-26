@@ -904,6 +904,24 @@ label, input, select, textarea{ color: var(--text); }
   gap: 12px;
   margin-bottom: 12px;
 }
+.vx-toast{
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(9,23,33,0.10);
+  background: rgba(255,255,255,0.60);
+  font-weight: 800;
+}
+.vx-toastErr{
+  border-color: rgba(185,28,28,0.30);
+  background: rgba(185,28,28,0.08);
+  color: rgba(185,28,28,0.92);
+}
+.vx-toastOk{
+  border-color: rgba(34,197,94,0.28);
+  background: rgba(34,197,94,0.08);
+  color: rgba(21,128,61,0.92);
+}
 .vx-adminGrid{
   display: grid;
   grid-template-columns: 1fr 1fr;

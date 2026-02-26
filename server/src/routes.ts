@@ -100,7 +100,12 @@ export function createApiRouter(opts: {
   function requireAdmin(req: express.Request) {
     const envKey = String(process.env.ADMIN_WEB_KEY || "").trim();
     const key = String(req.headers["x-admin-key"] || "").trim();
-    if (envKey && key && key === envKey) {
+
+    // If caller provided x-admin-key, never fall back to Telegram auth.
+    // This avoids confusing "No initData" errors on /admin when the key is missing/wrong.
+    if (key) {
+      if (!envKey) throw new Error("admin_key_not_configured");
+      if (key !== envKey) throw new Error("bad_admin_key");
       return {
         user: { id: 0, username: "admin", first_name: "Admin" },
         status: "standard" as UserStatus,
@@ -108,6 +113,8 @@ export function createApiRouter(opts: {
         isAdmin: true
       };
     }
+
+    // Otherwise allow Telegram owner access (if someone calls /admin API from inside the miniapp).
     return requireAuth(req);
   }
 
