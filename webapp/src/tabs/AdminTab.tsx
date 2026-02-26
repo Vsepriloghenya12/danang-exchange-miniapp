@@ -25,7 +25,7 @@ const REQUEST_STATE_OPTIONS = [
   { value: "new", label: "Принята" },
   { value: "in_progress", label: "В работе" },
   { value: "done", label: "Готово" },
-  { value: "canceled", label: "Отменена" }
+  { value: "canceled", label: "Отклонена" }
 ] as const;
 
 type RateRowProps = {
@@ -167,6 +167,7 @@ export default function AdminTab({
 
   const [users, setUsers] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
+  const [requestsFilter, setRequestsFilter] = useState<"all" | "new" | "in_progress" | "done" | "canceled">("all");
 
   const [bonuses, setBonuses] = useState<BonusesConfig | null>(null);
   const [bonusesBusy, setBonusesBusy] = useState(false);
@@ -748,12 +749,30 @@ export default function AdminTab({
             <div className="small">Заявки</div>
             <button className="btn vx-btnSm" onClick={loadRequests}>Обновить</button>
           </div>
+
+          <div className="row vx-rowWrap vx-gap6 vx-mt6">
+            <button
+              className={"btn vx-btnSm " + (requestsFilter === "all" ? "vx-btnOn" : "")}
+              onClick={() => setRequestsFilter("all")}
+            >
+              Все
+            </button>
+            {REQUEST_STATE_OPTIONS.map((s) => (
+              <button
+                key={s.value}
+                className={"btn vx-btnSm " + (requestsFilter === (s.value as any) ? "vx-btnOn" : "")}
+                onClick={() => setRequestsFilter(s.value as any)}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
           <div className="hr" />
 
           {requests.length === 0 ? (
             <div className="small">Пока нет заявок.</div>
           ) : (
-            requests.map((r) => {
+            (requestsFilter === "all" ? requests : requests.filter((x) => String(x.state) === String(requestsFilter))).map((r) => {
               const who = r?.from?.username ? "@" + r.from.username : (r?.from?.first_name || "") || `id ${r?.from?.id}`;
               const shortId = String(r.id || "").slice(-6);
               const created = r.created_at ? new Date(r.created_at).toLocaleString("ru-RU") : "";

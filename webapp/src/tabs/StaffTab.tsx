@@ -15,7 +15,7 @@ const STATE_OPTIONS = [
   { v: "new", l: "Принята" },
   { v: "in_progress", l: "В работе" },
   { v: "done", l: "Готово" },
-  { v: "canceled", l: "Отменена" },
+  { v: "canceled", l: "Отклонена" },
 ] as const;
 
 function shortId(id: string) {
