@@ -82,6 +82,30 @@ export type PublishResponse = {
   error?: string;
 };
 
+export type GroupCheckResponse = {
+  ok: boolean;
+  storeGroupChatId?: number | null;
+  envGroupChatId?: number | null;
+  groupChatId?: number | null;
+  telegram?:
+    | null
+    | {
+        ok: boolean;
+        id?: number;
+        type?: string;
+        title?: string;
+        username?: string;
+        error?: string;
+      };
+  error?: string;
+};
+
+export type GroupTestResponse = {
+  ok: boolean;
+  message_id?: number;
+  error?: string;
+};
+
 export type ReportsResponse = {
   ok: boolean;
   from: string;
