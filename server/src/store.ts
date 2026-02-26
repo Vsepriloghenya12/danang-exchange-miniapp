@@ -34,6 +34,8 @@ export type Store = {
   config: {
     groupChatId?: number;
     bonuses?: BonusesConfig;
+    adminTgIds?: number[];
+    publishTemplate?: string;
   };
   users: Record<string, StoredUser>;
   ratesByDate: Record<
@@ -47,6 +49,18 @@ export type Store = {
   requests: StoredRequest[];
   reviews: StoredReview[];
   atms: AtmItem[];
+  contacts: Contact[];
+};
+
+export type Contact = {
+  id: string;
+  tg_id?: number;
+  username?: string;
+  fullName?: string;
+  banks?: string[];
+  status?: UserStatus;
+  created_at: string;
+  updated_at: string;
 };
 
 export type ReviewState = "pending" | "approved" | "rejected";
@@ -125,12 +139,13 @@ const STORE_PATH =
 
 function defaultStore(): Store {
   return {
-    config: { bonuses: defaultBonuses() },
+    config: { bonuses: defaultBonuses(), adminTgIds: [], publishTemplate: "" },
     users: {},
     ratesByDate: {},
     requests: [],
     reviews: [],
-    atms: []
+    atms: [],
+    contacts: []
   };
 }
 
@@ -236,7 +251,8 @@ export function readStore(): Store {
     ratesByDate: { ...(parsed?.ratesByDate || {}) },
     requests: Array.isArray(parsed?.requests) ? (parsed.requests as any) : [],
     reviews: Array.isArray(parsed?.reviews) ? (parsed.reviews as any) : [],
-    atms: Array.isArray(parsed?.atms) ? parsed.atms : []
+    atms: Array.isArray(parsed?.atms) ? parsed.atms : [],
+    contacts: Array.isArray(parsed?.contacts) ? parsed.contacts : []
   };
 
   let dirty = false;
@@ -244,6 +260,20 @@ export function readStore(): Store {
   // бонусы: если нет — ставим дефолт
   if (!store.config.bonuses) {
     store.config.bonuses = defaultBonuses();
+    dirty = true;
+  }
+
+  if (!Array.isArray((store.config as any).adminTgIds)) {
+    (store.config as any).adminTgIds = [];
+    dirty = true;
+  }
+  if (typeof (store.config as any).publishTemplate !== "string") {
+    (store.config as any).publishTemplate = "";
+    dirty = true;
+  }
+
+  if (!Array.isArray(store.contacts)) {
+    store.contacts = [];
     dirty = true;
   }
 
@@ -315,6 +345,25 @@ export function writeStore(store: Store) {
   fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2), "utf-8");
 }
 
+export function normUsername(u?: string) {
+  const v = String(u || "")
+    .trim()
+    .replace(/^@+/, "")
+    .toLowerCase();
+  return v || undefined;
+}
+
+export function findContact(store: Store, q: { tg_id?: number; username?: string }): Contact | undefined {
+  const tid = q.tg_id;
+  const uname = normUsername(q.username);
+  return (store.contacts || []).find((c) => {
+    if (!c) return false;
+    if (tid && Number(c.tg_id) === tid) return true;
+    const cu = normUsername(c.username);
+    return !!uname && !!cu && cu === uname;
+  });
+}
+
 export function upsertUserFromTelegram(u: {
   id: number;
   username?: string;
@@ -325,6 +374,8 @@ export function upsertUserFromTelegram(u: {
   const key = String(u.id);
   const now = new Date().toISOString();
 
+  const contact = findContact(store, { tg_id: u.id, username: u.username });
+
   const existing = store.users[key];
   if (!existing) {
     store.users[key] = {
@@ -332,7 +383,7 @@ export function upsertUserFromTelegram(u: {
       username: u.username,
       first_name: u.first_name,
       last_name: u.last_name,
-      status: "standard",
+      status: normalizeStatus(contact?.status ?? "standard"),
       created_at: now,
       last_seen_at: now
     };
@@ -340,7 +391,8 @@ export function upsertUserFromTelegram(u: {
     existing.username = u.username ?? existing.username;
     existing.first_name = u.first_name ?? existing.first_name;
     existing.last_name = u.last_name ?? existing.last_name;
-    existing.status = normalizeStatus(existing.status);
+    // keep status in sync with the contact (if owner pre-set it)
+    existing.status = normalizeStatus(contact?.status ?? existing.status);
     existing.last_seen_at = now;
   }
 

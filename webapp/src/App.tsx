@@ -8,6 +8,8 @@ import CalculatorTab from "./tabs/CalculatorTab";
 import AtmTab from "./tabs/AtmTab";
 import GuideTab from "./tabs/GuideTab";
 import ReviewsTab from "./tabs/ReviewsTab";
+import StaffTab from "./tabs/StaffTab";
+import OwnerPortal from "./admin/OwnerPortal";
 
 type Me = {
   ok: boolean;
@@ -15,10 +17,11 @@ type Me = {
   user?: { id: number; username?: string; first_name?: string; last_name?: string };
   status?: UserStatus;
   isOwner?: boolean;
+  isAdmin?: boolean;
   error?: string;
 };
 
-type TabKey = "rates" | "calc" | "atm" | "guide" | "reviews";
+type TabKey = "rates" | "calc" | "atm" | "guide" | "reviews" | "staff";
 
 type AnimClass = "" | "vx-animInL" | "vx-animInR";
 
@@ -81,6 +84,15 @@ function IconStar({ className = "" }: { className?: string }) {
   );
 }
 
+function IconSettings({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
+      <path d="M19.4 15a7.8 7.8 0 0 0 .1-6l2-1.2-2-3.4-2.3.8a8 8 0 0 0-5.2-3L11 0h2l.9 2.2a8 8 0 0 0 5.2 3l2.3-.8 2 3.4-2 1.2z" />
+    </svg>
+  );
+}
+
 function BottomBar({
   active,
   onChange,
@@ -115,15 +127,26 @@ function BottomBar({
 }
 
 export default function App() {
+  // Owner portal is a separate browser page (/admin), not inside the miniapp UI.
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) {
+    return <OwnerPortal />;
+  }
+
   const tg = getTg();
 
-  const tabOrder: TabKey[] = ["rates", "calc", "atm", "guide", "reviews"];
+  const baseOrder: TabKey[] = ["rates", "calc", "atm", "guide", "reviews", "staff"];
 
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
   const [tab, setTab] = useState<TabKey>("rates");
   const [anim, setAnim] = useState<AnimClass>("");
   const [hsStatus, setHsStatus] = useState<string | null>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  // Navigation order depends on role (staff tab only for admins)
+  const tabOrder = useMemo<TabKey[]>(
+    () => (me.isAdmin ? baseOrder : baseOrder.filter((t) => t !== "staff")),
+    [me.isAdmin]
+  );
 
   // Keyboard detection: hide bottom bar while typing so it doesn't jump above the keyboard.
   const vvBaseHeightRef = useRef<number>(
@@ -153,15 +176,30 @@ export default function App() {
           user: { id: 123456, username: "demo_user", first_name: "Demo" },
           status: "gold",
           isOwner: true,
+          isAdmin: true,
         });
         return;
       }
 
       const r = await apiAuth(useInit);
-      if (r.ok) setMe({ ok: true, initData: useInit, user: r.user, status: r.status, isOwner: r.isOwner });
+      if (r.ok)
+        setMe({
+          ok: true,
+          initData: useInit,
+          user: r.user,
+          status: r.status,
+          isOwner: r.isOwner,
+          isAdmin: !!(r as any).isAdmin,
+        });
       else setMe({ ok: false, initData: useInit, error: r.error });
     })();
   }, [tg, isDemo]);
+
+  // Safety: if someone navigated to staff tab without permission, bounce back.
+  useEffect(() => {
+    if (tab === "staff" && !me.isAdmin) setTab("rates");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, me.isAdmin]);
 
   // Homescreen shortcut ("установить на телефон")
   useEffect(() => {
@@ -313,6 +351,7 @@ export default function App() {
     { key: "atm", label: "Банкоматы", show: true, icon: <IconAtm className="vx-i" /> },
     { key: "guide", label: "Гид", show: true, icon: <IconGuide className="vx-i" /> },
     { key: "reviews", label: "Отзывы", show: true, icon: <IconStar className="vx-i" /> },
+    { key: "staff", label: "Админ", show: !!me.isAdmin, icon: <IconSettings className="vx-i" /> },
   ];
 
   const changeTab = (next: TabKey) => {
@@ -377,6 +416,7 @@ export default function App() {
       atm: <AtmTab />,
       guide: <GuideTab />,
       reviews: <ReviewsTab />,
+      staff: <StaffTab me={me} />,
     }),
     [me]
   );
@@ -477,6 +517,13 @@ export default function App() {
               style={{ display: tab === "reviews" ? "block" : "none" }}
             >
               {pages.reviews}
+            </div>
+
+            <div
+              className={"vx-tabPane " + (tab === "staff" ? "is-active " + anim : "")}
+              style={{ display: tab === "staff" ? "block" : "none" }}
+            >
+              {pages.staff}
             </div>
           </div>
         </div>

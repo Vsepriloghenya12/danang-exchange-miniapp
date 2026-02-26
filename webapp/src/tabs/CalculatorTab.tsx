@@ -53,7 +53,13 @@ function parseIntClean(input: string): number {
 
 function fmtInt(n: number): string {
   if (!Number.isFinite(n)) return "";
-  return String(Math.trunc(n));
+  return String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+function fmtFromInput(v: string): string {
+  const digits = String(v ?? "").replace(/\D+/g, "");
+  if (!digits) return "";
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
 function isMultiple(n: number, step: number) {
@@ -320,7 +326,7 @@ export default function CalculatorTab({ me }: Props) {
   const [market, setMarket] = useState<MarketRatesResponse | null>(null);
   const [bonuses, setBonuses] = useState<BonusesConfig | null>(null);
 
-  const [sellCurrency, setSellCurrency] = useState<Currency>("USD");
+  const [sellCurrency, setSellCurrency] = useState<Currency>("RUB");
   const [buyCurrency, setBuyCurrency] = useState<Currency>("VND");
 
   const [sellText, setSellText] = useState("");
@@ -328,7 +334,7 @@ export default function CalculatorTab({ me }: Props) {
 
   const lastEdited = useRef<"sell" | "buy">("sell");
 
-  const [payMethod, setPayMethod] = useState<PayMethod>("cash");
+  const [payMethod, setPayMethod] = useState<PayMethod>("transfer");
   const [receiveMethod, setReceiveMethod] = useState<ReceiveMethod>("cash");
 
   const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeStatus(me?.status));
@@ -666,7 +672,7 @@ export default function CalculatorTab({ me }: Props) {
             className={invalidUsd || invalidEur || invalidVndSell ? "vx-inputInvalid" : ""}
             onChange={(e) => {
               lastEdited.current = "sell";
-              setSellText(e.target.value);
+              setSellText(fmtFromInput(e.target.value));
             }}
           />
 
@@ -693,7 +699,7 @@ export default function CalculatorTab({ me }: Props) {
             className={invalidVndBuy ? "vx-inputInvalid" : ""}
             onChange={(e) => {
               lastEdited.current = "buy";
-              setBuyText(e.target.value);
+              setBuyText(fmtFromInput(e.target.value));
             }}
           />
 

@@ -1,10 +1,15 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   readStore,
   writeStore,
   upsertUserFromTelegram,
   defaultBonuses,
+  normUsername,
+  type Contact,
   type UserStatus,
   type RequestState,
   type StoredRequest,
@@ -83,7 +88,11 @@ export function createApiRouter(opts: {
     const status = (up?.status ?? "standard") as UserStatus;
     const isOwner = isOwnerId(v.user.id);
 
-    return { user: v.user, status, isOwner };
+    const store = readStore();
+    const adminIds = Array.isArray((store.config as any)?.adminTgIds) ? (store.config as any).adminTgIds : [];
+    const isAdmin = adminIds.includes(v.user.id);
+
+    return { user: v.user, status, isOwner, isAdmin };
   }
 
   // Admin access for a standalone PC dashboard.
@@ -95,18 +104,49 @@ export function createApiRouter(opts: {
       return {
         user: { id: 0, username: "admin", first_name: "Admin" },
         status: "standard" as UserStatus,
-        isOwner: true
+        isOwner: true,
+        isAdmin: true
       };
     }
     return requireAuth(req);
   }
 
+  function requireStaff(req: express.Request) {
+    const a = requireAuth(req);
+    if (!a.isAdmin) throw new Error("not_admin");
+    return a;
+  }
+
   router.get("/health", (_req, res) => res.json({ ok: true }));
+
+  // --------------------
+  // Public: list bank icon filenames from webapp/public/banks (or dist/banks)
+  // --------------------
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const banksCandidates = [
+    path.resolve(__dirname, "../../webapp/dist/banks"),
+    path.resolve(__dirname, "../../webapp/public/banks")
+  ];
+
+  router.get("/banks/icons", (_req, res) => {
+    try {
+      const dir = banksCandidates.find((d) => fs.existsSync(d));
+      if (!dir) return res.json({ ok: true, icons: [] });
+      const icons = fs
+        .readdirSync(dir)
+        .filter((x) => !x.startsWith("."))
+        .filter((x) => /\.(png|jpg|jpeg|webp|svg)$/i.test(x));
+      return res.json({ ok: true, icons });
+    } catch (e: any) {
+      return res.status(500).json({ ok: false, error: e?.message || "icons_failed", icons: [] });
+    }
+  });
 
   router.post("/auth", (req, res) => {
     try {
-      const { user, status, isOwner } = requireAuth(req);
-      res.json({ ok: true, user, status, statusLabel: statusLabel[status], isOwner });
+      const { user, status, isOwner, isAdmin } = requireAuth(req);
+      res.json({ ok: true, user, status, statusLabel: statusLabel[status], isOwner, isAdmin });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -114,14 +154,15 @@ export function createApiRouter(opts: {
 
   router.get("/me", (req, res) => {
     try {
-      const { user, status, isOwner } = requireAuth(req);
+      const { user, status, isOwner, isAdmin } = requireAuth(req);
       res.json({
         ok: true,
         data: {
           user,
           status,
           statusLabel: statusLabel[normalizeStatus(status)],
-          isOwner
+          isOwner,
+          isAdmin
         }
       });
     } catch (e: any) {
@@ -408,6 +449,286 @@ export function createApiRouter(opts: {
   });
 
   // --------------------
+  // Owner config: admins list
+  // --------------------
+  router.get("/admin/admins", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      const store = readStore();
+      const adminTgIds = Array.isArray((store.config as any).adminTgIds) ? (store.config as any).adminTgIds : [];
+      return res.json({ ok: true, adminTgIds });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  router.post("/admin/admins", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const raw = (req.body as any)?.adminTgIds ?? (req.body as any)?.admins;
+      const list: number[] = Array.isArray(raw)
+        ? raw
+        : String(raw || "")
+            .split(/[,\s]+/)
+            .map((x) => x.trim())
+            .filter(Boolean);
+
+      const adminTgIds = (list as any[])
+        .map((x) => Number(x))
+        .filter((n) => Number.isFinite(n) && n > 0);
+
+      const store = readStore();
+      store.config = { ...(store.config || {}), adminTgIds };
+      writeStore(store);
+      return res.json({ ok: true, adminTgIds });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // --------------------
+  // Owner: publish template
+  // --------------------
+  router.get("/admin/publish-template", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      const store = readStore();
+      const template = String((store.config as any)?.publishTemplate || "");
+      return res.json({ ok: true, template });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  router.post("/admin/publish-template", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      const template = String((req.body as any)?.template || "");
+      const store = readStore();
+      store.config = { ...(store.config || {}), publishTemplate: template };
+      writeStore(store);
+      return res.json({ ok: true, template });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // --------------------
+  // Owner: contacts
+  // --------------------
+  router.get("/admin/contacts", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      const store = readStore();
+      return res.json({ ok: true, contacts: Array.isArray(store.contacts) ? store.contacts : [] });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  router.post("/admin/contacts/upsert", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const store = readStore();
+      const tg_id = req.body?.tg_id ? Number(req.body.tg_id) : undefined;
+      const username = normUsername(req.body?.username);
+      const fullName = String(req.body?.fullName || req.body?.full_name || "").trim();
+      const banks = Array.isArray(req.body?.banks) ? (req.body.banks as any[]).map(String) : [];
+      const status = parseStatusInput(req.body?.status) ?? undefined;
+
+      if (!tg_id && !username) return res.status(400).json({ ok: false, error: "tg_id_or_username_required" });
+
+      const now = new Date().toISOString();
+      const id = tg_id ? `tg_${tg_id}` : `u_${username}`;
+
+      let c = (store.contacts || []).find((x) => x && x.id === id);
+      if (!c) {
+        c = { id, created_at: now, updated_at: now } as Contact;
+        (store.contacts || []).push(c);
+      }
+      c.updated_at = now;
+      if (tg_id) c.tg_id = tg_id;
+      if (username) c.username = username;
+      if (fullName || fullName === "") c.fullName = fullName;
+      if (banks) c.banks = banks;
+      if (status) c.status = status;
+
+      // If the user already exists in users, sync status immediately
+      if (status && tg_id && store.users?.[String(tg_id)]) {
+        store.users[String(tg_id)].status = status;
+      }
+
+      writeStore(store);
+      return res.json({ ok: true, contact: c });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // --------------------
+  // Owner: reports
+  // --------------------
+  router.get("/admin/reports", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const from = String(req.query.from || "").trim();
+      const to = String(req.query.to || "").trim();
+      const onlyDone = String(req.query.onlyDone || "1") !== "0";
+      const tgId = req.query.tgId ? Number(req.query.tgId) : undefined;
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+        return res.status(400).json({ ok: false, error: "bad_date" });
+      }
+
+      const store = readStore();
+      const fromTs = new Date(from + "T00:00:00.000Z").getTime();
+      const toTs = new Date(to + "T23:59:59.999Z").getTime();
+
+      const list = (store.requests || [])
+        .filter((r) => {
+          const ts = new Date(String(r.created_at)).getTime();
+          if (!Number.isFinite(ts)) return false;
+          if (ts < fromTs || ts > toTs) return false;
+          if (onlyDone && r.state !== "done") return false;
+          if (tgId && r.from?.id !== tgId) return false;
+          return true;
+        })
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+
+      const metrics: any = {
+        total: list.length,
+        states: { new: 0, in_progress: 0, done: 0, canceled: 0 },
+        pay: { cash: 0, transfer: 0, other: 0 },
+        receive: { cash: 0, transfer: 0, atm: 0, other: 0 },
+        sellCurrency: {},
+        buyCurrency: {},
+      };
+      for (const r of list) {
+        (metrics.states as any)[r.state] = ((metrics.states as any)[r.state] || 0) + 1;
+        const pm = String((r as any).payMethod || "");
+        if (pm === "cash" || pm === "transfer") metrics.pay[pm]++;
+        else metrics.pay.other++;
+        const rm = String((r as any).receiveMethod || "");
+        if (rm === "cash" || rm === "transfer" || rm === "atm") metrics.receive[rm]++;
+        else metrics.receive.other++;
+        metrics.sellCurrency[r.sellCurrency] = (metrics.sellCurrency[r.sellCurrency] || 0) + 1;
+        metrics.buyCurrency[r.buyCurrency] = (metrics.buyCurrency[r.buyCurrency] || 0) + 1;
+      }
+
+      return res.json({ ok: true, from, to, onlyDone, ...(tgId ? { tgId } : {}), metrics, requests: list });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // --------------------
+  // Owner: publish rates to group (text + optional image + webapp button)
+  // --------------------
+  router.post("/admin/publish", async (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const store = readStore();
+      const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
+      const groupChatId = store.config?.groupChatId || envGroup;
+      if (!groupChatId) return res.status(400).json({ ok: false, error: "group_not_set" });
+
+      const todayKey = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+      const todayRates = store.ratesByDate?.[todayKey]?.rates;
+      if (!todayRates?.RUB || !todayRates?.USDT || !todayRates?.USD) {
+        return res.status(400).json({ ok: false, error: "rates_missing" });
+      }
+
+      const fmtSpaces = (n: number) => String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+      const rubLine = `10 000 ₽   💸 ${fmtSpaces(10_000 * Number(todayRates.RUB.buy_vnd))} vnd`;
+      const usdtLine = `100 USDT   💵 ${fmtSpaces(100 * Number(todayRates.USDT.buy_vnd))} vnd`;
+      const usdLine = `100 USD    💵 ${fmtSpaces(100 * Number(todayRates.USD.buy_vnd))} vnd`;
+      const ratesBlock = `${rubLine}\n\n${usdtLine}\n\n${usdLine}`;
+
+      // "16 февраля 2026" (без "г.")
+      const dateHuman = (() => {
+        const s = new Date().toLocaleDateString("ru-RU", {
+          timeZone: "Asia/Ho_Chi_Minh",
+          day: "numeric",
+          month: "long",
+          year: "numeric"
+        });
+        return s.replace(/\s*г\.?$/i, "").trim();
+      })();
+
+      const templateFromBody = typeof req.body?.template === "string" ? String(req.body.template) : undefined;
+      const templateStored = String((store.config as any)?.publishTemplate || "");
+      const tpl = (templateFromBody ?? templateStored).trim() ||
+        "Доброе утро!\n\nКурс на {{date}}:\n\n{{rates}}";
+
+      const text = tpl
+        .replace(/\{\{\s*date\s*\}\}/gi, dateHuman)
+        .replace(/\{\{\s*rates\s*\}\}/gi, ratesBlock);
+
+      const webappUrl = String(process.env.WEBAPP_URL || "").trim();
+      const reply_markup = {
+        inline_keyboard: [
+          [
+            webappUrl
+              ? { text: "Открыть приложение", web_app: { url: webappUrl } }
+              : { text: "Открыть приложение", url: "https://t.me" }
+          ]
+        ]
+      };
+
+      const imageDataUrl = typeof req.body?.imageDataUrl === "string" ? String(req.body.imageDataUrl) : "";
+      if (imageDataUrl && imageDataUrl.startsWith("data:")) {
+        const m = imageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (!m) return res.status(400).json({ ok: false, error: "bad_image" });
+        const mime = m[1];
+        const b64 = m[2];
+        const buf = Buffer.from(b64, "base64");
+
+        const form = new FormData();
+        form.append("chat_id", String(groupChatId));
+        form.append("caption", text);
+        form.append("reply_markup", JSON.stringify(reply_markup));
+        form.append("photo", new Blob([buf], { type: mime }), "image" + (mime.includes("png") ? ".png" : ".jpg"));
+
+        const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendPhoto`, {
+          method: "POST",
+          body: form as any
+        });
+        const tgJson: any = await tgRes.json();
+        if (!tgJson?.ok) return res.status(500).json({ ok: false, error: tgJson?.description || "tg_send_failed" });
+        return res.json({ ok: true, message_id: tgJson?.result?.message_id });
+      }
+
+      const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          chat_id: groupChatId,
+          text,
+          disable_web_page_preview: true,
+          reply_markup
+        })
+      });
+      const tgJson: any = await tgRes.json();
+      if (!tgJson?.ok) return res.status(500).json({ ok: false, error: tgJson?.description || "tg_send_failed" });
+      return res.json({ ok: true, message_id: tgJson?.result?.message_id });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // --------------------
   // Admin users
   // --------------------
   router.get("/admin/users", (req, res) => {
@@ -457,6 +778,101 @@ export function createApiRouter(opts: {
   // --------------------
   // Requests
   // --------------------
+  // список заявок (для админов внутри miniapp)
+  router.get("/staff/requests", (req, res) => {
+    try {
+      requireStaff(req);
+      const store = readStore();
+      const requests = [...(store.requests || [])].sort((a, b) =>
+        String(b.created_at).localeCompare(String(a.created_at))
+      );
+      const contacts: Record<string, any> = {};
+      for (const c of store.contacts || []) {
+        if (c?.tg_id) contacts[String(c.tg_id)] = c;
+      }
+      return res.json({ ok: true, requests, contacts });
+    } catch (e: any) {
+      return res.status(e?.message === "not_admin" ? 403 : 401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // изменить статус заявки (админ внутри miniapp)
+  router.post("/staff/requests/:id/state", async (req, res) => {
+    try {
+      const { user } = requireStaff(req);
+      const id = String(req.params.id || "");
+      const next = parseRequestState(req.body?.state);
+      if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
+      if (!next) return res.status(400).json({ ok: false, error: "bad_state" });
+
+      const store = readStore();
+      const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
+      if (!r) return res.status(404).json({ ok: false, error: "not_found" });
+
+      r.state = next;
+      r.state_updated_at = new Date().toISOString();
+      r.state_updated_by = user.id;
+      writeStore(store);
+
+      // notify user
+      try {
+        const shortId = id.slice(-6);
+        const text =
+          `📣 Статус заявки обновлён\n` +
+          `🆔 #${shortId}\n` +
+          `🔁 ${r.sellCurrency} → ${r.buyCurrency}\n` +
+          `💸 Отдаёте: ${r.sellAmount}\n` +
+          `🎯 Получаете: ${r.buyAmount}\n` +
+          `📌 Сейчас: ${requestStateLabel[next]}`;
+
+        await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ chat_id: r.from.id, text, disable_web_page_preview: true })
+        });
+      } catch {}
+
+      return res.json({ ok: true, request: r });
+    } catch (e: any) {
+      return res.status(e?.message === "not_admin" ? 403 : 401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // контакты (админ внутри miniapp)
+  router.post("/staff/contacts/upsert", (req, res) => {
+    try {
+      const { user } = requireStaff(req);
+      const store = readStore();
+
+      const tg_id = req.body?.tg_id ? Number(req.body.tg_id) : undefined;
+      const username = normUsername(req.body?.username);
+      const fullName = String(req.body?.fullName || req.body?.full_name || "").trim();
+      const banks = Array.isArray(req.body?.banks) ? (req.body.banks as any[]).map(String) : [];
+
+      if (!tg_id && !username) return res.status(400).json({ ok: false, error: "tg_id_or_username_required" });
+
+      const now = new Date().toISOString();
+      const id = tg_id ? `tg_${tg_id}` : `u_${username}`;
+
+      let c = (store.contacts || []).find((x) => x && x.id === id);
+      if (!c) {
+        c = { id, created_at: now, updated_at: now } as Contact;
+        (store.contacts || []).push(c);
+      }
+      c.updated_at = now;
+      if (tg_id) c.tg_id = tg_id;
+      if (username) c.username = username;
+      if (fullName || fullName === "") c.fullName = fullName;
+      if (banks) c.banks = banks;
+
+      // note: staff doesn't change status here
+      writeStore(store);
+      return res.json({ ok: true, contact: c, by: user.id });
+    } catch (e: any) {
+      return res.status(e?.message === "not_admin" ? 403 : 401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
   // список заявок (для владельца)
   router.get("/admin/requests", (req, res) => {
     try {

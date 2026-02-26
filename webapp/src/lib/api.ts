@@ -5,7 +5,15 @@ import type {
   AtmsResponse,
   AtmItem,
   BonusesConfig,
-  BonusesResponse
+  BonusesResponse,
+  BankIconsResponse,
+  StaffRequestsResponse,
+  AdminContactsResponse,
+  AdminAdminsResponse,
+  PublishTemplateResponse,
+  PublishResponse,
+  ReportsResponse,
+  Contact
 } from "./types";
 
 // Admin auth helper:
@@ -178,6 +186,117 @@ export async function apiAdminSetBonuses(token: string, bonuses: BonusesConfig):
     method: "POST",
     headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
     body: JSON.stringify({ bonuses })
+  });
+  return r.json();
+}
+
+// --------------------
+// Bank icons
+// --------------------
+export async function apiGetBankIcons(): Promise<BankIconsResponse> {
+  const r = await fetch("/api/banks/icons");
+  return r.json();
+}
+
+// --------------------
+// Staff (miniapp admin)
+// --------------------
+export async function apiStaffGetRequests(initData: string): Promise<StaffRequestsResponse> {
+  const r = await fetch("/api/staff/requests", {
+    headers: { "x-telegram-init-data": initData }
+  });
+  return r.json();
+}
+
+export async function apiStaffSetRequestState(initData: string, id: string, state: string) {
+  const r = await fetch(`/api/staff/requests/${encodeURIComponent(id)}/state`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-telegram-init-data": initData },
+    body: JSON.stringify({ state })
+  });
+  return r.json();
+}
+
+export async function apiStaffUpsertContact(
+  initData: string,
+  payload: Partial<Contact> & { tg_id?: number; username?: string }
+) {
+  const r = await fetch(`/api/staff/contacts/upsert`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-telegram-init-data": initData },
+    body: JSON.stringify(payload)
+  });
+  return r.json();
+}
+
+// --------------------
+// Owner (browser /admin)
+// --------------------
+export async function apiAdminGetAdmins(token: string): Promise<AdminAdminsResponse> {
+  const r = await fetch("/api/admin/admins", {
+    headers: { ...adminAuthHeaders(token) }
+  });
+  return r.json();
+}
+
+export async function apiAdminSetAdmins(token: string, adminTgIds: number[]): Promise<AdminAdminsResponse> {
+  const r = await fetch("/api/admin/admins", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
+    body: JSON.stringify({ adminTgIds })
+  });
+  return r.json();
+}
+
+export async function apiAdminGetPublishTemplate(token: string): Promise<PublishTemplateResponse> {
+  const r = await fetch("/api/admin/publish-template", {
+    headers: { ...adminAuthHeaders(token) }
+  });
+  return r.json();
+}
+
+export async function apiAdminSetPublishTemplate(token: string, template: string): Promise<PublishTemplateResponse> {
+  const r = await fetch("/api/admin/publish-template", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
+    body: JSON.stringify({ template })
+  });
+  return r.json();
+}
+
+export async function apiAdminPublish(token: string, payload: { template?: string; imageDataUrl?: string | null }): Promise<PublishResponse> {
+  const r = await fetch("/api/admin/publish", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
+    body: JSON.stringify(payload)
+  });
+  return r.json();
+}
+
+export async function apiAdminGetContacts(token: string): Promise<AdminContactsResponse> {
+  const r = await fetch("/api/admin/contacts", {
+    headers: { ...adminAuthHeaders(token) }
+  });
+  return r.json();
+}
+
+export async function apiAdminUpsertContact(token: string, payload: Partial<Contact> & { username?: string; tg_id?: number }): Promise<any> {
+  const r = await fetch("/api/admin/contacts/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
+    body: JSON.stringify(payload)
+  });
+  return r.json();
+}
+
+export async function apiAdminGetReports(token: string, params: { from: string; to: string; onlyDone?: boolean; tgId?: number }): Promise<ReportsResponse> {
+  const q = new URLSearchParams();
+  q.set("from", params.from);
+  q.set("to", params.to);
+  if (params.onlyDone != null) q.set("onlyDone", String(params.onlyDone ? 1 : 0));
+  if (params.tgId) q.set("tgId", String(params.tgId));
+  const r = await fetch(`/api/admin/reports?${q.toString()}` , {
+    headers: { ...adminAuthHeaders(token) }
   });
   return r.json();
 }

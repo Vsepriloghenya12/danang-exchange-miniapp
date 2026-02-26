@@ -27,8 +27,71 @@ export type AuthResponse =
       user: { id: number; username?: string; first_name?: string; last_name?: string };
       status: UserStatus;
       isOwner: boolean;
+      isAdmin?: boolean;
     }
   | { ok: false; error: string };
+
+// --------------------
+// Contacts / staff
+// --------------------
+export type Contact = {
+  id: string;
+  tg_id?: number;
+  username?: string;
+  fullName?: string;
+  banks?: string[]; // filenames from /banks
+  status?: UserStatus; // optional desired status
+  created_at: string;
+  updated_at: string;
+};
+
+export type BankIconsResponse = {
+  ok: boolean;
+  icons: string[];
+  error?: string;
+};
+
+export type StaffRequestsResponse = {
+  ok: boolean;
+  requests: any[];
+  contacts?: Record<string, Contact>; // keyed by tg_id
+  error?: string;
+};
+
+export type AdminContactsResponse = {
+  ok: boolean;
+  contacts: Contact[];
+  error?: string;
+};
+
+export type AdminAdminsResponse = {
+  ok: boolean;
+  adminTgIds: number[];
+  error?: string;
+};
+
+export type PublishTemplateResponse = {
+  ok: boolean;
+  template: string;
+  error?: string;
+};
+
+export type PublishResponse = {
+  ok: boolean;
+  message_id?: number;
+  error?: string;
+};
+
+export type ReportsResponse = {
+  ok: boolean;
+  from: string;
+  to: string;
+  onlyDone: boolean;
+  tgId?: number;
+  metrics: Record<string, any>;
+  requests: any[];
+  error?: string;
+};
 
 export type MarketRatesResponse =
   | {

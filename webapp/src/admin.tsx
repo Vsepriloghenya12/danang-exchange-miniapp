@@ -1,10 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./styles.css";
-import AdminStandalone from "./admin/AdminStandalone";
+import OwnerPortal from "./admin/OwnerPortal";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AdminStandalone />
+    <OwnerPortal />
   </React.StrictMode>
 );
