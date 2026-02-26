@@ -133,6 +133,9 @@ function tierBonusForRate(
 ): number {
   if (sellAmount <= 0) return 0;
 
+  // If bonuses config is present and tiers are disabled, do not apply any status/tier markup
+  if (bonuses && bonuses.enabled && bonuses.enabled.tiers === false) return 0;
+
   // configurable bonuses from server
   if (bonuses?.enabled?.tiers) {
     const list: any[] | undefined = (bonuses.tiers as any)?.[sellCurrency];
@@ -178,6 +181,9 @@ function methodBonusForRate(
   bonuses?: BonusesConfig | null
 ): number {
   if (buyCurrency !== "VND") return 0;
+
+  // If bonuses config is present and method markups are disabled, do not apply any method markup
+  if (bonuses && bonuses.enabled && bonuses.enabled.methods === false) return 0;
 
   // Надбавка зависит от СПОСОБА ПОЛУЧЕНИЯ (перевод/банкомат).
   // Оплата (нал/перевод) на неё не влияет.
