@@ -947,8 +947,77 @@ label, input, select, textarea{ color: var(--text); }
 .vx-contactList{ display: grid; gap: 8px; }
 .vx-contactRow{ padding: 8px; border: 1px solid rgba(9,23,33,0.10); border-radius: 14px; background: rgba(255,255,255,0.55); }
 
+.vx-metricGrid{
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 8px;
+}
+.vx-metricCard{
+  border: 1px solid rgba(9,23,33,0.10);
+  background: rgba(255,255,255,0.55);
+  border-radius: 18px;
+  padding: 12px;
+}
+.vx-metricVal{
+  font-size: 22px;
+  font-weight: 950;
+  margin-top: 2px;
+}
+.vx-metricLine{
+  font-size: 13px;
+  margin-top: 4px;
+}
+.vx-chipRow{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.vx-chip{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(9,23,33,0.10);
+  background: rgba(255,255,255,0.65);
+  font-size: 12px;
+}
+
+.vx-tableWrap{
+  margin-top: 8px;
+  overflow-x: auto;
+  border-radius: 16px;
+  border: 1px solid rgba(9,23,33,0.10);
+  background: rgba(255,255,255,0.55);
+}
+.vx-table{
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+.vx-table th,
+.vx-table td{
+  padding: 10px 10px;
+  border-bottom: 1px solid rgba(9,23,33,0.10);
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+.vx-table th{
+  font-weight: 950;
+  background: rgba(255,255,255,0.55);
+}
+.vx-table tr:last-child td{ border-bottom: none; }
+
 @media (max-width: 860px){
   .vx-adminGrid{ grid-template-columns: 1fr; }
+  .vx-metricGrid{ grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 520px){
+  .vx-metricGrid{ grid-template-columns: 1fr; }
 }
 
 /* =========================

@@ -28,6 +28,15 @@ function adminAuthHeaders(token: string) {
   return { "x-telegram-init-data": t };
 }
 
+async function readJsonSafe(r: Response): Promise<any> {
+  const txt = await r.text();
+  try {
+    return JSON.parse(txt);
+  } catch {
+    return { ok: false, error: txt || `HTTP ${r.status}` };
+  }
+}
+
 export async function apiAuth(initData: string): Promise<AuthResponse> {
   const r = await fetch("/api/auth", {
     method: "POST",
@@ -270,7 +279,7 @@ export async function apiAdminPublish(token: string, payload: { template?: strin
     headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
     body: JSON.stringify(payload)
   });
-  return r.json();
+  return readJsonSafe(r);
 }
 
 export async function apiAdminGetContacts(token: string): Promise<AdminContactsResponse> {
@@ -298,5 +307,5 @@ export async function apiAdminGetReports(token: string, params: { from: string; 
   const r = await fetch(`/api/admin/reports?${q.toString()}` , {
     headers: { ...adminAuthHeaders(token) }
   });
-  return r.json();
+  return readJsonSafe(r);
 }

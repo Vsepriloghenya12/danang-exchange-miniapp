@@ -67,6 +67,11 @@ export default function OwnerPortal() {
     const t = String(text || "").trim();
     if (t === "bad_admin_key") return "Неверный ключ";
     if (t === "admin_key_not_configured") return "На сервере не задан ADMIN_WEB_KEY";
+    if (t === "group_not_set") return "Не задана группа (в группе сделай /setgroup)";
+    if (t === "rates_missing") return "Сначала задай курс на сегодня";
+    if (t === "not_owner") return "Только владелец";
+    if (t === "tg_send_failed") return "Telegram: не удалось отправить";
+    if (t === "bad_image") return "Неверная картинка";
     if (t === "No initData") return "Нет авторизации";
     return t || "Ошибка";
   }
@@ -83,6 +88,7 @@ export default function OwnerPortal() {
   const [adminsText, setAdminsText] = useState<string>("");
   const [tpl, setTpl] = useState<string>(DEFAULT_TEMPLATE);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState<boolean>(false);
 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [cUsername, setCUsername] = useState<string>("");
@@ -185,12 +191,21 @@ export default function OwnerPortal() {
   }
 
   async function publishNow() {
-    const r = await apiAdminPublish(token, { template: tpl, imageDataUrl });
-    if (!r?.ok) {
-      showErr(r?.error || "Ошибка публикации");
-      return;
+    if (isPublishing) return;
+    setBanner({ type: "ok", text: "Публикую…" });
+    setIsPublishing(true);
+    try {
+      const r = await apiAdminPublish(token, { template: tpl, imageDataUrl });
+      if (!r?.ok) {
+        showErr(r?.error || "Ошибка публикации");
+        return;
+      }
+      showOk("Опубликовано ✅");
+    } catch (e: any) {
+      showErr(e?.message || "Ошибка запроса");
+    } finally {
+      setIsPublishing(false);
     }
-    showOk("Опубликовано ✅");
   }
 
   async function upsertContact() {
@@ -234,6 +249,25 @@ export default function OwnerPortal() {
       return;
     }
     setReport(r);
+  }
+
+  function fmtNum(n: any) {
+    const x = Number(n);
+    if (!Number.isFinite(x)) return "–";
+    return String(Math.trunc(x)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  }
+
+  function fmtDt(iso: any) {
+    const d = new Date(String(iso || ""));
+    const t = d.getTime();
+    if (!Number.isFinite(t)) return String(iso || "");
+    return d.toLocaleString("ru-RU");
+  }
+
+  function who(req: any) {
+    const u = req?.from?.username ? "@" + req.from.username : "";
+    const name = [req?.from?.first_name, req?.from?.last_name].filter(Boolean).join(" ");
+    return u || name || (req?.from?.id ? "id " + req.from.id : "–");
   }
 
   if (!token) {
@@ -333,8 +367,8 @@ export default function OwnerPortal() {
             ) : null}
 
             <div className="vx-sp10" />
-            <button className="btn" type="button" onClick={publishNow}>
-              Опубликовать
+            <button className="btn" type="button" onClick={publishNow} disabled={isPublishing}>
+              {isPublishing ? "Публикую…" : "Опубликовать"}
             </button>
           </div>
 
@@ -471,9 +505,104 @@ export default function OwnerPortal() {
           {report?.ok ? (
             <div className="vx-sp10">
               <div className="small"><b>Метрики</b></div>
-              <pre className="vx-pre">{JSON.stringify(report.metrics, null, 2)}</pre>
+              <div className="vx-metricGrid">
+                <div className="vx-metricCard">
+                  <div className="vx-muted">Всего сделок</div>
+                  <div className="vx-metricVal">{fmtNum(report.metrics?.total)}</div>
+                </div>
+
+                <div className="vx-metricCard">
+                  <div className="vx-muted">Статусы</div>
+                  <div className="vx-metricLine">new: <b>{fmtNum(report.metrics?.states?.new)}</b></div>
+                  <div className="vx-metricLine">in_progress: <b>{fmtNum(report.metrics?.states?.in_progress)}</b></div>
+                  <div className="vx-metricLine">done: <b>{fmtNum(report.metrics?.states?.done)}</b></div>
+                  <div className="vx-metricLine">canceled: <b>{fmtNum(report.metrics?.states?.canceled)}</b></div>
+                </div>
+
+                <div className="vx-metricCard">
+                  <div className="vx-muted">Оплата</div>
+                  <div className="vx-metricLine">cash: <b>{fmtNum(report.metrics?.pay?.cash)}</b></div>
+                  <div className="vx-metricLine">transfer: <b>{fmtNum(report.metrics?.pay?.transfer)}</b></div>
+                  <div className="vx-metricLine">other: <b>{fmtNum(report.metrics?.pay?.other)}</b></div>
+                </div>
+
+                <div className="vx-metricCard">
+                  <div className="vx-muted">Получение</div>
+                  <div className="vx-metricLine">cash: <b>{fmtNum(report.metrics?.receive?.cash)}</b></div>
+                  <div className="vx-metricLine">transfer: <b>{fmtNum(report.metrics?.receive?.transfer)}</b></div>
+                  <div className="vx-metricLine">atm: <b>{fmtNum(report.metrics?.receive?.atm)}</b></div>
+                  <div className="vx-metricLine">other: <b>{fmtNum(report.metrics?.receive?.other)}</b></div>
+                </div>
+
+                <div className="vx-metricCard">
+                  <div className="vx-muted">Отдаёт (валюта)</div>
+                  <div className="vx-chipRow">
+                    {Object.entries(report.metrics?.sellCurrency || {}).length ? (
+                      Object.entries(report.metrics?.sellCurrency || {})
+                        .sort((a: any, b: any) => Number(b[1]) - Number(a[1]))
+                        .map(([k, v]: any) => (
+                          <span key={k} className="vx-chip">{k}: <b>{fmtNum(v)}</b></span>
+                        ))
+                    ) : (
+                      <span className="vx-muted">–</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="vx-metricCard">
+                  <div className="vx-muted">Получает (валюта)</div>
+                  <div className="vx-chipRow">
+                    {Object.entries(report.metrics?.buyCurrency || {}).length ? (
+                      Object.entries(report.metrics?.buyCurrency || {})
+                        .sort((a: any, b: any) => Number(b[1]) - Number(a[1]))
+                        .map(([k, v]: any) => (
+                          <span key={k} className="vx-chip">{k}: <b>{fmtNum(v)}</b></span>
+                        ))
+                    ) : (
+                      <span className="vx-muted">–</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="vx-sp12" />
               <div className="small"><b>Сделки</b></div>
               <div className="vx-muted">Показано: {report.requests?.length || 0}</div>
+
+              {Array.isArray(report.requests) && report.requests.length ? (
+                <div className="vx-tableWrap">
+                  <table className="vx-table">
+                    <thead>
+                      <tr>
+                        <th>Дата</th>
+                        <th>Клиент</th>
+                        <th>Пара</th>
+                        <th>Отдал</th>
+                        <th>Получил</th>
+                        <th>Оплата</th>
+                        <th>Получение</th>
+                        <th>Статус</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.requests.slice(0, 200).map((r: any) => (
+                        <tr key={r.id}>
+                          <td>{fmtDt(r.created_at)}</td>
+                          <td>{who(r)}</td>
+                          <td>{String(r.sellCurrency)} → {String(r.buyCurrency)}</td>
+                          <td>{fmtNum(r.sellAmount)}</td>
+                          <td>{fmtNum(r.buyAmount)}</td>
+                          <td>{String(r.payMethod || "-")}</td>
+                          <td>{String(r.receiveMethod || "-")}</td>
+                          <td><b>{String(r.state)}</b></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="vx-muted">Нет сделок за выбранный период.</div>
+              )}
             </div>
           ) : null}
         </div>
