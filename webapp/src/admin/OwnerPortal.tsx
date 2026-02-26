@@ -91,6 +91,7 @@ export default function OwnerPortal() {
   const [tpl, setTpl] = useState<string>(DEFAULT_TEMPLATE);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
+  const [lastPublish, setLastPublish] = useState<any>(null);
 
   const [groupInfo, setGroupInfo] = useState<any>(null);
   const [isGroupChecking, setIsGroupChecking] = useState(false);
@@ -235,6 +236,7 @@ export default function OwnerPortal() {
     setIsPublishing(true);
     try {
       const r = await apiAdminPublish(token, { template: tpl, imageDataUrl });
+      setLastPublish(r);
       if (!r?.ok) {
         showErr(r?.error || "Ошибка публикации");
         return;
@@ -411,6 +413,15 @@ export default function OwnerPortal() {
             <button className="btn" type="button" onClick={publishNow} disabled={isPublishing}>
               {isPublishing ? "Публикую…" : "Опубликовать"}
             </button>
+
+            {lastPublish ? (
+              <div className="vx-sp10">
+                <details className="vx-debug">
+                  <summary>Детали последней публикации</summary>
+                  <pre className="vx-pre">{JSON.stringify(lastPublish, null, 2)}</pre>
+                </details>
+              </div>
+            ) : null}
 
             <div className="vx-sp10" />
             <div className="vx-pubGroup">

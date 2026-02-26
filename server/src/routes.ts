@@ -779,7 +779,7 @@ export function createApiRouter(opts: {
 
       const imageDataUrl = typeof req.body?.imageDataUrl === "string" ? String(req.body.imageDataUrl) : "";
 
-      async function tgSendMessage(markup: any) {
+      async function tgSendMessage(markup?: any) {
         const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -787,14 +787,14 @@ export function createApiRouter(opts: {
             chat_id: groupChatId,
             text,
             disable_web_page_preview: true,
-            reply_markup: markup
+            ...(markup ? { reply_markup: markup } : {})
           })
         });
         const tgJson: any = await tgRes.json();
         return tgJson;
       }
 
-      async function tgSendPhotoOrDoc(markup: any) {
+      async function tgSendPhotoOrDoc(markup?: any) {
         const m = imageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
         if (!m) return { ok: false, description: "bad_image" };
         const mime = m[1];
@@ -809,7 +809,7 @@ export function createApiRouter(opts: {
         form.append("chat_id", String(groupChatId));
         // Caption limits are smaller (1024). If too long, we'll fall back to a text message.
         form.append(isPhoto ? "caption" : "caption", text);
-        form.append("reply_markup", JSON.stringify(markup));
+        if (markup) form.append("reply_markup", JSON.stringify(markup));
 
         const ext = mime.includes("png") ? ".png" : mime.includes("jpeg") || mime.includes("jpg") ? ".jpg" : ".bin";
         const field = isPhoto ? "photo" : "document";
@@ -823,44 +823,68 @@ export function createApiRouter(opts: {
         return tgJson;
       }
 
+      // Some chat types (esp. groups/channels) can reject certain button types.
+      // We try (1) web_app, (2) url, (3) no buttons.
+      async function sendMessageWithFallbacks() {
+        let tgJson = await tgSendMessage(markupWebApp);
+        if (!tgJson?.ok) tgJson = await tgSendMessage(markupUrl);
+        if (!tgJson?.ok) tgJson = await tgSendMessage(undefined);
+        return tgJson;
+      }
+
+      async function sendPhotoWithFallbacks() {
+        let tgJson = await tgSendPhotoOrDoc(markupWebApp);
+        if (!tgJson?.ok) tgJson = await tgSendPhotoOrDoc(markupUrl);
+        if (!tgJson?.ok) tgJson = await tgSendPhotoOrDoc(undefined);
+        return tgJson;
+      }
+
       // --- Send with image if provided
       if (imageDataUrl && imageDataUrl.startsWith("data:")) {
-        let tgJson = await tgSendPhotoOrDoc(markupWebApp);
-
-        // If web_app button is rejected, retry with URL button
-        if (!tgJson?.ok && String(tgJson?.description || "").toLowerCase().includes("web_app")) {
-          tgJson = await tgSendPhotoOrDoc(markupUrl);
-        }
+        let tgJson = await sendPhotoWithFallbacks();
 
         // If caption too long (common), retry without image (sendMessage)
         if (!tgJson?.ok && /caption/i.test(String(tgJson?.description || ""))) {
-          let tgMsg = await tgSendMessage(markupWebApp);
-          if (!tgMsg?.ok && String(tgMsg?.description || "").toLowerCase().includes("web_app")) {
-            tgMsg = await tgSendMessage(markupUrl);
+          const tgMsg = await sendMessageWithFallbacks();
+          if (!tgMsg?.ok) {
+            return res
+              .status(500)
+              .json({ ok: false, error: tgMsg?.description || "tg_send_failed", debug: { photo_error: tgJson, msg_error: tgMsg } });
           }
-          if (!tgMsg?.ok) return res.status(500).json({ ok: false, error: tgMsg?.description || "tg_send_failed" });
-          return res.json({ ok: true, message_id: tgMsg?.result?.message_id, mode: "message_fallback", warn: String(tgJson?.description || "") });
+          return res.json({
+            ok: true,
+            message_id: tgMsg?.result?.message_id,
+            mode: "message_fallback",
+            warn: String(tgJson?.description || "")
+          });
         }
 
         if (!tgJson?.ok) {
           // Final fallback: send without image so at least the post is published
-          let tgMsg = await tgSendMessage(markupWebApp);
-          if (!tgMsg?.ok && String(tgMsg?.description || "").toLowerCase().includes("web_app")) {
-            tgMsg = await tgSendMessage(markupUrl);
+          const tgMsg = await sendMessageWithFallbacks();
+          if (!tgMsg?.ok) {
+            return res.status(500).json({
+              ok: false,
+              error: tgJson?.description || tgMsg?.description || "tg_send_failed",
+              debug: { photo_error: tgJson, msg_error: tgMsg }
+            });
           }
-          if (!tgMsg?.ok) return res.status(500).json({ ok: false, error: tgJson?.description || tgMsg?.description || "tg_send_failed" });
-          return res.json({ ok: true, message_id: tgMsg?.result?.message_id, mode: "message_fallback", warn: String(tgJson?.description || "") });
+          return res.json({
+            ok: true,
+            message_id: tgMsg?.result?.message_id,
+            mode: "message_fallback",
+            warn: String(tgJson?.description || "")
+          });
         }
 
         return res.json({ ok: true, message_id: tgJson?.result?.message_id, mode: "image" });
       }
 
       // --- Send as a normal message
-      let tgJson = await tgSendMessage(markupWebApp);
-      if (!tgJson?.ok && String(tgJson?.description || "").toLowerCase().includes("web_app")) {
-        tgJson = await tgSendMessage(markupUrl);
+      const tgJson = await sendMessageWithFallbacks();
+      if (!tgJson?.ok) {
+        return res.status(500).json({ ok: false, error: tgJson?.description || "tg_send_failed", debug: { msg_error: tgJson } });
       }
-      if (!tgJson?.ok) return res.status(500).json({ ok: false, error: tgJson?.description || "tg_send_failed" });
       return res.json({ ok: true, message_id: tgJson?.result?.message_id, mode: "message" });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });

@@ -82,6 +82,7 @@ export type PublishResponse = {
   mode?: string;
   warn?: string;
   error?: string;
+  debug?: any;
 };
 
 export type GroupCheckResponse = {
