@@ -747,7 +747,8 @@ export function createApiRouter(opts: {
 
       const templateFromBody = typeof req.body?.template === "string" ? String(req.body.template) : undefined;
       const templateStored = String((store.config as any)?.publishTemplate || "");
-      const tpl = (templateFromBody ?? templateStored).trim() ||
+      const tpl =
+        (templateFromBody ?? templateStored).trim() ||
         "Доброе утро!\n\nКурс на {{date}}:\n\n{{rates}}";
 
       const text = tpl
@@ -755,7 +756,9 @@ export function createApiRouter(opts: {
         .replace(/\{\{\s*rates\s*\}\}/gi, ratesBlock);
 
       const webappUrl = String(process.env.WEBAPP_URL || "").trim();
-      const reply_markup = {
+
+      // Prefer web_app button, but some chats/types may reject it. We'll fall back to a URL button.
+      const markupWebApp = {
         inline_keyboard: [
           [
             webappUrl
@@ -764,47 +767,106 @@ export function createApiRouter(opts: {
           ]
         ]
       };
+      const markupUrl = {
+        inline_keyboard: [
+          [
+            webappUrl
+              ? { text: "Открыть приложение", url: webappUrl }
+              : { text: "Открыть приложение", url: "https://t.me" }
+          ]
+        ]
+      };
 
       const imageDataUrl = typeof req.body?.imageDataUrl === "string" ? String(req.body.imageDataUrl) : "";
-      if (imageDataUrl && imageDataUrl.startsWith("data:")) {
+
+      async function tgSendMessage(markup: any) {
+        const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            chat_id: groupChatId,
+            text,
+            disable_web_page_preview: true,
+            reply_markup: markup
+          })
+        });
+        const tgJson: any = await tgRes.json();
+        return tgJson;
+      }
+
+      async function tgSendPhotoOrDoc(markup: any) {
         const m = imageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
-        if (!m) return res.status(400).json({ ok: false, error: "bad_image" });
+        if (!m) return { ok: false, description: "bad_image" };
         const mime = m[1];
         const b64 = m[2];
         const buf = Buffer.from(b64, "base64");
 
+        // Telegram sendPhoto is safest with jpeg/png. For other types use sendDocument.
+        const isPhoto = /image\/(jpeg|jpg|png)/i.test(mime);
+        const method = isPhoto ? "sendPhoto" : "sendDocument";
+
         const form = new FormData();
         form.append("chat_id", String(groupChatId));
-        form.append("caption", text);
-        form.append("reply_markup", JSON.stringify(reply_markup));
-        form.append("photo", new Blob([buf], { type: mime }), "image" + (mime.includes("png") ? ".png" : ".jpg"));
+        // Caption limits are smaller (1024). If too long, we'll fall back to a text message.
+        form.append(isPhoto ? "caption" : "caption", text);
+        form.append("reply_markup", JSON.stringify(markup));
 
-        const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendPhoto`, {
+        const ext = mime.includes("png") ? ".png" : mime.includes("jpeg") || mime.includes("jpg") ? ".jpg" : ".bin";
+        const field = isPhoto ? "photo" : "document";
+        form.append(field, new Blob([buf], { type: mime }), "image" + ext);
+
+        const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/${method}`, {
           method: "POST",
           body: form as any
         });
         const tgJson: any = await tgRes.json();
-        if (!tgJson?.ok) return res.status(500).json({ ok: false, error: tgJson?.description || "tg_send_failed" });
-        return res.json({ ok: true, message_id: tgJson?.result?.message_id });
+        return tgJson;
       }
 
-      const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          chat_id: groupChatId,
-          text,
-          disable_web_page_preview: true,
-          reply_markup
-        })
-      });
-      const tgJson: any = await tgRes.json();
+      // --- Send with image if provided
+      if (imageDataUrl && imageDataUrl.startsWith("data:")) {
+        let tgJson = await tgSendPhotoOrDoc(markupWebApp);
+
+        // If web_app button is rejected, retry with URL button
+        if (!tgJson?.ok && String(tgJson?.description || "").toLowerCase().includes("web_app")) {
+          tgJson = await tgSendPhotoOrDoc(markupUrl);
+        }
+
+        // If caption too long (common), retry without image (sendMessage)
+        if (!tgJson?.ok && /caption/i.test(String(tgJson?.description || ""))) {
+          let tgMsg = await tgSendMessage(markupWebApp);
+          if (!tgMsg?.ok && String(tgMsg?.description || "").toLowerCase().includes("web_app")) {
+            tgMsg = await tgSendMessage(markupUrl);
+          }
+          if (!tgMsg?.ok) return res.status(500).json({ ok: false, error: tgMsg?.description || "tg_send_failed" });
+          return res.json({ ok: true, message_id: tgMsg?.result?.message_id, mode: "message_fallback", warn: String(tgJson?.description || "") });
+        }
+
+        if (!tgJson?.ok) {
+          // Final fallback: send without image so at least the post is published
+          let tgMsg = await tgSendMessage(markupWebApp);
+          if (!tgMsg?.ok && String(tgMsg?.description || "").toLowerCase().includes("web_app")) {
+            tgMsg = await tgSendMessage(markupUrl);
+          }
+          if (!tgMsg?.ok) return res.status(500).json({ ok: false, error: tgJson?.description || tgMsg?.description || "tg_send_failed" });
+          return res.json({ ok: true, message_id: tgMsg?.result?.message_id, mode: "message_fallback", warn: String(tgJson?.description || "") });
+        }
+
+        return res.json({ ok: true, message_id: tgJson?.result?.message_id, mode: "image" });
+      }
+
+      // --- Send as a normal message
+      let tgJson = await tgSendMessage(markupWebApp);
+      if (!tgJson?.ok && String(tgJson?.description || "").toLowerCase().includes("web_app")) {
+        tgJson = await tgSendMessage(markupUrl);
+      }
       if (!tgJson?.ok) return res.status(500).json({ ok: false, error: tgJson?.description || "tg_send_failed" });
-      return res.json({ ok: true, message_id: tgJson?.result?.message_id });
+      return res.json({ ok: true, message_id: tgJson?.result?.message_id, mode: "message" });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
+
 
   // --------------------
   // Admin users

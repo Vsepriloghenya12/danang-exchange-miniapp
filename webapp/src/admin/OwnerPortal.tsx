@@ -239,7 +239,7 @@ export default function OwnerPortal() {
         showErr(r?.error || "Ошибка публикации");
         return;
       }
-      showOk("Опубликовано ✅");
+      showOk(`Опубликовано ✅ (id ${r.message_id || "–"}, ${r.mode || ""}${r.warn ? ", " + String(r.warn).slice(0,80) : ""})`);
     } catch (e: any) {
       showErr(e?.message || "Ошибка запроса");
     } finally {

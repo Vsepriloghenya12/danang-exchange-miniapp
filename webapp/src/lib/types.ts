@@ -79,6 +79,8 @@ export type PublishTemplateResponse = {
 export type PublishResponse = {
   ok: boolean;
   message_id?: number;
+  mode?: string;
+  warn?: string;
   error?: string;
 };
 
