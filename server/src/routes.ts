@@ -548,24 +548,52 @@ export function createApiRouter(opts: {
       const tg_id = req.body?.tg_id ? Number(req.body.tg_id) : undefined;
       const username = normUsername(req.body?.username);
       const fullName = String(req.body?.fullName || req.body?.full_name || "").trim();
-      const banks = Array.isArray(req.body?.banks) ? (req.body.banks as any[]).map(String) : [];
-      const status = parseStatusInput(req.body?.status) ?? undefined;
+      const banksInput = (req.body as any)?.banks;
+      const banks = Array.isArray(banksInput) ? (banksInput as any[]).map(String) : undefined;
+      const status = parseStatusInput(req.body?.status);
 
       if (!tg_id && !username) return res.status(400).json({ ok: false, error: "tg_id_or_username_required" });
 
       const now = new Date().toISOString();
-      const id = tg_id ? `tg_${tg_id}` : `u_${username}`;
 
-      let c = (store.contacts || []).find((x) => x && x.id === id);
+      const list = store.contacts || [];
+      const byTg = tg_id ? list.find((x) => x && Number(x.tg_id) === tg_id) : undefined;
+      const byU = username ? list.find((x) => x && normUsername(x.username) === username) : undefined;
+
+      let c = byTg || byU;
+
+      // if we have two duplicates (tg_id and username variants) — merge into tg_id record
+      if (byTg && byU && byTg !== byU) {
+        const primary = byTg as Contact;
+        const secondary = byU as Contact;
+        primary.username = primary.username || secondary.username;
+        primary.fullName = primary.fullName || secondary.fullName;
+        primary.banks = (Array.isArray(primary.banks) && primary.banks.length) ? primary.banks : secondary.banks;
+        primary.status = primary.status || secondary.status;
+        primary.created_at = primary.created_at || secondary.created_at;
+
+        const i = list.indexOf(secondary as any);
+        if (i >= 0) list.splice(i, 1);
+        c = primary;
+      }
+
       if (!c) {
+        const id = tg_id ? `tg_${tg_id}` : `u_${username}`;
         c = { id, created_at: now, updated_at: now } as Contact;
         (store.contacts || []).push(c);
+      } else {
+        const desiredId = tg_id ? `tg_${tg_id}` : `u_${username}`;
+        if (!c.id) c.id = desiredId;
+        // promote id when we learned tg_id/username (avoid future duplicates)
+        if (desiredId && c.id !== desiredId && !(store.contacts || []).some((x) => x && x !== c && x.id === desiredId)) {
+          c.id = desiredId;
+        }
       }
       c.updated_at = now;
       if (tg_id) c.tg_id = tg_id;
       if (username) c.username = username;
       if (fullName || fullName === "") c.fullName = fullName;
-      if (banks) c.banks = banks;
+      if (banks !== undefined) c.banks = banks;
       if (status) c.status = status;
 
       // If the user already exists in users, sync status immediately
@@ -1032,23 +1060,48 @@ export function createApiRouter(opts: {
       const tg_id = req.body?.tg_id ? Number(req.body.tg_id) : undefined;
       const username = normUsername(req.body?.username);
       const fullName = String(req.body?.fullName || req.body?.full_name || "").trim();
-      const banks = Array.isArray(req.body?.banks) ? (req.body.banks as any[]).map(String) : [];
+      const banksInput = (req.body as any)?.banks;
+      const banks = Array.isArray(banksInput) ? (banksInput as any[]).map(String) : undefined;
 
       if (!tg_id && !username) return res.status(400).json({ ok: false, error: "tg_id_or_username_required" });
 
       const now = new Date().toISOString();
-      const id = tg_id ? `tg_${tg_id}` : `u_${username}`;
 
-      let c = (store.contacts || []).find((x) => x && x.id === id);
+      const list = store.contacts || [];
+      const byTg = tg_id ? list.find((x) => x && Number(x.tg_id) === tg_id) : undefined;
+      const byU = username ? list.find((x) => x && normUsername(x.username) === username) : undefined;
+
+      let c = byTg || byU;
+
+      if (byTg && byU && byTg !== byU) {
+        const primary = byTg as Contact;
+        const secondary = byU as Contact;
+        primary.username = primary.username || secondary.username;
+        primary.fullName = primary.fullName || secondary.fullName;
+        primary.banks = (Array.isArray(primary.banks) && primary.banks.length) ? primary.banks : secondary.banks;
+        primary.created_at = primary.created_at || secondary.created_at;
+
+        const i = list.indexOf(secondary as any);
+        if (i >= 0) list.splice(i, 1);
+        c = primary;
+      }
+
       if (!c) {
+        const id = tg_id ? `tg_${tg_id}` : `u_${username}`;
         c = { id, created_at: now, updated_at: now } as Contact;
         (store.contacts || []).push(c);
+      } else {
+        const desiredId = tg_id ? `tg_${tg_id}` : `u_${username}`;
+        if (!c.id) c.id = desiredId;
+        if (desiredId && c.id !== desiredId && !(store.contacts || []).some((x) => x && x !== c && x.id === desiredId)) {
+          c.id = desiredId;
+        }
       }
       c.updated_at = now;
       if (tg_id) c.tg_id = tg_id;
       if (username) c.username = username;
       if (fullName || fullName === "") c.fullName = fullName;
-      if (banks) c.banks = banks;
+      if (banks !== undefined) c.banks = banks;
 
       // note: staff doesn't change status here
       writeStore(store);

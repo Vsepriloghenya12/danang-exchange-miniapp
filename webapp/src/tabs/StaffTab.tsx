@@ -212,6 +212,14 @@ export default function StaffTab({ me }: any) {
                 {selectedReq.from?.username ? `@${selectedReq.from.username}` : ""} • id:{selectedReq.from?.id}
               </div>
 
+              {banks.length ? (
+                <div className="vx-bankInline" style={{ marginTop: 6 }}>
+                  {banks.slice(0, 8).map((ic) => (
+                    <img key={ic} src={`/banks/${ic}`} alt="" className="vx-bankInlineImg" title={ic} />
+                  ))}
+                </div>
+              ) : null}
+
               <div className="vx-sp8" />
 
               <div className="small">ФИО</div>

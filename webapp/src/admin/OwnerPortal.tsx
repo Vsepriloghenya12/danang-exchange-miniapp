@@ -107,6 +107,7 @@ export default function OwnerPortal() {
   const [requests, setRequests] = useState<any[]>([]);
   const [clientsLoading, setClientsLoading] = useState<boolean>(false);
   const [cUsername, setCUsername] = useState<string>("");
+  const [cTgId, setCTgId] = useState<string>("");
   const [cFullName, setCFullName] = useState<string>("");
   const [cStatus, setCStatus] = useState<UserStatus>("standard");
   const [cBanks, setCBanks] = useState<string[]>([]);
@@ -311,17 +312,32 @@ export default function OwnerPortal() {
 
   async function upsertContact() {
     const username = normU(cUsername);
-    if (!username) {
-      showErr("Укажи username");
+    const tgIdRaw = String(cTgId || "").trim();
+    const tgIdNum = tgIdRaw ? Number(tgIdRaw) : undefined;
+    const tg_id = Number.isFinite(tgIdNum as any) && Number(tgIdNum) > 0 ? Number(tgIdNum) : undefined;
+
+    // if tg_id not specified, try to infer it from known users by username
+    let inferredTgId: number | undefined = tg_id;
+    if (!inferredTgId && username) {
+      const u = (users || []).find((x: any) => String(x?.username || "").toLowerCase() === String(username).toLowerCase());
+      const maybe = u?.tg_id ? Number(u.tg_id) : undefined;
+      if (Number.isFinite(maybe) && Number(maybe) > 0) inferredTgId = Number(maybe);
+    }
+
+    if (!username && !inferredTgId) {
+      showErr("Укажи username или tg_id");
       return;
     }
 
-    const r = await apiAdminUpsertContact(token, {
-      username,
+    const payload: any = {
+      ...(username ? { username } : {}),
+      ...(inferredTgId ? { tg_id: inferredTgId } : {}),
       fullName: cFullName,
       status: cStatus,
-      banks: cBanks,
-    } as any);
+      banks: cBanks
+    };
+
+    const r = await apiAdminUpsertContact(token, payload);
 
     if (!r?.ok) {
       showErr(r?.error || "Ошибка");
@@ -329,6 +345,7 @@ export default function OwnerPortal() {
     }
 
     setCUsername("");
+    setCTgId("");
     setCFullName("");
     setCStatus("standard");
     setCBanks([]);
@@ -604,7 +621,7 @@ export default function OwnerPortal() {
         <>
           <div className="card">
             <div className="row vx-between vx-center">
-              <div className="small"><b>Карточка клиента (по username)</b></div>
+              <div className="small"><b>Карточка клиента (username или tg_id)</b></div>
               <button className="btn vx-btnSm" type="button" onClick={loadClients} disabled={clientsLoading}>
                 {clientsLoading ? "Обновляю…" : "Обновить"}
               </button>
@@ -618,6 +635,13 @@ export default function OwnerPortal() {
                 onChange={(e) => setCUsername(e.target.value)}
                 placeholder="username (без @)"
                 style={{ flex: "1 1 220px" }}
+              />
+              <input
+                className="input vx-in"
+                value={cTgId}
+                onChange={(e) => setCTgId(e.target.value)}
+                placeholder="tg_id (опц.)"
+                style={{ flex: "1 1 140px" }}
               />
               <select className="input vx-in" value={cStatus} onChange={(e) => setCStatus(e.target.value as any)}>
                 {STATUS_OPTIONS.map((s) => (
@@ -755,6 +779,7 @@ export default function OwnerPortal() {
                             className="btn vx-btnSm"
                             onClick={() => {
                               setCUsername(u.username || "");
+                              setCTgId(String(tgId));
                               setCFullName(c?.fullName || "");
                               setCStatus((c?.status as any) || (u.status as any) || "standard");
                               setCBanks(Array.isArray(c?.banks) ? c!.banks! : []);
