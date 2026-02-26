@@ -755,26 +755,49 @@ export function createApiRouter(opts: {
         .replace(/\{\{\s*date\s*\}\}/gi, dateHuman)
         .replace(/\{\{\s*rates\s*\}\}/gi, ratesBlock);
 
+      // IMPORTANT:
+      // InlineKeyboardButton.web_app is **available only in private chats**.
+      // For group posts we must use a URL button.
+      // To open the Mini App **inside Telegram** (so initData is present), use the t.me deep link.
+      // Docs: https://core.telegram.org/bots/webapps
+
       const webappUrl = String(process.env.WEBAPP_URL || "").trim();
 
-      // Prefer web_app button, but some chats/types may reject it. We'll fall back to a URL button.
-      const markupWebApp = {
-        inline_keyboard: [
-          [
-            webappUrl
-              ? { text: "Открыть приложение", web_app: { url: webappUrl } }
-              : { text: "Открыть приложение", url: "https://t.me" }
-          ]
-        ]
-      };
+      // Allow overriding the Telegram deep link if the owner wants.
+      // Example: https://t.me/<botusername>?startapp=rates
+      const overrideTmaLink = String(process.env.TMA_LINK || "").trim();
+
+      // Fetch bot username once (best-effort) to build t.me deep link.
+      let cachedBotUsername: string | null = null;
+      async function getBotUsername(): Promise<string | null> {
+        if (cachedBotUsername) return cachedBotUsername;
+        try {
+          const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/getMe`);
+          const tgJson: any = await tgRes.json();
+          const uname = tgJson?.ok ? String(tgJson?.result?.username || "") : "";
+          if (uname) {
+            cachedBotUsername = uname;
+            return uname;
+          }
+        } catch {}
+        return null;
+      }
+
+      const startParam = "rates";
+      const tmaLink = overrideTmaLink
+        ? overrideTmaLink
+        : (await (async () => {
+            const uname = await getBotUsername();
+            return uname ? `https://t.me/${uname}?startapp=${encodeURIComponent(startParam)}` : "";
+          })());
+
+      // Final link priority:
+      // 1) explicit TMA_LINK
+      // 2) generated t.me deep link from getMe
+      // 3) WEBAPP_URL (will open in browser, but at least it's something)
+      const openLink = tmaLink || webappUrl || "https://t.me";
       const markupUrl = {
-        inline_keyboard: [
-          [
-            webappUrl
-              ? { text: "Открыть приложение", url: webappUrl }
-              : { text: "Открыть приложение", url: "https://t.me" }
-          ]
-        ]
+        inline_keyboard: [[{ text: "Открыть приложение", url: openLink }]]
       };
 
       const imageDataUrl = typeof req.body?.imageDataUrl === "string" ? String(req.body.imageDataUrl) : "";
@@ -823,18 +846,16 @@ export function createApiRouter(opts: {
         return tgJson;
       }
 
-      // Some chat types (esp. groups/channels) can reject certain button types.
-      // We try (1) web_app, (2) url, (3) no buttons.
+      // For group posts we use URL button only.
+      // We try (1) url button, (2) no buttons.
       async function sendMessageWithFallbacks() {
-        let tgJson = await tgSendMessage(markupWebApp);
-        if (!tgJson?.ok) tgJson = await tgSendMessage(markupUrl);
+        let tgJson = await tgSendMessage(markupUrl);
         if (!tgJson?.ok) tgJson = await tgSendMessage(undefined);
         return tgJson;
       }
 
       async function sendPhotoWithFallbacks() {
-        let tgJson = await tgSendPhotoOrDoc(markupWebApp);
-        if (!tgJson?.ok) tgJson = await tgSendPhotoOrDoc(markupUrl);
+        let tgJson = await tgSendPhotoOrDoc(markupUrl);
         if (!tgJson?.ok) tgJson = await tgSendPhotoOrDoc(undefined);
         return tgJson;
       }
