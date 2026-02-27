@@ -965,19 +965,13 @@ label, input, select, textarea{ color: var(--text); }
   padding: 2px 4px;
 }
 
-.vx-pubPreview{
-  width: 100%;
-  max-height: 220px;
-  overflow: hidden;
-  border-radius: 16px;
-  border: 1px solid rgba(9,23,33,0.10);
-  background: rgba(255,255,255,0.55);
-}
-.vx-pubPreviewImg{
-  display: block;
-  width: 100%;
-  height: 220px;
+.vx-pubThumb{
+  width: 96px;
+  height: 64px;
   object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid rgba(9,23,33,0.10);
+  background: rgba(255,255,255,0.70);
 }
 .vx-pubGroup{
   display: grid;

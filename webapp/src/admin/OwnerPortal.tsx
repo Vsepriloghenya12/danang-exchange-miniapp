@@ -93,8 +93,6 @@ export default function OwnerPortal() {
   const [tpl, setTpl] = useState<string>(DEFAULT_TEMPLATE);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
-  const [lastPublish, setLastPublish] = useState<any>(null);
-
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [bankIcons, setBankIcons] = useState<string[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -258,7 +256,6 @@ export default function OwnerPortal() {
     setIsPublishing(true);
     try {
       const r = await apiAdminPublish(token, { template: tpl, imageDataUrl });
-      setLastPublish(r);
       if (!r?.ok) {
         showErr(r?.error || "Ошибка публикации");
         return;
@@ -493,29 +490,16 @@ export default function OwnerPortal() {
                   Убрать картинку
                 </button>
               ) : null}
+              {imageDataUrl ? (
+                <img className="vx-pubThumb" src={imageDataUrl} alt="" />
+              ) : null}
             </div>
 
-            {imageDataUrl ? (
-              <div className="vx-sp10">
-                <div className="vx-pubPreview">
-                  <img className="vx-pubPreviewImg" src={imageDataUrl} alt="" />
-                </div>
-              </div>
-            ) : null}
 
             <div className="vx-sp10" />
             <button className="btn" type="button" onClick={publishNow} disabled={isPublishing}>
               {isPublishing ? "Публикую…" : "Опубликовать"}
             </button>
-
-            {lastPublish ? (
-              <div className="vx-sp10">
-                <details className="vx-debug">
-                  <summary>Детали последней публикации</summary>
-                  <pre className="vx-pre">{JSON.stringify(lastPublish, null, 2)}</pre>
-                </details>
-              </div>
-            ) : null}
 
           </div>
 
