@@ -5,11 +5,6 @@ function getTg() {
   return (window as any).Telegram?.WebApp;
 }
 
-function shortId(id: string) {
-  const s = String(id || "");
-  return s.length > 6 ? s.slice(-6) : s;
-}
-
 function fmtDate(iso: string) {
   try {
     const d = new Date(iso);
@@ -126,7 +121,7 @@ export default function ReviewsTab() {
               >
                 {eligible.map((r) => (
                   <option key={r.id} value={r.id}>
-                    #{shortId(r.id)} — {r.sellCurrency}→{r.buyCurrency} • {fmtDate(r.created_at)}
+                    {r.sellCurrency}→{r.buyCurrency} • {fmtDate(r.created_at)}
                   </option>
                 ))}
               </select>

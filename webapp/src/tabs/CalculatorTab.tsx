@@ -43,23 +43,100 @@ function getTg() {
   return (window as any).Telegram?.WebApp;
 }
 
-function parseIntClean(input: string): number {
-  const s = String(input ?? "")
-    .replace(/\s+/g, "")
-    .replace(/[^\d]/g, "");
-  const n = Number(s);
+// ======= Number formatting/parsing =======
+// Thousands separator must be a comma (1,000 / 10,000)
+// Only USDT may contain a fractional part, with exactly 1 digit (e.g. 100.1)
+
+function fmtGroupedInt(intPart: string): string {
+  const s = String(intPart ?? "").replace(/\D+/g, "");
+  if (!s) return "";
+  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function parseAmount(cur: Currency, input: string): number {
+  const raw = String(input ?? "").replace(/\s+/g, "");
+  if (!raw) return 0;
+
+  if (cur === "USDT") {
+    // Accept either 100.1 or 100,1 (we normalize to dot) while keeping commas as grouping.
+    const s0 = raw.replace(/[^\d.,]/g, "");
+    const dotCount = (s0.match(/\./g) || []).length;
+    const commaCount = (s0.match(/,/g) || []).length;
+
+    // Choose decimal separator
+    const useDot = dotCount >= 1;
+    const useCommaAsDecimal = !useDot && commaCount === 1 && /^\d+,\d$/.test(s0);
+
+    let s = s0;
+    if (useDot) {
+      // commas are grouping separators
+      s = s.replace(/,/g, "");
+    } else if (useCommaAsDecimal) {
+      s = s.replace(/,/g, ".");
+    } else {
+      // treat commas as grouping
+      s = s.replace(/,/g, "");
+    }
+
+    // keep only digits and a single dot
+    const parts = s.split(".");
+    const intPart = (parts[0] || "").replace(/\D+/g, "");
+    const dec = (parts[1] || "").replace(/\D+/g, "").slice(0, 1);
+    const norm = dec ? `${intPart || "0"}.${dec}` : intPart;
+    const n = Number(norm);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  // integers only
+  const digits = raw.replace(/[^\d]/g, "");
+  const n = Number(digits);
   return Number.isFinite(n) ? n : 0;
 }
 
-function fmtInt(n: number): string {
+function fmtAmount(cur: Currency, n: number): string {
   if (!Number.isFinite(n)) return "";
-  return String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+  if (cur === "USDT") {
+    const v = Math.round(n * 10) / 10;
+    const sign = v < 0 ? "-" : "";
+    const abs = Math.abs(v);
+    const intPart = Math.trunc(abs);
+    const dec = Math.round((abs - intPart) * 10);
+    const grouped = String(intPart).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return dec ? `${sign}${grouped}.${dec}` : `${sign}${grouped}`;
+  }
+
+  return String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-function fmtFromInput(v: string): string {
-  const digits = String(v ?? "").replace(/\D+/g, "");
-  if (!digits) return "";
-  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+function fmtFromInput(cur: Currency, v: string): string {
+  const raw = String(v ?? "").replace(/\s+/g, "");
+  if (!raw) return "";
+
+  if (cur === "USDT") {
+    // Keep digits + optional decimal separator, 1 digit after it.
+    let s = raw.replace(/[^\d.,]/g, "");
+
+    // If user typed comma as decimal (single comma, one digit after), normalize to dot.
+    const dotCount = (s.match(/\./g) || []).length;
+    const commaCount = (s.match(/,/g) || []).length;
+    if (dotCount === 0 && commaCount === 1) {
+      const [a, b] = s.split(",");
+      if (a && b && b.replace(/\D+/g, "").length === 1) s = `${a}.${b}`;
+    }
+
+    // Remove grouping commas
+    s = s.replace(/,/g, "");
+
+    const [a0, b0] = s.split(".");
+    const a = (a0 || "").replace(/\D+/g, "");
+    const b = (b0 || "").replace(/\D+/g, "").slice(0, 1);
+    const grouped = fmtGroupedInt(a);
+    return b ? `${grouped}.${b}` : grouped;
+  }
+
+  const digits = raw.replace(/\D+/g, "");
+  return fmtGroupedInt(digits);
 }
 
 function isMultiple(n: number, step: number) {
@@ -69,11 +146,14 @@ function isMultiple(n: number, step: number) {
 
 function roundDown(n: number, step: number) {
   if (!Number.isFinite(n) || step <= 0) return 0;
+  // handle the only fractional step we use (USDT 0.1)
+  if (step === 0.1) return Math.floor((n + 1e-9) * 10) / 10;
   return Math.floor(n / step) * step;
 }
 
 function roundUp(n: number, step: number) {
   if (!Number.isFinite(n) || step <= 0) return 0;
+  if (step === 0.1) return Math.ceil((n - 1e-9) * 10) / 10;
   return Math.ceil(n / step) * step;
 }
 
@@ -319,6 +399,7 @@ function sellStep(cur: Currency): number {
   if (cur === "USD") return 100;
   if (cur === "EUR") return 10;
   if (cur === "VND") return 100000;
+  if (cur === "USDT") return 0.1;
   return 1;
 }
 
@@ -428,8 +509,23 @@ export default function CalculatorTab({ me }: Props) {
     })();
   }, [tg]);
 
-  const sellAmount = useMemo(() => parseIntClean(sellText), [sellText]);
-  const buyAmount = useMemo(() => parseIntClean(buyText), [buyText]);
+  const sellAmount = useMemo(() => parseAmount(sellCurrency, sellText), [sellCurrency, sellText]);
+  const buyAmount = useMemo(() => parseAmount(buyCurrency, buyText), [buyCurrency, buyText]);
+
+  // Re-format inputs when currency changes (e.g. USDT may have decimals)
+  useEffect(() => {
+    setSellText((t) => {
+      const next = fmtFromInput(sellCurrency, t);
+      return next === t ? t : next;
+    });
+  }, [sellCurrency]);
+
+  useEffect(() => {
+    setBuyText((t) => {
+      const next = fmtFromInput(buyCurrency, t);
+      return next === t ? t : next;
+    });
+  }, [buyCurrency]);
 
   const allowedPay = useMemo(() => allowedPayMethods(sellCurrency), [sellCurrency]);
   const allowedRecv = useMemo(() => allowedReceiveMethods(buyCurrency), [buyCurrency]);
@@ -472,14 +568,10 @@ export default function CalculatorTab({ me }: Props) {
     const formatComputed = (cur: Currency, n: number) => {
       if (!Number.isFinite(n)) return "";
       let v = n;
-      // Always show integers
-      if (cur === "VND") {
-        // VND показываем без принудительного округления (для банкомата только предупреждаем)
-        v = Math.floor(v);
-      } else {
-        v = Math.floor(v);
-      }
-      return fmtInt(v);
+      // VND — integer, USDT — 1 decimal, others — integer
+      if (cur === "USDT") v = roundDown(v, 0.1);
+      else v = Math.floor(v);
+      return fmtAmount(cur, v);
     };
 
     const formatComputedSell = (cur: Currency, n: number) => {
@@ -488,7 +580,7 @@ export default function CalculatorTab({ me }: Props) {
       // For computed sell, round UP to required step (so it's feasible)
       const step = sellStep(cur);
       v = roundUp(v, step);
-      return fmtInt(v);
+      return fmtAmount(cur, v);
     };
 
     if (gMode) {
@@ -672,13 +764,13 @@ export default function CalculatorTab({ me }: Props) {
           </select>
 
           <input
-            inputMode="numeric"
+            inputMode={sellCurrency === "USDT" ? "decimal" : "numeric"}
             placeholder="Отдаю"
             value={sellText}
             className={invalidUsd || invalidEur || invalidVndSell ? "vx-inputInvalid" : ""}
             onChange={(e) => {
               lastEdited.current = "sell";
-              setSellText(fmtFromInput(e.target.value));
+              setSellText(fmtFromInput(sellCurrency, e.target.value));
             }}
           />
 
@@ -699,13 +791,13 @@ export default function CalculatorTab({ me }: Props) {
           </select>
 
           <input
-            inputMode="numeric"
+            inputMode={buyCurrency === "USDT" ? "decimal" : "numeric"}
             placeholder="Получаю"
             value={buyText}
             className={invalidVndBuy ? "vx-inputInvalid" : ""}
             onChange={(e) => {
               lastEdited.current = "buy";
-              setBuyText(fmtFromInput(e.target.value));
+              setBuyText(fmtFromInput(buyCurrency, e.target.value));
             }}
           />
 
@@ -769,7 +861,8 @@ export default function CalculatorTab({ me }: Props) {
 
         {rateInfo ? (
           <div className="vx-rateLine">
-            Курс: <b>{rateInfo.base}</b> + статус <b>{rateInfo.tier}</b> + способ <b>{rateInfo.m}</b> = <b>{rateInfo.eff}</b>
+            Курс: <b>{fmtAmount("VND", rateInfo.base)}</b> + статус <b>{fmtAmount("VND", rateInfo.tier)}</b> + способ{" "}
+            <b>{fmtAmount("VND", rateInfo.m)}</b> = <b>{fmtAmount("VND", rateInfo.eff)}</b>
           </div>
         ) : gMode ? (
           <div className="vx-rateLine">
