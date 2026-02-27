@@ -673,12 +673,15 @@ body.vx-body-client #root{
   border-color: rgba(255,255,255,.12);
   box-shadow: 0 22px 66px rgba(0,0,0,.72), 0 0 48px rgba(228,242,255,.08);
   backdrop-filter: blur(12px);
-  padding: 2px;
-  gap: 2px;
-  border-radius: 20px;
+  /* more room so the center item can be larger WITHOUT popping out of the bar */
+  padding: 10px;
+  gap: 10px;
+  min-height: 78px;
+  border-radius: 26px;
   transform-style: preserve-3d;
   will-change: transform;
   position: relative;
+  align-items: center;
 }
 
 .theme-client .vx-bottomBar::before{
@@ -703,18 +706,32 @@ body.vx-body-client #root{
 }
 .theme-client .vx-navBtn{
   /* inherits the global neon button style; only tune sizing */
-  padding: 7px 6px !important;
+  padding: 8px 8px !important;
   border-radius: 18px !important;
   font-size: 9px !important;
   color: rgba(248,250,255,.74) !important;
   background: rgba(10,10,10,.84) !important;
   border-color: rgba(255,255,255,.10) !important;
-  transform: translateY(2px);
+  height: 56px;
+  transform: translateY(0);
   transition: transform 0.14s ease, filter 0.18s ease;
 }
 .theme-client .vx-navBtn .vx-navIcon{ opacity: .96; }
 .theme-client .vx-navBtn:active{ filter: brightness(1.04); transform: translateY(4px) scale(0.99); }
 .theme-client .vx-navBtnActive{ color: rgba(248,250,255,.96) !important; }
+
+/* Bottom bar buttons: keep the "LED" bloom INSIDE the bar bounds
+   (Telegram webview makes the glow look like it's escaping otherwise). */
+.theme-client .vx-bottomBar .vx-navBtn::before{
+  inset: -6px;
+  filter: blur(10px);
+  opacity: .56;
+}
+.theme-client .vx-bottomBar .vx-navBtn:active::before{
+  inset: -8px;
+  filter: blur(12px);
+  opacity: .78;
+}
 
 .theme-client .vx-navPill{
   background: rgba(228,242,255,.12);
@@ -722,10 +739,11 @@ body.vx-body-client #root{
   box-shadow: 0 0 0 1px rgba(228,242,255,.14) inset, 0 0 44px rgba(228,242,255,.16);
 }
 .theme-client .vx-navPosC{
-  transform: translateY(-6px) translateZ(44px) scale(1.10);
+  /* center tab: closer (bigger) but kept inside the bar */
+  transform: translateY(0) translateZ(64px) scale(1.08);
 }
 .theme-client .vx-navPosC:active{
-  transform: translateY(-4px) translateZ(18px) scale(1.02);
+  transform: translateY(2px) translateZ(28px) scale(1.02);
 }
 .theme-client .vx-navPosC .vx-navIcon{ width: 42px; height: 42px; }
 .theme-client .vx-navPosC .vx-i{ width: 22px; height: 22px; }
@@ -737,10 +755,11 @@ body.vx-body-client #root{
   opacity: 0.62;
 }
 .theme-client .vx-navPosL{
-  transform: translateY(12px) translateZ(-120px) scale(0.70) rotateY(32deg);
+  /* side tabs: smaller + further away (perspective) */
+  transform: translateY(10px) translateZ(-160px) scale(0.78) rotateY(26deg);
 }
 .theme-client .vx-navPosR{
-  transform: translateY(12px) translateZ(-120px) scale(0.70) rotateY(-32deg);
+  transform: translateY(10px) translateZ(-160px) scale(0.78) rotateY(-26deg);
 }
 .theme-client .vx-navPosL .vx-navLabel,
 .theme-client .vx-navPosR .vx-navLabel{ font-size: 8px; }
