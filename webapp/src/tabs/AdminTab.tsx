@@ -510,11 +510,8 @@ export default function AdminTab({
             <>
               <div className="row vx-rowWrap vx-gap8">
                 <button
-                  className="btn vx-btnSm"
-                  style={
-                    bonuses.enabled.tiers
-                      ? ({ background: "rgba(255,179,87,.96)", color: "rgba(26,18,8,.92)" } as any)
-                      : ({ background: "rgba(255,255,255,.78)", color: "rgba(9,23,33,.92)", border: "1px solid rgba(9,23,33,.14)", boxShadow: "none" } as any)
+                  className={
+                    "btn vx-btnSm vx-toggleBtn " + (bonuses.enabled.tiers ? "is-on" : "is-off")
                   }
                   type="button"
                   onClick={() => setBonusEnabled("tiers", !bonuses.enabled.tiers)}
@@ -524,11 +521,8 @@ export default function AdminTab({
                 </button>
 
                 <button
-                  className="btn vx-btnSm"
-                  style={
-                    bonuses.enabled.methods
-                      ? ({ background: "rgba(255,179,87,.96)", color: "rgba(26,18,8,.92)" } as any)
-                      : ({ background: "rgba(255,255,255,.78)", color: "rgba(9,23,33,.92)", border: "1px solid rgba(9,23,33,.14)", boxShadow: "none" } as any)
+                  className={
+                    "btn vx-btnSm vx-toggleBtn " + (bonuses.enabled.methods ? "is-on" : "is-off")
                   }
                   type="button"
                   onClick={() => setBonusEnabled("methods", !bonuses.enabled.methods)}

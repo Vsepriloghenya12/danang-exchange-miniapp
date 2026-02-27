@@ -217,7 +217,12 @@ body{
   background: rgba(255,255,255,.05) !important;
   border: 1px solid rgba(255,255,255,.14) !important;
   color: rgba(255,255,255,.92) !important;
-  box-shadow: 0 18px 56px rgba(0,0,0,.62), 0 0 0 1px rgba(255,255,255,.06) inset;
+  /* “floating” feeling */
+  transform: translateY(-1px);
+  box-shadow:
+    0 28px 84px rgba(0,0,0,.72),
+    0 10px 22px rgba(0,0,0,.62),
+    0 0 0 1px rgba(255,255,255,.06) inset;
   border-radius: 999px;
   transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
@@ -227,7 +232,10 @@ body{
   background: linear-gradient(180deg, rgba(255,223,106,.98), rgba(247,195,26,.96)) !important;
   border: 0 !important;
   color: rgba(12,12,12,.92) !important;
-  box-shadow: 0 22px 64px rgba(247,195,26,.14);
+  transform: translateY(-1px);
+  box-shadow:
+    0 30px 90px rgba(0,0,0,.60),
+    0 22px 64px rgba(247,195,26,.16);
   border-radius: 999px;
   transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
@@ -247,16 +255,55 @@ body{
   border: 1px solid rgba(255,190,64,.22) !important;
   background: rgba(0,0,0,.68) !important;
   color: rgba(255,255,255,.92) !important;
-  box-shadow: 0 10px 26px rgba(0,0,0,.70), 0 0 0 1px rgba(255,190,64,.08) inset;
+  transform: translateY(-1px);
+  box-shadow:
+    0 22px 66px rgba(0,0,0,.78),
+    0 10px 22px rgba(0,0,0,.70),
+    0 0 0 1px rgba(255,190,64,.08) inset;
   transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
 .theme-client .vx-iconBtn:active{
   transform: translateY(1px) scale(0.99);
   box-shadow: 0 12px 30px rgba(0,0,0,.78), 0 0 0 1px rgba(255,190,64,.12) inset;
 }
+
+/* Admin toggle buttons (bonuses ON/OFF)
+   Fixes "white text on white button" in the dark theme.
+*/
+.vx-toggleBtn.is-on{
+  background: rgba(255,179,87,.96) !important;
+  color: rgba(26,18,8,.92) !important;
+  border: 0 !important;
+}
+.vx-toggleBtn.is-off{
+  background: rgba(255,255,255,.78) !important;
+  color: rgba(9,23,33,.92) !important;
+  border: 1px solid rgba(9,23,33,.14) !important;
+  box-shadow: none !important;
+}
+.theme-client .vx-toggleBtn.is-on{
+  background: linear-gradient(180deg, rgba(255,223,106,.98), rgba(247,195,26,.96)) !important;
+  color: rgba(12,12,12,.92) !important;
+}
+.theme-client .vx-toggleBtn.is-off{
+  background: rgba(255,255,255,.05) !important;
+  color: rgba(255,255,255,.86) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  box-shadow: 0 18px 56px rgba(0,0,0,.62), 0 0 0 1px rgba(255,255,255,.06) inset !important;
+}
 .theme-client .vx-iconBtn:active::before{
   opacity: 1;
   transform: scale(1.02);
+}
+
+/* Status buttons used in admin/client lists (avoid "white on white" inside dark theme) */
+.theme-client .btn.vx-statusBtn{
+  background: rgba(255,255,255,.05) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  color: rgba(255,255,255,.86) !important;
+  box-shadow:
+    0 22px 66px rgba(0,0,0,.70),
+    0 0 0 1px rgba(255,255,255,.06) inset;
 }
 
 /* Small chips / pills */
