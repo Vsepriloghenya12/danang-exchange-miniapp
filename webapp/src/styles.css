@@ -149,12 +149,15 @@ body.vx-body-client #root{
   inset:0;
   pointer-events:none;
   /* ripple texture so UI elements do not merge with the background */
+  /* Telegram WebView can be picky with blend-modes; keep it visible with normal blending.
+     Two ripple fields with different centers create a moiré-like "рябь". */
   background-image:
-    repeating-radial-gradient(circle at 22% 18%, rgba(255,255,255,.085) 0 1px, rgba(0,0,0,0) 12px),
-    repeating-radial-gradient(circle at 78% 54%, rgba(255,255,255,.060) 0 1px, rgba(0,0,0,0) 16px);
-  opacity: .22;
-  mix-blend-mode: soft-light;
-  filter: blur(.35px);
+    repeating-radial-gradient(circle at 18% 22%, rgba(255,255,255,.14) 0 1px, rgba(0,0,0,0) 1px 14px),
+    repeating-radial-gradient(circle at 76% 58%, rgba(255,255,255,.10) 0 1px, rgba(0,0,0,0) 1px 18px),
+    repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 1px, rgba(0,0,0,0) 1px 26px);
+  opacity: .34;
+  mix-blend-mode: normal;
+  filter: none;
 }
 .theme-client .bg-danang::after{
   content:"";
