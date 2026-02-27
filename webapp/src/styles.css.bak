@@ -207,99 +207,143 @@ body.vx-body-client #root{
   box-shadow: 0 0 0 4px rgba(255,190,64,.14), 0 18px 56px rgba(0,0,0,.54), 0 0 34px var(--glowSoft);
 }
 
-/* Floating mirror buttons: premium warm "LED behind" (no gradients)
-   Surface is dark glass; glow comes from BEHIND like a LED strip.
-*/
+/* Floating "mirror" buttons: warm premium glow (no gradients) */
 .theme-client .btn,
 .theme-client .vx-primary,
 .theme-client .vx-iconBtn{
   position: relative;
-  z-index: 0;
   overflow: visible;
   -webkit-tap-highlight-color: transparent;
-
-  background: rgba(14,14,14,.82) !important;
-  border: 1px solid rgba(255,255,255,.10) !important;
-  color: rgba(255,255,255,.92) !important;
-
-  transform: translateY(-1px);
-  box-shadow:
-    0 30px 96px rgba(0,0,0,.80),
-    0 14px 38px rgba(0,0,0,.64),
-    0 0 0 1px rgba(255,255,255,.06) inset,
-    0 1px 0 rgba(255,255,255,.08) inset,
-    0 -1px 0 rgba(0,0,0,.55) inset,
-    0 0 60px rgba(255,196,92,.08);
-  border-radius: 999px;
-  transition: transform 0.10s ease, filter 0.16s ease, box-shadow 0.20s ease;
 }
 
-.theme-client .vx-primary{
-  border-color: rgba(255,215,140,.22) !important;
-  color: rgba(255,230,176,.96) !important;
-  letter-spacing: -0.01em;
-}
-
-/* LED glow behind the button */
 .theme-client .btn::before,
 .theme-client .vx-primary::before,
 .theme-client .vx-iconBtn::before{
   content: "";
   position: absolute;
-  inset: -22px;
+  left: -34px;
+  right: -34px;
+  top: -36px;
+  bottom: -36px;
   border-radius: inherit;
   background: transparent;
   box-shadow:
-    0 0 18px rgba(255,206,140,.30),
-    0 0 48px rgba(255,196,92,.22),
-    0 0 110px rgba(255,196,92,.18),
-    0 0 180px rgba(255,196,92,.12);
-  filter: blur(10px);
-  opacity: .55;
-  transform: scale(.985);
-  transition: opacity 0.16s ease, transform 0.16s ease, filter 0.16s ease;
+    0 0 0 1px rgba(255,255,255,.05),
+    0 0 36px var(--glowMid),
+    0 0 86px var(--glowSoft),
+    0 0 140px rgba(255,196,92,.22);
+  filter: blur(14px);
+  opacity: 0;
+  transform: scale(0.98);
+  transition: opacity 0.16s ease, transform 0.16s ease;
   pointer-events: none;
   z-index: -1;
 }
-.theme-client .vx-primary::before{
-  opacity: .72;
-  box-shadow:
-    0 0 22px rgba(255,206,140,.40),
-    0 0 60px rgba(255,196,92,.28),
-    0 0 140px rgba(255,196,92,.20),
-    0 0 210px rgba(255,196,92,.14);
-}
 
-/* remove top-sheen overlay (no glow painted ON TOP of the button) */
+/* "Mirror" sheen on top of the surface */
 .theme-client .btn::after,
 .theme-client .vx-primary::after,
-.theme-client .vx-iconBtn::after{ content: none; }
+.theme-client .vx-iconBtn::after{
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 10%;
+  height: 44%;
+  border-radius: inherit;
+  background: rgba(255,255,255,.09);
+  filter: blur(16px);
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+
+/* Secondary buttons: dark glass */
+.theme-client .btn{
+  background: rgba(255,255,255,.045) !important;
+  border: 1px solid rgba(255,255,255,.13) !important;
+  color: rgba(255,255,255,.92) !important;
+  /* “floating” feeling */
+  transform: translateY(-1px);
+  box-shadow:
+    0 26px 84px rgba(0,0,0,.78),
+    0 12px 28px rgba(0,0,0,.64),
+    0 0 0 1px rgba(255,255,255,.06) inset,
+    0 1px 0 rgba(255,255,255,.12) inset,
+    0 0 58px rgba(255,196,92,.10);
+  border-radius: 999px;
+  transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+/* Primary button: yellow accent */
+.theme-client .vx-primary{
+  background: rgba(255,196,92,.96) !important;
+  border: 0 !important;
+  color: rgba(12,12,12,.92) !important;
+  transform: translateY(-1px);
+  box-shadow:
+    0 34px 110px rgba(0,0,0,.66),
+    0 18px 54px rgba(0,0,0,.52),
+    0 0 96px var(--glowSoft),
+    0 0 0 1px rgba(255,255,255,.14) inset,
+    0 1px 0 rgba(255,255,255,.22) inset;
+  border-radius: 999px;
+  transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
 
 .theme-client .btn:active,
-.theme-client .vx-primary:active,
-.theme-client .vx-iconBtn:active{
+.theme-client .vx-primary:active{
   transform: translateY(1px) scale(0.99);
-  filter: brightness(1.04);
+  filter: brightness(1.03);
   box-shadow:
-    0 18px 56px rgba(0,0,0,.82),
-    0 0 0 1px rgba(255,215,140,.16) inset,
-    0 1px 0 rgba(255,255,255,.10) inset;
+    0 18px 56px rgba(0,0,0,.74),
+    0 0 0 1px rgba(255,196,92,.22) inset,
+    0 0 46px var(--glowHard),
+    0 0 120px rgba(255,196,92,.18);
 }
 .theme-client .btn:active::before,
-.theme-client .vx-primary:active::before,
-.theme-client .vx-iconBtn:active::before{
+.theme-client .vx-primary:active::before{
   opacity: 1;
-  transform: scale(1.02);
-  filter: blur(12px);
+  transform: scale(1.10);
 }
 
-/* Active state (filters, selected) should look fully lit */
-.theme-client .btn.vx-btnOn{
-  background: rgba(12,12,12,.78) !important;
-  border: 1px solid rgba(255,215,140,.28) !important;
-  color: rgba(255,255,255,.96) !important;
+.theme-client .vx-iconBtn{
+  border: 1px solid rgba(255,255,255,.14) !important;
+  background: rgba(255,255,255,.040) !important;
+  color: rgba(255,255,255,.92) !important;
+  transform: translateY(-1px);
+  box-shadow:
+    0 22px 66px rgba(0,0,0,.78),
+    0 10px 22px rgba(0,0,0,.70),
+    0 0 0 1px rgba(255,255,255,.06) inset,
+    0 1px 0 rgba(255,255,255,.12) inset,
+    0 0 52px rgba(255,196,92,.10);
+  transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
-.theme-client .btn.vx-btnOn::before{ opacity: .86; transform: scale(1.01); filter: blur(12px); }
+.theme-client .vx-iconBtn:active{
+  transform: translateY(1px) scale(0.99);
+  box-shadow:
+    0 14px 40px rgba(0,0,0,.78),
+    0 0 0 1px rgba(255,196,92,.20) inset,
+    0 0 44px var(--glowHard);
+}
+
+/* Active pill state used by filters (requests/reviews/atm/etc.) */
+.theme-client .btn.vx-btnOn{
+  background: rgba(247,195,26,.14) !important;
+  border: 1px solid rgba(247,195,26,.36) !important;
+  color: rgba(255,255,255,.95) !important;
+  box-shadow:
+    0 24px 74px rgba(0,0,0,.70),
+    0 0 44px rgba(247,195,26,.18),
+    0 0 0 1px rgba(255,215,106,.12) inset;
+}
+
+/* Active buttons should look "fully lit" even without pressing */
+.theme-client .btn.vx-btnOn::before{
+  opacity: 0.78;
+  transform: scale(1.06);
+}
 
 /* Admin toggle buttons (bonuses ON/OFF)
    Fixes "white text on white button" in the dark theme.
@@ -337,7 +381,7 @@ body.vx-body-client #root{
   color: rgba(255,255,255,.86) !important;
   box-shadow:
     0 22px 66px rgba(0,0,0,.70),
-    0 0 30px rgba(255,196,92,.14),
+    0 0 30px rgba(247,195,26,.14),
     0 0 0 1px rgba(255,255,255,.06) inset;
 }
 
@@ -347,7 +391,7 @@ body.vx-body-client #root{
 .theme-client .vx-revCard{
   background: rgba(255,255,255,.04) !important;
   border-color: rgba(255,255,255,.12) !important;
-  box-shadow: 0 14px 40px rgba(0,0,0,.50), 0 0 26px rgba(255,196,92,.10);
+  box-shadow: 0 14px 40px rgba(0,0,0,.50), 0 0 26px rgba(247,195,26,.10);
 }
 
 /* Rates + calculator should sit directly on the background (no big blocks) */
@@ -365,7 +409,7 @@ body.vx-body-client #root{
 .theme-client .vx-tableWrap{
   background: rgba(255,255,255,.03) !important;
   border-color: rgba(255,255,255,.12) !important;
-  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(255,196,92,.10);
+  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(247,195,26,.10);
 }
 .theme-client .vx-table th{
   background: rgba(255,255,255,.04) !important;
@@ -425,7 +469,7 @@ body.vx-body-client #root{
   background: rgba(255,255,255,.03);
   border-radius: 18px;
   padding: 10px 12px;
-  box-shadow: 0 16px 44px rgba(0,0,0,.52), 0 0 32px rgba(255,196,92,.10);
+  box-shadow: 0 16px 44px rgba(0,0,0,.52), 0 0 32px rgba(247,195,26,.10);
 }
 
 /* Calculator: smaller input/select boxes (as requested) */
@@ -458,14 +502,14 @@ body.vx-body-client #root{
 .theme-client .vx-adminCol{
   background: rgba(255,255,255,.03) !important;
   border: 1px solid rgba(255,255,255,.12) !important;
-  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(255,196,92,.10);
+  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(247,195,26,.10);
   border-radius: 22px;
 }
 .theme-client .vx-reqRow{
   background: rgba(255,255,255,.03) !important;
   border: 1px solid rgba(255,255,255,.12) !important;
   color: rgba(255,255,255,.90) !important;
-  box-shadow: 0 16px 46px rgba(0,0,0,.58), 0 0 28px rgba(255,196,92,.10);
+  box-shadow: 0 16px 46px rgba(0,0,0,.58), 0 0 28px rgba(247,195,26,.10);
 }
 .theme-client .vx-reqRow.is-active{ outline: 2px solid rgba(247,195,26,.32) !important; }
 .theme-client .vx-tag{
@@ -476,7 +520,7 @@ body.vx-body-client #root{
 .theme-client .vx-bankBtn{
   background: rgba(255,255,255,.03) !important;
   border: 1px solid rgba(255,255,255,.12) !important;
-  box-shadow: 0 14px 40px rgba(0,0,0,.56), 0 0 24px rgba(255,196,92,.10);
+  box-shadow: 0 14px 40px rgba(0,0,0,.56), 0 0 24px rgba(247,195,26,.10);
 }
 .theme-client .vx-bankBtn.is-on{ outline: 2px solid rgba(247,195,26,.32) !important; }
 .theme-client .vx-pill{ color: rgba(255,255,255,.90); }
@@ -548,27 +592,18 @@ body.vx-body-client #root{
 .theme-client .vx-acc[open] > summary{ border-bottom-color: rgba(255,255,255,.10); }
 
 /* Bottom bar: 3 items (prev/current/next) */
-.theme-client .vx-bottomWrap{ perspective: 900px; }
 .theme-client .vx-bottomBar{
   background: rgba(12,12,12,.62);
   border-color: rgba(255,255,255,.12);
   box-shadow: 0 22px 66px rgba(0,0,0,.72), 0 0 72px rgba(255,196,92,.08);
   backdrop-filter: blur(12px);
-  padding: 3px;
-  gap: 3px;
-  border-radius: 22px;
-  transform-style: preserve-3d;
-  will-change: transform;
+  padding: 4px;
+  gap: 4px;
+  border-radius: 24px;
 }
 .theme-client .vx-navBtn{
   color: rgba(255,255,255,.62);
-  padding: 8px 6px;
-  border-radius: 18px;
-  font-size: 9px;
-  background: rgba(14,14,14,.35);
-  border: 1px solid rgba(255,255,255,.08);
-  box-shadow: 0 18px 56px rgba(0,0,0,.70), 0 0 40px rgba(255,196,92,.06);
-  transition: transform 0.12s ease, filter 0.18s ease;
+  transition: transform 0.10s ease, filter 0.18s ease;
 }
 .theme-client .vx-navBtn .vx-navIcon{ opacity: .92; }
 .theme-client .vx-navBtn:active{ filter: brightness(1.05); transform: translateY(1px); }
@@ -580,28 +615,26 @@ body.vx-body-client #root{
   box-shadow: 0 0 0 1px rgba(255,215,106,.12) inset, 0 0 26px rgba(255,215,106,.14);
 }
 .theme-client .vx-navPosC{
-  transform: translateY(-5px) translateZ(26px) scale(1.05);
+  transform: translateY(-6px) scale(1.10);
 }
 .theme-client .vx-navPosC:active{
-  transform: translateY(-4px) translateZ(18px) scale(1.02);
+  transform: translateY(-5px) scale(1.06);
 }
 .theme-client .vx-navPosC .vx-navIcon{ width: 42px; height: 42px; }
 .theme-client .vx-navPosC .vx-i{ width: 22px; height: 22px; }
 .theme-client .vx-navPosC .vx-navLabel{ font-size: 10px; }
 
-/* carousel depth for side tabs (perspective) */
+/* carousel depth for side tabs */
 .theme-client .vx-navPosL,
 .theme-client .vx-navPosR{
-  opacity: 0.72;
+  transform: translateY(0px) scale(0.90);
+  opacity: 0.78;
 }
-.theme-client .vx-navPosL{
-  transform: translateY(6px) translateZ(-12px) scale(0.82) rotateY(18deg);
-}
-.theme-client .vx-navPosR{
-  transform: translateY(6px) translateZ(-12px) scale(0.82) rotateY(-18deg);
-}
+.theme-client .vx-navPosL{ transform: translateY(1px) scale(0.90); }
+.theme-client .vx-navPosR{ transform: translateY(1px) scale(0.90); }
 .theme-client .vx-navPosL .vx-navLabel,
-.theme-client .vx-navPosR .vx-navLabel{ font-size: 8px; }
+.theme-client .vx-navPosR .vx-navLabel{ font-size: 9px; }
+
 /* ATM tab (dark) */
 .vx-atmHint{
   font-size: 14px;
@@ -612,25 +645,14 @@ body.vx-body-client #root{
   color: var(--text);
 }
 .theme-client .vx-atmHint{
-  font-size: 16px;
-  text-align: center;
-  line-height: 1.35;
-  margin-top: 10px;
-  padding: 14px 14px;
-  border-radius: 22px;
-  background: rgba(255,255,255,.028);
-  border: 1px solid rgba(255,255,255,.10);
-  box-shadow:
-    0 26px 86px rgba(0,0,0,.70),
-    0 0 68px rgba(255,196,92,.18),
-    0 0 160px rgba(255,196,92,.12);
-  color: rgba(255,255,255,.92);
+  font-size: 15px;
+  color: rgba(255,255,255,.90);
 }
 
 .theme-client .vx-atmVideoCard{
   background: rgba(255,255,255,.03) !important;
   border-color: rgba(255,255,255,.12) !important;
-  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(255,196,92,.10);
+  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(247,195,26,.10);
   border-radius: 22px;
 }
 .theme-client .vx-atmVideo{
@@ -716,9 +738,7 @@ body.vx-body-client #root{
 .hr{ height: 1px; background: rgba(9,23,33,0.10); margin: 10px 0; }
 
 .card{
-  border-radius: 22px;
-  transform-style: preserve-3d;
-  will-change: transform;
+  border-radius: 24px;
   border: 1px solid var(--stroke);
   background: var(--panel);
   box-shadow: var(--shadow);
@@ -946,7 +966,7 @@ label, input, select, textarea{ color: var(--text); }
   background: var(--panel2);
   box-shadow: var(--shadow2);
   backdrop-filter: blur(16px);
-  padding: 3px;
+  padding: 4px;
   display: flex;
 }
 .vx-navBtn{
@@ -959,7 +979,7 @@ label, input, select, textarea{ color: var(--text); }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 4px;
   color: var(--muted2);
   font-weight: 800;
   font-size: 10px;
