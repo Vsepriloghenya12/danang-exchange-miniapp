@@ -88,31 +88,38 @@ body.vx-body-client #root{
 .theme-client{
   color-scheme: dark;
 
+  /* base */
   --sky: #000;
   --text: rgba(255,255,255,.94);
   --muted: rgba(255,255,255,.66);
   --muted2: rgba(255,255,255,.48);
   --ph: rgba(255,255,255,.38);
 
-  --panel: rgba(255,255,255,.04);
-  --panel2: rgba(255,255,255,.06);
+  /* surfaces */
+  --panel: rgba(255,255,255,.035);
+  --panel2: rgba(255,255,255,.055);
 
   --stroke: rgba(255,255,255,.10);
   --stroke2: rgba(255,255,255,.14);
 
-  --sun: #f7c31a; /* yellow accent */
-  --sun2: #ffd76a;
+  /* premium warm gold accent */
+  --sun: #ffc45c;
+  --sun2: #ffe1a6;
 
+  /* optional accent colors (if needed per-tab) */
   --aGreen: #2de36e;
   --aPurple: #a655ff;
   --aBlue: #3ba3ff;
-  /* Yellow halo (brighter) */
-  --glow: rgba(255,214,0,1);
-  --glowSoft: rgba(255,214,0,.28);
 
-  --shadow: 0 28px 86px rgba(0,0,0,.66);
-  --shadow2: 0 20px 58px rgba(0,0,0,.56);
-  --ring: 0 0 0 4px rgba(255,215,106,.18);
+  /* warm halo */
+  --glow: rgba(255,196,92,1);
+  --glowSoft: rgba(255,196,92,.26);
+  --glowMid: rgba(255,196,92,.18);
+
+  /* depth */
+  --shadow: 0 30px 96px rgba(0,0,0,.78);
+  --shadow2: 0 18px 54px rgba(0,0,0,.62);
+  --ring: 0 0 0 4px rgba(255,196,92,.16);
 }
 
 .theme-client.vx-page{
@@ -133,13 +140,11 @@ body.vx-body-client #root{
   position:absolute;
   inset:0;
   pointer-events:none;
-  /* subtle particles without gradients */
-  background-image:
-    radial-gradient(circle, rgba(255,255,255,.08) 0 1px, transparent 1px),
-    radial-gradient(circle, rgba(255,255,255,.05) 0 1px, transparent 1px);
-  background-size: 48px 48px, 86px 86px;
-  background-position: 8px 14px, 24px 36px;
-  opacity: .22;
+  /* premium subtle noise (no gradients) */
+  background-image: url('/brand/noise.png');
+  background-repeat: repeat;
+  background-size: 280px 280px;
+  opacity: .16;
 }
 
 .theme-client .container{ max-width: 420px; }
@@ -188,7 +193,7 @@ body.vx-body-client #root{
   border-color: rgba(255,255,255,0.14);
   color: rgba(255,255,255,.92);
   border-radius: 22px;
-  box-shadow: 0 18px 56px rgba(0,0,0,.54), 0 0 22px rgba(247,195,26,.08);
+  box-shadow: 0 18px 56px rgba(0,0,0,.54), 0 0 22px var(--glowMid);
 }
 .theme-client.vx-page input::placeholder,
 .theme-client.vx-page textarea::placeholder{ color: rgba(255,255,255,.40); }
@@ -197,7 +202,7 @@ body.vx-body-client #root{
 .theme-client.vx-page select:focus,
 .theme-client.vx-page textarea:focus{
   border-color: rgba(255,190,64,.75);
-  box-shadow: 0 0 0 4px rgba(255,190,64,.14), 0 18px 56px rgba(0,0,0,.54), 0 0 34px rgba(247,195,26,.16);
+  box-shadow: 0 0 0 4px rgba(255,190,64,.14), 0 18px 56px rgba(0,0,0,.54), 0 0 34px var(--glowSoft);
 }
 
 /* Press glow for buttons (neon halo like the reference) */
@@ -214,13 +219,18 @@ body.vx-body-client #root{
 .theme-client .vx-iconBtn::before{
   content: "";
   position: absolute;
-  left: -22px;
-  right: -22px;
-  top: -26px;
-  bottom: -26px;
-  border-radius: 999px;
-  background: radial-gradient(62% 52% at 50% 50%, var(--glow), rgba(255,214,0,0) 72%);
-  filter: blur(28px);
+  left: -28px;
+  right: -28px;
+  top: -30px;
+  bottom: -30px;
+  border-radius: inherit;
+  background: transparent;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.05),
+    0 0 30px var(--glowMid),
+    0 0 72px var(--glowSoft),
+    0 0 120px rgba(255,196,92,.18);
+  filter: blur(12px);
   opacity: 0;
   transform: scale(0.98);
   transition: opacity 0.16s ease, transform 0.16s ease;
@@ -237,24 +247,27 @@ body.vx-body-client #root{
   /* “floating” feeling */
   transform: translateY(-1px);
   box-shadow:
-    0 28px 84px rgba(0,0,0,.72),
-    0 10px 22px rgba(0,0,0,.62),
-    0 0 44px var(--glowSoft),
-    0 0 0 1px rgba(255,255,255,.06) inset;
+    0 30px 96px rgba(0,0,0,.78),
+    0 12px 28px rgba(0,0,0,.64),
+    0 0 54px var(--glowMid),
+    0 0 0 1px rgba(255,255,255,.06) inset,
+    0 1px 0 rgba(255,255,255,.08) inset;
   border-radius: 999px;
   transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
 
 /* Primary button: yellow accent */
 .theme-client .vx-primary{
-  background: linear-gradient(180deg, rgba(255,223,106,.98), rgba(247,195,26,.96)) !important;
+  background: rgba(255,196,92,.96) !important;
   border: 0 !important;
   color: rgba(12,12,12,.92) !important;
   transform: translateY(-1px);
   box-shadow:
-    0 30px 90px rgba(0,0,0,.60),
-    0 22px 64px rgba(255,214,0,.22),
-    0 0 60px rgba(255,214,0,.22);
+    0 34px 110px rgba(0,0,0,.66),
+    0 18px 54px rgba(0,0,0,.52),
+    0 0 86px var(--glowSoft),
+    0 0 0 1px rgba(255,255,255,.14) inset,
+    0 1px 0 rgba(255,255,255,.22) inset;
   border-radius: 999px;
   transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
@@ -267,7 +280,7 @@ body.vx-body-client #root{
 .theme-client .btn:active::before,
 .theme-client .vx-primary:active::before{
   opacity: 1;
-  transform: scale(1.06);
+  transform: scale(1.10);
 }
 
 .theme-client .vx-iconBtn{
@@ -313,7 +326,7 @@ body.vx-body-client #root{
   box-shadow: none !important;
 }
 .theme-client .vx-toggleBtn.is-on{
-  background: linear-gradient(180deg, rgba(255,223,106,.98), rgba(247,195,26,.96)) !important;
+  background: rgba(255,196,92,.96) !important;
   color: rgba(12,12,12,.92) !important;
 }
 .theme-client .vx-toggleBtn.is-off{
@@ -380,9 +393,14 @@ body.vx-body-client #root{
 .theme-client .vx-rateList{
   margin-top: 10px;
   border-radius: 22px;
-  background: rgba(255,255,255,.035) !important;
+  background: rgba(255,255,255,.032) !important;
   border: 1px solid rgba(255,255,255,.10) !important;
-  box-shadow: 0 18px 60px rgba(0,0,0,.55), 0 0 44px rgba(255,214,0,.10);
+  box-shadow:
+    0 26px 86px rgba(0,0,0,.70),
+    0 12px 30px rgba(0,0,0,.56),
+    0 0 72px var(--glowMid),
+    0 0 0 1px rgba(255,255,255,.05) inset,
+    0 1px 0 rgba(255,255,255,.06) inset;
   overflow: hidden;
 }
 .theme-client .vx-rateHdr{
@@ -402,6 +420,12 @@ body.vx-body-client #root{
 .theme-client .vx-rateList .vx-rateLine + .vx-rateLine{
   border-top: 1px solid rgba(255,255,255,.08) !important;
 }
+
+/* Rates text colors in dark theme */
+.theme-client .vx-ratePair2{ color: rgba(255,255,255,.92) !important; }
+.theme-client .vx-rateHdr{ color: rgba(255,255,255,.58) !important; }
+.theme-client .vx-rateNMuted{ color: rgba(255,255,255,.60) !important; }
+.theme-client .vx-dash{ color: rgba(255,255,255,.38) !important; }
 
 /* keep the calc info line minimal */
 .theme-client .vx-calc .vx-rateLine{
@@ -1103,7 +1127,7 @@ label, input, select, textarea{ color: var(--text); }
   background: rgba(255,179,87,.22);
 }
 
-.vx-rateLine{
+.vx-calc .vx-rateLine{
   margin-top: 10px;
   font-size: 12px;
   font-weight: 900;
