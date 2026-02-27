@@ -6,8 +6,6 @@ import {
   apiAdminGetPublishTemplate,
   apiAdminSetPublishTemplate,
   apiAdminPublish,
-  apiAdminCheckGroup,
-  apiAdminTestGroup,
   apiAdminUsers,
   apiAdminGetRequests,
   apiAdminSetUserStatus,
@@ -97,10 +95,6 @@ export default function OwnerPortal() {
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
   const [lastPublish, setLastPublish] = useState<any>(null);
 
-  const [groupInfo, setGroupInfo] = useState<any>(null);
-  const [isGroupChecking, setIsGroupChecking] = useState(false);
-  const [isGroupTesting, setIsGroupTesting] = useState(false);
-
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [bankIcons, setBankIcons] = useState<string[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -177,42 +171,9 @@ export default function OwnerPortal() {
     }
   }
 
-  async function checkGroup() {
-    if (!token || isGroupChecking) return;
-    setIsGroupChecking(true);
-    try {
-      const r = await apiAdminCheckGroup(token);
-      if (!r?.ok) showErr(r?.error || "Ошибка");
-      setGroupInfo(r);
-    } catch (e: any) {
-      showErr(e?.message || "Ошибка");
-    } finally {
-      setIsGroupChecking(false);
-    }
-  }
-
-  async function testGroup() {
-    if (!token || isGroupTesting) return;
-    setIsGroupTesting(true);
-    try {
-      const r = await apiAdminTestGroup(token);
-      if (!r?.ok) {
-        showErr(r?.error || "Ошибка");
-      } else {
-        showOk("Тест отправлен ✅");
-      }
-      await checkGroup();
-    } catch (e: any) {
-      showErr(e?.message || "Ошибка");
-    } finally {
-      setIsGroupTesting(false);
-    }
-  }
-
   useEffect(() => {
     if (!token) return;
     loadAll();
-    checkGroup();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -556,34 +517,6 @@ export default function OwnerPortal() {
               </div>
             ) : null}
 
-            <div className="vx-sp10" />
-            <div className="vx-pubGroup">
-              <div className="vx-muted">
-                Группа: <b>{groupInfo?.groupChatId ?? "(не задана)"}</b>
-                {groupInfo?.telegram?.ok ? (
-                  <>
-                    {" "}• <b>{groupInfo.telegram.title || ""}</b>
-                  </>
-                ) : groupInfo?.telegram && groupInfo.telegram.ok === false ? (
-                  <>
-                    {" "}• <span className="vx-warn">{String(groupInfo.telegram.error || "ошибка Telegram")}</span>
-                  </>
-                ) : null}
-              </div>
-              <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-                <button className="btn vx-btnSm" type="button" onClick={checkGroup} disabled={isGroupChecking}>
-                  {isGroupChecking ? "Проверяю…" : "Проверить"}
-                </button>
-                <button className="btn vx-btnSm" type="button" onClick={testGroup} disabled={isGroupTesting}>
-                  {isGroupTesting ? "Отправляю…" : "Тест в группу"}
-                </button>
-              </div>
-              {groupInfo?.storeGroupChatId || groupInfo?.envGroupChatId ? (
-                <div className="vx-muted" style={{ marginTop: 6 }}>
-                  store: {groupInfo?.storeGroupChatId ?? "–"} • env: {groupInfo?.envGroupChatId ?? "–"}
-                </div>
-              ) : null}
-            </div>
           </div>
 
           <div className="vx-sp12" />

@@ -12,8 +12,6 @@ import type {
   AdminAdminsResponse,
   PublishTemplateResponse,
   PublishResponse,
-  GroupCheckResponse,
-  GroupTestResponse,
   ReportsResponse,
   Contact
 } from "./types";
@@ -284,21 +282,6 @@ export async function apiAdminPublish(token: string, payload: { template?: strin
   return readJsonSafe(r);
 }
 
-export async function apiAdminCheckGroup(token: string): Promise<GroupCheckResponse> {
-  const r = await fetch("/api/admin/group", {
-    headers: { ...adminAuthHeaders(token) }
-  });
-  return readJsonSafe(r);
-}
-
-export async function apiAdminTestGroup(token: string): Promise<GroupTestResponse> {
-  const r = await fetch("/api/admin/group/test", {
-    method: "POST",
-    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
-    body: JSON.stringify({})
-  });
-  return readJsonSafe(r);
-}
 
 export async function apiAdminGetContacts(token: string): Promise<AdminContactsResponse> {
   const r = await fetch("/api/admin/contacts", {
