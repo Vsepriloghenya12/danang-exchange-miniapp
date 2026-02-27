@@ -6,7 +6,6 @@ import type { UserStatus } from "./lib/types";
 import RatesTab from "./tabs/RatesTab";
 import CalculatorTab from "./tabs/CalculatorTab";
 import AtmTab from "./tabs/AtmTab";
-import GuideTab from "./tabs/GuideTab";
 import ReviewsTab from "./tabs/ReviewsTab";
 import StaffTab from "./tabs/StaffTab";
 import OwnerPortal from "./admin/OwnerPortal";
@@ -21,7 +20,7 @@ type Me = {
   error?: string;
 };
 
-type TabKey = "rates" | "calc" | "atm" | "guide" | "reviews" | "staff";
+type TabKey = "rates" | "calc" | "atm" | "reviews" | "staff";
 
 type AnimClass = "" | "vx-animInL" | "vx-animInR";
 
@@ -67,23 +66,6 @@ function IconAtm({ className = "" }: { className?: string }) {
     </svg>
   );
 }
-function IconGuide({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M3 6h7a2 2 0 0 1 2 2v13H5a2 2 0 0 1-2-2V6z" />
-      <path d="M21 6h-7a2 2 0 0 0-2 2" />
-      <path d="M21 6v13a2 2 0 0 1-2 2h-7" />
-    </svg>
-  );
-}
-function IconStar({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 2l3 7 7 .6-5.3 4.6 1.7 6.8L12 18l-6.4 3 1.7-6.8L2 9.6 9 9l3-7z" />
-    </svg>
-  );
-}
-
 function IconSettings({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
@@ -156,7 +138,7 @@ export default function App() {
   const tg = getTg();
 
   // Order is circular for the "3-tab" bottom bar (prev / current / next)
-  const baseOrder: TabKey[] = ["reviews", "rates", "calc", "atm", "guide", "staff"];
+  const baseOrder: TabKey[] = ["reviews", "rates", "calc", "atm", "staff"];
 
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
   const [tab, setTab] = useState<TabKey>("rates");
@@ -380,7 +362,6 @@ export default function App() {
     { key: "rates", label: "Курс", show: true, icon: <IconSwap className="vx-i" /> },
     { key: "calc", label: "Калькулятор", show: true, icon: <IconCalc className="vx-i" /> },
     { key: "atm", label: "Банкоматы", show: true, icon: <IconAtm className="vx-i" /> },
-    { key: "guide", label: "Гид", show: true, icon: <IconGuide className="vx-i" /> },
     { key: "reviews", label: "Отзывы", show: true, icon: <IconStar className="vx-i" /> },
     { key: "staff", label: "Админ", show: !!me.isAdmin, icon: <IconSettings className="vx-i" /> },
   ];
@@ -445,7 +426,6 @@ export default function App() {
       rates: <RatesTab />,
       calc: <CalculatorTab me={me} />,
       atm: <AtmTab />,
-      guide: <GuideTab />,
       reviews: <ReviewsTab />,
       staff: <StaffTab me={me} />,
     }),
@@ -536,14 +516,7 @@ export default function App() {
               style={{ display: tab === "atm" ? "block" : "none" }}
             >
               {pages.atm}
-            </div>
-            <div
-              className={"vx-tabPane " + (tab === "guide" ? "is-active " + anim : "")}
-              style={{ display: tab === "guide" ? "block" : "none" }}
-            >
-              {pages.guide}
-            </div>
-            <div
+            </div>            <div
               className={"vx-tabPane " + (tab === "reviews" ? "is-active " + anim : "")}
               style={{ display: tab === "reviews" ? "block" : "none" }}
             >
