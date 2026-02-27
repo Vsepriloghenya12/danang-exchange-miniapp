@@ -27,7 +27,7 @@ type AnimClass = "" | "vx-animInL" | "vx-animInR";
 const UI = {
   title: "Обмен валют — Дананг",
   fontImport:
-    "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap",
+    "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap",
 };
 
 function IconSwap({ className = "" }: { className?: string }) {

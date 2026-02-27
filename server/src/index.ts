@@ -71,9 +71,23 @@ if (fs.existsSync(webDist)) {
   // Runtime assets (no rebuild): put files into server/public (e.g. client-bg.jpg)
   // They will be served from /client-bg.jpg
   if (fs.existsSync(runtimePublic)) {
-    app.use(express.static(runtimePublic));
+    app.use(
+      express.static(runtimePublic, {
+        setHeaders(res) {
+          // Telegram WebView can be very aggressive with caching.
+          // We disable caching so UI/CSS updates apply instantly after deploy.
+          res.setHeader("Cache-Control", "no-store, max-age=0");
+        },
+      })
+    );
   }
-  app.use(express.static(webDist));
+  app.use(
+    express.static(webDist, {
+      setHeaders(res) {
+        res.setHeader("Cache-Control", "no-store, max-age=0");
+      },
+    })
+  );
   // Standalone admin dashboard (PC). Served from the same build output.
   // Open: https://<domain>/admin
   app.get("/admin", (_req, res) => res.sendFile(path.join(webDist, "admin.html")));
