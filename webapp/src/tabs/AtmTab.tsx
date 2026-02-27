@@ -22,7 +22,7 @@ export default function AtmTab() {
   return (
     <div className="card">
       <div className="h1">Банкоматы</div>
-      <div className="small">
+      <div className="vx-atmHint">
         Вы можете получить наличные в банкоматах <b>VIETCOMBANK</b> и <b>BIDV</b> в любом городе Вьетнама.
       </div>
 

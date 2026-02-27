@@ -112,7 +112,6 @@ export default function ReviewsTab() {
         {initData && !eligibleLoading && eligible.length > 0 && (
           <>
             <div className="vx-gap8 vx-center" style={{ display: "flex", flexWrap: "wrap" }}>
-              <div className="vx-lbl" style={{ margin: 0 }}>Сделка</div>
               <select
                 className="input vx-in"
                 value={selectedRequestId}
@@ -135,9 +134,6 @@ export default function ReviewsTab() {
               />
               <span>Оставить анонимно</span>
             </label>
-            <div className="vx-muted" style={{ marginTop: -4 }}>
-              Владелец увидит, от кого отзыв, но в общем списке будет отображаться «Анонимно».
-            </div>
 
             <textarea
               placeholder="Напиши отзыв (минимум 3 символа)"

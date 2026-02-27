@@ -147,15 +147,113 @@ export default function StaffTab({ me }: any) {
 
       <div className="vx-sp12" />
 
-      <div className="vx-admin2col">
-        <div className="vx-adminCol">
-          <div className="small">История заявок</div>
-          <div className="hr" />
+      <div className="vx-adminStack">
+        {/* 1) Active request (always on top) */}
+        <div className="vx-adminPanel">
+          <div className="vx-adminPanelH">Активная заявка</div>
 
           {requests.length === 0 ? (
-            <div className="small">Заявок пока нет.</div>
+            <div className="vx-muted">Заявок пока нет.</div>
+          ) : !selectedReq ? (
+            <div className="vx-muted">Выбери заявку в «Истории заявок» ниже.</div>
           ) : (
-            <div className="vx-reqList">
+            <>
+              <div className="vx-adminReqTop">
+                <div className="vx-adminReqId">#{shortId(selectedReq.id)}</div>
+                <div className="vx-muted">{fmtDateTime(selectedReq.created_at)}</div>
+              </div>
+
+              <div className="vx-sp8" />
+
+              <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {STATE_OPTIONS.map((s) => (
+                  <button
+                    key={s.v}
+                    type="button"
+                    className={"btn vx-btnSm " + (String(selectedReq.state) === s.v ? "vx-btnOn" : "")}
+                    onClick={() => changeState(s.v)}
+                  >
+                    {s.l}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 2) Clients (collapsed by default) */}
+        <details className="vx-acc">
+          <summary>Клиенты</summary>
+
+          {!selectedReq ? (
+            <div className="vx-muted">Сначала выбери заявку в «Истории заявок».</div>
+          ) : (
+            <>
+              <div className="vx-muted" style={{ marginTop: 6 }}>
+                {selectedReq.from?.username ? `@${selectedReq.from.username}` : ""} • id:{selectedReq.from?.id}
+              </div>
+
+              {banks.length ? (
+                <div className="vx-bankInline" style={{ marginTop: 10 }}>
+                  {banks.slice(0, 8).map((ic) => (
+                    <img key={ic} src={`/banks/${ic}`} alt="" className="vx-bankInlineImg" title={ic} />
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="vx-sp10" />
+
+              <div className="vx-accLbl">Имя (ФИО)</div>
+              <input
+                className="input vx-in"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Например: Иванов Иван"
+              />
+
+              <div className="vx-sp10" />
+
+              {/* 2.1) Banks (collapsed by default) */}
+              <details className="vx-acc vx-accInner">
+                <summary>Банки</summary>
+                {icons.length === 0 ? (
+                  <div className="vx-muted">Иконок нет (положи файлы в webapp/public/banks).</div>
+                ) : (
+                  <div className="vx-bankGrid" style={{ marginTop: 10 }}>
+                    {icons.map((ic) => {
+                      const on = banks.includes(ic);
+                      return (
+                        <button
+                          key={ic}
+                          type="button"
+                          className={"vx-bankBtn " + (on ? "is-on" : "")}
+                          onClick={() => toggleBank(ic)}
+                          title={ic}
+                        >
+                          <img src={`/banks/${ic}`} alt="" className="vx-bankImg" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </details>
+
+              <div className="vx-sp10" />
+
+              <button type="button" className="btn" onClick={saveContact}>
+                Сохранить контакт
+              </button>
+            </>
+          )}
+        </details>
+
+        {/* 3) Requests history (collapsed by default) */}
+        <details className="vx-acc">
+          <summary>История заявок</summary>
+          {requests.length === 0 ? (
+            <div className="vx-muted">Заявок пока нет.</div>
+          ) : (
+            <div className="vx-reqList" style={{ marginTop: 10 }}>
               {requests.slice(0, 80).map((r) => {
                 const isActive = String(r.id) === String(selectedId);
                 const u = r.from || {};
@@ -181,87 +279,7 @@ export default function StaffTab({ me }: any) {
               })}
             </div>
           )}
-        </div>
-
-        <div className="vx-adminCol">
-          {!selectedReq ? (
-            <div className="small">Выбери заявку слева.</div>
-          ) : (
-            <>
-              <div className="small"><b>Заявка #{shortId(selectedReq.id)}</b></div>
-              <div className="vx-muted">{fmtDateTime(selectedReq.created_at)}</div>
-              <div className="vx-sp8" />
-
-              <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {STATE_OPTIONS.map((s) => (
-                  <button
-                    key={s.v}
-                    type="button"
-                    className={"btn vx-btnSm " + (String(selectedReq.state) === s.v ? "vx-btnOn" : "")}
-                    onClick={() => changeState(s.v)}
-                  >
-                    {s.l}
-                  </button>
-                ))}
-              </div>
-
-              <div className="hr" />
-
-              <div className="small"><b>Контакт клиента</b></div>
-              <div className="vx-muted">
-                {selectedReq.from?.username ? `@${selectedReq.from.username}` : ""} • id:{selectedReq.from?.id}
-              </div>
-
-              {banks.length ? (
-                <div className="vx-bankInline" style={{ marginTop: 6 }}>
-                  {banks.slice(0, 8).map((ic) => (
-                    <img key={ic} src={`/banks/${ic}`} alt="" className="vx-bankInlineImg" title={ic} />
-                  ))}
-                </div>
-              ) : null}
-
-              <div className="vx-sp8" />
-
-              <div className="small">ФИО</div>
-              <input
-                className="input vx-in"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Например: Иванов Иван"
-              />
-
-              <div className="vx-sp10" />
-
-              <div className="small">Банки</div>
-              {icons.length === 0 ? (
-                <div className="vx-muted">Иконок нет (положи файлы в webapp/public/banks).</div>
-              ) : (
-                <div className="vx-bankGrid">
-                  {icons.map((ic) => {
-                    const on = banks.includes(ic);
-                    return (
-                      <button
-                        key={ic}
-                        type="button"
-                        className={"vx-bankBtn " + (on ? "is-on" : "")}
-                        onClick={() => toggleBank(ic)}
-                        title={ic}
-                      >
-                        <img src={`/banks/${ic}`} alt="" className="vx-bankImg" />
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="vx-sp10" />
-
-              <button type="button" className="btn" onClick={saveContact}>
-                Сохранить контакт
-              </button>
-            </>
-          )}
-        </div>
+        </details>
       </div>
     </div>
   );
