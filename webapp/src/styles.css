@@ -106,9 +106,9 @@ body.vx-body-client #root{
   --aGreen: #2de36e;
   --aPurple: #a655ff;
   --aBlue: #3ba3ff;
-  /* Yellow halo */
-  --glow: rgba(247,195,26,.92);
-  --glowSoft: rgba(247,195,26,.18);
+  /* Yellow halo (brighter) */
+  --glow: rgba(255,214,0,1);
+  --glowSoft: rgba(255,214,0,.28);
 
   --shadow: 0 28px 86px rgba(0,0,0,.66);
   --shadow2: 0 20px 58px rgba(0,0,0,.56);
@@ -214,13 +214,13 @@ body.vx-body-client #root{
 .theme-client .vx-iconBtn::before{
   content: "";
   position: absolute;
-  left: -18px;
-  right: -18px;
-  top: -22px;
-  bottom: -22px;
+  left: -22px;
+  right: -22px;
+  top: -26px;
+  bottom: -26px;
   border-radius: 999px;
-  background: radial-gradient(62% 52% at 50% 50%, var(--glow), rgba(247,195,26,0) 72%);
-  filter: blur(20px);
+  background: radial-gradient(62% 52% at 50% 50%, var(--glow), rgba(255,214,0,0) 72%);
+  filter: blur(28px);
   opacity: 0;
   transform: scale(0.98);
   transition: opacity 0.16s ease, transform 0.16s ease;
@@ -239,7 +239,7 @@ body.vx-body-client #root{
   box-shadow:
     0 28px 84px rgba(0,0,0,.72),
     0 10px 22px rgba(0,0,0,.62),
-    0 0 34px var(--glowSoft),
+    0 0 44px var(--glowSoft),
     0 0 0 1px rgba(255,255,255,.06) inset;
   border-radius: 999px;
   transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
@@ -253,8 +253,8 @@ body.vx-body-client #root{
   transform: translateY(-1px);
   box-shadow:
     0 30px 90px rgba(0,0,0,.60),
-    0 22px 64px rgba(247,195,26,.18),
-    0 0 44px rgba(247,195,26,.18);
+    0 22px 64px rgba(255,214,0,.22),
+    0 0 60px rgba(255,214,0,.22);
   border-radius: 999px;
   transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
@@ -267,7 +267,7 @@ body.vx-body-client #root{
 .theme-client .btn:active::before,
 .theme-client .vx-primary:active::before{
   opacity: 1;
-  transform: scale(1.02);
+  transform: scale(1.06);
 }
 
 .theme-client .vx-iconBtn{
@@ -376,40 +376,32 @@ body.vx-body-client #root{
 .theme-client .vx-calcBox{ overflow: visible !important; padding: 0 !important; }
 .theme-client .vx-rateList{ padding: 0 !important; }
 
-/* Rates list as floating tiles (like the reference) */
+/* Rates: one continuous list (not separate cards) */
 .theme-client .vx-rateList{
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
   margin-top: 10px;
+  border-radius: 22px;
+  background: rgba(255,255,255,.035) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  box-shadow: 0 18px 60px rgba(0,0,0,.55), 0 0 44px rgba(255,214,0,.10);
+  overflow: hidden;
 }
 .theme-client .vx-rateHdr{
-  padding: 0 4px 6px;
-  color: rgba(255,255,255,.55);
+  padding: 12px 14px 10px;
+  color: rgba(255,255,255,.58);
+  border-bottom: 1px solid rgba(255,255,255,.10);
 }
 .theme-client .vx-rateList .vx-rateLine{
   border-top: 0 !important;
   margin-top: 0;
-  padding: 14px 14px;
-  border-radius: 22px;
-  background: rgba(255,255,255,.035) !important;
-  border: 1px solid rgba(255,255,255,.10) !important;
-  box-shadow: 0 18px 60px rgba(0,0,0,.55), 0 0 38px rgba(247,195,26,.10);
-  position: relative;
-  overflow: hidden;
+  padding: 12px 14px;
+  border-radius: 0;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
-.theme-client .vx-rateList .vx-rateLine::after{
-  content: "";
-  position: absolute;
-  inset: -1px;
-  pointer-events: none;
-  border-radius: 22px;
-  background:
-    radial-gradient(45% 70% at 12% 10%, rgba(59,163,255,.12), transparent 62%),
-    radial-gradient(45% 70% at 88% 0%, rgba(166,85,255,.11), transparent 62%),
-    radial-gradient(45% 70% at 50% 120%, rgba(45,227,110,.10), transparent 62%);
+.theme-client .vx-rateList .vx-rateLine + .vx-rateLine{
+  border-top: 1px solid rgba(255,255,255,.08) !important;
 }
-.theme-client .vx-rateList .vx-rateLine > *{ position: relative; z-index: 1; }
 
 /* keep the calc info line minimal */
 .theme-client .vx-calc .vx-rateLine{
