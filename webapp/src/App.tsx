@@ -66,6 +66,14 @@ function IconAtm({ className = "" }: { className?: string }) {
     </svg>
   );
 }
+
+function IconStar({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 18.7 5.8 21l1.2-6.8-5-4.9 6.9-1L12 2z" />
+    </svg>
+  );
+}
 function IconSettings({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
