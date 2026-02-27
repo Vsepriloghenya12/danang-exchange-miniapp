@@ -39,6 +39,7 @@ if (!BOT_TOKEN) {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const webDist = path.resolve(__dirname, "../../webapp/dist");
+const runtimePublic = path.resolve(__dirname, "../public");
 
 // Railway domain (предпочтительно), либо PUBLIC_URL если задашь вручную
 const BASE_URL =
@@ -67,6 +68,11 @@ app.use(
 );
 
 if (fs.existsSync(webDist)) {
+  // Runtime assets (no rebuild): put files into server/public (e.g. client-bg.jpg)
+  // They will be served from /client-bg.jpg
+  if (fs.existsSync(runtimePublic)) {
+    app.use(express.static(runtimePublic));
+  }
   app.use(express.static(webDist));
   // Standalone admin dashboard (PC). Served from the same build output.
   // Open: https://<domain>/admin

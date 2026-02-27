@@ -97,23 +97,44 @@ function BottomBar({
   active,
   onChange,
   items,
+  order,
 }: {
   active: TabKey;
   onChange: (k: TabKey) => void;
   items: Array<{ key: TabKey; label: string; show: boolean; icon: React.ReactNode }>;
+  order: TabKey[];
 }) {
-  const visible = items.filter((i) => i.show);
+  const map = useMemo(() => {
+    const m = new Map<TabKey, { key: TabKey; label: string; show: boolean; icon: React.ReactNode }>();
+    for (const it of items) m.set(it.key, it);
+    return m;
+  }, [items]);
+
+  const visibleOrder = useMemo(() => order.filter((k) => map.get(k)?.show), [order, map]);
+
+  const tri = useMemo(() => {
+    if (!visibleOrder.length) return [] as TabKey[];
+    if (visibleOrder.length <= 3) return visibleOrder;
+    const i = Math.max(0, visibleOrder.indexOf(active));
+    const prev = visibleOrder[(i - 1 + visibleOrder.length) % visibleOrder.length];
+    const next = visibleOrder[(i + 1) % visibleOrder.length];
+    return [prev, active, next];
+  }, [active, visibleOrder]);
+
   return (
     <div className="vx-bottomWrap">
       <div className="vx-bottomBar">
-        {visible.map((t) => {
-          const isActive = active === t.key;
+        {tri.map((k, idx) => {
+          const t = map.get(k);
+          if (!t) return null;
+          const isActive = active === k;
+          const pos = idx === 1 ? "vx-navPosC" : idx === 0 ? "vx-navPosL" : "vx-navPosR";
           return (
             <button
-              key={t.key}
+              key={k}
               type="button"
-              onClick={() => onChange(t.key)}
-              className={"vx-navBtn " + (isActive ? "vx-navBtnActive" : "")}
+              onClick={() => onChange(k)}
+              className={"vx-navBtn " + pos + " " + (isActive ? "vx-navBtnActive" : "")}
             >
               {isActive ? <div className="vx-navPill" /> : null}
               <span className="vx-navIcon">{t.icon}</span>
@@ -134,7 +155,8 @@ export default function App() {
 
   const tg = getTg();
 
-  const baseOrder: TabKey[] = ["rates", "calc", "atm", "guide", "reviews", "staff"];
+  // Order is circular for the "3-tab" bottom bar (prev / current / next)
+  const baseOrder: TabKey[] = ["reviews", "rates", "calc", "atm", "guide", "staff"];
 
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
   const [tab, setTab] = useState<TabKey>("rates");
@@ -290,10 +312,19 @@ export default function App() {
     const rel = (p: string) => `${base}${p}?v=${v}`;
     const abs = (p: string) => `/${p}?v=${v}`;
     const exts = ["svg", "jpg", "png", "webp"];
-    return [
+
+    // Runtime (no rebuild): put a file into server/public, e.g. server/public/client-bg.jpg
+    // It will be served as /client-bg.jpg
+    const runtimeNames = ["client-bg", "bg", "background", "wallpaper"];
+    const runtime = runtimeNames.flatMap((name) => exts.map((ext) => abs(`${name}.${ext}`)));
+
+    // Backward compatibility: old name under /brand
+    const legacy = [
       ...exts.map((ext) => rel(`brand/danang-bg.${ext}`)),
       ...exts.map((ext) => abs(`brand/danang-bg.${ext}`)),
     ];
+
+    return [...runtime, ...legacy];
   }, []);
 
   const [bgSrc, setBgSrc] = useState<string | null>(null);
@@ -423,7 +454,7 @@ export default function App() {
 
   return (
     <div
-      className={"vx-page" + (keyboardOpen ? " vx-kbOpen" : "")}
+      className={"vx-page theme-client" + (keyboardOpen ? " vx-kbOpen" : "")}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -529,7 +560,7 @@ export default function App() {
         </div>
       </div>
 
-      <BottomBar active={tab} onChange={changeTab} items={bottomTabs} />
+      <BottomBar active={tab} onChange={changeTab} items={bottomTabs} order={tabOrder} />
     </div>
   );
 }

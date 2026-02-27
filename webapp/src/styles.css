@@ -62,12 +62,208 @@ body{
   pointer-events: none;
   z-index: 0;
   background-color: var(--sky);
-  /* Relative URL so it works even if the app is hosted under a subpath */
-  background-image: url("brand/danang-bg.svg");
+  /* Background image is injected by App.tsx (runtime optional). */
+  background-image: none;
   background-size: 150% 190%;
   background-repeat: no-repeat;
   background-position: center center;
 }
+
+/* =========================
+   Client neon theme (black + yellow)
+   Applied only inside <div class="theme-client">.
+   Owner/admin pages keep the default light theme.
+   ========================= */
+.theme-client{
+  color-scheme: dark;
+
+  --sky: #000;
+  --text: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.66);
+  --muted2: rgba(255,255,255,.52);
+  --ph: rgba(255,255,255,.38);
+
+  --panel: rgba(0,0,0,.10);
+  --panel2: rgba(0,0,0,.22);
+
+  --stroke: rgba(255,255,255,.10);
+  --stroke2: rgba(255,255,255,.16);
+
+  --sun: #f7c31a;
+  --sun2: #ffdf6a;
+
+  --shadow: 0 20px 56px rgba(0,0,0,.55);
+  --shadow2: 0 18px 40px rgba(0,0,0,.42);
+  --ring: 0 0 0 4px rgba(247,195,26,.18);
+}
+
+.theme-client.vx-page{
+  background: #000;
+  color: var(--text);
+}
+
+.theme-client .bg-danang{
+  background-color: #000;
+}
+.theme-client .bg-danang::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(900px 620px at 20% 20%, rgba(247,195,26,.10), rgba(0,0,0,0) 55%),
+    radial-gradient(760px 540px at 85% 30%, rgba(255,223,106,.08), rgba(0,0,0,0) 58%),
+    radial-gradient(900px 700px at 50% 110%, rgba(255,223,106,.06), rgba(0,0,0,0) 62%),
+    radial-gradient(900px 900px at 50% 50%, rgba(0,0,0,.00), rgba(0,0,0,.65) 72%);
+  pointer-events: none;
+}
+
+.theme-client .container{ max-width: 420px; }
+
+/* Remove "big blocks" feeling: make wrappers transparent */
+.theme-client .card,
+.theme-client .vx-card2{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+.theme-client .card{ padding: 0; }
+.theme-client .vx-topCard{ padding: 10px 2px 8px; }
+.theme-client .vx-topRow{
+  border-bottom: 0;
+  margin-bottom: 8px;
+  padding-bottom: 0;
+}
+
+.theme-client .vx-logo{
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(247,195,26,.22);
+  box-shadow: 0 0 0 2px rgba(247,195,26,.08), 0 12px 30px rgba(0,0,0,.55);
+}
+.theme-client .vx-logoFallback{ color: rgba(247,195,26,.90); }
+.theme-client .vx-title{ color: rgba(255,255,255,.94); }
+.theme-client .vx-topSub{ color: rgba(255,255,255,.66); }
+
+/* Inputs */
+.theme-client.vx-page input,
+.theme-client.vx-page select,
+.theme-client.vx-page textarea{
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.14);
+  color: rgba(255,255,255,.92);
+}
+.theme-client.vx-page input::placeholder,
+.theme-client.vx-page textarea::placeholder{ color: rgba(255,255,255,.40); }
+
+.theme-client.vx-page input:focus,
+.theme-client.vx-page select:focus,
+.theme-client.vx-page textarea:focus{
+  border-color: rgba(247,195,26,.75);
+  box-shadow: 0 0 0 4px rgba(247,195,26,.16), 0 0 24px rgba(247,195,26,.16);
+}
+
+/* Press glow for buttons */
+.theme-client .btn,
+.theme-client .vx-primary{
+  background: linear-gradient(180deg, rgba(255,223,106,.98), rgba(247,195,26,.92));
+  color: rgba(0,0,0,.92) !important;
+  box-shadow: 0 18px 46px rgba(247,195,26,0.20), 0 0 0 1px rgba(247,195,26,.28) inset;
+  transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.theme-client .btn:active,
+.theme-client .vx-primary:active{
+  transform: translateY(1px) scale(0.99);
+  box-shadow: 0 22px 62px rgba(247,195,26,0.32), 0 0 34px rgba(247,195,26,.18);
+  filter: brightness(1.02);
+}
+
+.theme-client .vx-iconBtn{
+  border-color: rgba(247,195,26,.26);
+  background: rgba(0,0,0,.35);
+  box-shadow: 0 10px 28px rgba(0,0,0,.55), 0 0 0 1px rgba(247,195,26,.10) inset;
+  color: rgba(255,255,255,.90);
+  transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.theme-client .vx-iconBtn:active{
+  transform: translateY(1px) scale(0.99);
+  box-shadow: 0 12px 34px rgba(0,0,0,.60), 0 0 26px rgba(247,195,26,.18);
+}
+
+/* Small chips / pills */
+.theme-client .vx-pill,
+.theme-client .vx-rateList,
+.theme-client .vx-table,
+.theme-client .vx-calcBox,
+.theme-client .vx-revCompose,
+.theme-client .vx-revCard{
+  background: rgba(0,0,0,.28) !important;
+  border-color: rgba(255,255,255,.12) !important;
+  box-shadow: 0 14px 40px rgba(0,0,0,.50);
+}
+.theme-client .vx-pill{ color: rgba(255,255,255,.90); }
+.theme-client .vx-pillActive{
+  border-color: rgba(247,195,26,.45) !important;
+  background: rgba(247,195,26,.14) !important;
+  box-shadow: 0 0 0 1px rgba(247,195,26,.10) inset, 0 14px 40px rgba(0,0,0,.50);
+}
+.theme-client .vx-pill:active{
+  box-shadow: 0 0 26px rgba(247,195,26,.16);
+}
+
+/* Bottom bar: 3 items (prev/current/next) */
+.theme-client .vx-bottomBar{
+  background: rgba(0,0,0,.40);
+  border-color: rgba(255,255,255,.14);
+  box-shadow: 0 18px 48px rgba(0,0,0,.62);
+  padding: 6px;
+  gap: 6px;
+}
+.theme-client .vx-navBtn{
+  color: rgba(255,255,255,.62);
+  transition: transform 0.10s ease, filter 0.18s ease;
+}
+.theme-client .vx-navBtn .vx-navIcon{ opacity: .92; }
+.theme-client .vx-navBtn:active{ filter: brightness(1.05); transform: translateY(1px); }
+.theme-client .vx-navBtnActive{ color: rgba(255,255,255,.95); }
+
+.theme-client .vx-navPill{
+  background: rgba(247,195,26,.18);
+  border-color: rgba(247,195,26,.38);
+  box-shadow: 0 0 0 1px rgba(247,195,26,.12) inset, 0 0 26px rgba(247,195,26,.16);
+}
+.theme-client .vx-navPosC{
+  transform: translateY(-4px);
+}
+.theme-client .vx-navPosC:active{
+  transform: translateY(-3px) scale(0.99);
+}
+.theme-client .vx-navPosC .vx-navIcon{ width: 42px; height: 42px; }
+.theme-client .vx-navPosC .vx-i{ width: 22px; height: 22px; }
+.theme-client .vx-navPosC .vx-navLabel{ font-size: 10.5px; }
+
+/* Text helpers */
+.theme-client .vx-muted{ color: rgba(255,255,255,.55); }
+.theme-client .hr{ background: rgba(255,255,255,0.10); }
+.theme-client .vx-meta,
+.theme-client .vx-note,
+.theme-client .vx-sub,
+.theme-client .vx-help{ color: rgba(255,255,255,.62) !important; }
+.theme-client .vx-rateHdr{ color: rgba(255,255,255,.55); }
+.theme-client .vx-ratePair2,
+.theme-client .vx-rateN,
+.theme-client .vx-pair,
+.theme-client .vx-num{ color: rgba(255,255,255,.92) !important; }
+.theme-client .vx-rateNMuted{ color: rgba(255,255,255,.70); }
+
+/* Reviews: make headings readable on dark */
+.theme-client .vx-reviewsTitle{ color: rgba(255,255,255,.95); }
+.theme-client .vx-revH{ color: rgba(255,255,255,.70) !important; }
+.theme-client .vx-revName{ color: rgba(255,255,255,.92); }
+.theme-client .vx-revRating{ color: rgba(255,255,255,.78); }
+.theme-client .vx-revTextOut{ color: rgba(255,255,255,.88); }
+.theme-client .vx-starBtn{ color: rgba(255,223,106,.92); }
 
 /* App content above background */
 .container{ position: relative; z-index: 2; max-width: 420px; margin: 0 auto; }
