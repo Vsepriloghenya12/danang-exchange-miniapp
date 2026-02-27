@@ -28,9 +28,18 @@
   --bgBleed: 16px;
 }
 
+html{ height: 100%; }
+
 body{
   margin: 0;
+  min-height: 100%;
   background: var(--sky);
+}
+
+/* Miniapp (client) forces true black under everything (fixes "blue bleed") */
+body.vx-body-client,
+body.vx-body-client #root{
+  background: #000;
 }
 
 /* =========================
@@ -97,7 +106,9 @@ body{
   --aGreen: #2de36e;
   --aPurple: #a655ff;
   --aBlue: #3ba3ff;
-  --glow: rgba(255,160,60,.9);
+  /* Yellow halo */
+  --glow: rgba(247,195,26,.92);
+  --glowSoft: rgba(247,195,26,.18);
 
   --shadow: 0 28px 86px rgba(0,0,0,.66);
   --shadow2: 0 20px 58px rgba(0,0,0,.56);
@@ -111,6 +122,10 @@ body{
 
 .theme-client .bg-danang{
   background-color: #000;
+  /* Cover full viewport to avoid any bleed on wide screens */
+  left: 0;
+  transform: none;
+  width: 100vw;
 }
 .theme-client .bg-danang::before{ display:none; }
 .theme-client .bg-danang::after{
@@ -172,6 +187,8 @@ body{
   background: rgba(255,255,255,0.06);
   border-color: rgba(255,255,255,0.14);
   color: rgba(255,255,255,.92);
+  border-radius: 22px;
+  box-shadow: 0 18px 56px rgba(0,0,0,.54), 0 0 22px rgba(247,195,26,.08);
 }
 .theme-client.vx-page input::placeholder,
 .theme-client.vx-page textarea::placeholder{ color: rgba(255,255,255,.40); }
@@ -180,7 +197,7 @@ body{
 .theme-client.vx-page select:focus,
 .theme-client.vx-page textarea:focus{
   border-color: rgba(255,190,64,.75);
-  box-shadow: 0 0 0 4px rgba(255,190,64,.16), 0 0 24px rgba(255,190,64,.16);
+  box-shadow: 0 0 0 4px rgba(255,190,64,.14), 0 18px 56px rgba(0,0,0,.54), 0 0 34px rgba(247,195,26,.16);
 }
 
 /* Press glow for buttons (neon halo like the reference) */
@@ -202,7 +219,7 @@ body{
   top: -22px;
   bottom: -22px;
   border-radius: 999px;
-  background: radial-gradient(62% 52% at 50% 50%, var(--glow), rgba(255,160,60,0) 72%);
+  background: radial-gradient(62% 52% at 50% 50%, var(--glow), rgba(247,195,26,0) 72%);
   filter: blur(20px);
   opacity: 0;
   transform: scale(0.98);
@@ -222,6 +239,7 @@ body{
   box-shadow:
     0 28px 84px rgba(0,0,0,.72),
     0 10px 22px rgba(0,0,0,.62),
+    0 0 34px var(--glowSoft),
     0 0 0 1px rgba(255,255,255,.06) inset;
   border-radius: 999px;
   transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
@@ -235,7 +253,8 @@ body{
   transform: translateY(-1px);
   box-shadow:
     0 30px 90px rgba(0,0,0,.60),
-    0 22px 64px rgba(247,195,26,.16);
+    0 22px 64px rgba(247,195,26,.18),
+    0 0 44px rgba(247,195,26,.18);
   border-radius: 999px;
   transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
@@ -259,12 +278,24 @@ body{
   box-shadow:
     0 22px 66px rgba(0,0,0,.78),
     0 10px 22px rgba(0,0,0,.70),
+    0 0 30px rgba(247,195,26,.14),
     0 0 0 1px rgba(255,190,64,.08) inset;
   transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
 .theme-client .vx-iconBtn:active{
   transform: translateY(1px) scale(0.99);
   box-shadow: 0 12px 30px rgba(0,0,0,.78), 0 0 0 1px rgba(255,190,64,.12) inset;
+}
+
+/* Active pill state used by filters (requests/reviews/atm/etc.) */
+.theme-client .btn.vx-btnOn{
+  background: rgba(247,195,26,.14) !important;
+  border: 1px solid rgba(247,195,26,.36) !important;
+  color: rgba(255,255,255,.95) !important;
+  box-shadow:
+    0 24px 74px rgba(0,0,0,.70),
+    0 0 44px rgba(247,195,26,.18),
+    0 0 0 1px rgba(255,215,106,.12) inset;
 }
 
 /* Admin toggle buttons (bonuses ON/OFF)
@@ -303,6 +334,7 @@ body{
   color: rgba(255,255,255,.86) !important;
   box-shadow:
     0 22px 66px rgba(0,0,0,.70),
+    0 0 30px rgba(247,195,26,.14),
     0 0 0 1px rgba(255,255,255,.06) inset;
 }
 
@@ -312,7 +344,7 @@ body{
 .theme-client .vx-revCard{
   background: rgba(255,255,255,.04) !important;
   border-color: rgba(255,255,255,.12) !important;
-  box-shadow: 0 14px 40px rgba(0,0,0,.50);
+  box-shadow: 0 14px 40px rgba(0,0,0,.50), 0 0 26px rgba(247,195,26,.10);
 }
 
 /* Rates + calculator should sit directly on the background (no big blocks) */
@@ -324,6 +356,22 @@ body{
   box-shadow: none !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
+}
+
+/* Admin tables in dark theme (fix white-on-white) */
+.theme-client .vx-tableWrap{
+  background: rgba(255,255,255,.03) !important;
+  border-color: rgba(255,255,255,.12) !important;
+  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(247,195,26,.10);
+}
+.theme-client .vx-table th{
+  background: rgba(255,255,255,.04) !important;
+  color: rgba(255,255,255,.72) !important;
+  border-bottom-color: rgba(255,255,255,.10) !important;
+}
+.theme-client .vx-table td{
+  color: rgba(255,255,255,.88) !important;
+  border-bottom-color: rgba(255,255,255,.10) !important;
 }
 .theme-client .vx-calcBox{ overflow: visible !important; padding: 0 !important; }
 .theme-client .vx-rateList{ padding: 0 !important; }
@@ -346,7 +394,7 @@ body{
   border-radius: 22px;
   background: rgba(255,255,255,.035) !important;
   border: 1px solid rgba(255,255,255,.10) !important;
-  box-shadow: 0 18px 60px rgba(0,0,0,.55);
+  box-shadow: 0 18px 60px rgba(0,0,0,.55), 0 0 38px rgba(247,195,26,.10);
   position: relative;
   overflow: hidden;
 }
@@ -370,8 +418,38 @@ body{
   background: rgba(255,255,255,.03);
   border-radius: 18px;
   padding: 10px 12px;
-  box-shadow: 0 16px 44px rgba(0,0,0,.52);
+  box-shadow: 0 16px 44px rgba(0,0,0,.52), 0 0 32px rgba(247,195,26,.10);
 }
+
+/* =========================
+   Staff tab (miniapp admin) — dark glass overrides
+   Fixes "white text on white" inside theme-client
+   ========================= */
+.theme-client .vx-admin2col{ gap: 10px; }
+.theme-client .vx-adminCol{
+  background: rgba(255,255,255,.03) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(247,195,26,.10);
+  border-radius: 22px;
+}
+.theme-client .vx-reqRow{
+  background: rgba(255,255,255,.03) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  color: rgba(255,255,255,.90) !important;
+  box-shadow: 0 16px 46px rgba(0,0,0,.58), 0 0 28px rgba(247,195,26,.10);
+}
+.theme-client .vx-reqRow.is-active{ outline: 2px solid rgba(247,195,26,.32) !important; }
+.theme-client .vx-tag{
+  border-color: rgba(255,255,255,.14) !important;
+  background: rgba(255,255,255,.04) !important;
+  color: rgba(255,255,255,.78) !important;
+}
+.theme-client .vx-bankBtn{
+  background: rgba(255,255,255,.03) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  box-shadow: 0 14px 40px rgba(0,0,0,.56), 0 0 24px rgba(247,195,26,.10);
+}
+.theme-client .vx-bankBtn.is-on{ outline: 2px solid rgba(247,195,26,.32) !important; }
 .theme-client .vx-pill{ color: rgba(255,255,255,.90); }
 .theme-client .vx-pillActive{
   border-color: rgba(255,190,64,.45) !important;
@@ -414,6 +492,18 @@ body{
 .theme-client .vx-navPosC .vx-navIcon{ width: 42px; height: 42px; }
 .theme-client .vx-navPosC .vx-i{ width: 22px; height: 22px; }
 .theme-client .vx-navPosC .vx-navLabel{ font-size: 10.5px; }
+
+/* ATM tab (dark) */
+.theme-client .vx-atmVideoCard{
+  background: rgba(255,255,255,.03) !important;
+  border-color: rgba(255,255,255,.12) !important;
+  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(247,195,26,.10);
+  border-radius: 22px;
+}
+.theme-client .vx-atmVideo{
+  border-color: rgba(255,255,255,.12) !important;
+  background: rgba(0,0,0,.40) !important;
+}
 
 /* Admin screens (inside the miniapp) */
 .theme-client .vx-adminSeg{

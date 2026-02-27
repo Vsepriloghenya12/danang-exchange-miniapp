@@ -143,6 +143,16 @@ export default function App() {
     return <OwnerPortal />;
   }
 
+  // Ensure the real background behind the app is true black (Telegram webview can show its own color otherwise).
+  useEffect(() => {
+    try {
+      document.body.classList.add("vx-body-client");
+      return () => document.body.classList.remove("vx-body-client");
+    } catch {
+      return;
+    }
+  }, []);
+
   const tg = getTg();
 
   // Order is circular for the "3-tab" bottom bar (prev / current / next)
