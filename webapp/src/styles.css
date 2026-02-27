@@ -109,12 +109,12 @@ body.vx-body-client #root{
   --stroke: rgba(255,255,255,.10);
   --stroke2: rgba(255,255,255,.14);
 
-  /* cold neon (edge lighting) — expensive dark gadget */
-  --neon: rgba(228,242,255,1);
-  --neonEdge: rgba(228,242,255,.62);
-  --neonEdge2: rgba(228,242,255,.34);
-  --neonBloom1: rgba(228,242,255,.22);
-  --neonBloom2: rgba(228,242,255,.12);
+  /* neon edge lighting (premium yellow) */
+  --neon: rgba(255,218,125,1);
+  --neonEdge: rgba(255,218,125,.70);
+  --neonEdge2: rgba(255,218,125,.36);
+  --neonBloom1: rgba(255,218,125,.24);
+  --neonBloom2: rgba(255,218,125,.12);
 
   /* money accent (subtle, for labels / small accents) */
   --sun: #ffd88a;
@@ -128,7 +128,7 @@ body.vx-body-client #root{
   /* depth */
   --shadow: 0 30px 96px rgba(0,0,0,.82);
   --shadow2: 0 18px 54px rgba(0,0,0,.66);
-  --ring: 0 0 0 4px rgba(228,242,255,.14);
+  --ring: 0 0 0 4px rgba(255,218,125,.14);
 }
 
 .theme-client.vx-page{
@@ -143,18 +143,31 @@ body.vx-body-client #root{
   transform: none;
   width: 100vw;
 }
-.theme-client .bg-danang::before{ display:none; }
+.theme-client .bg-danang::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  /* ripple texture so UI elements do not merge with the background */
+  background-image:
+    repeating-radial-gradient(circle at 22% 18%, rgba(255,255,255,.085) 0 1px, rgba(0,0,0,0) 12px),
+    repeating-radial-gradient(circle at 78% 54%, rgba(255,255,255,.060) 0 1px, rgba(0,0,0,0) 16px);
+  opacity: .22;
+  mix-blend-mode: soft-light;
+  filter: blur(.35px);
+}
 .theme-client .bg-danang::after{
   content:"";
   position:absolute;
   inset:0;
   pointer-events:none;
-  /* premium subtle noise (no gradients) */
-  background-image: url('/brand/noise.png');
+  background-image: url("/brand/noise.png");
   background-repeat: repeat;
   background-size: 280px 280px;
-  opacity: .16;
+  opacity: .20;
+  mix-blend-mode: overlay;
 }
+
 
 .theme-client .container{ max-width: 420px; }
 
@@ -177,7 +190,7 @@ body.vx-body-client #root{
 .theme-client .vx-logo{
   background: rgba(255,255,255,.04);
   border: 1px solid rgba(248,252,255,.14);
-  box-shadow: 0 0 0 1px rgba(248,252,255,.08) inset, 0 0 34px rgba(214,235,255,.14), 0 12px 30px rgba(0,0,0,.55);
+  box-shadow: 0 0 0 1px rgba(248,252,255,.08) inset, 0 0 34px rgba(255,218,125,.14), 0 12px 30px rgba(0,0,0,.55);
 }
 .theme-client .vx-logoFallback{ color: rgba(255,216,138,.92); }
 .theme-client .vx-title{ color: rgba(255,255,255,.94); }
@@ -210,8 +223,8 @@ body.vx-body-client #root{
 .theme-client.vx-page input:focus,
 .theme-client.vx-page select:focus,
 .theme-client.vx-page textarea:focus{
-  border-color: rgba(214,235,255,.75);
-  box-shadow: 0 0 0 4px rgba(228,242,255,.12), 0 18px 56px rgba(0,0,0,.54), 0 0 34px var(--neonBloom1);
+  border-color: rgba(255,218,125,.75);
+  box-shadow: 0 0 0 4px rgba(255,218,125,.12), 0 18px 56px rgba(0,0,0,.54), 0 0 34px var(--neonBloom1);
 }
 
 /* =============================================================
@@ -277,9 +290,9 @@ body.vx-body-client #root{
   border-radius: inherit;
   background: transparent;
   box-shadow:
-    0 0 8px rgba(228,242,255,.14),
-    0 0 18px rgba(228,242,255,.08),
-    0 0 40px rgba(228,242,255,.05);
+    0 0 8px rgba(255,218,125,.14),
+    0 0 18px rgba(255,218,125,.08),
+    0 0 40px rgba(255,218,125,.05);
   filter: blur(10px);
   opacity: .22;
   transform: scale(.98);
@@ -290,9 +303,9 @@ body.vx-body-client #root{
 .theme-client .vx-primary::before{
   opacity: .28;
   box-shadow:
-    0 0 10px rgba(228,242,255,.18),
-    0 0 24px rgba(228,242,255,.10),
-    0 0 54px rgba(228,242,255,.06);
+    0 0 10px rgba(255,218,125,.18),
+    0 0 24px rgba(255,218,125,.10),
+    0 0 54px rgba(255,218,125,.06);
 }
 
 /* Neon edge lighting (thin outline + tiny contour bloom)
@@ -311,7 +324,7 @@ body.vx-body-client #root{
   border-radius: inherit;
   pointer-events: none;
   box-shadow:
-    0 0 0 1px rgba(228,242,255,.18) inset,
+    0 0 0 1px rgba(255,218,125,.18) inset,
     0 0 0 1px rgba(255,255,255,.04);
   opacity: .78;
 }
@@ -328,10 +341,10 @@ body.vx-body-client #root{
 .theme-client .vx-bankBtn.is-on::after{
   opacity: 1;
   box-shadow:
-    0 0 0 1px rgba(240,250,255,.78) inset,
-    0 0 0 1px rgba(228,242,255,.22),
-    0 0 18px rgba(228,242,255,.24),
-    0 0 44px rgba(228,242,255,.12);
+    0 0 0 1px rgba(255,235,170,.78) inset,
+    0 0 0 1px rgba(255,218,125,.22),
+    0 0 18px rgba(255,218,125,.24),
+    0 0 44px rgba(255,218,125,.12);
 }
 
 .theme-client .btn:active,
@@ -369,10 +382,10 @@ body.vx-body-client #root{
 .theme-client .vx-blankBtn:active::after{
   opacity: 1;
   box-shadow:
-    0 0 0 1px rgba(228,242,255,.86) inset,
-    0 0 0 1px rgba(228,242,255,.22),
-    0 0 18px rgba(228,242,255,.30),
-    0 0 44px rgba(228,242,255,.16);
+    0 0 0 1px rgba(255,218,125,.86) inset,
+    0 0 0 1px rgba(255,218,125,.22),
+    0 0 18px rgba(255,218,125,.30),
+    0 0 44px rgba(255,218,125,.16);
 }
 
 /* Active state (filters, selected) should look fully lit */
@@ -398,7 +411,7 @@ body.vx-body-client #root{
   box-shadow: none !important;
 }
 .theme-client .vx-toggleBtn.is-on{
-  background: rgba(214,235,255,.96) !important;
+  background: rgba(255,218,125,.96) !important;
   color: rgba(12,12,12,.92) !important;
 }
 .theme-client .vx-toggleBtn.is-off{
@@ -419,7 +432,7 @@ body.vx-body-client #root{
   color: rgba(255,255,255,.86) !important;
   box-shadow:
     0 22px 66px rgba(0,0,0,.70),
-    0 0 30px rgba(214,235,255,.14),
+    0 0 30px rgba(255,218,125,.14),
     0 0 0 1px rgba(255,255,255,.06) inset;
 }
 
@@ -443,7 +456,7 @@ body.vx-body-client #root{
   inset:-8px;
   border-radius: inherit;
   pointer-events:none;
-  box-shadow: 0 0 8px rgba(228,242,255,.14), 0 0 18px rgba(228,242,255,.08);
+  box-shadow: 0 0 8px rgba(255,218,125,.14), 0 0 18px rgba(255,218,125,.08);
   filter: blur(10px);
   opacity: .18;
   z-index:-1;
@@ -455,7 +468,7 @@ body.vx-body-client #root{
   border-radius: inherit;
   pointer-events:none;
   box-shadow:
-    0 0 0 1px rgba(228,242,255,.18) inset,
+    0 0 0 1px rgba(255,218,125,.18) inset,
     0 0 0 1px rgba(255,255,255,.04);
   opacity: .78;
 }
@@ -475,7 +488,7 @@ body.vx-body-client #root{
 .theme-client .vx-tableWrap{
   background: rgba(255,255,255,.03) !important;
   border-color: rgba(255,255,255,.12) !important;
-  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(214,235,255,.10);
+  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(255,218,125,.10);
 }
 .theme-client .vx-table th{
   background: rgba(255,255,255,.04) !important;
@@ -524,8 +537,8 @@ body.vx-body-client #root{
   border-radius: inherit;
   pointer-events:none;
   box-shadow:
-    0 0 0 1px rgba(228,242,255,.40) inset,
-    0 0 12px rgba(228,242,255,.14);
+    0 0 0 1px rgba(255,218,125,.40) inset,
+    0 0 12px rgba(255,218,125,.14);
   opacity: .85;
 }
 .theme-client .vx-rateHdr{
@@ -559,7 +572,7 @@ body.vx-body-client #root{
   background: rgba(255,255,255,.03);
   border-radius: 18px;
   padding: 10px 12px;
-  box-shadow: 0 16px 44px rgba(0,0,0,.52), 0 0 32px rgba(214,235,255,.10);
+  box-shadow: 0 16px 44px rgba(0,0,0,.52), 0 0 32px rgba(255,218,125,.10);
 }
 
 /* Calculator: smaller input/select boxes (as requested) */
@@ -592,14 +605,14 @@ body.vx-body-client #root{
 .theme-client .vx-adminCol{
   background: rgba(255,255,255,.03) !important;
   border: 1px solid rgba(255,255,255,.12) !important;
-  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(214,235,255,.10);
+  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(255,218,125,.10);
   border-radius: 22px;
 }
 .theme-client .vx-reqRow{
   background: rgba(255,255,255,.03) !important;
   border: 1px solid rgba(255,255,255,.12) !important;
   color: rgba(255,255,255,.90) !important;
-  box-shadow: 0 16px 46px rgba(0,0,0,.58), 0 0 28px rgba(214,235,255,.10);
+  box-shadow: 0 16px 46px rgba(0,0,0,.58), 0 0 28px rgba(255,218,125,.10);
 }
 .theme-client .vx-reqRow.is-active{ outline: 2px solid rgba(247,195,26,.32) !important; }
 .theme-client .vx-tag{
@@ -611,14 +624,14 @@ body.vx-body-client #root{
   background: rgba(10,10,10,.88) !important;
   border-color: rgba(255,255,255,.10) !important;
 }
-.theme-client .vx-bankBtn.is-on{ outline: 2px solid rgba(228,242,255,.32) !important; }
+.theme-client .vx-bankBtn.is-on{ outline: 2px solid rgba(255,218,125,.32) !important; }
 .theme-client .vx-pill{ color: rgba(255,255,255,.90); }
 .theme-client .vx-pillActive{
   background: rgba(10,10,10,.88) !important;
-  border-color: rgba(240,250,255,.40) !important;
+  border-color: rgba(255,235,170,.40) !important;
   box-shadow:
     0 18px 56px rgba(0,0,0,.68),
-    0 0 0 1px rgba(240,250,255,.14) inset;
+    0 0 0 1px rgba(255,235,170,.14) inset;
 }
 .theme-client .vx-pillActive::before{
   opacity: .72;
@@ -628,12 +641,12 @@ body.vx-body-client #root{
 .theme-client .vx-pillActive::after{
   opacity: 1;
   box-shadow:
-    0 0 0 1px rgba(240,250,255,.78) inset,
-    0 0 18px rgba(228,242,255,.22),
-    0 0 44px rgba(228,242,255,.12);
+    0 0 0 1px rgba(255,235,170,.78) inset,
+    0 0 18px rgba(255,218,125,.22),
+    0 0 44px rgba(255,218,125,.12);
 }
 .theme-client .vx-pill:active{
-  box-shadow: 0 0 26px rgba(228,242,255,.18);
+  box-shadow: 0 0 26px rgba(255,218,125,.18);
 }
 
 /* Admin (miniapp) accordion layout */
@@ -687,7 +700,7 @@ body.vx-body-client #root{
 .theme-client .vx-acc{
   background: rgba(255,255,255,.032) !important;
   border: 1px solid rgba(255,255,255,.12) !important;
-  box-shadow: 0 18px 60px rgba(0,0,0,.64), 0 0 64px rgba(214,235,255,.10);
+  box-shadow: 0 18px 60px rgba(0,0,0,.64), 0 0 64px rgba(255,218,125,.10);
 }
 .theme-client .vx-adminPanelH,
 .theme-client .vx-accLbl{ color: rgba(255,255,255,.66); }
@@ -703,7 +716,7 @@ body.vx-body-client #root{
   perspective-origin: center 70%;
   background: rgba(12,12,12,.62);
   border-color: rgba(255,255,255,.12);
-  box-shadow: 0 22px 66px rgba(0,0,0,.72), 0 0 48px rgba(228,242,255,.08);
+  box-shadow: 0 22px 66px rgba(0,0,0,.72), 0 0 48px rgba(255,218,125,.08);
   backdrop-filter: blur(12px);
   /* more room so the center item can be larger WITHOUT popping out of the bar */
   padding: 10px;
@@ -722,7 +735,7 @@ body.vx-body-client #root{
   inset:-10px;
   border-radius: inherit;
   pointer-events:none;
-  box-shadow: 0 0 18px var(--neonBloom2), 0 0 54px rgba(228,242,255,.08);
+  box-shadow: 0 0 18px var(--neonBloom2), 0 0 54px rgba(255,218,125,.08);
   filter: blur(14px);
   opacity: .45;
   z-index: -1;
@@ -733,7 +746,7 @@ body.vx-body-client #root{
   inset:0;
   border-radius: inherit;
   pointer-events:none;
-  box-shadow: 0 0 0 1px rgba(228,242,255,.22) inset, 0 0 16px rgba(228,242,255,.10);
+  box-shadow: 0 0 0 1px rgba(255,218,125,.22) inset, 0 0 16px rgba(255,218,125,.10);
   opacity: .85;
 }
 .theme-client .vx-navBtn{
@@ -774,15 +787,15 @@ body.vx-body-client #root{
 .theme-client .vx-bottomBar .vx-navBtnActive::after{
   opacity: 1;
   box-shadow:
-    0 0 0 1px rgba(240,250,255,.78) inset,
-    0 0 18px rgba(228,242,255,.22),
-    0 0 44px rgba(228,242,255,.12);
+    0 0 0 1px rgba(255,235,170,.78) inset,
+    0 0 18px rgba(255,218,125,.22),
+    0 0 44px rgba(255,218,125,.12);
 }
 
 .theme-client .vx-navPill{
-  background: rgba(228,242,255,.12);
-  border-color: rgba(228,242,255,.28);
-  box-shadow: 0 0 0 1px rgba(228,242,255,.14) inset, 0 0 44px rgba(228,242,255,.16);
+  background: rgba(255,218,125,.12);
+  border-color: rgba(255,218,125,.28);
+  box-shadow: 0 0 0 1px rgba(255,218,125,.14) inset, 0 0 44px rgba(255,218,125,.16);
 }
 .theme-client .vx-navPosC{
   /* center tab: closer (bigger) but kept inside the bar */
@@ -829,7 +842,7 @@ body.vx-body-client #root{
   border: 1px solid rgba(255,255,255,.10);
   box-shadow:
     0 26px 86px rgba(0,0,0,.70),
-    0 0 0 1px rgba(228,242,255,.10) inset,
+    0 0 0 1px rgba(255,218,125,.10) inset,
     0 0 26px var(--neonBloom1),
     0 0 66px var(--neonBloom2);
   color: rgba(255,255,255,.92);
@@ -838,7 +851,7 @@ body.vx-body-client #root{
 .theme-client .vx-atmVideoCard{
   background: rgba(255,255,255,.03) !important;
   border-color: rgba(255,255,255,.12) !important;
-  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(214,235,255,.10);
+  box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(255,218,125,.10);
   border-radius: 22px;
 }
 .theme-client .vx-atmVideo{
@@ -853,7 +866,7 @@ body.vx-body-client #root{
   border-radius: 22px !important;
   box-shadow:
     0 26px 86px rgba(0,0,0,.70),
-    0 0 84px rgba(214,235,255,.10),
+    0 0 84px rgba(255,218,125,.10),
     0 0 0 1px rgba(255,255,255,.05) inset;
   backdrop-filter: blur(12px);
 }
@@ -881,9 +894,9 @@ body.vx-body-client #root{
   inset:-16px;
   border-radius: inherit;
   box-shadow:
-    0 0 22px rgba(214,235,255,.34),
-    0 0 66px rgba(214,235,255,.22),
-    0 0 170px rgba(214,235,255,.14);
+    0 0 22px rgba(255,218,125,.34),
+    0 0 66px rgba(255,218,125,.22),
+    0 0 170px rgba(255,218,125,.14);
   filter: blur(10px);
   opacity: .52;
   z-index: -1;
@@ -907,9 +920,9 @@ body.vx-body-client #root{
 .theme-client .vx-adminSeg .on::before{
   opacity: 1;
   box-shadow:
-    0 0 26px rgba(214,235,255,.44),
-    0 0 86px rgba(214,235,255,.26),
-    0 0 220px rgba(214,235,255,.16);
+    0 0 26px rgba(255,218,125,.44),
+    0 0 86px rgba(255,218,125,.26),
+    0 0 220px rgba(255,218,125,.16);
 }
 .theme-client .vx-admin .vx-code{ color: rgba(255,255,255,.84) !important; }
 .theme-client .vx-admin input.vx-in{ background: rgba(255,255,255,.06) !important; border-color: rgba(255,255,255,.16) !important; }
@@ -945,7 +958,7 @@ body.vx-body-client #root{
   font-weight: 900;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  text-shadow: 0 0 14px rgba(228,242,255,.14);
+  text-shadow: 0 0 14px rgba(255,218,125,.14);
 }
 .theme-client .vx-rateHdr{ color: rgba(255,255,255,.55); }
 .theme-client .vx-ratePair2,
