@@ -74,27 +74,34 @@ body{
    Applied only inside <div class="theme-client">.
    Owner/admin pages keep the default light theme.
    ========================= */
+
+/* Skipass-like dark glass theme */
 .theme-client{
   color-scheme: dark;
 
   --sky: #000;
-  --text: rgba(255,255,255,.92);
+  --text: rgba(255,255,255,.94);
   --muted: rgba(255,255,255,.66);
-  --muted2: rgba(255,255,255,.52);
+  --muted2: rgba(255,255,255,.48);
   --ph: rgba(255,255,255,.38);
 
-  --panel: rgba(0,0,0,.10);
-  --panel2: rgba(0,0,0,.22);
+  --panel: rgba(255,255,255,.04);
+  --panel2: rgba(255,255,255,.06);
 
   --stroke: rgba(255,255,255,.10);
-  --stroke2: rgba(255,255,255,.16);
+  --stroke2: rgba(255,255,255,.14);
 
-  --sun: #f7c31a;
-  --sun2: #ffdf6a;
+  --sun: #f7c31a; /* yellow accent */
+  --sun2: #ffd76a;
 
-  --shadow: 0 20px 56px rgba(0,0,0,.55);
-  --shadow2: 0 18px 40px rgba(0,0,0,.42);
-  --ring: 0 0 0 4px rgba(255,190,64,.18);
+  --aGreen: #2de36e;
+  --aPurple: #a655ff;
+  --aBlue: #3ba3ff;
+  --glow: rgba(255,160,60,.9);
+
+  --shadow: 0 28px 86px rgba(0,0,0,.66);
+  --shadow2: 0 20px 58px rgba(0,0,0,.56);
+  --ring: 0 0 0 4px rgba(255,215,106,.18);
 }
 
 .theme-client.vx-page{
@@ -106,6 +113,19 @@ body{
   background-color: #000;
 }
 .theme-client .bg-danang::before{ display:none; }
+.theme-client .bg-danang::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  /* subtle particles without gradients */
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,.08) 0 1px, transparent 1px),
+    radial-gradient(circle, rgba(255,255,255,.05) 0 1px, transparent 1px);
+  background-size: 48px 48px, 86px 86px;
+  background-position: 8px 14px, 24px 36px;
+  opacity: .22;
+}
 
 .theme-client .container{ max-width: 420px; }
 
@@ -133,6 +153,17 @@ body{
 .theme-client .vx-logoFallback{ color: rgba(255,190,64,.90); }
 .theme-client .vx-title{ color: rgba(255,255,255,.94); }
 .theme-client .vx-topSub{ color: rgba(255,255,255,.66); }
+
+.theme-client .vx-title{
+  font-size: 26px;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+}
+.theme-client .vx-topSub{
+  font-size: 12.5px;
+  font-weight: 800;
+  opacity: .95;
+}
 
 /* Inputs */
 .theme-client.vx-page input,
@@ -171,8 +202,8 @@ body{
   top: -22px;
   bottom: -22px;
   border-radius: 999px;
-  background: radial-gradient(70% 50% at 50% 18%, rgba(255,190,64,.78), rgba(255,190,64,0) 70%);
-  filter: blur(18px);
+  background: radial-gradient(62% 52% at 50% 50%, var(--glow), rgba(255,160,60,0) 72%);
+  filter: blur(20px);
   opacity: 0;
   transform: scale(0.98);
   transition: opacity 0.16s ease, transform 0.16s ease;
@@ -180,18 +211,30 @@ body{
   z-index: -1;
 }
 
-.theme-client .btn,
-.theme-client .vx-primary{
-  background: rgba(0,0,0,.76) !important;
-  border: 1px solid rgba(255,190,64,.24) !important;
-  color: rgba(255,255,255,.94) !important;
-  box-shadow: 0 12px 30px rgba(0,0,0,.70), 0 0 0 1px rgba(255,190,64,.10) inset;
+
+/* Secondary buttons: dark glass */
+.theme-client .btn{
+  background: rgba(255,255,255,.05) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  color: rgba(255,255,255,.92) !important;
+  box-shadow: 0 18px 56px rgba(0,0,0,.62), 0 0 0 1px rgba(255,255,255,.06) inset;
+  border-radius: 999px;
   transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
+
+/* Primary button: yellow accent */
+.theme-client .vx-primary{
+  background: linear-gradient(180deg, rgba(255,223,106,.98), rgba(247,195,26,.96)) !important;
+  border: 0 !important;
+  color: rgba(12,12,12,.92) !important;
+  box-shadow: 0 22px 64px rgba(247,195,26,.14);
+  border-radius: 999px;
+  transition: transform 0.10s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
 .theme-client .btn:active,
 .theme-client .vx-primary:active{
   transform: translateY(1px) scale(0.99);
-  box-shadow: 0 16px 40px rgba(0,0,0,.78), 0 0 0 1px rgba(255,190,64,.14) inset;
   filter: brightness(1.02);
 }
 .theme-client .btn:active::before,
@@ -237,7 +280,51 @@ body{
 }
 .theme-client .vx-calcBox{ overflow: visible !important; padding: 0 !important; }
 .theme-client .vx-rateList{ padding: 0 !important; }
-.theme-client .vx-rateLine{ border-top-color: rgba(255,255,255,.10) !important; }
+
+/* Rates list as floating tiles (like the reference) */
+.theme-client .vx-rateList{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+.theme-client .vx-rateHdr{
+  padding: 0 4px 6px;
+  color: rgba(255,255,255,.55);
+}
+.theme-client .vx-rateList .vx-rateLine{
+  border-top: 0 !important;
+  margin-top: 0;
+  padding: 14px 14px;
+  border-radius: 22px;
+  background: rgba(255,255,255,.035) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  box-shadow: 0 18px 60px rgba(0,0,0,.55);
+  position: relative;
+  overflow: hidden;
+}
+.theme-client .vx-rateList .vx-rateLine::after{
+  content: "";
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  border-radius: 22px;
+  background:
+    radial-gradient(45% 70% at 12% 10%, rgba(59,163,255,.12), transparent 62%),
+    radial-gradient(45% 70% at 88% 0%, rgba(166,85,255,.11), transparent 62%),
+    radial-gradient(45% 70% at 50% 120%, rgba(45,227,110,.10), transparent 62%);
+}
+.theme-client .vx-rateList .vx-rateLine > *{ position: relative; z-index: 1; }
+
+/* keep the calc info line minimal */
+.theme-client .vx-calc .vx-rateLine{
+  margin-top: 10px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  border-radius: 18px;
+  padding: 10px 12px;
+  box-shadow: 0 16px 44px rgba(0,0,0,.52);
+}
 .theme-client .vx-pill{ color: rgba(255,255,255,.90); }
 .theme-client .vx-pillActive{
   border-color: rgba(255,190,64,.45) !important;
@@ -250,11 +337,13 @@ body{
 
 /* Bottom bar: 3 items (prev/current/next) */
 .theme-client .vx-bottomBar{
-  background: rgba(0,0,0,.40);
-  border-color: rgba(255,255,255,.14);
-  box-shadow: 0 18px 48px rgba(0,0,0,.62);
+  background: rgba(12,12,12,.62);
+  border-color: rgba(255,255,255,.12);
+  box-shadow: 0 28px 80px rgba(0,0,0,.70);
+  backdrop-filter: blur(12px);
   padding: 6px;
   gap: 6px;
+  border-radius: 26px;
 }
 .theme-client .vx-navBtn{
   color: rgba(255,255,255,.62);
@@ -265,9 +354,9 @@ body{
 .theme-client .vx-navBtnActive{ color: rgba(255,255,255,.95); }
 
 .theme-client .vx-navPill{
-  background: rgba(255,190,64,.18);
-  border-color: rgba(255,190,64,.38);
-  box-shadow: 0 0 0 1px rgba(255,190,64,.12) inset, 0 0 26px rgba(255,190,64,.16);
+  background: rgba(255,215,106,.16);
+  border-color: rgba(255,215,106,.34);
+  box-shadow: 0 0 0 1px rgba(255,215,106,.12) inset, 0 0 26px rgba(255,215,106,.14);
 }
 .theme-client .vx-navPosC{
   transform: translateY(-4px);
