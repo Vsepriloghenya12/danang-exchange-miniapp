@@ -36,6 +36,42 @@ export function createBot(opts: {
     return !!id && ownerIds.includes(id);
   };
 
+  // Forward user заявки to admins/owners.
+  // The WebApp opens the bot chat with a prefilled text message.
+  // When the user presses Send, the bot receives plain text — we forward it.
+  bot.on("text", async (ctx) => {
+    const text = (ctx.message as any)?.text ? String((ctx.message as any).text) : "";
+    if (!text || text.startsWith("/")) return;
+    if (!/\bЗаявка\b/.test(text) && !text.includes("💱")) return;
+
+    // Don't forward owners' own messages.
+    if (isOwner(ctx.from?.id)) return;
+
+    const store = readStore();
+    const adminIds = Array.isArray(store.config?.adminTgIds) ? store.config.adminTgIds : [];
+    const toIds = Array.from(new Set<number>([...ownerIds, ...adminIds].filter((x) => Number.isFinite(x)) as any));
+    if (!toIds.length) {
+      await ctx.reply("Администраторы не настроены. Укажи OWNER_TG_ID или adminTgIds в настройках.");
+      return;
+    }
+
+    const who = ctx.from?.username
+      ? `@${ctx.from.username}`
+      : `${ctx.from?.first_name || ""} ${ctx.from?.last_name || ""}`.trim() || `id ${ctx.from?.id}`;
+
+    const header = `📥 Новая заявка от ${who} (id ${ctx.from?.id})\n\n`;
+
+    try {
+      for (const id of toIds) {
+        await ctx.telegram.sendMessage(id, header + text, { disable_web_page_preview: true } as any);
+      }
+      await ctx.reply("✅ Отправлено администратору");
+    } catch (e: any) {
+      console.error("FORWARD FAIL:", e);
+      await ctx.reply(`Не смог отправить администратору: ${e?.message || e}`);
+    }
+  });
+
   bot.start(async (ctx) => {
     if (ctx.from) upsertUserFromTelegram(ctx.from);
 

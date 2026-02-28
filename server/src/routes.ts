@@ -42,7 +42,8 @@ const statusLabel: Record<UserStatus, string> = {
 };
 
 const requestStateLabel: Record<RequestState, string> = {
-  new: "принята",
+  // legacy: "new" is treated as in_progress
+  new: "в работе",
   in_progress: "в работе",
   done: "готово",
   canceled: "отменена"
@@ -51,7 +52,8 @@ const requestStateLabel: Record<RequestState, string> = {
 function parseRequestState(s: any): RequestState | null {
   const v = String(s ?? "").toLowerCase().trim();
   if (!v) return null;
-  if (["new", "принята", "новая", "создана"].includes(v)) return "new";
+  // We no longer use state "new". Old clients/data may still send it — map to in_progress.
+  if (["new", "принята", "новая", "создана"].includes(v)) return "in_progress";
   if (["in_progress", "inprogress", "process", "в работе", "вработе"].includes(v)) return "in_progress";
   if (["done", "готово", "готова", "выполнена"].includes(v)) return "done";
   if (["canceled", "cancelled", "отменена", "отмена"].includes(v)) return "canceled";
@@ -1140,60 +1142,11 @@ export function createApiRouter(opts: {
       }
 
       const store = readStore();
-      const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
-      const groupChatId = store.config?.groupChatId || envGroup;
-      if (!groupChatId) return res.status(400).json({ ok: false, error: "group_not_set" });
-
-      const dtDaNang = new Intl.DateTimeFormat("ru-RU", {
-        timeZone: "Asia/Ho_Chi_Minh",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false
-      }).format(new Date()).replace(",", "");
-
-      const methodMap: Record<ReceiveMethod, string> = {
-        cash: "наличные",
-        transfer: "перевод",
-        atm: "банкомат"
-      };
-
-      const who =
-        (user.username
-          ? `@${user.username}`
-          : `${user.first_name || ""} ${user.last_name || ""}`.trim() || `id ${user.id}`) +
-        ` • статус: ${statusLabel[normalizeStatus(status)]}`;
-
-      const text =
-        `💱 Заявка\n` +
-        `👤 ${who}\n` +
-        `🔁 ${sellCurrency} → ${buyCurrency}\n` +
-        `💸 Отдаёт: ${sellAmount}\n` +
-        `🎯 Получит: ${buyAmount}\n` +
-        `📦 Способ: ${methodMap[receiveMethod]}\n` +
-        `🕒 ${dtDaNang}`;
-
-      const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          chat_id: groupChatId,
-          text,
-          disable_web_page_preview: true
-        })
-      });
-
-      const tgJson: any = await tgRes.json();
-      if (!tgJson?.ok) {
-        return res.status(500).json({ ok: false, error: tgJson?.description || "tg_send_failed" });
-      }
-
       store.requests = store.requests || [];
       const request: StoredRequest = {
         id: randomUUID(),
-        state: "new",
+        // New requests immediately go into "in_progress" (В работе)
+        state: "in_progress",
         sellCurrency,
         buyCurrency,
         sellAmount,
@@ -1206,21 +1159,6 @@ export function createApiRouter(opts: {
       };
       store.requests.push(request);
       writeStore(store);
-
-      // Доп. подтверждение пользователю в личку (тоже пуш): можно выключить, если не нужно.
-      // Важно: бот сможет написать только тем, кто уже нажал /start.
-      try {
-        const shortId = request.id.slice(-6);
-        await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            chat_id: user.id,
-            text: `✅ Заявка принята\n🆔 #${shortId}\nМы скоро напишем, когда изменится статус.`
-          })
-        });
-      } catch {}
-
       res.json({ ok: true, id: request.id, state: request.state });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });

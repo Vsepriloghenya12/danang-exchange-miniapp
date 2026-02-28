@@ -26,7 +26,7 @@ export default function AtmTab() {
         Вы можете получить наличные в банкоматах <b>VIETCOMBANK</b> и <b>BIDV</b> в любом городе Вьетнама.
       </div>
 
-      <div className="vx-sp12" />
+      <div className="vx-sp16" />
 
       <div
         className="vx-atmBtnGrid"
@@ -60,9 +60,9 @@ export default function AtmTab() {
         </div>
       ) : null}
 
-      <div className="vx-sp12" />
+      <div className="vx-sp16" />
 
-      <button className="btn" type="button" onClick={() => openLink(FIND_ATM_URL)}>
+      <button className="btn vx-atmBtnWide" type="button" onClick={() => openLink(FIND_ATM_URL)}>
         Найти ближайший ко мне банкомат
       </button>
     </div>

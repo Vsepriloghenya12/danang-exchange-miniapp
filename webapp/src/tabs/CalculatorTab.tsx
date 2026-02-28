@@ -731,12 +731,37 @@ export default function CalculatorTab({ me }: Props) {
         return;
       }
 
+      // Redirect user to Telegram chat with a prefilled message.
+      // In most cases, initDataUnsafe.receiver is the bot that opened the WebApp.
+      const short = String(json?.id || "").slice(-6);
+      const msg =
+        `💱 Заявка\n` +
+        (short ? `🆔 #${short}\n` : "") +
+        `🔁 ${sellCurrency} → ${buyCurrency}\n` +
+        `💸 Отдаю: ${fmtAmount(sellCurrency, sellAmount)} ${sellCurrency}\n` +
+        `🎯 Получаю: ${fmtAmount(buyCurrency, buyAmount)} ${buyCurrency}\n` +
+        `💳 Оплата: ${methodLabel(payMethod)}\n` +
+        `📦 Получение: ${methodLabel(receiveMethod)}`;
+
+      const receiver = (tg as any)?.initDataUnsafe?.receiver;
+      const username = receiver?.username ? String(receiver.username) : "";
+      const url = username ? `https://t.me/${username}?text=${encodeURIComponent(msg)}` : "";
+
       tg?.HapticFeedback?.notificationOccurred?.("success");
-      tg?.showPopup?.({
-        title: "Отправлено",
-        message: "Заявка отправлена ✅",
-        buttons: [{ type: "ok" }],
-      });
+
+      if (url) {
+        // openTelegramLink keeps the user inside Telegram
+        if (tg?.openTelegramLink) tg.openTelegramLink(url);
+        else if (tg?.openLink) tg.openLink(url);
+        else window.location.href = url;
+      } else {
+        // Fallback: show the prepared text so the user can copy it manually.
+        tg?.showPopup?.({
+          title: "Заявка создана",
+          message: "Не удалось открыть чат автоматически. Скопируйте текст и отправьте администратору:\n\n" + msg,
+          buttons: [{ type: "ok" }],
+        });
+      }
     } catch (e: any) {
       tg?.HapticFeedback?.notificationOccurred?.("error");
       tg?.showAlert?.(`Ошибка сети: ${e?.message || e}`);

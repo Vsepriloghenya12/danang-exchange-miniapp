@@ -11,12 +11,20 @@ function getTg() {
   return (window as any).Telegram?.WebApp;
 }
 
-const STATE_OPTIONS = [
-  { v: "new", l: "Принята" },
-  { v: "in_progress", l: "В работе" },
-  { v: "done", l: "Готово" },
-  { v: "canceled", l: "Отклонена" },
-] as const;
+const STATE_LABEL: Record<string, string> = {
+  in_progress: "В работе",
+  done: "Готова",
+  canceled: "Отклонена",
+  // legacy
+  new: "В работе",
+};
+
+function normState(s: any): "in_progress" | "done" | "canceled" {
+  const v = String(s ?? "").toLowerCase().trim();
+  if (v === "done") return "done";
+  if (v === "canceled") return "canceled";
+  return "in_progress";
+}
 
 function shortId(id: string) {
   const s = String(id || "");
@@ -44,6 +52,11 @@ export default function StaffTab({ me }: any) {
 
   const [selectedId, setSelectedId] = useState<string>("");
 
+  // Accordions (collapsed by default)
+  const [openClients, setOpenClients] = useState(false);
+  const [openBanks, setOpenBanks] = useState(false);
+  const [openHistory, setOpenHistory] = useState(false);
+
   const selectedReq = useMemo(() => requests.find((r) => String(r.id) === String(selectedId)) || null, [requests, selectedId]);
   const selectedTgId = selectedReq?.from?.id ? Number(selectedReq.from.id) : undefined;
 
@@ -54,6 +67,11 @@ export default function StaffTab({ me }: any) {
 
   const [fullName, setFullName] = useState<string>("");
   const [banks, setBanks] = useState<string[]>([]);
+
+  const activeRequests = useMemo(
+    () => requests.filter((r) => normState(r?.state) === "in_progress"),
+    [requests]
+  );
 
   // sync editor when selection changes
   useEffect(() => {
@@ -71,10 +89,18 @@ export default function StaffTab({ me }: any) {
       ]);
 
       if (ri.status === "fulfilled" && ri.value?.ok) {
-        setRequests(Array.isArray(ri.value.requests) ? ri.value.requests : []);
+        const list = Array.isArray(ri.value.requests) ? ri.value.requests : [];
+        setRequests(list);
         setContactsMap((ri.value.contacts as any) || {});
-        const first = (ri.value.requests || [])[0];
-        if (first && !selectedId) setSelectedId(String(first.id));
+
+        // auto-select newest active request (so new заявки immediately show up on top)
+        const active = list.filter((r: any) => normState(r?.state) === "in_progress");
+        const fallback = list[0];
+        const next = (active[0] || fallback) as any;
+        if (next) {
+          const nextId = String(next.id);
+          if (!selectedId || !list.some((x: any) => String(x.id) === String(selectedId))) setSelectedId(nextId);
+        }
       }
 
       if (bi.status === "fulfilled" && bi.value?.ok) {
@@ -90,6 +116,24 @@ export default function StaffTab({ me }: any) {
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-refresh so new заявки appear without manual reload.
+  useEffect(() => {
+    if (!initData) return;
+    const t = setInterval(async () => {
+      try {
+        const r = await apiStaffGetRequests(initData);
+        if (r?.ok) {
+          const list = Array.isArray(r.requests) ? r.requests : [];
+          setRequests(list);
+          setContactsMap((r.contacts as any) || {});
+        }
+      } catch {
+        // ignore
+      }
+    }, 6000);
+    return () => clearInterval(t);
+  }, [initData]);
 
   async function changeState(next: string) {
     if (!selectedReq) return;
@@ -122,6 +166,23 @@ export default function StaffTab({ me }: any) {
     tg?.HapticFeedback?.notificationOccurred?.("success");
   }
 
+  function openContactEditor() {
+    setOpenClients(true);
+    // slightly delayed: let <details> render its content first
+    setTimeout(() => {
+      const el = document.querySelector<HTMLInputElement>(".vx-staffFullName");
+      el?.focus?.();
+    }, 50);
+  }
+
+  function methodLabelAny(m: any) {
+    const v = String(m ?? "").toLowerCase();
+    if (v === "cash") return "Наличные";
+    if (v === "transfer") return "Перевод";
+    if (v === "atm") return "Банкомат";
+    return v || "—";
+  }
+
   function toggleBank(name: string) {
     setBanks((prev) => {
       if (prev.includes(name)) return prev.filter((x) => x !== name);
@@ -150,14 +211,42 @@ export default function StaffTab({ me }: any) {
       <div className="vx-adminStack">
         {/* 1) Active request (always on top) */}
         <div className="vx-adminPanel">
-          <div className="vx-adminPanelH">Активная заявка</div>
+          <div className="vx-adminPanelH">Активные заявки</div>
 
-          {requests.length === 0 ? (
-            <div className="vx-muted">Заявок пока нет.</div>
-          ) : !selectedReq ? (
-            <div className="vx-muted">Выбери заявку в «Истории заявок» ниже.</div>
+          {activeRequests.length === 0 ? (
+            <div className="vx-muted">Активных заявок нет.</div>
           ) : (
+            <div className="vx-reqList" style={{ marginTop: 10 }}>
+              {activeRequests.slice(0, 20).map((r) => {
+                const isActive = String(r.id) === String(selectedId);
+                const u = r.from || {};
+                const who = u.username ? `@${u.username}` : `${u.first_name || ""} ${u.last_name || ""}`.trim() || `id ${u.id}`;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    className={"vx-reqRow " + (isActive ? "is-active" : "")}
+                    onClick={() => setSelectedId(String(r.id))}
+                  >
+                    <div className="vx-reqTop">
+                      <b>#{shortId(r.id)}</b>
+                      <span className="vx-muted">{fmtDateTime(r.created_at)}</span>
+                    </div>
+                    <div className="vx-muted">{who}</div>
+                    <div>
+                      <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
+                      <span className="vx-tag">{STATE_LABEL[normState(r.state)]}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {selectedReq ? (
             <>
+              <div className="vx-sp12" />
+
               <div className="vx-adminReqTop">
                 <div className="vx-adminReqId">#{shortId(selectedReq.id)}</div>
                 <div className="vx-muted">{fmtDateTime(selectedReq.created_at)}</div>
@@ -165,24 +254,42 @@ export default function StaffTab({ me }: any) {
 
               <div className="vx-sp8" />
 
+              <div className="vx-muted" style={{ lineHeight: 1.35 }}>
+                <b>Клиент:</b> {selectedReq.from?.username ? `@${selectedReq.from.username}` : ""} • id:{selectedReq.from?.id}
+                <br />
+                <b>Обмен:</b> {selectedReq.sellCurrency} → {selectedReq.buyCurrency}
+                <br />
+                <b>Отдаёт:</b> {selectedReq.sellAmount}
+                <br />
+                <b>Получит:</b> {selectedReq.buyAmount}
+                <br />
+                <b>Оплата:</b> {methodLabelAny(selectedReq.payMethod)}
+                <br />
+                <b>Получение:</b> {methodLabelAny(selectedReq.receiveMethod)}
+              </div>
+
+              <div className="vx-sp12" />
+
               <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {STATE_OPTIONS.map((s) => (
-                  <button
-                    key={s.v}
-                    type="button"
-                    className={"btn vx-btnSm " + (String(selectedReq.state) === s.v ? "vx-btnOn" : "")}
-                    onClick={() => changeState(s.v)}
-                  >
-                    {s.l}
-                  </button>
-                ))}
+                <button type="button" className={"btn vx-btnSm vx-btnOn"} disabled>
+                  {STATE_LABEL[normState(selectedReq.state)]}
+                </button>
+                <button type="button" className="btn vx-btnSm" onClick={() => changeState("done")}>Готова</button>
+                <button type="button" className="btn vx-btnSm" onClick={() => changeState("canceled")}>Отклонена</button>
+                <button type="button" className="btn vx-btnSm" onClick={openContactEditor}>
+                  {selectedContact ? "Редактировать контакт" : "Создать контакт"}
+                </button>
               </div>
             </>
-          )}
+          ) : null}
         </div>
 
         {/* 2) Clients (collapsed by default) */}
-        <details className="vx-acc">
+        <details
+          className="vx-acc"
+          open={openClients}
+          onToggle={(e) => setOpenClients((e.currentTarget as HTMLDetailsElement).open)}
+        >
           <summary>Клиенты</summary>
 
           {!selectedReq ? (
@@ -205,7 +312,7 @@ export default function StaffTab({ me }: any) {
 
               <div className="vx-accLbl">Имя (ФИО)</div>
               <input
-                className="input vx-in"
+                className="input vx-in vx-staffFullName"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Например: Иванов Иван"
@@ -214,7 +321,11 @@ export default function StaffTab({ me }: any) {
               <div className="vx-sp10" />
 
               {/* 2.1) Banks (collapsed by default) */}
-              <details className="vx-acc vx-accInner">
+              <details
+                className="vx-acc vx-accInner"
+                open={openBanks}
+                onToggle={(e) => setOpenBanks((e.currentTarget as HTMLDetailsElement).open)}
+              >
                 <summary>Банки</summary>
                 {icons.length === 0 ? (
                   <div className="vx-muted">Иконок нет (положи файлы в webapp/public/banks).</div>
@@ -248,7 +359,11 @@ export default function StaffTab({ me }: any) {
         </details>
 
         {/* 3) Requests history (collapsed by default) */}
-        <details className="vx-acc">
+        <details
+          className="vx-acc"
+          open={openHistory}
+          onToggle={(e) => setOpenHistory((e.currentTarget as HTMLDetailsElement).open)}
+        >
           <summary>История заявок</summary>
           {requests.length === 0 ? (
             <div className="vx-muted">Заявок пока нет.</div>
@@ -272,7 +387,7 @@ export default function StaffTab({ me }: any) {
                     <div className="vx-muted">{who}</div>
                     <div>
                       <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
-                      <span className="vx-tag">{r.state}</span>
+                      <span className="vx-tag">{STATE_LABEL[normState(r.state)]}</span>
                     </div>
                   </button>
                 );

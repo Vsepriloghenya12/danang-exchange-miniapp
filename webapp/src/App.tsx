@@ -356,7 +356,6 @@ export default function App() {
     const v = String(Date.now());
     const rel = (p: string) => `${p}?v=${v}`;
     const abs = (p: string) => `/${p}?v=${v}`;
-    const bundled = new URL("./brand/logo.png", import.meta.url).toString();
     return [
       rel("brand/logo.svg"),
       rel("brand/logo.png"),
@@ -368,7 +367,6 @@ export default function App() {
       abs("brand/logo.jpg"),
       abs("brand/logo.jpeg"),
       abs("brand/logo.webp"),
-      bundled,
     ];
   }, []);
 
