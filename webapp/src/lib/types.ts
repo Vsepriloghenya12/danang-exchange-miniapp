@@ -29,7 +29,12 @@ export type AuthResponse =
       isOwner: boolean;
       isAdmin?: boolean;
       adminChat?: { tgId: number | null; username?: string; deepLink?: string };
+      isBlocked?: boolean;
     }
+  | { ok: false; error: string };
+
+export type AdminBlacklistResponse =
+  | { ok: true; usernames: string[] }
   | { ok: false; error: string };
 
 // --------------------

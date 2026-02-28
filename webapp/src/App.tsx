@@ -8,6 +8,7 @@ import CalculatorTab from "./tabs/CalculatorTab";
 import AtmTab from "./tabs/AtmTab";
 import ReviewsTab from "./tabs/ReviewsTab";
 import StaffTab from "./tabs/StaffTab";
+import AdminTab from "./tabs/AdminTab";
 import OwnerPortal from "./admin/OwnerPortal";
 
 type Me = {
@@ -18,6 +19,7 @@ type Me = {
   isOwner?: boolean;
   isAdmin?: boolean;
   adminChat?: { tgId: number | null; username?: string; deepLink?: string };
+  isBlocked?: boolean;
   error?: string;
 };
 
@@ -177,8 +179,8 @@ export default function App() {
 
   // Navigation order depends on role (staff tab only for admins)
   const tabOrder = useMemo<TabKey[]>(
-    () => (me.isAdmin ? baseOrder : baseOrder.filter((t) => t !== "staff")),
-    [me.isAdmin]
+    () => (me.isAdmin || me.isOwner ? baseOrder : baseOrder.filter((t) => t !== "staff")),
+    [me.isAdmin, me.isOwner]
   );
 
   // Keyboard detection: hide bottom bar while typing so it doesn't jump above the keyboard.
@@ -211,6 +213,7 @@ export default function App() {
           isOwner: true,
           isAdmin: true,
           adminChat: { tgId: 123456, username: "demo_admin" },
+          isBlocked: false,
         });
         return;
       }
@@ -224,6 +227,8 @@ export default function App() {
           status: r.status,
           isOwner: r.isOwner,
           isAdmin: !!(r as any).isAdmin,
+          adminChat: (r as any).adminChat,
+          isBlocked: !!(r as any).isBlocked,
         });
       else setMe({ ok: false, initData: useInit, error: r.error });
     })();
@@ -231,9 +236,9 @@ export default function App() {
 
   // Safety: if someone navigated to staff tab without permission, bounce back.
   useEffect(() => {
-    if (tab === "staff" && !me.isAdmin) setTab("rates");
+    if (tab === "staff" && !me.isAdmin && !me.isOwner) setTab("rates");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, me.isAdmin]);
+  }, [tab, me.isAdmin, me.isOwner]);
 
   // Homescreen shortcut ("установить на телефон")
   useEffect(() => {
@@ -316,6 +321,69 @@ export default function App() {
     };
   }, []);
 
+  // --------------------
+  // Blacklist screen (show only a brand image)
+  // --------------------
+  const blockedCandidates = useMemo(() => {
+    const v = String(Date.now());
+    const relBaseRaw = (import.meta as any)?.env?.BASE_URL || "/";
+    const relBase = String(relBaseRaw).endsWith("/") ? String(relBaseRaw) : String(relBaseRaw) + "/";
+    const rel = (p: string) => `${relBase}${p}?v=${v}`;
+    const abs = (p: string) => `/${p}?v=${v}`;
+    const exts = ["png", "jpg", "jpeg", "webp", "svg"];
+
+    // Runtime (no rebuild): put a file into server/public, e.g. server/public/brend/blocked.png
+    const runtimeDirs = ["brend", "brand", "blocked", "blacklist"];
+    const runtimeNames = ["blocked", "blacklist", "ban", "brand", "brend"];
+    const runtime = runtimeDirs.flatMap((dir) => runtimeNames.flatMap((name) => exts.map((ext) => abs(`${dir}/${name}.${ext}`))));
+
+    // Root runtime (no rebuild): server/public/blocked.png
+    const root = runtimeNames.flatMap((name) => exts.map((ext) => abs(`${name}.${ext}`)));
+
+    // Build-time public folder: webapp/public/brand/blocked.png
+    const built = runtimeNames.flatMap((name) => exts.flatMap((ext) => [rel(`brand/${name}.${ext}`), abs(`brand/${name}.${ext}`)]));
+
+    return [...runtime, ...root, ...built];
+  }, []);
+
+  const [blockedSrc, setBlockedSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!me.ok || !me.isBlocked) return;
+    let cancelled = false;
+    (async () => {
+      for (const src of blockedCandidates) {
+        const ok = await new Promise<boolean>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+          img.src = src;
+        });
+        if (cancelled) return;
+        if (ok) {
+          setBlockedSrc(src);
+          return;
+        }
+      }
+      setBlockedSrc(null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [me.ok, me.isBlocked, blockedCandidates]);
+
+  if (me.ok && me.isBlocked) {
+    return (
+      <div className="vx-blockedWrap">
+        {blockedSrc ? (
+          <img className="vx-blockedImg" src={blockedSrc} alt="" />
+        ) : (
+          <div className="vx-blockedFallback">Доступ ограничен</div>
+        )}
+      </div>
+    );
+  }
+
   // Background loader: webapp/public/brand/danang-bg.(svg|jpg|png|webp)
   const bgCandidates = useMemo(() => {
     const v = String(Date.now());
@@ -391,7 +459,7 @@ export default function App() {
     { key: "calc", label: "Калькулятор", show: true, icon: <IconCalc className="vx-i" /> },
     { key: "atm", label: "Банкоматы", show: true, icon: <IconAtm className="vx-i" /> },
     { key: "reviews", label: "Отзывы", show: true, icon: <IconStar className="vx-i" /> },
-    { key: "staff", label: "Админ", show: !!me.isAdmin, icon: <IconSettings className="vx-i" /> },
+    { key: "staff", label: "Админ", show: !!me.isAdmin || !!me.isOwner, icon: <IconSettings className="vx-i" /> },
   ];
 
   const changeTab = (next: TabKey) => {
@@ -455,7 +523,7 @@ export default function App() {
       calc: <CalculatorTab me={me} />,
       atm: <AtmTab />,
       reviews: <ReviewsTab />,
-      staff: <StaffTab me={me} />,
+      staff: me.isOwner ? <AdminTab me={me} /> : <StaffTab me={me} />,
     }),
     [me]
   );

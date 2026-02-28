@@ -13,6 +13,7 @@ import type {
   PublishTemplateResponse,
   PublishResponse,
   ReportsResponse,
+  AdminBlacklistResponse,
   Contact
 } from "./types";
 
@@ -197,6 +198,34 @@ export async function apiAdminSetBonuses(token: string, bonuses: BonusesConfig):
     body: JSON.stringify({ bonuses })
   });
   return r.json();
+}
+
+// --------------------
+// Blacklist (owner only)
+// --------------------
+export async function apiAdminGetBlacklist(token: string): Promise<AdminBlacklistResponse> {
+  const r = await fetch("/api/admin/blacklist", {
+    headers: { ...adminAuthHeaders(token) }
+  });
+  return readJsonSafe(r);
+}
+
+export async function apiAdminBlacklistAdd(token: string, username: string): Promise<AdminBlacklistResponse> {
+  const r = await fetch("/api/admin/blacklist/add", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
+    body: JSON.stringify({ username })
+  });
+  return readJsonSafe(r);
+}
+
+export async function apiAdminBlacklistRemove(token: string, username: string): Promise<AdminBlacklistResponse> {
+  const r = await fetch("/api/admin/blacklist/remove", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
+    body: JSON.stringify({ username })
+  });
+  return readJsonSafe(r);
 }
 
 // --------------------

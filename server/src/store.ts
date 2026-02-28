@@ -35,6 +35,8 @@ export type Store = {
     groupChatId?: number;
     // Separate group for incoming client requests (can differ from rates publishing group)
     requestsGroupChatId?: number;
+    // Blacklist by Telegram @username (normalized: lower-case, without leading @)
+    blacklistUsernames?: string[];
     bonuses?: BonusesConfig;
     adminTgIds?: number[];
     adminUsername?: string;
@@ -143,7 +145,14 @@ const STORE_PATH =
 
 function defaultStore(): Store {
   return {
-    config: { bonuses: defaultBonuses(), adminTgIds: [], adminUsername: "", adminDeepLink: "", publishTemplate: "" },
+    config: {
+      bonuses: defaultBonuses(),
+      adminTgIds: [],
+      adminUsername: "",
+      adminDeepLink: "",
+      publishTemplate: "",
+      blacklistUsernames: []
+    },
     users: {},
     ratesByDate: {},
     requests: [],
@@ -283,6 +292,22 @@ export function readStore(): Store {
   if (typeof (store.config as any).adminDeepLink !== "string") {
     (store.config as any).adminDeepLink = "";
     dirty = true;
+  }
+
+  // Blacklist usernames migration
+  if (!Array.isArray((store.config as any).blacklistUsernames)) {
+    (store.config as any).blacklistUsernames = [];
+    dirty = true;
+  } else {
+    const src = ((store.config as any).blacklistUsernames as any[])
+      .map((x) => normUsername(String(x ?? "")))
+      .filter(Boolean) as string[];
+    // Deduplicate
+    const uniq = Array.from(new Set(src));
+    if (JSON.stringify(uniq) !== JSON.stringify((store.config as any).blacklistUsernames)) {
+      (store.config as any).blacklistUsernames = uniq;
+      dirty = true;
+    }
   }
 
   if (!Array.isArray(store.contacts)) {
