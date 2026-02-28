@@ -35,6 +35,8 @@ export type Store = {
     groupChatId?: number;
     bonuses?: BonusesConfig;
     adminTgIds?: number[];
+    adminUsername?: string;
+    adminDeepLink?: string;
     publishTemplate?: string;
   };
   users: Record<string, StoredUser>;
@@ -139,7 +141,7 @@ const STORE_PATH =
 
 function defaultStore(): Store {
   return {
-    config: { bonuses: defaultBonuses(), adminTgIds: [], publishTemplate: "" },
+    config: { bonuses: defaultBonuses(), adminTgIds: [], adminUsername: "", adminDeepLink: "", publishTemplate: "" },
     users: {},
     ratesByDate: {},
     requests: [],
@@ -269,6 +271,15 @@ export function readStore(): Store {
   }
   if (typeof (store.config as any).publishTemplate !== "string") {
     (store.config as any).publishTemplate = "";
+    dirty = true;
+  }
+
+  if (typeof (store.config as any).adminUsername !== "string") {
+    (store.config as any).adminUsername = "";
+    dirty = true;
+  }
+  if (typeof (store.config as any).adminDeepLink !== "string") {
+    (store.config as any).adminDeepLink = "";
     dirty = true;
   }
 

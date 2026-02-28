@@ -18,6 +18,7 @@ type Props = {
     initData: string;
     user?: { id: number; username?: string; first_name?: string; last_name?: string };
     status?: UserStatus;
+    adminChat?: { tgId: number | null; username?: string; deepLink?: string };
   };
 };
 
@@ -699,8 +700,13 @@ export default function CalculatorTab({ me }: Props) {
   async function sendRequest() {
     if (!canSend) return;
 
+    const initData = tg?.initData || me.initData || "";
+    if (!initData) {
+      tg?.showAlert?.("Нет initData. Открой мини-приложение через Telegram (/start).");
+      return;
+    }
+
     const payload = {
-      kind: "exchange_request",
       sellCurrency,
       buyCurrency,
       sellAmount,
@@ -709,28 +715,8 @@ export default function CalculatorTab({ me }: Props) {
       receiveMethod,
     };
 
-    // Preferred flow:
-    // 1) sendData to the bot (so admin gets the request instantly)
-    // 2) close the miniapp -> user lands back in the bot chat
-    // This matches the requested UX "после отправки → диалог в TG".
-    try {
-      if (tg?.sendData) {
-        tg?.HapticFeedback?.notificationOccurred?.("success");
-        tg.sendData(JSON.stringify(payload));
-        tg.close();
-        return;
-      }
-    } catch {
-      // fallback below
-    }
-
-    // Fallback: send via HTTP if WebApp.sendData is not available
-    const initData = tg?.initData || "";
-    if (!initData) {
-      tg?.showAlert?.("Нет initData. Открой мини-приложение через Telegram (/start). ");
-      return;
-    }
-
+    // 1) Always create the request on the server (so it appears in admin panel instantly)
+    let requestId: string | null = null;
     try {
       const res = await fetch("/api/requests", {
         method: "POST",
@@ -740,20 +726,91 @@ export default function CalculatorTab({ me }: Props) {
         },
         body: JSON.stringify(payload),
       });
-
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!json?.ok) {
         tg?.HapticFeedback?.notificationOccurred?.("error");
         tg?.showAlert?.(`Ошибка: ${json?.error || "fail"}`);
         return;
       }
-
+      requestId = String(json?.id || "");
       tg?.HapticFeedback?.notificationOccurred?.("success");
-      tg?.close?.();
     } catch (e: any) {
       tg?.HapticFeedback?.notificationOccurred?.("error");
       tg?.showAlert?.(`Ошибка сети: ${e?.message || e}`);
+      return;
     }
+
+    // 2) Build a human message for the admin chat
+    const shortId = requestId ? requestId.slice(-6) : "";
+    const who =
+      me?.user?.username
+        ? `@${me.user.username}`
+        : `${me?.user?.first_name || ""} ${me?.user?.last_name || ""}`.trim() || `id ${me?.user?.id || ""}`;
+
+    const payLabel = payMethod === "cash" ? "Наличные" : payMethod === "transfer" ? "Перевод" : String(payMethod || "—");
+    const recvLabel = receiveMethod === "cash" ? "Наличные" : receiveMethod === "transfer" ? "Перевод" : "Банкомат";
+
+    const message =
+      `💱 Заявка${shortId ? ` #${shortId}` : ""}
+` +
+      `👤 Клиент: ${who}
+` +
+      `🔁 ${sellCurrency} → ${buyCurrency}
+` +
+      `💸 Отдаю: ${fmtAmount(sellCurrency, sellAmount)} ${sellCurrency}
+` +
+      `🎯 Получаю: ${fmtAmount(buyCurrency, buyAmount)} ${buyCurrency}
+` +
+      `💳 Оплата: ${payLabel}
+` +
+      `📦 Получение: ${recvLabel}`;
+
+    // 3) Copy text so user can paste instantly if Telegram can't prefill
+    try {
+      await navigator.clipboard?.writeText?.(message);
+    } catch {}
+
+    // 4) Open chat with the admin configured by the owner.
+    // Priority: explicit deepLink -> username (prefilled text) -> tgId (open chat, paste manually)
+    const adminChat = me.adminChat;
+
+    const openLink = (link: string) => {
+      try {
+        if (tg?.openTelegramLink) tg.openTelegramLink(link);
+        else window.location.href = link;
+      } catch {
+        try {
+          window.location.href = link;
+        } catch {}
+      }
+    };
+
+    if (adminChat?.deepLink) {
+      // If owner sets a custom deep link, we can support {text} placeholder
+      const link = adminChat.deepLink.includes("{text}")
+        ? adminChat.deepLink.replace(/\{text\}/g, encodeURIComponent(message))
+        : adminChat.deepLink;
+      openLink(link);
+      return;
+    }
+
+    const uname = String(adminChat?.username || "").replace(/^@/, "").trim();
+    if (uname) {
+      // This deep link opens the chat and prefills the composer text (works when username exists)
+      openLink(`tg://resolve?domain=${encodeURIComponent(uname)}&text=${encodeURIComponent(message)}`);
+      return;
+    }
+
+    const tgId = adminChat?.tgId;
+    if (tgId && Number.isFinite(Number(tgId))) {
+      openLink(`tg://user?id=${Number(tgId)}`);
+      // If we can't prefill, at least tell the user the text is already copied.
+      tg?.showAlert?.("Открыл чат с админом. Текст заявки уже скопирован — просто вставь и отправь.");
+      return;
+    }
+
+    // No admin configured
+    tg?.showAlert?.("Администратор не задан владельцем (adminTgIds). Заявка создана, но чат открыть не получилось.");
   }
 
   return (

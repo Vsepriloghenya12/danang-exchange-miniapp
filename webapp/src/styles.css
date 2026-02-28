@@ -821,30 +821,32 @@ body.vx-body-client #root{
   box-shadow: 0 0 0 1px rgba(255,218,125,.14) inset, 0 0 44px rgba(255,218,125,.16);
 }
 .theme-client .vx-navPosC{
-  /* center tab: closer (bigger) but kept inside the bar */
-  transform: translateY(0) translateZ(64px) scale(1.08);
+  /* center tab: slightly bigger, but NEVER outside the bar */
+  transform: translateY(0) scale(1.06);
+  z-index: 3;
 }
 .theme-client .vx-navPosC:active{
-  transform: translateY(2px) translateZ(28px) scale(1.02);
+  transform: translateY(2px) scale(1.02);
 }
 .theme-client .vx-navPosC .vx-navIcon{ width: 42px; height: 42px; }
 .theme-client .vx-navPosC .vx-i{ width: 22px; height: 22px; }
 .theme-client .vx-navPosC .vx-navLabel{ font-size: 10px; }
 
-/* carousel depth for side tabs (perspective) */
+/* carousel depth for side tabs (safe for Telegram WebView) */
 .theme-client .vx-navPosL,
 .theme-client .vx-navPosR{
-  opacity: 0.62;
+  opacity: 0.72;
+  transform-origin: center bottom;
+  filter: blur(0.25px);
 }
 .theme-client .vx-navPosL{
-  /* side tabs: smaller + further away (perspective) */
-  transform: translateY(10px) translateZ(-160px) scale(0.78) rotateY(26deg);
+  transform: translateY(6px) scale(0.88);
 }
 .theme-client .vx-navPosR{
-  transform: translateY(10px) translateZ(-160px) scale(0.78) rotateY(-26deg);
+  transform: translateY(6px) scale(0.88);
 }
 .theme-client .vx-navPosL .vx-navLabel,
-.theme-client .vx-navPosR .vx-navLabel{ font-size: 8px; }
+.theme-client .vx-navPosR .vx-navLabel{ font-size: 8.5px; }
 /* ATM tab (dark) */
 .vx-atmHint{
   font-size: 14px;

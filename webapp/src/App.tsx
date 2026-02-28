@@ -17,6 +17,7 @@ type Me = {
   status?: UserStatus;
   isOwner?: boolean;
   isAdmin?: boolean;
+  adminChat?: { tgId: number | null; username?: string; deepLink?: string };
   error?: string;
 };
 
@@ -103,12 +104,22 @@ function BottomBar({
   const visibleOrder = useMemo(() => order.filter((k) => map.get(k)?.show), [order, map]);
 
   const tri = useMemo(() => {
-    if (!visibleOrder.length) return [] as TabKey[];
-    if (visibleOrder.length <= 3) return visibleOrder;
-    const i = Math.max(0, visibleOrder.indexOf(active));
-    const prev = visibleOrder[(i - 1 + visibleOrder.length) % visibleOrder.length];
-    const next = visibleOrder[(i + 1) % visibleOrder.length];
-    return [prev, active, next];
+    const n = visibleOrder.length;
+    if (!n) return [] as TabKey[];
+
+    // Always show 3 items when possible: prev / current / next.
+    if (n === 1) return [visibleOrder[0]];
+    if (n === 2) {
+      const a = visibleOrder[0];
+      const b = visibleOrder[1];
+      return active === a ? [b, a, b] : [a, b, a];
+    }
+
+    const i0 = visibleOrder.indexOf(active);
+    const i = i0 >= 0 ? i0 : 0;
+    const prev = visibleOrder[(i - 1 + n) % n];
+    const next = visibleOrder[(i + 1) % n];
+    return [prev, visibleOrder[i], next];
   }, [active, visibleOrder]);
 
   return (
@@ -199,6 +210,7 @@ export default function App() {
           status: "gold",
           isOwner: true,
           isAdmin: true,
+          adminChat: { tgId: 123456, username: "demo_admin" },
         });
         return;
       }

@@ -154,7 +154,24 @@ export function createApiRouter(opts: {
   router.post("/auth", (req, res) => {
     try {
       const { user, status, isOwner, isAdmin } = requireAuth(req);
-      res.json({ ok: true, user, status, statusLabel: statusLabel[status], isOwner, isAdmin });
+      const store = readStore();
+      const adminIds = Array.isArray((store.config as any)?.adminTgIds) ? ((store.config as any).adminTgIds as number[]) : [];
+      const adminTgId = adminIds[0] ?? opts.ownerTgId ?? null;
+      const adminUsername = String((store.config as any)?.adminUsername || "").trim();
+      const adminDeepLink = String((store.config as any)?.adminDeepLink || "").trim();
+      res.json({
+        ok: true,
+        user,
+        status,
+        statusLabel: statusLabel[status],
+        isOwner,
+        isAdmin,
+        adminChat: {
+          tgId: adminTgId,
+          username: adminUsername || undefined,
+          deepLink: adminDeepLink || undefined
+        }
+      });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -163,6 +180,11 @@ export function createApiRouter(opts: {
   router.get("/me", (req, res) => {
     try {
       const { user, status, isOwner, isAdmin } = requireAuth(req);
+      const store = readStore();
+      const adminIds = Array.isArray((store.config as any)?.adminTgIds) ? ((store.config as any).adminTgIds as number[]) : [];
+      const adminTgId = adminIds[0] ?? opts.ownerTgId ?? null;
+      const adminUsername = String((store.config as any)?.adminUsername || "").trim();
+      const adminDeepLink = String((store.config as any)?.adminDeepLink || "").trim();
       res.json({
         ok: true,
         data: {
@@ -170,7 +192,12 @@ export function createApiRouter(opts: {
           status,
           statusLabel: statusLabel[normalizeStatus(status)],
           isOwner,
-          isAdmin
+          isAdmin,
+          adminChat: {
+            tgId: adminTgId,
+            username: adminUsername || undefined,
+            deepLink: adminDeepLink || undefined
+          }
         }
       });
     } catch (e: any) {

@@ -28,6 +28,7 @@ export type AuthResponse =
       status: UserStatus;
       isOwner: boolean;
       isAdmin?: boolean;
+      adminChat?: { tgId: number | null; username?: string; deepLink?: string };
     }
   | { ok: false; error: string };
 
