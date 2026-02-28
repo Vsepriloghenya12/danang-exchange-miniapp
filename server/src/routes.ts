@@ -94,13 +94,14 @@ export function createApiRouter(opts: {
     const isAdmin = adminIds.includes(v.user.id);
 
     const bl = Array.isArray((store.config as any)?.blacklistUsernames)
-      ? ((store.config as any).blacklistUsernames as string[])
+      ? ((store.config as any).blacklistUsernames as any[])
       : [];
     const uname = normUsername(v.user.username);
-    // Safety: never block owner/admin accounts (so owner can't lock themselves out accidentally)
-    const isBlocked = !isOwner && !isAdmin && !!uname && bl.includes(uname);
+    const blockedRaw = !!uname && bl.map((x) => normUsername(String(x)) || "").includes(uname);
+    // Blacklist should not lock out staff/owner.
+    const blocked = !isOwner && !isAdmin && blockedRaw;
 
-    return { user: v.user, status, isOwner, isAdmin, isBlocked };
+    return { user: v.user, status, isOwner, isAdmin, blocked };
   }
 
   // Admin access for a standalone PC dashboard.
@@ -160,7 +161,7 @@ export function createApiRouter(opts: {
 
   router.post("/auth", (req, res) => {
     try {
-      const { user, status, isOwner, isAdmin, isBlocked } = requireAuth(req);
+      const { user, status, isOwner, isAdmin, blocked } = requireAuth(req);
       const store = readStore();
       const adminIds = Array.isArray((store.config as any)?.adminTgIds) ? ((store.config as any).adminTgIds as number[]) : [];
       const adminTgId = adminIds[0] ?? opts.ownerTgId ?? null;
@@ -173,7 +174,7 @@ export function createApiRouter(opts: {
         statusLabel: statusLabel[status],
         isOwner,
         isAdmin,
-        isBlocked,
+        blocked,
         adminChat: {
           tgId: adminTgId,
           username: adminUsername || undefined,
@@ -187,7 +188,7 @@ export function createApiRouter(opts: {
 
   router.get("/me", (req, res) => {
     try {
-      const { user, status, isOwner, isAdmin, isBlocked } = requireAuth(req);
+      const { user, status, isOwner, isAdmin, blocked } = requireAuth(req);
       const store = readStore();
       const adminIds = Array.isArray((store.config as any)?.adminTgIds) ? ((store.config as any).adminTgIds as number[]) : [];
       const adminTgId = adminIds[0] ?? opts.ownerTgId ?? null;
@@ -201,7 +202,7 @@ export function createApiRouter(opts: {
           statusLabel: statusLabel[normalizeStatus(status)],
           isOwner,
           isAdmin,
-          isBlocked,
+          blocked,
           adminChat: {
             tgId: adminTgId,
             username: adminUsername || undefined,
@@ -211,6 +212,60 @@ export function createApiRouter(opts: {
       });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // --------------------
+  // Owner config: blacklist (usernames)
+  // --------------------
+  router.get("/admin/blacklist", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      const store = readStore();
+      const usernames = Array.isArray((store.config as any).blacklistUsernames)
+        ? ((store.config as any).blacklistUsernames as any[])
+            .map((x) => normUsername(String(x)))
+            .filter((x): x is string => Boolean(x))
+        : [];
+      return res.json({ ok: true, usernames });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  router.post("/admin/blacklist", (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const raw =
+        (req.body as any)?.usernames ??
+        (req.body as any)?.blacklist ??
+        (req.body as any)?.list ??
+        (req.body as any)?.text;
+
+      const parts: string[] = Array.isArray(raw)
+        ? raw.map((x: any) => String(x))
+        : String(raw || "")
+            .split(/[\n,;\s]+/)
+            .map((x) => x.trim())
+            .filter(Boolean);
+
+      const normalized = Array.from(
+        new Set(
+          parts
+            .map((x) => normUsername(x))
+            .filter((x): x is string => Boolean(x))
+        )
+      );
+
+      const store = readStore();
+      store.config = { ...(store.config || {}), blacklistUsernames: normalized };
+      writeStore(store);
+      return res.json({ ok: true, usernames: normalized });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
@@ -528,72 +583,6 @@ export function createApiRouter(opts: {
       store.config = { ...(store.config || {}), adminTgIds };
       writeStore(store);
       return res.json({ ok: true, adminTgIds });
-    } catch (e: any) {
-      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
-    }
-  });
-
-  // --------------------
-  // Owner config: blacklist (by username)
-  // --------------------
-  router.get("/admin/blacklist", (req, res) => {
-    try {
-      const { isOwner } = requireAdmin(req);
-      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-      const store = readStore();
-      const usernames = Array.isArray((store.config as any)?.blacklistUsernames)
-        ? ((store.config as any).blacklistUsernames as any[])
-            .map((x) => normUsername(String(x ?? "")))
-            .filter(Boolean)
-        : [];
-      // keep store normalized
-      store.config = { ...(store.config || {}), blacklistUsernames: Array.from(new Set(usernames as string[])) };
-      writeStore(store);
-      return res.json({ ok: true, usernames: store.config.blacklistUsernames || [] });
-    } catch (e: any) {
-      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
-    }
-  });
-
-  router.post("/admin/blacklist/add", (req, res) => {
-    try {
-      const { isOwner } = requireAdmin(req);
-      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-      const u = normUsername((req.body as any)?.username);
-      if (!u) return res.status(400).json({ ok: false, error: "username_required" });
-      const store = readStore();
-      const list = Array.isArray((store.config as any)?.blacklistUsernames)
-        ? ((store.config as any).blacklistUsernames as string[])
-        : [];
-      const next = Array.from(new Set([...
-        list.map((x) => normUsername(String(x))!).filter(Boolean),
-        u
-      ]));
-      store.config = { ...(store.config || {}), blacklistUsernames: next };
-      writeStore(store);
-      return res.json({ ok: true, usernames: next });
-    } catch (e: any) {
-      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
-    }
-  });
-
-  router.post("/admin/blacklist/remove", (req, res) => {
-    try {
-      const { isOwner } = requireAdmin(req);
-      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-      const u = normUsername((req.body as any)?.username);
-      if (!u) return res.status(400).json({ ok: false, error: "username_required" });
-      const store = readStore();
-      const list = Array.isArray((store.config as any)?.blacklistUsernames)
-        ? ((store.config as any).blacklistUsernames as string[])
-        : [];
-      const next = list
-        .map((x) => normUsername(String(x))!)
-        .filter(Boolean)
-        .filter((x) => x !== u);
-      store.config = { ...(store.config || {}), blacklistUsernames: Array.from(new Set(next)) };
-      writeStore(store);
-      return res.json({ ok: true, usernames: store.config.blacklistUsernames || [] });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -1226,8 +1215,7 @@ export function createApiRouter(opts: {
 
   router.post("/requests", async (req, res) => {
     try {
-      const { user, status, isBlocked } = requireAuth(req);
-      if (isBlocked) return res.status(403).json({ ok: false, error: "blacklisted" });
+      const { user, status } = requireAuth(req);
 
       const p = req.body || {};
       const sellCurrency = String(p.sellCurrency || "") as Currency;
@@ -1389,8 +1377,7 @@ export function createApiRouter(opts: {
   // Список сделок, по которым пользователь МОЖЕТ оставить отзыв
   router.get("/reviews/eligible", (req, res) => {
     try {
-      const { user, isBlocked } = requireAuth(req);
-      if (isBlocked) return res.status(403).json({ ok: false, error: "blacklisted" });
+      const { user } = requireAuth(req);
       const store = readStore();
 
       const mineDone = (store.requests || [])
@@ -1423,8 +1410,7 @@ export function createApiRouter(opts: {
   // Создать отзыв (pending)
   router.post("/reviews", (req, res) => {
     try {
-      const { user, isBlocked } = requireAuth(req);
-      if (isBlocked) return res.status(403).json({ ok: false, error: "blacklisted" });
+      const { user } = requireAuth(req);
       const text = String(req.body?.text || "").trim();
       const anonymous = Boolean(req.body?.anonymous);
       const requestId = String(req.body?.requestId || req.body?.request_id || "").trim();

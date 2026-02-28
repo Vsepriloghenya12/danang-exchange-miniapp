@@ -28,13 +28,10 @@ export type AuthResponse =
       status: UserStatus;
       isOwner: boolean;
       isAdmin?: boolean;
+      // true if the user is in the owner's blacklist (username-based)
+      blocked?: boolean;
       adminChat?: { tgId: number | null; username?: string; deepLink?: string };
-      isBlocked?: boolean;
     }
-  | { ok: false; error: string };
-
-export type AdminBlacklistResponse =
-  | { ok: true; usernames: string[] }
   | { ok: false; error: string };
 
 // --------------------
@@ -73,6 +70,12 @@ export type AdminContactsResponse = {
 export type AdminAdminsResponse = {
   ok: boolean;
   adminTgIds: number[];
+  error?: string;
+};
+
+export type AdminBlacklistResponse = {
+  ok: boolean;
+  usernames: string[];
   error?: string;
 };
 

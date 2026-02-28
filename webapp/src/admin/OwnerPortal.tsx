@@ -3,6 +3,8 @@ import AdminTab from "../tabs/AdminTab";
 import {
   apiAdminGetAdmins,
   apiAdminSetAdmins,
+  apiAdminGetBlacklist,
+  apiAdminSetBlacklist,
   apiAdminGetPublishTemplate,
   apiAdminSetPublishTemplate,
   apiAdminPublish,
@@ -90,6 +92,7 @@ export default function OwnerPortal() {
   }
 
   const [adminsText, setAdminsText] = useState<string>("");
+  const [blacklistText, setBlacklistText] = useState<string>("");
   const [tpl, setTpl] = useState<string>(DEFAULT_TEMPLATE);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
@@ -115,8 +118,9 @@ export default function OwnerPortal() {
   async function loadAll() {
     if (!token) return;
     setBanner(null);
-    const [a, t, c] = await Promise.allSettled([
+    const [a, bl, t, c] = await Promise.allSettled([
       apiAdminGetAdmins(token),
+      apiAdminGetBlacklist(token),
       apiAdminGetPublishTemplate(token),
       apiAdminGetContacts(token)
     ]);
@@ -127,6 +131,12 @@ export default function OwnerPortal() {
       showErr(a.value?.error || "Ошибка");
     } else if (a.status === "rejected") {
       showErr("Ошибка");
+    }
+
+    if (bl.status === "fulfilled" && bl.value?.ok) {
+      setBlacklistText((bl.value.usernames || []).join("\n"));
+    } else if (bl.status === "fulfilled" && !bl.value?.ok) {
+      showErr(bl.value?.error || "Ошибка");
     }
     if (t.status === "fulfilled" && t.value?.ok) {
       const s = String(t.value.template || "").trim();
@@ -230,6 +240,24 @@ export default function OwnerPortal() {
       showErr(r?.error || "Ошибка");
       return;
     }
+    showOk("Сохранено ✅");
+  }
+
+  async function saveBlacklist() {
+    const list = blacklistText
+      .split(/[\n,;\s]+/)
+      .map((x) => normU(x).toLowerCase())
+      .filter(Boolean);
+
+    // unique
+    const unique = Array.from(new Set(list));
+
+    const r = await apiAdminSetBlacklist(token, unique);
+    if (!r?.ok) {
+      showErr(r?.error || "Ошибка");
+      return;
+    }
+    setBlacklistText((r.usernames || []).join("\n"));
     showOk("Сохранено ✅");
   }
 
@@ -516,6 +544,29 @@ export default function OwnerPortal() {
             />
             <div className="vx-sp10" />
             <button className="btn" type="button" onClick={saveAdmins}>
+              Сохранить
+            </button>
+          </div>
+
+          <div className="vx-sp12" />
+
+          <div className="card">
+            <div className="small"><b>Чёрный список (username)</b></div>
+            <div className="vx-sp6" />
+            <div className="small" style={{ opacity: 0.85 }}>
+              Без @ • через запятую/пробел/новую строку. Пользователям из ЧС будет показана только картинка
+              <code style={{ paddingLeft: 6 }}>/brand/blocked.png</code>.
+            </div>
+            <div className="vx-sp10" />
+            <textarea
+              className="vx-revText"
+              rows={4}
+              value={blacklistText}
+              onChange={(e) => setBlacklistText(e.target.value)}
+              placeholder="baduser\nspammer"
+            />
+            <div className="vx-sp10" />
+            <button className="btn" type="button" onClick={saveBlacklist}>
               Сохранить
             </button>
           </div>

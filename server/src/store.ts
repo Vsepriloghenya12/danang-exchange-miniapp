@@ -35,10 +35,10 @@ export type Store = {
     groupChatId?: number;
     // Separate group for incoming client requests (can differ from rates publishing group)
     requestsGroupChatId?: number;
-    // Blacklist by Telegram @username (normalized: lower-case, without leading @)
-    blacklistUsernames?: string[];
     bonuses?: BonusesConfig;
     adminTgIds?: number[];
+    // Blacklist by Telegram username (without @, lowercase)
+    blacklistUsernames?: string[];
     adminUsername?: string;
     adminDeepLink?: string;
     publishTemplate?: string;
@@ -148,10 +148,10 @@ function defaultStore(): Store {
     config: {
       bonuses: defaultBonuses(),
       adminTgIds: [],
+      blacklistUsernames: [],
       adminUsername: "",
       adminDeepLink: "",
-      publishTemplate: "",
-      blacklistUsernames: []
+      publishTemplate: ""
     },
     users: {},
     ratesByDate: {},
@@ -280,6 +280,11 @@ export function readStore(): Store {
     (store.config as any).adminTgIds = [];
     dirty = true;
   }
+
+  if (!Array.isArray((store.config as any).blacklistUsernames)) {
+    (store.config as any).blacklistUsernames = [];
+    dirty = true;
+  }
   if (typeof (store.config as any).publishTemplate !== "string") {
     (store.config as any).publishTemplate = "";
     dirty = true;
@@ -292,22 +297,6 @@ export function readStore(): Store {
   if (typeof (store.config as any).adminDeepLink !== "string") {
     (store.config as any).adminDeepLink = "";
     dirty = true;
-  }
-
-  // Blacklist usernames migration
-  if (!Array.isArray((store.config as any).blacklistUsernames)) {
-    (store.config as any).blacklistUsernames = [];
-    dirty = true;
-  } else {
-    const src = ((store.config as any).blacklistUsernames as any[])
-      .map((x) => normUsername(String(x ?? "")))
-      .filter(Boolean) as string[];
-    // Deduplicate
-    const uniq = Array.from(new Set(src));
-    if (JSON.stringify(uniq) !== JSON.stringify((store.config as any).blacklistUsernames)) {
-      (store.config as any).blacklistUsernames = uniq;
-      dirty = true;
-    }
   }
 
   if (!Array.isArray(store.contacts)) {

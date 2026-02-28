@@ -11,10 +11,7 @@ import {
   apiAdminGetReviews,
   apiAdminApproveReview,
   apiAdminRejectReview,
-  apiAdminReplyReview,
-  apiAdminGetBlacklist,
-  apiAdminBlacklistAdd,
-  apiAdminBlacklistRemove
+  apiAdminReplyReview
 } from "../lib/api";
 import type { BonusesConfig, BonusesTier } from "../lib/types";
 
@@ -131,7 +128,7 @@ function normalizeBonuses(input: any): BonusesConfig {
   };
 }
 
-type AdminSection = "rates" | "users" | "requests" | "bonuses" | "reviews" | "blacklist";
+type AdminSection = "rates" | "users" | "requests" | "bonuses" | "reviews";
 
 export default function AdminTab({
   me,
@@ -181,12 +178,6 @@ export default function AdminTab({
   const [adminReviews, setAdminReviews] = useState<any[]>([]);
   const [reviewsFilter, setReviewsFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
-
-  // Blacklist (owner only)
-  const [blacklistLoaded, setBlacklistLoaded] = useState(false);
-  const [blacklistBusy, setBlacklistBusy] = useState(false);
-  const [blacklist, setBlacklist] = useState<string[]>([]);
-  const [blInput, setBlInput] = useState<string>("");
 
   const clearRates = () => {
     setRubBuy(""); setRubSell("");
@@ -267,64 +258,6 @@ export default function AdminTab({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section, reviewsLoaded]);
-
-  // Загружаем чёрный список только когда владелец открыл этот раздел
-  useEffect(() => {
-    if (section !== "blacklist") return;
-    if (!me?.isOwner) return;
-    if (blacklistLoaded) return;
-
-    (async () => {
-      setBlacklistBusy(true);
-      try {
-        const r = await apiAdminGetBlacklist(me.initData);
-        if (r.ok) {
-          setBlacklist(Array.isArray((r as any).usernames) ? (r as any).usernames : []);
-          setBlacklistLoaded(true);
-        } else {
-          alert((r as any).error || "Ошибка загрузки чёрного списка");
-        }
-      } finally {
-        setBlacklistBusy(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [section, blacklistLoaded, me?.isOwner]);
-
-  const addToBlacklist = async () => {
-    if (!me?.isOwner) return;
-    const u = String(blInput || "").trim().replace(/^@+/, "");
-    if (!u) return;
-    setBlacklistBusy(true);
-    try {
-      const r = await apiAdminBlacklistAdd(me.initData, u);
-      if (r.ok) {
-        setBlacklist(Array.isArray((r as any).usernames) ? (r as any).usernames : []);
-        setBlInput("");
-      } else {
-        alert((r as any).error || "Ошибка");
-      }
-    } finally {
-      setBlacklistBusy(false);
-    }
-  };
-
-  const removeFromBlacklist = async (username: string) => {
-    if (!me?.isOwner) return;
-    const u = String(username || "").trim().replace(/^@+/, "");
-    if (!u) return;
-    setBlacklistBusy(true);
-    try {
-      const r = await apiAdminBlacklistRemove(me.initData, u);
-      if (r.ok) {
-        setBlacklist(Array.isArray((r as any).usernames) ? (r as any).usernames : []);
-      } else {
-        alert((r as any).error || "Ошибка");
-      }
-    } finally {
-      setBlacklistBusy(false);
-    }
-  };
 
   const reloadReviews = async () => {
     setReviewsBusy(true);
@@ -527,9 +460,6 @@ export default function AdminTab({
           <button className={section === "reviews" ? "on" : ""} onClick={() => setSection("reviews")}>Отзывы</button>
           <button className={section === "users" ? "on" : ""} onClick={() => setSection("users")}>Клиенты</button>
           <button className={section === "requests" ? "on" : ""} onClick={() => setSection("requests")}>Заявки</button>
-          {me?.isOwner ? (
-            <button className={section === "blacklist" ? "on" : ""} onClick={() => setSection("blacklist")}>ЧС</button>
-          ) : null}
         </div>
       ) : null}
 
@@ -957,67 +887,6 @@ export default function AdminTab({
                 );
               })
           )}
-        </div>
-      ) : null}
-
-      {section === "blacklist" ? (
-        <div className="vx-mt10 vx-adminSection">
-          <div className="small"><b>Чёрный список</b> — пользователям из ЧС будет показываться только бренд-картинка.</div>
-          <div className="small vx-mt6">
-            Вводи <b>username без @</b>. Чтобы задать картинку блокировки — положи файл, например:
-            <br />• <b>server/public/brend/blocked.png</b> (работает без ребилда)
-            <br />• или <b>webapp/public/brand/blocked.png</b> (нужен build)
-          </div>
-
-          <div className="hr" />
-
-          <div className="row vx-rowWrap vx-gap8 vx-center">
-            <input
-              className="input vx-in"
-              value={blInput}
-              onChange={(e) => setBlInput(e.target.value)}
-              placeholder="username (например: ivan_88)"
-              disabled={blacklistBusy}
-            />
-            <button className="btn" type="button" onClick={addToBlacklist} disabled={blacklistBusy || !String(blInput || "").trim()}>
-              Добавить
-            </button>
-            <button
-              className="btn"
-              type="button"
-              onClick={async () => {
-                setBlacklistBusy(true);
-                try {
-                  const r = await apiAdminGetBlacklist(me.initData);
-                  if (r.ok) setBlacklist(Array.isArray((r as any).usernames) ? (r as any).usernames : []);
-                } finally {
-                  setBlacklistBusy(false);
-                  setBlacklistLoaded(true);
-                }
-              }}
-              disabled={blacklistBusy}
-            >
-              Обновить
-            </button>
-          </div>
-
-          <div className="vx-mt10">
-            {blacklistBusy && !blacklistLoaded ? <div className="small">Загрузка…</div> : null}
-            {(!blacklist || blacklist.length === 0) && !blacklistBusy ? (
-              <div className="vx-muted">Список пуст.</div>
-            ) : null}
-
-            <div className="row vx-rowWrap vx-gap6">
-              {(blacklist || []).map((u) => (
-                <span key={u} className="vx-tag">
-                  @{u}
-                  <button className="vx-tagX" type="button" onClick={() => removeFromBlacklist(u)} disabled={blacklistBusy}>
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          </div>
         </div>
       ) : null}
 

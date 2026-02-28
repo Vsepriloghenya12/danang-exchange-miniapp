@@ -10,10 +10,10 @@ import type {
   StaffRequestsResponse,
   AdminContactsResponse,
   AdminAdminsResponse,
+  AdminBlacklistResponse,
   PublishTemplateResponse,
   PublishResponse,
   ReportsResponse,
-  AdminBlacklistResponse,
   Contact
 } from "./types";
 
@@ -201,34 +201,6 @@ export async function apiAdminSetBonuses(token: string, bonuses: BonusesConfig):
 }
 
 // --------------------
-// Blacklist (owner only)
-// --------------------
-export async function apiAdminGetBlacklist(token: string): Promise<AdminBlacklistResponse> {
-  const r = await fetch("/api/admin/blacklist", {
-    headers: { ...adminAuthHeaders(token) }
-  });
-  return readJsonSafe(r);
-}
-
-export async function apiAdminBlacklistAdd(token: string, username: string): Promise<AdminBlacklistResponse> {
-  const r = await fetch("/api/admin/blacklist/add", {
-    method: "POST",
-    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
-    body: JSON.stringify({ username })
-  });
-  return readJsonSafe(r);
-}
-
-export async function apiAdminBlacklistRemove(token: string, username: string): Promise<AdminBlacklistResponse> {
-  const r = await fetch("/api/admin/blacklist/remove", {
-    method: "POST",
-    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
-    body: JSON.stringify({ username })
-  });
-  return readJsonSafe(r);
-}
-
-// --------------------
 // Bank icons
 // --------------------
 export async function apiGetBankIcons(): Promise<BankIconsResponse> {
@@ -282,6 +254,22 @@ export async function apiAdminSetAdmins(token: string, adminTgIds: number[]): Pr
     method: "POST",
     headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
     body: JSON.stringify({ adminTgIds })
+  });
+  return r.json();
+}
+
+export async function apiAdminGetBlacklist(token: string): Promise<AdminBlacklistResponse> {
+  const r = await fetch("/api/admin/blacklist", {
+    headers: { ...adminAuthHeaders(token) }
+  });
+  return r.json();
+}
+
+export async function apiAdminSetBlacklist(token: string, usernames: string[]): Promise<AdminBlacklistResponse> {
+  const r = await fetch("/api/admin/blacklist", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
+    body: JSON.stringify({ usernames })
   });
   return r.json();
 }
