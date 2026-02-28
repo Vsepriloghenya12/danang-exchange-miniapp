@@ -1234,12 +1234,16 @@ export function createApiRouter(opts: {
           `📦 Получение: ${methodMap[receiveMethod]}\n` +
           `🕒 ${dtDaNang}`;
 
-        const recipients = (Array.isArray(opts.ownerTgIds) && opts.ownerTgIds.length)
+        const cfgAdmins = Array.isArray((store.config as any)?.adminTgIds)
+          ? ((store.config as any).adminTgIds as number[])
+          : [];
+
+        const recipients = cfgAdmins.length
+          ? cfgAdmins
+          : (Array.isArray(opts.ownerTgIds) && opts.ownerTgIds.length)
           ? opts.ownerTgIds
           : opts.ownerTgId
           ? [opts.ownerTgId]
-          : Array.isArray((store.config as any)?.adminTgIds)
-          ? ((store.config as any).adminTgIds as number[])
           : [];
 
         for (const rid of recipients) {

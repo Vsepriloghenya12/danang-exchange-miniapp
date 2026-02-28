@@ -740,38 +740,9 @@ export default function CalculatorTab({ me }: Props) {
       return;
     }
 
-    // 2) Build a human message for the admin chat
-    const shortId = requestId ? requestId.slice(-6) : "";
-    const who =
-      me?.user?.username
-        ? `@${me.user.username}`
-        : `${me?.user?.first_name || ""} ${me?.user?.last_name || ""}`.trim() || `id ${me?.user?.id || ""}`;
-
-    const payLabel = payMethod === "cash" ? "Наличные" : payMethod === "transfer" ? "Перевод" : String(payMethod || "—");
-    const recvLabel = receiveMethod === "cash" ? "Наличные" : receiveMethod === "transfer" ? "Перевод" : "Банкомат";
-
-    const message =
-      `💱 Заявка${shortId ? ` #${shortId}` : ""}
-` +
-      `👤 Клиент: ${who}
-` +
-      `🔁 ${sellCurrency} → ${buyCurrency}
-` +
-      `💸 Отдаю: ${fmtAmount(sellCurrency, sellAmount)} ${sellCurrency}
-` +
-      `🎯 Получаю: ${fmtAmount(buyCurrency, buyAmount)} ${buyCurrency}
-` +
-      `💳 Оплата: ${payLabel}
-` +
-      `📦 Получение: ${recvLabel}`;
-
-    // 3) Copy text so user can paste instantly if Telegram can't prefill
-    try {
-      await navigator.clipboard?.writeText?.(message);
-    } catch {}
-
-    // 4) Open chat with the admin configured by the owner.
-    // Priority: explicit deepLink -> username (prefilled text) -> tgId (open chat, paste manually)
+    // 2) Open chat with the admin configured by the owner.
+    // Important: Telegram Mini Apps cannot prefill the message input for a private chat.
+    // The request details are already delivered to the admin via the bot notification.
     const adminChat = me.adminChat;
 
     const openLink = (link: string) => {
@@ -786,31 +757,25 @@ export default function CalculatorTab({ me }: Props) {
     };
 
     if (adminChat?.deepLink) {
-      // If owner sets a custom deep link, we can support {text} placeholder
-      const link = adminChat.deepLink.includes("{text}")
-        ? adminChat.deepLink.replace(/\{text\}/g, encodeURIComponent(message))
-        : adminChat.deepLink;
-      openLink(link);
+      openLink(adminChat.deepLink);
       return;
     }
 
     const uname = String(adminChat?.username || "").replace(/^@/, "").trim();
     if (uname) {
-      // This deep link opens the chat and prefills the composer text (works when username exists)
-      openLink(`tg://resolve?domain=${encodeURIComponent(uname)}&text=${encodeURIComponent(message)}`);
+      // Use https://t.me for best cross-platform behavior inside Telegram
+      openLink(`https://t.me/${encodeURIComponent(uname)}`);
       return;
     }
 
     const tgId = adminChat?.tgId;
     if (tgId && Number.isFinite(Number(tgId))) {
       openLink(`tg://user?id=${Number(tgId)}`);
-      // If we can't prefill, at least tell the user the text is already copied.
-      tg?.showAlert?.("Открыл чат с админом. Текст заявки уже скопирован — просто вставь и отправь.");
       return;
     }
 
     // No admin configured
-    tg?.showAlert?.("Администратор не задан владельцем (adminTgIds). Заявка создана, но чат открыть не получилось.");
+    tg?.showAlert?.("Администратор не задан владельцем (adminTgIds). Заявка отправлена, но чат открыть не получилось.");
   }
 
   return (
