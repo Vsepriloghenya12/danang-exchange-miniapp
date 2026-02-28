@@ -526,7 +526,9 @@ export default function App() {
         </div>
 
         <div className="vx-body">
-          <div className="vx-card2">
+          {/* Tabs should not be wrapped into an extra "card".
+              Each tab renders its own blocks (rates list / calc box / etc.). */}
+          <div className="vx-tabWrap">
             <div
               className={"vx-tabPane " + (tab === "rates" ? "is-active" : "")}
               style={{ display: tab === "rates" ? "block" : "none" }}

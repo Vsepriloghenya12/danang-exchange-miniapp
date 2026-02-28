@@ -616,10 +616,11 @@ body.vx-body-client #root{
 
 /* Calculator: smaller input/select boxes (as requested) */
 .theme-client .vx-exRow{
-  grid-template-columns: 72px 1fr 44px;
+  /* widen currency selector so codes like USDT/EUR are fully visible */
+  grid-template-columns: 92px 1fr 44px;
   gap: 8px;
 }
-.theme-client .vx-exRow select{ width: 72px; padding-right: 22px; }
+.theme-client .vx-exRow select{ width: 92px; padding-right: 26px; }
 .theme-client .vx-exRow select,
 .theme-client .vx-exRow input{
   height: 40px;
@@ -630,8 +631,8 @@ body.vx-body-client #root{
 .theme-client .vx-blankBtn{ width: 44px; height: 40px; }
 
 @media (max-width: 360px){
-  .theme-client .vx-exRow{ grid-template-columns: 68px 1fr 42px; }
-  .theme-client .vx-exRow select{ width: 68px; }
+  .theme-client .vx-exRow{ grid-template-columns: 84px 1fr 42px; }
+  .theme-client .vx-exRow select{ width: 84px; }
   .theme-client .vx-iconBtn{ min-width: 42px; }
   .theme-client .vx-blankBtn{ width: 42px; }
 }
@@ -1245,6 +1246,12 @@ label, input, select, textarea{ color: var(--text); }
 .vx-body{
   /* enough space for the fixed bottom bar, but not so much that pages start scrolling */
   padding-bottom: calc(100px + env(safe-area-inset-bottom));
+}
+
+/* Tabs wrapper (client): only spacing, no extra "card" surface.
+   Each tab renders its own blocks (rates list / calc box / etc.). */
+.vx-tabWrap{
+  margin-top: 10px;
 }
 
 .vx-card2{

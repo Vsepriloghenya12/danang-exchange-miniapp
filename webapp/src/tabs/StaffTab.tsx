@@ -84,7 +84,15 @@ export default function StaffTab({ me }: any) {
   );
 
   const historyReqs = useMemo(
-    () => (requests || []).slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))),
+    // History = finished requests only
+    () =>
+      (requests || [])
+        .filter((r) => {
+          const s = String(r?.state || "");
+          return s === "done" || s === "canceled";
+        })
+        .slice()
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))),
     [requests]
   );
   const selectedTgId = selectedReq?.from?.id ? Number(selectedReq.from.id) : undefined;
@@ -158,6 +166,10 @@ export default function StaffTab({ me }: any) {
       return;
     }
     await loadAll();
+    // If a request is finished, move it to History (as expected by UX)
+    if (next === "done" || next === "canceled") {
+      setView("history");
+    }
     tg?.HapticFeedback?.notificationOccurred?.("success");
   }
 
