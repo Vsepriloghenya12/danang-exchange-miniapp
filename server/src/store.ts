@@ -33,6 +33,8 @@ export type StoredUser = {
 export type Store = {
   config: {
     groupChatId?: number;
+    // Separate group for incoming client requests (can differ from rates publishing group)
+    requestsGroupChatId?: number;
     bonuses?: BonusesConfig;
     adminTgIds?: number[];
     adminUsername?: string;

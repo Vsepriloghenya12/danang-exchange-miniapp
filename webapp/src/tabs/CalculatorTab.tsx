@@ -427,6 +427,13 @@ export default function CalculatorTab({ me }: Props) {
 
   const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeStatus(me?.status));
 
+  const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  useEffect(() => {
+    if (!banner) return;
+    const t = window.setTimeout(() => setBanner(null), 6000);
+    return () => window.clearTimeout(t);
+  }, [banner]);
+
   const gMode = useMemo(() => isGModePair(sellCurrency, buyCurrency), [sellCurrency, buyCurrency]);
 
   // Enforce pay-method restrictions based on SELL currency
@@ -740,42 +747,16 @@ export default function CalculatorTab({ me }: Props) {
       return;
     }
 
-    // 2) Open chat with the admin configured by the owner.
-    // Important: Telegram Mini Apps cannot prefill the message input for a private chat.
-    // The request details are already delivered to the admin via the bot notification.
-    const adminChat = me.adminChat;
+    // 2) UX: show confirmation прямо в приложении.
+    // Заявка уходит в группу менеджеров через бота (на сервере).
+    setBanner({
+      type: "ok",
+      text: "Ваша заявка принята в работу, в ближайшее время с вами свяжется менеджер 🙌",
+    });
 
-    const openLink = (link: string) => {
-      try {
-        if (tg?.openTelegramLink) tg.openTelegramLink(link);
-        else window.location.href = link;
-      } catch {
-        try {
-          window.location.href = link;
-        } catch {}
-      }
-    };
-
-    if (adminChat?.deepLink) {
-      openLink(adminChat.deepLink);
-      return;
-    }
-
-    const uname = String(adminChat?.username || "").replace(/^@/, "").trim();
-    if (uname) {
-      // Use https://t.me for best cross-platform behavior inside Telegram
-      openLink(`https://t.me/${encodeURIComponent(uname)}`);
-      return;
-    }
-
-    const tgId = adminChat?.tgId;
-    if (tgId && Number.isFinite(Number(tgId))) {
-      openLink(`tg://user?id=${Number(tgId)}`);
-      return;
-    }
-
-    // No admin configured
-    tg?.showAlert?.("Администратор не задан владельцем (adminTgIds). Заявка отправлена, но чат открыть не получилось.");
+    // Optional: clear inputs after submit
+    setSellText("");
+    setBuyText("");
   }
 
   return (
@@ -784,6 +765,10 @@ export default function CalculatorTab({ me }: Props) {
         <div className="vx-title18">Калькулятор</div>
         <div className="vx-muted">Статус: {statusLabel(clientStatus)}</div>
       </div>
+
+      {banner ? (
+        <div className={banner.type === "err" ? "vx-toast vx-toastErr" : "vx-toast vx-toastOk"}>{banner.text}</div>
+      ) : null}
 
       {loading && <div className="vx-help">Загрузка курсов…</div>}
       {!loading && (!rates || (!market && gMode)) && <div className="vx-help">Курсы не загружены.</div>}

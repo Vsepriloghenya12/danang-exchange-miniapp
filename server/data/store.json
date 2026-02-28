@@ -1,6 +1,7 @@
 {
   "config": {
-    "groupChatId": null
+    "groupChatId": null,
+    "requestsGroupChatId": null
   },
   "users": {},
   "ratesByDate": {},

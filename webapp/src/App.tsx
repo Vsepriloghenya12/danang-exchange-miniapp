@@ -224,8 +224,6 @@ export default function App() {
           status: r.status,
           isOwner: r.isOwner,
           isAdmin: !!(r as any).isAdmin,
-          // Needed to open the admin chat after creating a request.
-          adminChat: (r as any).adminChat,
         });
       else setMe({ ok: false, initData: useInit, error: r.error });
     })();

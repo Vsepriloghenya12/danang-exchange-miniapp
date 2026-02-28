@@ -1175,8 +1175,8 @@ export function createApiRouter(opts: {
 
       const store = readStore();
 
-      // Requests must NOT depend on a group being configured.
-      // We notify owners/admins in private chats.
+      // Requests are posted into a dedicated managers group (preferred).
+      // The bot may also publish rates into another group, so we support 2 separate chat IDs.
 
       const dtDaNang = new Intl.DateTimeFormat("ru-RU", {
         timeZone: "Asia/Ho_Chi_Minh",
@@ -1212,7 +1212,7 @@ export function createApiRouter(opts: {
       store.requests.push(request);
       writeStore(store);
 
-      // Notify owners/admins in private chat (no group required)
+      // Notify: post into requests group (preferred), fallback to private admins if not configured
       try {
         const shortId = request.id.slice(-6);
         const who =
@@ -1234,24 +1234,32 @@ export function createApiRouter(opts: {
           `📦 Получение: ${methodMap[receiveMethod]}\n` +
           `🕒 ${dtDaNang}`;
 
-        const cfgAdmins = Array.isArray((store.config as any)?.adminTgIds)
-          ? ((store.config as any).adminTgIds as number[])
-          : [];
+        const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;
+        const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
+        const reqGroupChatId =
+          Number((store.config as any)?.requestsGroupChatId) || envReqGroup || Number((store.config as any)?.groupChatId) || envGroup;
 
-        const recipients = cfgAdmins.length
-          ? cfgAdmins
-          : (Array.isArray(opts.ownerTgIds) && opts.ownerTgIds.length)
-          ? opts.ownerTgIds
-          : opts.ownerTgId
-          ? [opts.ownerTgId]
-          : [];
-
-        for (const rid of recipients) {
+        if (reqGroupChatId && Number.isFinite(reqGroupChatId)) {
           await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ chat_id: rid, text, disable_web_page_preview: true })
+            body: JSON.stringify({ chat_id: reqGroupChatId, text, disable_web_page_preview: true })
           });
+        } else {
+          const recipients = (Array.isArray(opts.ownerTgIds) && opts.ownerTgIds.length)
+            ? opts.ownerTgIds
+            : opts.ownerTgId
+            ? [opts.ownerTgId]
+            : Array.isArray((store.config as any)?.adminTgIds)
+            ? ((store.config as any).adminTgIds as number[])
+            : [];
+          for (const rid of recipients) {
+            await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ chat_id: rid, text, disable_web_page_preview: true })
+            });
+          }
         }
       } catch {}
 

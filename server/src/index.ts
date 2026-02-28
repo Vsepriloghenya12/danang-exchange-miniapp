@@ -15,18 +15,20 @@ dotenv.config();
 const BOT_TOKEN = process.env.BOT_TOKEN || "";
 const WEBAPP_URL = process.env.WEBAPP_URL || "";
 
-// Старый вариант (1 владелец)
-const OWNER_TG_ID = process.env.OWNER_TG_ID ? Number(process.env.OWNER_TG_ID) : undefined;
+// Owners:
+// - preferred: OWNER_TG_IDS="111,222,333"
+// - legacy: OWNER_TG_ID="111" (also accepts comma-separated for backward compatibility)
+const OWNER_TG_ID_RAW = String(process.env.OWNER_TG_ID || "").trim();
+const OWNER_TG_ID = OWNER_TG_ID_RAW && !OWNER_TG_ID_RAW.includes(",") ? Number(OWNER_TG_ID_RAW) : undefined;
 
-// Новый вариант (несколько владельцев): "111,222,333"
-const OWNER_TG_IDS = (process.env.OWNER_TG_IDS || "")
+const OWNER_TG_IDS = (process.env.OWNER_TG_IDS || OWNER_TG_ID_RAW || "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean)
   .map((s) => Number(s))
   .filter((n) => Number.isFinite(n));
 
-  console.log("OWNER_TG_IDS parsed:", OWNER_TG_IDS, "OWNER_TG_ID:", OWNER_TG_ID);
+console.log("OWNER_TG_IDS parsed:", OWNER_TG_IDS, "OWNER_TG_ID:", OWNER_TG_ID);
 
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;

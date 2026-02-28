@@ -80,13 +80,28 @@ export function createBot(opts: {
     await ctx.reply(`Группа сохранена ✅ groupChatId=${ctx.chat.id}`);
   });
 
+  // Save a separate group where client requests should be posted
+  bot.command("setrequestsgroup", async (ctx) => {
+    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setrequestsgroup");
+    if (!ctx.chat || ctx.chat.type === "private") return ctx.reply("Используй /setrequestsgroup в группе.");
+
+    const store = readStore();
+    (store.config as any).requestsGroupChatId = ctx.chat.id;
+    writeStore(store);
+
+    await ctx.reply(`Группа для заявок сохранена ✅ requestsGroupChatId=${ctx.chat.id}`);
+  });
+
   bot.command("showgroup", async (ctx) => {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /showgroup");
     const store = readStore();
     const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
+    const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;
     await ctx.reply(
       `store.groupChatId: ${store.config.groupChatId ?? "(не задан)"}\n` +
+        `store.requestsGroupChatId: ${(store.config as any).requestsGroupChatId ?? "(не задан)"}\n` +
         `env.GROUP_CHAT_ID: ${envGroup ?? "(не задан)"}\n` +
+        `env.REQUESTS_GROUP_CHAT_ID: ${envReqGroup ?? "(не задан)"}\n` +
         `requests: ${store.requests.length}`
     );
   });
@@ -104,6 +119,23 @@ export function createBot(opts: {
       await ctx.reply("Ок ✅ отправил тест в группу");
     } catch (e: any) {
       console.error("PINGGROUP ERROR:", e);
+      await ctx.reply(`Не смог отправить в группу. Ошибка: ${e?.message || e}`);
+    }
+  });
+
+  bot.command("pingrequestsgroup", async (ctx) => {
+    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /pingrequestsgroup");
+    const store = readStore();
+    const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;
+    const reqGroupChatId = (store.config as any).requestsGroupChatId || envReqGroup || store.config.groupChatId || (process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined);
+
+    if (!reqGroupChatId) return ctx.reply("Группа для заявок не задана. Сделай /setrequestsgroup в нужной группе (или задай REQUESTS_GROUP_CHAT_ID).\nМожно временно использовать /setgroup.");
+
+    try {
+      await ctx.telegram.sendMessage(reqGroupChatId, "✅ Тест: бот может писать в группу заявок");
+      await ctx.reply("Ок ✅ отправил тест в группу заявок");
+    } catch (e: any) {
+      console.error("PINGREQUESTSGROUP ERROR:", e);
       await ctx.reply(`Не смог отправить в группу. Ошибка: ${e?.message || e}`);
     }
   });
@@ -228,29 +260,37 @@ export function createBot(opts: {
       `📦 Получение: ${methodMap[payload.receiveMethod as ReceiveMethod] || payload.receiveMethod}\n` +
       `🕒 ${dtDaNang}`;
 
-    // Send to owners/admins in private chats
-    const recipients = ownerIds.length
-      ? ownerIds
-      : Array.isArray((store.config as any)?.adminTgIds)
-      ? ((store.config as any).adminTgIds as number[])
-      : [];
+    // Send request to a dedicated group (preferred) so managers can pick it up.
+    // Priority: store.config.requestsGroupChatId -> env REQUESTS_GROUP_CHAT_ID -> store.config.groupChatId -> env GROUP_CHAT_ID
+    const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;
+    const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
+    const reqGroupChatId =
+      (store.config as any).requestsGroupChatId || envReqGroup || store.config.groupChatId || envGroup;
 
     try {
-      let wa = opts.webappUrl || "";
-      if (wa && !/^https?:\/\//i.test(wa)) wa = "https://" + wa;
-      const kb = wa
-        ? Markup.inlineKeyboard([Markup.button.webApp("Открыть админку", wa)])
-        : undefined;
-      for (const rid of recipients) {
-        await ctx.telegram.sendMessage(rid, text, kb ? kb : undefined);
+      if (reqGroupChatId) {
+        await ctx.telegram.sendMessage(reqGroupChatId, text, ({ disable_web_page_preview: true } as any));
+      } else {
+        // If no group is set, fall back to private notifications (best-effort)
+        const recipients = ownerIds.length
+          ? ownerIds
+          : Array.isArray((store.config as any)?.adminTgIds)
+          ? ((store.config as any).adminTgIds as number[])
+          : [];
+        let wa = opts.webappUrl || "";
+        if (wa && !/^https?:\/\//i.test(wa)) wa = "https://" + wa;
+        const kb = wa ? Markup.inlineKeyboard([Markup.button.webApp("Открыть админку", wa)]) : undefined;
+        for (const rid of recipients) {
+          await ctx.telegram.sendMessage(rid, text, kb ? kb : undefined);
+        }
       }
     } catch (e: any) {
-      console.error("ADMIN NOTIFY FAIL:", e);
+      console.error("REQUEST GROUP NOTIFY FAIL:", e);
     }
 
     // Acknowledge to the user
     try {
-      await ctx.reply("✅ Заявка отправлена. Администратор скоро свяжется с вами.");
+      await ctx.reply("✅ Ваша заявка принята в работу, в ближайшее время с вами свяжется менеджер 🙌");
     } catch {}
   });
 
