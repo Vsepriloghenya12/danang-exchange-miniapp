@@ -677,6 +677,14 @@ export function createApiRouter(opts: {
 
       const store = readStore();
 
+      // Group chat to publish into.
+      // Priority: store.config.groupChatId (editable by owner) -> env GROUP_CHAT_ID
+      const groupChatIdRaw = (store.config as any)?.groupChatId ?? process.env.GROUP_CHAT_ID;
+      const groupChatId = Number(groupChatIdRaw);
+      if (!groupChatId || Number.isNaN(groupChatId)) {
+        return res.status(400).json({ ok: false, error: "group_not_set" });
+      }
+
       const todayKey = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
       const todayRates = store.ratesByDate?.[todayKey]?.rates;
       if (!todayRates?.RUB || !todayRates?.USDT || !todayRates?.USD) {
