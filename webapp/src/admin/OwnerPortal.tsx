@@ -576,7 +576,7 @@ export default function OwnerPortal() {
 
   if (!token) {
     return (
-      <div className="vx-page theme-client">
+      <div className="vx-page theme-client theme-owner">
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap');`}</style>
         <div className="bg-danang" aria-hidden="true" />
         <div className="container">
@@ -601,7 +601,7 @@ export default function OwnerPortal() {
   }
 
   return (
-    <div className="vx-page theme-client">
+    <div className="vx-page theme-client theme-owner">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap');`}</style>
       <div className="bg-danang" aria-hidden="true" />
       <div className="container">
