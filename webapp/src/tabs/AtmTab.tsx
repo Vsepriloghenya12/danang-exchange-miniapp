@@ -20,8 +20,10 @@ export default function AtmTab() {
   }, [active]);
 
   return (
-    <div className="card">
-      <div className="h1">Банкоматы</div>
+    <div className="vx-atm">
+      <div className="vx-head">
+        <div className="h2 vx-m0">Банкоматы</div>
+      </div>
       <div className="vx-atmHintBox">
         <div className="vx-atmHint">
           Вы можете получить наличные в банкоматах <b>VIETCOMBANK</b> и <b>BIDV</b> в любом городе Вьетнама.

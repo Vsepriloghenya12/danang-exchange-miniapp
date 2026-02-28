@@ -60,8 +60,17 @@ export default function StaffTab({ me }: any) {
 
   const [selectedId, setSelectedId] = useState<string>("");
 
-  const clientsRef = useRef<HTMLDetailsElement | null>(null);
-  const banksRef = useRef<HTMLDetailsElement | null>(null);
+  const [view, setView] = useState<"list" | "detail" | "history">("list");
+
+  // Keep the latest selection/view accessible inside the polling interval.
+  const selectedIdRef = useRef<string>("");
+  const viewRef = useRef<"list" | "detail" | "history">("list");
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
 
   const selectedReq = useMemo(() => requests.find((r) => String(r.id) === String(selectedId)) || null, [requests, selectedId]);
 
@@ -71,6 +80,11 @@ export default function StaffTab({ me }: any) {
         .filter((r) => String(r?.state) !== "done" && String(r?.state) !== "canceled")
         .map((r) => ({ ...r, state: String(r.state) === "new" ? "in_progress" : r.state }))
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))),
+    [requests]
+  );
+
+  const historyReqs = useMemo(
+    () => (requests || []).slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))),
     [requests]
   );
   const selectedTgId = selectedReq?.from?.id ? Number(selectedReq.from.id) : undefined;
@@ -107,8 +121,15 @@ export default function StaffTab({ me }: any) {
         const firstActive = active.sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at)))[0];
         const firstAny = list.sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at)))[0];
         const pick = firstActive || firstAny;
-        if (pick && (!selectedId || !list.some((x: any) => String(x.id) === String(selectedId)))) {
+        const curSelectedId = selectedIdRef.current;
+        if (pick && (!curSelectedId || !list.some((x: any) => String(x.id) === String(curSelectedId)))) {
           setSelectedId(String(pick.id));
+        }
+
+        // If we're in details screen but the request disappeared, go back to the list.
+        const curView = viewRef.current;
+        if (curView === "detail" && curSelectedId && !list.some((x: any) => String(x.id) === String(curSelectedId))) {
+          setView("list");
         }
       }
 
@@ -122,11 +143,12 @@ export default function StaffTab({ me }: any) {
 
   useEffect(() => {
     tg?.expand?.();
+    if (!initData) return;
     loadAll();
     const id = window.setInterval(loadAll, 7000);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initData]);
 
   async function changeState(next: string) {
     if (!selectedReq) return;
@@ -159,16 +181,6 @@ export default function StaffTab({ me }: any) {
     tg?.HapticFeedback?.notificationOccurred?.("success");
   }
 
-  function openClientsEditor() {
-    try {
-      clientsRef.current && (clientsRef.current.open = true);
-      banksRef.current && (banksRef.current.open = true);
-      clientsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch {
-      // ignore
-    }
-  }
-
   function toggleBank(name: string) {
     setBanks((prev) => {
       if (prev.includes(name)) return prev.filter((x) => x !== name);
@@ -176,204 +188,76 @@ export default function StaffTab({ me }: any) {
     });
   }
 
+  function openDetails(id: string) {
+    setSelectedId(String(id));
+    setView("detail");
+    try {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      // ignore
+    }
+  }
+
   if (!initData) {
     return (
-      <div className="card">
-        <div className="h1">Админ</div>
+      <div>
+        <div className="vx-head">
+          <div className="h2 vx-m0">Админ</div>
+        </div>
         <div className="small">Откройте вкладку админа внутри Telegram.</div>
       </div>
     );
   }
 
-  return (
-    <div className="card">
-      <div className="h1">Админ</div>
-      <div className="small">Заявки • смена статуса • карточка клиента</div>
+  const Header = (
+    <>
+      <div className="vx-head">
+        <div>
+          <div className="h2 vx-m0">Админ</div>
+          <div className="vx-meta">Заявки • статус • карточка клиента</div>
+        </div>
+        <div className="row vx-rowWrap vx-gap6" style={{ justifyContent: "flex-end" }}>
+          <button type="button" className="btn vx-btnSm" onClick={loadAll}>
+            Обновить
+          </button>
+        </div>
+      </div>
 
       {loading ? <div className="vx-help">Загрузка…</div> : null}
-
       <div className="vx-sp12" />
+    </>
+  );
 
-      <div className="vx-adminStack">
-        {/* 1) Active request (always on top) */}
-        <div className="vx-adminPanel">
-          <div className="vx-adminPanelH">Активные заявки</div>
+  return (
+    <div>
+      {Header}
+
+      {view === "list" ? (
+        <>
+          <div className="row vx-between vx-center">
+            <div className="h3 vx-m0">Активные заявки</div>
+            <button type="button" className="btn vx-btnSm" onClick={() => setView("history")}
+              disabled={historyReqs.length === 0}
+            >
+              История
+            </button>
+          </div>
+
+          <div className="vx-sp10" />
 
           {activeReqs.length === 0 ? (
             <div className="vx-muted">Заявок пока нет.</div>
           ) : (
-            <>
-              <div className="vx-reqList" style={{ marginTop: 6 }}>
-                {activeReqs.slice(0, 20).map((r) => {
-                  const isActive = String(r.id) === String(selectedId);
-                  const u = r.from || {};
-                  const who = u.username ? `@${u.username}` : `${u.first_name || ""} ${u.last_name || ""}`.trim() || `id ${u.id}`;
-                  return (
-                    <button
-                      key={r.id}
-                      type="button"
-                      className={"vx-reqRow " + (isActive ? "is-active" : "")}
-                      onClick={() => setSelectedId(String(r.id))}
-                    >
-                      <div className="vx-reqTop">
-                        <b>#{shortId(r.id)}</b>
-                        <span className="vx-muted">{fmtDateTime(r.created_at)}</span>
-                      </div>
-                      <div className="vx-muted">{who}</div>
-                      <div>
-                        <span className="vx-tag">
-                          {r.sellCurrency}→{r.buyCurrency}
-                        </span>
-                        <span className="vx-tag">{stateLabel[String(r.state)] || String(r.state)}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {selectedReq ? (
-                <>
-                  <div className="vx-sp10" />
-
-                  <div className="vx-adminReqTop">
-                    <div className="vx-adminReqId">Заявка #{shortId(selectedReq.id)}</div>
-                    <div className="vx-muted">{fmtDateTime(selectedReq.created_at)}</div>
-                  </div>
-
-                  <div className="vx-sp8" />
-
-                  <div className="vx-muted" style={{ marginTop: 2 }}>
-                    Клиент: {selectedReq.from?.username ? `@${selectedReq.from.username}` : ""} • id:{selectedReq.from?.id}
-                  </div>
-
-                  <div className="vx-sp8" />
-
-                  <div className="vx-rowWrap" style={{ display: "grid", gap: 6 }}>
-                    <div>
-                      🔁 <b>{selectedReq.sellCurrency} → {selectedReq.buyCurrency}</b>
-                    </div>
-                    <div>
-                      💸 Отдаёт: <b>{selectedReq.sellAmount}</b>
-                    </div>
-                    <div>
-                      🎯 Получит: <b>{selectedReq.buyAmount}</b>
-                    </div>
-                    <div>
-                      💳 Оплата: <b>{methodLabel(String(selectedReq.payMethod || ""))}</b>
-                    </div>
-                    <div>
-                      📦 Получение: <b>{methodLabel(String(selectedReq.receiveMethod || ""))}</b>
-                    </div>
-                  </div>
-
-                  <div className="vx-sp10" />
-
-                  <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {STATE_OPTIONS.map((s) => (
-                      <button
-                        key={s.v}
-                        type="button"
-                        className={"btn vx-btnSm " + (String(selectedReq.state) === s.v ? "vx-btnOn" : "")}
-                        onClick={() => changeState(s.v)}
-                      >
-                        {s.l}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="vx-sp10" />
-                  <button type="button" className="btn" onClick={openClientsEditor}>
-                    Создать / обновить контакт клиента
-                  </button>
-                </>
-              ) : null}
-            </>
-          )}
-        </div>
-
-        {/* 2) Clients (collapsed by default) */}
-        <details className="vx-acc" ref={clientsRef as any}>
-          <summary>Клиенты</summary>
-
-          {!selectedReq ? (
-            <div className="vx-muted">Сначала выбери заявку в «Истории заявок».</div>
-          ) : (
-            <>
-              <div className="vx-muted" style={{ marginTop: 6 }}>
-                {selectedReq.from?.username ? `@${selectedReq.from.username}` : ""} • id:{selectedReq.from?.id}
-              </div>
-
-              {banks.length ? (
-                <div className="vx-bankInline" style={{ marginTop: 10 }}>
-                  {banks.slice(0, 8).map((ic) => (
-                    <img key={ic} src={`/banks/${ic}`} alt="" className="vx-bankInlineImg" title={ic} />
-                  ))}
-                </div>
-              ) : null}
-
-              <div className="vx-sp10" />
-
-              <div className="vx-accLbl">Имя (ФИО)</div>
-              <input
-                className="input vx-in"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Например: Иванов Иван"
-              />
-
-              <div className="vx-sp10" />
-
-              {/* 2.1) Banks (collapsed by default) */}
-              <details className="vx-acc vx-accInner" ref={banksRef as any}>
-                <summary>Банки</summary>
-                {icons.length === 0 ? (
-                  <div className="vx-muted">Иконок нет (положи файлы в webapp/public/banks).</div>
-                ) : (
-                  <div className="vx-bankGrid" style={{ marginTop: 10 }}>
-                    {icons.map((ic) => {
-                      const on = banks.includes(ic);
-                      return (
-                        <button
-                          key={ic}
-                          type="button"
-                          className={"vx-bankBtn " + (on ? "is-on" : "")}
-                          onClick={() => toggleBank(ic)}
-                          title={ic}
-                        >
-                          <img src={`/banks/${ic}`} alt="" className="vx-bankImg" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </details>
-
-              <div className="vx-sp10" />
-
-              <button type="button" className="btn" onClick={saveContact}>
-                Сохранить контакт
-              </button>
-            </>
-          )}
-        </details>
-
-        {/* 3) Requests history (collapsed by default) */}
-        <details className="vx-acc">
-          <summary>История заявок</summary>
-          {requests.length === 0 ? (
-            <div className="vx-muted">Заявок пока нет.</div>
-          ) : (
-            <div className="vx-reqList" style={{ marginTop: 10 }}>
-              {requests.slice(0, 80).map((r) => {
-                const isActive = String(r.id) === String(selectedId);
+            <div className="vx-reqList">
+              {activeReqs.slice(0, 40).map((r) => {
                 const u = r.from || {};
                 const who = u.username ? `@${u.username}` : `${u.first_name || ""} ${u.last_name || ""}`.trim() || `id ${u.id}`;
                 return (
                   <button
                     key={r.id}
                     type="button"
-                    className={"vx-reqRow " + (isActive ? "is-active" : "")}
-                    onClick={() => setSelectedId(String(r.id))}
+                    className={"vx-reqRow " + (String(r.id) === String(selectedId) ? "is-active" : "")}
+                    onClick={() => openDetails(String(r.id))}
                   >
                     <div className="vx-reqTop">
                       <b>#{shortId(r.id)}</b>
@@ -389,8 +273,148 @@ export default function StaffTab({ me }: any) {
               })}
             </div>
           )}
-        </details>
-      </div>
+        </>
+      ) : null}
+
+      {view === "history" ? (
+        <>
+          <div className="row vx-between vx-center">
+            <div className="h3 vx-m0">История заявок</div>
+            <button type="button" className="btn vx-btnSm" onClick={() => setView("list")}>Назад</button>
+          </div>
+          <div className="vx-sp10" />
+
+          {historyReqs.length === 0 ? (
+            <div className="vx-muted">Заявок пока нет.</div>
+          ) : (
+            <div className="vx-reqList">
+              {historyReqs.slice(0, 120).map((r) => {
+                const u = r.from || {};
+                const who = u.username ? `@${u.username}` : `${u.first_name || ""} ${u.last_name || ""}`.trim() || `id ${u.id}`;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    className={"vx-reqRow " + (String(r.id) === String(selectedId) ? "is-active" : "")}
+                    onClick={() => openDetails(String(r.id))}
+                  >
+                    <div className="vx-reqTop">
+                      <b>#{shortId(r.id)}</b>
+                      <span className="vx-muted">{fmtDateTime(r.created_at)}</span>
+                    </div>
+                    <div className="vx-muted">{who}</div>
+                    <div>
+                      <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
+                      <span className="vx-tag">{stateLabel[String(r.state)] || String(r.state)}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
+      ) : null}
+
+      {view === "detail" ? (
+        !selectedReq ? (
+          <>
+            <button type="button" className="btn vx-btnSm" onClick={() => setView("list")}>Назад</button>
+            <div className="vx-sp10" />
+            <div className="vx-muted">Заявка не найдена.</div>
+          </>
+        ) : (
+          <>
+            <div className="row vx-between vx-center">
+              <button type="button" className="btn vx-btnSm" onClick={() => setView("list")}>← Назад</button>
+              <div className="vx-muted">{fmtDateTime(selectedReq.created_at)}</div>
+            </div>
+
+            <div className="vx-sp10" />
+
+            <div className="h3 vx-m0">Заявка #{shortId(selectedReq.id)}</div>
+            <div className="vx-muted" style={{ marginTop: 4 }}>
+              Клиент: {selectedReq.from?.username ? `@${selectedReq.from.username}` : ""} • id:{selectedReq.from?.id}
+            </div>
+
+            <div className="vx-sp10" />
+
+            <div className="vx-rowWrap" style={{ display: "grid", gap: 6 }}>
+              <div>🔁 <b>{selectedReq.sellCurrency} → {selectedReq.buyCurrency}</b></div>
+              <div>💸 Отдаёт: <b>{selectedReq.sellAmount}</b></div>
+              <div>🎯 Получит: <b>{selectedReq.buyAmount}</b></div>
+              <div>💳 Оплата: <b>{methodLabel(String(selectedReq.payMethod || ""))}</b></div>
+              <div>📦 Получение: <b>{methodLabel(String(selectedReq.receiveMethod || ""))}</b></div>
+            </div>
+
+            <div className="hr" />
+
+            <div className="small">Статус</div>
+            <div className="vx-sp8" />
+            <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {STATE_OPTIONS.map((s) => (
+                <button
+                  key={s.v}
+                  type="button"
+                  className={"btn vx-btnSm " + (String(selectedReq.state) === s.v ? "vx-btnOn" : "")}
+                  onClick={() => changeState(s.v)}
+                >
+                  {s.l}
+                </button>
+              ))}
+            </div>
+
+            <div className="hr" />
+
+            <div className="small">Контакт клиента</div>
+            <div className="vx-sp8" />
+
+            <input
+              className="input vx-in"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="ФИО (например: Иванов Иван)"
+            />
+
+            <div className="vx-sp10" />
+
+            {icons.length === 0 ? (
+              <div className="vx-muted">Иконок банков нет (положи файлы в webapp/public/banks).</div>
+            ) : (
+              <>
+                <div className="vx-muted">Банки клиента</div>
+                <div className="vx-sp8" />
+                <div className="vx-bankGrid">
+                  {icons.map((ic) => {
+                    const on = banks.includes(ic);
+                    return (
+                      <button
+                        key={ic}
+                        type="button"
+                        className={"vx-bankBtn " + (on ? "is-on" : "")}
+                        onClick={() => toggleBank(ic)}
+                        title={ic}
+                      >
+                        <img src={`/banks/${ic}`} alt="" className="vx-bankImg" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            <div className="vx-sp10" />
+            <button type="button" className="btn" onClick={saveContact}>
+              Сохранить контакт
+            </button>
+
+            {selectedContact ? (
+              <div className="vx-muted" style={{ marginTop: 8 }}>
+                Сохранено ранее: {selectedContact.fullName || "—"}
+              </div>
+            ) : null}
+          </>
+        )
+      ) : null}
     </div>
   );
 }

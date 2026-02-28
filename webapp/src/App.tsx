@@ -24,7 +24,6 @@ type Me = {
 
 type TabKey = "rates" | "calc" | "atm" | "reviews" | "staff";
 
-type AnimClass = "" | "vx-animInL" | "vx-animInR";
 
 const UI = {
   title: "Обмен валют — Дананг",
@@ -104,39 +103,19 @@ function BottomBar({
 
   const visibleOrder = useMemo(() => order.filter((k) => map.get(k)?.show), [order, map]);
 
-  const tri = useMemo(() => {
-    const n = visibleOrder.length;
-    if (!n) return [] as TabKey[];
-
-    // Always show 3 items when possible: prev / current / next.
-    if (n === 1) return [visibleOrder[0]];
-    if (n === 2) {
-      const a = visibleOrder[0];
-      const b = visibleOrder[1];
-      return active === a ? [b, a, b] : [a, b, a];
-    }
-
-    const i0 = visibleOrder.indexOf(active);
-    const i = i0 >= 0 ? i0 : 0;
-    const prev = visibleOrder[(i - 1 + n) % n];
-    const next = visibleOrder[(i + 1) % n];
-    return [prev, visibleOrder[i], next];
-  }, [active, visibleOrder]);
-
   return (
     <div className="vx-bottomWrap">
       <div className="vx-bottomBar">
-        {tri.map((k, idx) => {
+        {visibleOrder.map((k) => {
           const t = map.get(k);
           if (!t) return null;
           const isActive = active === k;
-          const pos = idx === 1 ? "vx-navPosC" : idx === 0 ? "vx-navPosL" : "vx-navPosR";
           return (
             <button
               key={k}
               type="button"
               onClick={() => onChange(k)}
-              className={"vx-navBtn " + pos + " " + (isActive ? "vx-navBtnActive" : "")}
+              className={"vx-navBtn " + (isActive ? "vx-navBtnActive" : "")}
             >
               {isActive ? <div className="vx-navPill" /> : null}
               <span className="vx-navIcon">{t.icon}</span>
@@ -172,7 +151,6 @@ export default function App() {
 
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
   const [tab, setTab] = useState<TabKey>("rates");
-  const [anim, setAnim] = useState<AnimClass>("");
   const [hsStatus, setHsStatus] = useState<string | null>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
 
@@ -400,19 +378,8 @@ export default function App() {
 
   const changeTab = (next: TabKey) => {
     if (next === tab) return;
-
-    const i = tabOrder.indexOf(tab);
-    const j = tabOrder.indexOf(next);
-    setAnim(j > i ? "vx-animInL" : "vx-animInR");
     setTab(next);
   };
-
-  // Clear the animation class after it plays (so it can retrigger)
-  useEffect(() => {
-    if (!anim) return;
-    const t = window.setTimeout(() => setAnim(""), 260);
-    return () => window.clearTimeout(t);
-  }, [anim]);
 
   // Swipe navigation between tabs
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -561,31 +528,31 @@ export default function App() {
         <div className="vx-body">
           <div className="vx-card2">
             <div
-              className={"vx-tabPane " + (tab === "rates" ? "is-active " + anim : "")}
+              className={"vx-tabPane " + (tab === "rates" ? "is-active" : "")}
               style={{ display: tab === "rates" ? "block" : "none" }}
             >
               {pages.rates}
             </div>
             <div
-              className={"vx-tabPane " + (tab === "calc" ? "is-active " + anim : "")}
+              className={"vx-tabPane " + (tab === "calc" ? "is-active" : "")}
               style={{ display: tab === "calc" ? "block" : "none" }}
             >
               {pages.calc}
             </div>
             <div
-              className={"vx-tabPane " + (tab === "atm" ? "is-active " + anim : "")}
+              className={"vx-tabPane " + (tab === "atm" ? "is-active" : "")}
               style={{ display: tab === "atm" ? "block" : "none" }}
             >
               {pages.atm}
             </div>            <div
-              className={"vx-tabPane " + (tab === "reviews" ? "is-active " + anim : "")}
+              className={"vx-tabPane " + (tab === "reviews" ? "is-active" : "")}
               style={{ display: tab === "reviews" ? "block" : "none" }}
             >
               {pages.reviews}
             </div>
 
             <div
-              className={"vx-tabPane " + (tab === "staff" ? "is-active " + anim : "")}
+              className={"vx-tabPane " + (tab === "staff" ? "is-active" : "")}
               style={{ display: tab === "staff" ? "block" : "none" }}
             >
               {pages.staff}
