@@ -631,7 +631,7 @@ body.vx-body-client #root{
 .theme-client .vx-blankBtn{ width: 44px; height: 40px; }
 
 @media (max-width: 360px){
-  .theme-client .vx-exRow{ grid-template-columns: 84px 1fr 42px; }
+  .theme-client .vx-exRow{ grid-template-columns: 120px 1fr 42px; }
   .theme-client .vx-exRow select{ width: 120px; }
   .theme-client .vx-iconBtn{ min-width: 42px; }
   .theme-client .vx-blankBtn{ width: 42px; }
