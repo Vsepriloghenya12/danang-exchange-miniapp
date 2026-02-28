@@ -620,7 +620,7 @@ body.vx-body-client #root{
   grid-template-columns: 92px 1fr 44px;
   gap: 8px;
 }
-.theme-client .vx-exRow select{ width: 92px; padding-right: 26px; }
+.theme-client .vx-exRow select{ width: 120px; padding-right: 26px; }
 .theme-client .vx-exRow select,
 .theme-client .vx-exRow input{
   height: 40px;
