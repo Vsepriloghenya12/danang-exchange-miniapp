@@ -22,11 +22,13 @@ export default function AtmTab() {
   return (
     <div className="card">
       <div className="h1">Банкоматы</div>
-      <div className="vx-atmHint">
-        Вы можете получить наличные в банкоматах <b>VIETCOMBANK</b> и <b>BIDV</b> в любом городе Вьетнама.
+      <div className="vx-atmHintBox">
+        <div className="vx-atmHint">
+          Вы можете получить наличные в банкоматах <b>VIETCOMBANK</b> и <b>BIDV</b> в любом городе Вьетнама.
+        </div>
       </div>
 
-      <div className="vx-sp16" />
+      <div className="vx-sp14" />
 
       <div
         className="vx-atmBtnGrid"
@@ -60,9 +62,9 @@ export default function AtmTab() {
         </div>
       ) : null}
 
-      <div className="vx-sp16" />
+      <div className="vx-sp14" />
 
-      <button className="btn vx-atmBtnWide" type="button" onClick={() => openLink(FIND_ATM_URL)}>
+      <button className="btn vx-atmFindBtn" type="button" onClick={() => openLink(FIND_ATM_URL)}>
         Найти ближайший ко мне банкомат
       </button>
     </div>

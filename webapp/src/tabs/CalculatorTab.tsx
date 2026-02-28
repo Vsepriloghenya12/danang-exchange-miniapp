@@ -699,13 +699,8 @@ export default function CalculatorTab({ me }: Props) {
   async function sendRequest() {
     if (!canSend) return;
 
-    const initData = tg?.initData || "";
-    if (!initData) {
-      tg?.showAlert?.("Нет initData. Открой мини-приложение через Telegram (/start). ");
-      return;
-    }
-
     const payload = {
+      kind: "exchange_request",
       sellCurrency,
       buyCurrency,
       sellAmount,
@@ -713,6 +708,28 @@ export default function CalculatorTab({ me }: Props) {
       payMethod,
       receiveMethod,
     };
+
+    // Preferred flow:
+    // 1) sendData to the bot (so admin gets the request instantly)
+    // 2) close the miniapp -> user lands back in the bot chat
+    // This matches the requested UX "после отправки → диалог в TG".
+    try {
+      if (tg?.sendData) {
+        tg?.HapticFeedback?.notificationOccurred?.("success");
+        tg.sendData(JSON.stringify(payload));
+        tg.close();
+        return;
+      }
+    } catch {
+      // fallback below
+    }
+
+    // Fallback: send via HTTP if WebApp.sendData is not available
+    const initData = tg?.initData || "";
+    if (!initData) {
+      tg?.showAlert?.("Нет initData. Открой мини-приложение через Telegram (/start). ");
+      return;
+    }
 
     try {
       const res = await fetch("/api/requests", {
@@ -731,37 +748,8 @@ export default function CalculatorTab({ me }: Props) {
         return;
       }
 
-      // Redirect user to Telegram chat with a prefilled message.
-      // In most cases, initDataUnsafe.receiver is the bot that opened the WebApp.
-      const short = String(json?.id || "").slice(-6);
-      const msg =
-        `💱 Заявка\n` +
-        (short ? `🆔 #${short}\n` : "") +
-        `🔁 ${sellCurrency} → ${buyCurrency}\n` +
-        `💸 Отдаю: ${fmtAmount(sellCurrency, sellAmount)} ${sellCurrency}\n` +
-        `🎯 Получаю: ${fmtAmount(buyCurrency, buyAmount)} ${buyCurrency}\n` +
-        `💳 Оплата: ${methodLabel(payMethod)}\n` +
-        `📦 Получение: ${methodLabel(receiveMethod)}`;
-
-      const receiver = (tg as any)?.initDataUnsafe?.receiver;
-      const username = receiver?.username ? String(receiver.username) : "";
-      const url = username ? `https://t.me/${username}?text=${encodeURIComponent(msg)}` : "";
-
       tg?.HapticFeedback?.notificationOccurred?.("success");
-
-      if (url) {
-        // openTelegramLink keeps the user inside Telegram
-        if (tg?.openTelegramLink) tg.openTelegramLink(url);
-        else if (tg?.openLink) tg.openLink(url);
-        else window.location.href = url;
-      } else {
-        // Fallback: show the prepared text so the user can copy it manually.
-        tg?.showPopup?.({
-          title: "Заявка создана",
-          message: "Не удалось открыть чат автоматически. Скопируйте текст и отправьте администратору:\n\n" + msg,
-          buttons: [{ type: "ok" }],
-        });
-      }
+      tg?.close?.();
     } catch (e: any) {
       tg?.HapticFeedback?.notificationOccurred?.("error");
       tg?.showAlert?.(`Ошибка сети: ${e?.message || e}`);

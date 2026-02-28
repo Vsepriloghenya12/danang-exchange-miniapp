@@ -42,17 +42,16 @@ const statusLabel: Record<UserStatus, string> = {
 };
 
 const requestStateLabel: Record<RequestState, string> = {
-  // legacy: "new" is treated as in_progress
-  new: "в работе",
   in_progress: "в работе",
-  done: "готово",
-  canceled: "отменена"
+  done: "готова",
+  canceled: "отклонена",
+  new: "в работе" // legacy
 };
 
 function parseRequestState(s: any): RequestState | null {
   const v = String(s ?? "").toLowerCase().trim();
   if (!v) return null;
-  // We no longer use state "new". Old clients/data may still send it — map to in_progress.
+  // legacy alias: treat "new" as "in_progress" (в работе)
   if (["new", "принята", "новая", "создана"].includes(v)) return "in_progress";
   if (["in_progress", "inprogress", "process", "в работе", "вработе"].includes(v)) return "in_progress";
   if (["done", "готово", "готова", "выполнена"].includes(v)) return "done";
@@ -677,9 +676,6 @@ export function createApiRouter(opts: {
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const store = readStore();
-      const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
-      const groupChatId = store.config?.groupChatId || envGroup;
-      if (!groupChatId) return res.status(400).json({ ok: false, error: "group_not_set" });
 
       const todayKey = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
       const todayRates = store.ratesByDate?.[todayKey]?.rates;
@@ -927,9 +923,10 @@ export function createApiRouter(opts: {
     try {
       requireStaff(req);
       const store = readStore();
-      const requests = [...(store.requests || [])].sort((a, b) =>
-        String(b.created_at).localeCompare(String(a.created_at))
-      );
+      // legacy: migrate any "new" to "in_progress"
+      const requests = [...(store.requests || [])]
+        .map((r) => ({ ...r, state: (r as any).state === "new" ? "in_progress" : (r as any).state }))
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
       const contacts: Record<string, any> = {};
       for (const c of store.contacts || []) {
         if (c?.tg_id) contacts[String(c.tg_id)] = c;
@@ -1142,10 +1139,30 @@ export function createApiRouter(opts: {
       }
 
       const store = readStore();
+
+      // Requests must NOT depend on a group being configured.
+      // We notify owners/admins in private chats.
+
+      const dtDaNang = new Intl.DateTimeFormat("ru-RU", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      }).format(new Date()).replace(",", "");
+
+      const methodMap: Record<ReceiveMethod, string> = {
+        cash: "наличные",
+        transfer: "перевод",
+        atm: "банкомат"
+      };
+
       store.requests = store.requests || [];
       const request: StoredRequest = {
         id: randomUUID(),
-        // New requests immediately go into "in_progress" (В работе)
+        // By default заявки сразу "в работе"
         state: "in_progress",
         sellCurrency,
         buyCurrency,
@@ -1159,6 +1176,46 @@ export function createApiRouter(opts: {
       };
       store.requests.push(request);
       writeStore(store);
+
+      // Notify owners/admins in private chat (no group required)
+      try {
+        const shortId = request.id.slice(-6);
+        const who =
+          (user.username
+            ? `@${user.username}`
+            : `${user.first_name || ""} ${user.last_name || ""}`.trim() || `id ${user.id}`) +
+          ` • статус: ${statusLabel[normalizeStatus(status)]}`;
+
+        const payMap: Record<string, string> = { cash: "наличные", transfer: "перевод", other: "другое" };
+
+        const text =
+          `💱 Новая заявка (в работе)\n` +
+          `🆔 #${shortId}\n` +
+          `👤 ${who}\n` +
+          `🔁 ${sellCurrency} → ${buyCurrency}\n` +
+          `💸 Отдаёт: ${sellAmount}\n` +
+          `🎯 Получит: ${buyAmount}\n` +
+          `💳 Оплата: ${payMap[String(p.payMethod || "")] || String(p.payMethod || "—")}\n` +
+          `📦 Получение: ${methodMap[receiveMethod]}\n` +
+          `🕒 ${dtDaNang}`;
+
+        const recipients = (Array.isArray(opts.ownerTgIds) && opts.ownerTgIds.length)
+          ? opts.ownerTgIds
+          : opts.ownerTgId
+          ? [opts.ownerTgId]
+          : Array.isArray((store.config as any)?.adminTgIds)
+          ? ((store.config as any).adminTgIds as number[])
+          : [];
+
+        for (const rid of recipients) {
+          await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ chat_id: rid, text, disable_web_page_preview: true })
+          });
+        }
+      } catch {}
+
       res.json({ ok: true, id: request.id, state: request.state });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });

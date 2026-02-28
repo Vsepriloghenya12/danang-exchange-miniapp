@@ -102,12 +102,12 @@ body.vx-body-client #root{
   --muted2: rgba(248,250,255,.52);
   --ph: rgba(248,250,255,.40);
 
-  /* surfaces (more opaque so ripple stays only on the background) */
-  --panel: rgba(12,12,12,.92);
-  --panel2: rgba(16,16,16,.88);
+  /* surfaces (matte, NOT transparent) */
+  --panel: rgba(10,10,10,1);
+  --panel2: rgba(14,14,14,.98);
 
-  --stroke: rgba(255,255,255,.10);
-  --stroke2: rgba(255,255,255,.14);
+  --stroke: rgba(255,255,255,.12);
+  --stroke2: rgba(255,255,255,.18);
 
   /* neon edge lighting (premium yellow) */
   --neon: rgba(255,218,125,1);
@@ -174,15 +174,16 @@ body.vx-body-client #root{
 
 .theme-client .container{ max-width: 420px; }
 
-/* Remove "big blocks" feeling: make wrappers transparent */
+/* Matte surfaces: blocks are NOT transparent.
+   The ripple stays in the background, while UI elements look like "dark gadget" tiles. */
 .theme-client .card,
 .theme-client .vx-card2{
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
+  background: var(--panel2) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  box-shadow: 0 22px 74px rgba(0,0,0,.72), 0 0 0 1px rgba(0,0,0,.45) inset !important;
   backdrop-filter: none !important;
 }
-.theme-client .card{ padding: 0; }
+.theme-client .card{ padding: 14px; }
 .theme-client .vx-topCard{ padding: 10px 2px 8px; }
 .theme-client .vx-topRow{
   border-bottom: 0;
@@ -214,16 +215,14 @@ body.vx-body-client #root{
 .theme-client.vx-page input,
 .theme-client.vx-page select,
 .theme-client.vx-page textarea{
-  background: rgba(14,14,14,.94);
-  border-color: rgba(255,255,255,0.14);
+  background: rgba(8,8,8,.96);
+  border-color: rgba(255,255,255,0.16);
   color: rgba(255,255,255,.92);
   border-radius: 22px;
   box-shadow:
-    0 24px 74px rgba(0,0,0,.72),
+    0 18px 54px rgba(0,0,0,.60),
     0 0 0 1px rgba(255,255,255,.06) inset,
-    0 1px 0 rgba(255,255,255,.06) inset,
-    0 -18px 28px rgba(0,0,0,.62) inset,
-    0 0 22px var(--neonBloom2);
+    0 1px 0 rgba(255,255,255,.06) inset;
 }
 .theme-client.vx-page input::placeholder,
 .theme-client.vx-page textarea::placeholder{ color: rgba(255,255,255,.40); }
@@ -253,7 +252,7 @@ body.vx-body-client #root{
   overflow: visible;
   -webkit-tap-highlight-color: transparent;
 
-  background: rgba(12,12,12,.96) !important;
+  background: rgba(10,10,10,.96) !important;
   border: 1px solid rgba(255,255,255,.08) !important;
   color: rgba(255,255,255,.92) !important;
 
@@ -448,7 +447,7 @@ body.vx-body-client #root{
 .theme-client .vx-pill,
 .theme-client .vx-revCompose,
 .theme-client .vx-revCard{
-  background: rgba(14,14,14,.94) !important;
+  background: rgba(10,10,10,.96) !important;
   border-color: rgba(255,255,255,.12) !important;
   box-shadow: 0 14px 40px rgba(0,0,0,.50), 0 0 18px var(--neonBloom2);
 }
@@ -481,24 +480,14 @@ body.vx-body-client #root{
   opacity: .78;
 }
 
-/* Rates + calculator should sit directly on the background (no big blocks) */
-.theme-client .vx-rateList,
-.theme-client .vx-calcBox,
+/* Tables keep their own wrap; list & calculator are matte tiles */
 .theme-client .vx-table{
-  background: rgba(12,12,12,.92) !important;
-  border: 1px solid rgba(255,255,255,.10) !important;
-  box-shadow:
-    0 30px 96px rgba(0,0,0,.76),
-    0 14px 40px rgba(0,0,0,.62),
-    0 0 0 1px rgba(255,255,255,.05) inset,
-    0 0 34px var(--neonBloom2);
-  padding-left: 12px !important;
-  padding-right: 12px !important;
+  background: transparent !important;
 }
 
 /* Admin tables in dark theme (fix white-on-white) */
 .theme-client .vx-tableWrap{
-  background: rgba(255,255,255,.03) !important;
+  background: var(--panel2) !important;
   border-color: rgba(255,255,255,.12) !important;
   box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(255,218,125,.10);
 }
@@ -511,22 +500,34 @@ body.vx-body-client #root{
   color: rgba(255,255,255,.88) !important;
   border-bottom-color: rgba(255,255,255,.10) !important;
 }
-.theme-client .vx-calcBox{ overflow: visible !important; padding: 12px !important; }
-.theme-client .vx-rateList{ padding: 6px 0 !important; }
+.theme-client .vx-calcBox{
+  overflow: visible !important;
+  padding: 12px 12px 14px !important;
+  background: var(--panel2) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  border-radius: 24px !important;
+  box-shadow:
+    0 26px 86px rgba(0,0,0,.70),
+    0 12px 30px rgba(0,0,0,.56),
+    0 0 34px var(--neonBloom2),
+    0 0 0 1px rgba(255,255,255,.05) inset,
+    0 1px 0 rgba(255,255,255,.08) inset;
+}
+.theme-client .vx-rateList{ padding: 0 !important; }
 
 /* Rates: one continuous list (not separate cards) */
 .theme-client .vx-rateList{
   margin-top: 10px;
   position: relative;
   border-radius: 22px;
-  background: rgba(12,12,12,.92) !important;
+  background: var(--panel2) !important;
   border: 1px solid rgba(255,255,255,.10) !important;
   box-shadow:
-    0 30px 96px rgba(0,0,0,.76),
-    0 14px 40px rgba(0,0,0,.62),
+    0 26px 86px rgba(0,0,0,.70),
+    0 12px 30px rgba(0,0,0,.56),
+    0 0 34px var(--neonBloom2),
     0 0 0 1px rgba(255,255,255,.05) inset,
-    0 1px 0 rgba(255,255,255,.08) inset,
-    0 0 34px var(--neonBloom2);
+    0 1px 0 rgba(255,255,255,.08) inset;
   overflow: hidden;
 }
 
@@ -589,24 +590,24 @@ body.vx-body-client #root{
 
 /* Calculator: smaller input/select boxes (as requested) */
 .theme-client .vx-exRow{
-  grid-template-columns: 78px 1fr 48px;
+  grid-template-columns: 72px 1fr 44px;
   gap: 8px;
 }
-.theme-client .vx-exRow select{ width: 78px; padding-right: 24px; }
+.theme-client .vx-exRow select{ width: 72px; padding-right: 22px; }
 .theme-client .vx-exRow select,
 .theme-client .vx-exRow input{
-  height: 44px;
-  border-radius: 18px;
-  font-size: 15px;
+  height: 40px;
+  border-radius: 16px;
+  font-size: 14px;
 }
-.theme-client .vx-iconBtn{ height: 44px; min-width: 48px; border-radius: 18px; }
-.theme-client .vx-blankBtn{ width: 48px; height: 44px; }
+.theme-client .vx-iconBtn{ height: 40px; min-width: 44px; border-radius: 16px; }
+.theme-client .vx-blankBtn{ width: 44px; height: 40px; }
 
 @media (max-width: 360px){
-  .theme-client .vx-exRow{ grid-template-columns: 74px 1fr 44px; }
-  .theme-client .vx-exRow select{ width: 74px; }
-  .theme-client .vx-iconBtn{ min-width: 44px; }
-  .theme-client .vx-blankBtn{ width: 44px; }
+  .theme-client .vx-exRow{ grid-template-columns: 68px 1fr 42px; }
+  .theme-client .vx-exRow select{ width: 68px; }
+  .theme-client .vx-iconBtn{ min-width: 42px; }
+  .theme-client .vx-blankBtn{ width: 42px; }
 }
 
 /* =========================
@@ -710,7 +711,7 @@ body.vx-body-client #root{
 
 .theme-client .vx-adminPanel,
 .theme-client .vx-acc{
-  background: rgba(12,12,12,.92) !important;
+  background: var(--panel2) !important;
   border: 1px solid rgba(255,255,255,.12) !important;
   box-shadow: 0 18px 60px rgba(0,0,0,.64), 0 0 64px rgba(255,218,125,.10);
 }
@@ -726,10 +727,10 @@ body.vx-body-client #root{
 .theme-client .vx-bottomBar{
   perspective: 1200px;
   perspective-origin: center 70%;
-  background: rgba(10,10,10,.90);
+  background: var(--panel2);
   border-color: rgba(255,255,255,.12);
   box-shadow: 0 22px 66px rgba(0,0,0,.72), 0 0 48px rgba(255,218,125,.08);
-  backdrop-filter: blur(12px);
+  backdrop-filter: none;
   /* more room so the center item can be larger WITHOUT popping out of the bar */
   padding: 10px;
   gap: 10px;
@@ -767,19 +768,23 @@ body.vx-body-client #root{
   border-radius: 18px !important;
   font-size: 9px !important;
   color: rgba(248,250,255,.74) !important;
-  background: rgba(10,10,10,.84) !important;
+  background: rgba(10,10,10,.96) !important;
   border-color: rgba(255,255,255,.10) !important;
-  height: 58px;
+  height: 60px;
   transform: translateY(0);
   transition: transform 0.14s ease, filter 0.18s ease;
-}
-
-/* Telegram WebView can clip text with tight line-height + 3D transforms */
-.theme-client .vx-navLabel{
-  line-height: 1.2;
-  padding-bottom: 2px;
+  gap: 6px;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
 }
 .theme-client .vx-navBtn .vx-navIcon{ opacity: .96; }
+.theme-client .vx-navBtn .vx-navLabel{
+  display:block;
+  line-height: 1.05;
+  padding-bottom: 2px;
+  margin-top: 0;
+  backface-visibility: hidden;
+}
 .theme-client .vx-navBtn:active{ filter: brightness(1.04); transform: translateY(4px) scale(0.99); }
 .theme-client .vx-navBtnActive{ color: rgba(248,250,255,.96) !important; }
 
@@ -846,27 +851,42 @@ body.vx-body-client #root{
   font-weight: 900;
   text-align: center;
   line-height: 1.35;
-  margin-top: 8px;
+  margin: 0;
   color: var(--text);
+}
+
+.vx-atmHintBox{
+  margin-top: 8px;
+  padding: 14px 14px;
+  border-radius: 20px;
+  background: var(--panel2);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow2);
 }
 .theme-client .vx-atmHint{
   font-size: 16px;
   text-align: center;
   line-height: 1.35;
-  margin-top: 10px;
-  padding: 16px 16px;
-  border-radius: 22px;
-  background: rgba(12,12,12,.96);
-  border: 1px solid rgba(255,255,255,.14);
-  box-shadow:
-    0 34px 110px rgba(0,0,0,.78),
-    0 0 0 1px rgba(255,218,125,.24) inset,
-    0 0 34px rgba(255,218,125,.22),
-    0 0 92px rgba(255,218,125,.12);
+  margin: 0;
   color: rgba(255,255,255,.92);
 }
 
-.vx-atmBtnWide{ width: 100%; }
+/* ATM: highlighted info block (stronger than buttons, so it doesn't merge visually) */
+.theme-client .vx-atmHintBox{
+  margin-top: 10px;
+  padding: 16px 14px;
+  border-radius: 22px;
+  background: var(--panel2);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow:
+    0 26px 86px rgba(0,0,0,.70),
+    0 0 0 1px rgba(255,218,125,.22) inset,
+    0 0 26px rgba(255,218,125,.22),
+    0 0 66px rgba(255,218,125,.12);
+}
+
+.theme-client .vx-atmBtnGrid{ margin-top: 18px; }
+.theme-client .vx-atmFindBtn{ width: 100%; }
 
 .theme-client .vx-atmVideoCard{
   background: rgba(255,255,255,.03) !important;
@@ -881,7 +901,7 @@ body.vx-body-client #root{
 
 /* Admin screens (inside the miniapp) */
 .theme-client .vx-adminSeg{
-  background: rgba(12,12,12,.92) !important;
+  background: rgba(255,255,255,.022) !important;
   border: 1px solid rgba(255,255,255,.10) !important;
   border-radius: 22px !important;
   box-shadow:
@@ -945,7 +965,7 @@ body.vx-body-client #root{
     0 0 220px rgba(255,218,125,.16);
 }
 .theme-client .vx-admin .vx-code{ color: rgba(255,255,255,.84) !important; }
-.theme-client .vx-admin input.vx-in{ background: rgba(255,255,255,.06) !important; border-color: rgba(255,255,255,.16) !important; }
+.theme-client .vx-admin input.vx-in{ background: rgba(8,8,8,.96) !important; border-color: rgba(255,255,255,.16) !important; }
 
 /* Remove big light cards in owner/admin layouts when shown inside the dark theme */
 .theme-client .vx-adminCard{
@@ -955,12 +975,12 @@ body.vx-body-client #root{
 }
 .theme-client .vx-toast,
 .theme-client .vx-pre{
-  background: rgba(255,255,255,.03) !important;
+  background: var(--panel2) !important;
   border-color: rgba(255,255,255,.14) !important;
   color: rgba(255,255,255,.86) !important;
 }
 .theme-client .vx-contactRow{
-  background: rgba(255,255,255,.03) !important;
+  background: var(--panel2) !important;
   border-color: rgba(255,255,255,.14) !important;
   color: rgba(255,255,255,.86) !important;
 }
@@ -1187,7 +1207,7 @@ label, input, select, textarea{ color: var(--text); }
 .vx-mb10{ margin-bottom: 10px !important; }
 .vx-sp10{ height: 10px; }
 .vx-sp12{ height: 12px; }
-.vx-sp16{ height: 16px; }
+.vx-sp14{ height: 14px; }
 .vx-rowWrap{ flex-wrap: wrap !important; }
 .vx-end{ justify-self: end; }
 

@@ -1,9 +1,11 @@
 import { Telegraf, Markup } from "telegraf";
+import { randomUUID } from "node:crypto";
 import {
   readStore,
   writeStore,
   upsertUserFromTelegram,
   type UserStatus,
+  type StoredRequest,
   normalizeStatus,
   parseStatusInput
 } from "./store.js";
@@ -35,42 +37,6 @@ export function createBot(opts: {
     if (!ownerIds.length) return true; // если не задали владельцев — не ограничиваем
     return !!id && ownerIds.includes(id);
   };
-
-  // Forward user заявки to admins/owners.
-  // The WebApp opens the bot chat with a prefilled text message.
-  // When the user presses Send, the bot receives plain text — we forward it.
-  bot.on("text", async (ctx) => {
-    const text = (ctx.message as any)?.text ? String((ctx.message as any).text) : "";
-    if (!text || text.startsWith("/")) return;
-    if (!/\bЗаявка\b/.test(text) && !text.includes("💱")) return;
-
-    // Don't forward owners' own messages.
-    if (isOwner(ctx.from?.id)) return;
-
-    const store = readStore();
-    const adminIds = Array.isArray(store.config?.adminTgIds) ? store.config.adminTgIds : [];
-    const toIds = Array.from(new Set<number>([...ownerIds, ...adminIds].filter((x) => Number.isFinite(x)) as any));
-    if (!toIds.length) {
-      await ctx.reply("Администраторы не настроены. Укажи OWNER_TG_ID или adminTgIds в настройках.");
-      return;
-    }
-
-    const who = ctx.from?.username
-      ? `@${ctx.from.username}`
-      : `${ctx.from?.first_name || ""} ${ctx.from?.last_name || ""}`.trim() || `id ${ctx.from?.id}`;
-
-    const header = `📥 Новая заявка от ${who} (id ${ctx.from?.id})\n\n`;
-
-    try {
-      for (const id of toIds) {
-        await ctx.telegram.sendMessage(id, header + text, { disable_web_page_preview: true } as any);
-      }
-      await ctx.reply("✅ Отправлено администратору");
-    } catch (e: any) {
-      console.error("FORWARD FAIL:", e);
-      await ctx.reply(`Не смог отправить администратору: ${e?.message || e}`);
-    }
-  });
 
   bot.start(async (ctx) => {
     if (ctx.from) upsertUserFromTelegram(ctx.from);
@@ -207,18 +173,12 @@ export function createBot(opts: {
     }
 
     const store = readStore();
-    const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
-    const groupChatId = store.config.groupChatId || envGroup;
-
-    if (!groupChatId) {
-      await ctx.reply("Группа не задана. Сделай /setgroup в группе (или задай GROUP_CHAT_ID).");
-      return;
-    }
 
     const userKey = String(ctx.from?.id ?? "");
     const status: UserStatus = store.users[userKey]?.status ?? "standard";
 
     const methodMap: Record<string, string> = { cash: "наличные", transfer: "перевод", atm: "банкомат" };
+    const payMap: Record<string, string> = { cash: "наличные", transfer: "перевод", other: "другое" };
     const dtDaNang = new Intl.DateTimeFormat("ru-RU", {
       timeZone: "Asia/Ho_Chi_Minh",
       year: "numeric",
@@ -237,22 +197,61 @@ export function createBot(opts: {
         : `${ctx.from?.first_name || ""} ${ctx.from?.last_name || ""}`.trim() || `id ${ctx.from?.id}`) +
       ` • статус: ${statusLabel[normalizeStatus(status)]}`;
 
+    // Create a request in the store (so it appears in the miniapp admin tab instantly)
+    store.requests = store.requests || [];
+    const id = randomUUID();
+    const reqObj: StoredRequest = {
+      id,
+      state: "in_progress",
+      sellCurrency: String(payload.sellCurrency || "") as any,
+      buyCurrency: String(payload.buyCurrency || "") as any,
+      sellAmount: Number(payload.sellAmount),
+      buyAmount: Number(payload.buyAmount),
+      payMethod: String(payload.payMethod || ""),
+      receiveMethod: String(payload.receiveMethod || "") as any,
+      from: ctx.from as any,
+      status: normalizeStatus(status),
+      created_at: new Date().toISOString()
+    };
+    store.requests.push(reqObj);
+    writeStore(store);
+
+    const shortId = id.slice(-6);
     const text =
-      `💱 Заявка\n` +
+      `💱 Новая заявка (в работе)\n` +
+      `🆔 #${shortId}\n` +
       `👤 ${who}\n` +
       `🔁 ${payload.sellCurrency} → ${payload.buyCurrency}\n` +
       `💸 Отдаёт: ${payload.sellAmount}\n` +
       `🎯 Получит: ${payload.buyAmount}\n` +
-      `📦 Способ: ${methodMap[payload.receiveMethod as ReceiveMethod] || payload.receiveMethod}\n` +
+      `💳 Оплата: ${payMap[String(payload.payMethod)] || String(payload.payMethod || "—")}\n` +
+      `📦 Получение: ${methodMap[payload.receiveMethod as ReceiveMethod] || payload.receiveMethod}\n` +
       `🕒 ${dtDaNang}`;
 
+    // Send to owners/admins in private chats
+    const recipients = ownerIds.length
+      ? ownerIds
+      : Array.isArray((store.config as any)?.adminTgIds)
+      ? ((store.config as any).adminTgIds as number[])
+      : [];
+
     try {
-      await ctx.telegram.sendMessage(groupChatId, text);
-      await ctx.reply("Заявка отправлена ✅");
+      let wa = opts.webappUrl || "";
+      if (wa && !/^https?:\/\//i.test(wa)) wa = "https://" + wa;
+      const kb = wa
+        ? Markup.inlineKeyboard([Markup.button.webApp("Открыть админку", wa)])
+        : undefined;
+      for (const rid of recipients) {
+        await ctx.telegram.sendMessage(rid, text, kb ? kb : undefined);
+      }
     } catch (e: any) {
-      console.error("SEND FAIL:", e);
-      await ctx.reply(`Не смог отправить в группу: ${e?.message || e}`);
+      console.error("ADMIN NOTIFY FAIL:", e);
     }
+
+    // Acknowledge to the user
+    try {
+      await ctx.reply("✅ Заявка отправлена. Администратор скоро свяжется с вами.");
+    } catch {}
   });
 
   return bot;
