@@ -10,6 +10,7 @@ import {
   apiAdminPublish,
   apiAdminUsers,
   apiAdminGetRequests,
+  apiAdminSetRequestState,
   apiAdminSetUserStatus,
   apiAdminGetContacts,
   apiAdminUpsertContact,
@@ -50,6 +51,16 @@ function shiftISO(days: number) {
 const DEFAULT_TEMPLATE = `Доброе утро!\n\nКурс на {{date}}:\n\n{{rates}}\n\n🛵    Бесплатная доставка\n             С 10:00 до 16:00.\n        при обмене от 20 000₽\n\n⏩БОЛЕЕ ВЫГОДНЫЙ КУРС  ⏪\n  при дистанционном обмене                        ⠀              от 20 000₽\n💳  Перевод на вьетнамский счёт;\n📥  Получение в банкоматах BIDV Vietcombank;`;
 
 export default function OwnerPortal() {
+  // Owner portal is opened in a regular browser; keep background consistent with the miniapp.
+  useEffect(() => {
+    try {
+      document.body.classList.add("vx-body-client");
+      return () => document.body.classList.remove("vx-body-client");
+    } catch {
+      return;
+    }
+  }, []);
+
   const [key, setKey] = useState<string>(() => {
     try {
       return localStorage.getItem(LS_KEY) || "";
@@ -112,6 +123,15 @@ export default function OwnerPortal() {
   const [repOnlyDone, setRepOnlyDone] = useState<boolean>(true);
   const [repTgId, setRepTgId] = useState<string>("");
   const [report, setReport] = useState<any>(null);
+
+  // Requests (owner portal): list -> details, like in the staff tab.
+  type ReqView = "active" | "rejected" | "history" | "detail";
+  const [reqView, setReqView] = useState<ReqView>("active");
+  const [reqSelectedId, setReqSelectedId] = useState<string>("");
+  const [reqHistFrom, setReqHistFrom] = useState<string>(() => shiftISO(-7));
+  const [reqHistTo, setReqHistTo] = useState<string>(() => todayISO());
+  const [reqFullName, setReqFullName] = useState<string>("");
+  const [reqBanks, setReqBanks] = useState<string[]>([]);
 
   const saveTplTimer = useRef<number | null>(null);
 
@@ -187,7 +207,7 @@ export default function OwnerPortal() {
 
   useEffect(() => {
     if (!token) return;
-    if (tab === "clients") loadClients();
+    if (tab === "clients" || tab === "requests") loadClients();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, token]);
 
@@ -410,6 +430,130 @@ export default function OwnerPortal() {
     return m;
   }, [contacts]);
 
+  const reqSelected = useMemo(
+    () => (requests || []).find((r) => String(r?.id) === String(reqSelectedId)) || null,
+    [requests, reqSelectedId]
+  );
+
+  const selectedTgId = reqSelected?.from?.id ? Number(reqSelected.from.id) : undefined;
+  const selectedUsername = reqSelected?.from?.username ? String(reqSelected.from.username) : "";
+
+  const reqSelectedContact: Contact | null = useMemo(() => {
+    if (!reqSelected) return null;
+    if (selectedTgId && contactsByTg[String(selectedTgId)]) return contactsByTg[String(selectedTgId)];
+    if (selectedUsername) return contactsByUsername[String(selectedUsername).toLowerCase()] || null;
+    return null;
+  }, [reqSelected, selectedTgId, selectedUsername, contactsByTg, contactsByUsername]);
+
+  // Sync request contact editor on selection change
+  useEffect(() => {
+    setReqFullName(reqSelectedContact?.fullName || "");
+    setReqBanks(Array.isArray(reqSelectedContact?.banks) ? reqSelectedContact!.banks! : []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reqSelectedContact?.id, reqSelectedId]);
+
+  const reqActive = useMemo(
+    () =>
+      (requests || [])
+        .filter((r) => {
+          const s = String(r?.state || "");
+          return s !== "done" && s !== "canceled";
+        })
+        .slice()
+        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))),
+    [requests]
+  );
+
+  const reqRejected = useMemo(
+    () =>
+      (requests || [])
+        .filter((r) => String(r?.state || "") === "canceled")
+        .slice()
+        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))),
+    [requests]
+  );
+
+  const reqHistoryAll = useMemo(
+    () =>
+      (requests || [])
+        .filter((r) => String(r?.state || "") === "done")
+        .slice()
+        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))),
+    [requests]
+  );
+
+  const reqHistory = useMemo(() => {
+    const from = reqHistFrom ? new Date(reqHistFrom + "T00:00:00").getTime() : NaN;
+    const to = reqHistTo ? new Date(reqHistTo + "T23:59:59").getTime() : NaN;
+
+    return reqHistoryAll.filter((r) => {
+      const t = new Date(String(r?.created_at || "")).getTime();
+      if (!Number.isFinite(t)) return true;
+      if (Number.isFinite(from) && t < from) return false;
+      if (Number.isFinite(to) && t > to) return false;
+      return true;
+    });
+  }, [reqHistoryAll, reqHistFrom, reqHistTo]);
+
+  function reqShortId(id: any) {
+    const s = String(id || "");
+    return s.length > 6 ? s.slice(-6) : s;
+  }
+
+  function openReqDetails(id: string) {
+    setReqSelectedId(String(id));
+    setReqView("detail");
+    try {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function setReqState(next: "in_progress" | "done" | "canceled") {
+    if (!reqSelected) return;
+    const r = await apiAdminSetRequestState(token, String(reqSelected.id), next);
+    if (!r?.ok) {
+      showErr(r?.error || "Ошибка");
+      return;
+    }
+    await loadClients();
+    if (next === "done") setReqView("history");
+    if (next === "canceled") setReqView("rejected");
+    showOk("Сохранено ✅");
+  }
+
+  async function saveReqContact() {
+    if (!reqSelected) return;
+    if (!selectedTgId && !selectedUsername) {
+      showErr("Нет tg_id/username");
+      return;
+    }
+
+    const payload: any = {
+      ...(selectedTgId ? { tg_id: selectedTgId } : {}),
+      ...(selectedUsername ? { username: selectedUsername } : {}),
+      fullName: reqFullName,
+      banks: reqBanks,
+    };
+
+    const r = await apiAdminUpsertContact(token, payload);
+    if (!r?.ok) {
+      showErr(r?.error || "Ошибка");
+      return;
+    }
+    const c = await apiAdminGetContacts(token);
+    if (c?.ok) setContacts(Array.isArray(c.contacts) ? c.contacts : []);
+    showOk("Сохранено ✅");
+  }
+
+  function toggleReqBank(name: string) {
+    setReqBanks((prev) => {
+      if (prev.includes(name)) return prev.filter((x) => x !== name);
+      return [...prev, name];
+    });
+  }
+
   const reqAgg = useMemo(() => {
     const m: Record<string, { cnt: number; sell: Record<string, number>; buy: Record<string, number> }> = {};
     for (const r of requests || []) {
@@ -432,65 +576,72 @@ export default function OwnerPortal() {
 
   if (!token) {
     return (
-      <div className="vx-adminPage">
-        <div className="vx-adminCard">
-          <div className="h1">Управление владельца</div>
-          <div className="vx-sp12" />
-          <input
-            className="input vx-in"
-            value={draftKey}
-            onChange={(e) => setDraftKey(e.target.value)}
-            placeholder="ADMIN_WEB_KEY"
-            type="password"
-          />
-          <div className="vx-sp10" />
-          <button className="btn" type="button" onClick={onLogin}>
-            Войти
-          </button>
+      <div className="vx-page theme-client">
+        <style>{`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap');`}</style>
+        <div className="bg-danang" aria-hidden="true" />
+        <div className="container">
+          <div className="card">
+            <div className="h1">Управление владельца</div>
+            <div className="vx-sp12" />
+            <input
+              className="input vx-in"
+              value={draftKey}
+              onChange={(e) => setDraftKey(e.target.value)}
+              placeholder="ADMIN_WEB_KEY"
+              type="password"
+            />
+            <div className="vx-sp10" />
+            <button className="btn" type="button" onClick={onLogin}>
+              Войти
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="vx-adminPage">
-      <div className="vx-adminTop">
-        <div>
-          <div className="h1">Управление</div>
-          <div className="small">/admin</div>
+    <div className="vx-page theme-client">
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap');`}</style>
+      <div className="bg-danang" aria-hidden="true" />
+      <div className="container">
+        <div className="card vx-topCard" style={{ paddingLeft: 14, paddingRight: 14 }}>
+          <div className="row vx-between vx-center" style={{ gap: 12 }}>
+            <div>
+              <div className="vx-title">Управление</div>
+              <div className="vx-topSub">/admin</div>
+            </div>
+            <div className="row" style={{ gap: 8 }}>
+              <button className="btn vx-btnSm" type="button" onClick={loadAll}>
+                Обновить
+              </button>
+              <button className="btn vx-btnSm" type="button" onClick={logout}>
+                Выйти
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="row" style={{ gap: 8 }}>
-          <button className="btn" type="button" onClick={loadAll}>
-            Обновить
-          </button>
-          <button className="btn" type="button" onClick={logout}>
-            Выйти
-          </button>
+
+        {banner ? (
+          <div className={banner.type === "err" ? "vx-toast vx-toastErr" : "vx-toast vx-toastOk"}>
+            {banner.text}
+          </div>
+        ) : null}
+
+        <div className="vx-adminSeg" style={{ marginTop: 0 }}>
+          <button className={tab === "rates" ? "on" : ""} onClick={() => setTab("rates")}>Курс</button>
+          <button className={tab === "bonuses" ? "on" : ""} onClick={() => setTab("bonuses")}>Надбавки</button>
+          <button className={tab === "reviews" ? "on" : ""} onClick={() => setTab("reviews")}>Отзывы</button>
+          <button className={tab === "clients" ? "on" : ""} onClick={() => setTab("clients")}>Клиенты</button>
+          <button className={tab === "requests" ? "on" : ""} onClick={() => setTab("requests")}>Заявки</button>
+          <button className={tab === "reports" ? "on" : ""} onClick={() => setTab("reports")}>Отчёты</button>
         </div>
-      </div>
 
-      {banner ? (
-        <div className={banner.type === "err" ? "vx-toast vx-toastErr" : "vx-toast vx-toastOk"}>
-          {banner.text}
-        </div>
-      ) : null}
-
-      <div className="vx-adminSeg" style={{ marginTop: 0 }}>
-        <button className={tab === "rates" ? "on" : ""} onClick={() => setTab("rates")}>Курс</button>
-        <button className={tab === "bonuses" ? "on" : ""} onClick={() => setTab("bonuses")}>Надбавки</button>
-        <button className={tab === "reviews" ? "on" : ""} onClick={() => setTab("reviews")}>Отзывы</button>
-        <button className={tab === "clients" ? "on" : ""} onClick={() => setTab("clients")}>Клиенты</button>
-        <button className={tab === "requests" ? "on" : ""} onClick={() => setTab("requests")}>Заявки</button>
-        <button className={tab === "reports" ? "on" : ""} onClick={() => setTab("reports")}>Отчёты</button>
-      </div>
-
-      <div className="vx-mt10" />
+        <div className="vx-mt10" />
 
       {tab === "rates" ? (
         <>
-          <div className="card">
-            <AdminTab me={me} forcedSection="rates" hideHeader hideSeg />
-          </div>
+          <div className="card"><AdminTab me={me} forcedSection="rates" hideHeader hideSeg /></div>
 
           <div className="vx-sp12" />
 
@@ -574,15 +725,11 @@ export default function OwnerPortal() {
       ) : null}
 
       {tab === "bonuses" ? (
-        <div className="card">
-          <AdminTab me={me} forcedSection="bonuses" hideHeader hideSeg />
-        </div>
+        <div className="card"><AdminTab me={me} forcedSection="bonuses" hideHeader hideSeg /></div>
       ) : null}
 
       {tab === "reviews" ? (
-        <div className="card">
-          <AdminTab me={me} forcedSection="reviews" hideHeader hideSeg />
-        </div>
+        <div className="card"><AdminTab me={me} forcedSection="reviews" hideHeader hideSeg /></div>
       ) : null}
 
       {tab === "clients" ? (
@@ -768,7 +915,198 @@ export default function OwnerPortal() {
 
       {tab === "requests" ? (
         <div className="card">
-          <AdminTab me={me} forcedSection="requests" hideHeader hideSeg />
+          <div className="row vx-between vx-center">
+            <div className="h3 vx-m0">Заявки</div>
+            <button className="btn vx-btnSm" type="button" onClick={loadClients} disabled={clientsLoading}>
+              {clientsLoading ? "Обновляю…" : "Обновить"}
+            </button>
+          </div>
+
+          <div className="vx-sp10" />
+
+          {reqView !== "detail" ? (
+            <div className="row vx-rowWrap vx-gap6">
+              <button className={"btn vx-btnSm " + (reqView === "active" ? "vx-btnOn" : "")} onClick={() => setReqView("active")}>
+                Активные ({reqActive.length})
+              </button>
+              <button className={"btn vx-btnSm " + (reqView === "rejected" ? "vx-btnOn" : "")} onClick={() => setReqView("rejected")}>
+                Отклонённые ({reqRejected.length})
+              </button>
+              <button className={"btn vx-btnSm " + (reqView === "history" ? "vx-btnOn" : "")} onClick={() => setReqView("history")}>
+                История ({reqHistoryAll.length})
+              </button>
+            </div>
+          ) : null}
+
+          <div className="vx-sp10" />
+
+          {reqView === "active" ? (
+            reqActive.length === 0 ? (
+              <div className="vx-muted">Активных заявок нет.</div>
+            ) : (
+              <div className="vx-reqList">
+                {reqActive.slice(0, 60).map((r) => {
+                  const whoText = who(r);
+                  const sid = reqShortId(r.id);
+                  const st = String(r?.state) === "new" ? "in_progress" : String(r?.state);
+                  return (
+                    <button key={r.id} type="button" className="vx-reqRow" onClick={() => openReqDetails(String(r.id))}>
+                      <div className="vx-reqTop">
+                        <b>#{sid}</b>
+                        <span className="vx-muted">{fmtDt(r.created_at)}</span>
+                      </div>
+                      <div className="vx-muted">{whoText}</div>
+                      <div>
+                        <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
+                        <span className="vx-tag">{stateRu(st)}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )
+          ) : null}
+
+          {reqView === "rejected" ? (
+            reqRejected.length === 0 ? (
+              <div className="vx-muted">Отклонённых заявок нет.</div>
+            ) : (
+              <div className="vx-reqList">
+                {reqRejected.slice(0, 120).map((r) => {
+                  const whoText = who(r);
+                  const sid = reqShortId(r.id);
+                  return (
+                    <button key={r.id} type="button" className="vx-reqRow" onClick={() => openReqDetails(String(r.id))}>
+                      <div className="vx-reqTop">
+                        <b>#{sid}</b>
+                        <span className="vx-muted">{fmtDt(r.created_at)}</span>
+                      </div>
+                      <div className="vx-muted">{whoText}</div>
+                      <div>
+                        <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
+                        <span className="vx-tag">{stateRu(r.state)}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )
+          ) : null}
+
+          {reqView === "history" ? (
+            <>
+              <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 160px" }}>
+                  <div className="vx-muted">С</div>
+                  <input className="input vx-in" type="date" value={reqHistFrom} onChange={(e) => setReqHistFrom(e.target.value)} />
+                </div>
+                <div style={{ flex: "1 1 160px" }}>
+                  <div className="vx-muted">По</div>
+                  <input className="input vx-in" type="date" value={reqHistTo} onChange={(e) => setReqHistTo(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="vx-sp10" />
+
+              {reqHistory.length === 0 ? (
+                <div className="vx-muted">В выбранном диапазоне нет заявок.</div>
+              ) : (
+                <div className="vx-reqList">
+                  {reqHistory.slice(0, 200).map((r) => {
+                    const whoText = who(r);
+                    const sid = reqShortId(r.id);
+                    return (
+                      <button key={r.id} type="button" className="vx-reqRow" onClick={() => openReqDetails(String(r.id))}>
+                        <div className="vx-reqTop">
+                          <b>#{sid}</b>
+                          <span className="vx-muted">{fmtDt(r.created_at)}</span>
+                        </div>
+                        <div className="vx-muted">{whoText}</div>
+                        <div>
+                          <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
+                          <span className="vx-tag">{stateRu(r.state)}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : null}
+
+          {reqView === "detail" ? (
+            !reqSelected ? (
+              <>
+                <button className="btn vx-btnSm" type="button" onClick={() => setReqView("active")}>← Назад</button>
+                <div className="vx-sp10" />
+                <div className="vx-muted">Заявка не найдена.</div>
+              </>
+            ) : (
+              <>
+                <div className="row vx-between vx-center">
+                  <button className="btn vx-btnSm" type="button" onClick={() => setReqView("active")}>← Назад</button>
+                  <div className="vx-muted">{fmtDt(reqSelected.created_at)}</div>
+                </div>
+
+                <div className="vx-sp10" />
+                <div className="h3 vx-m0">Заявка #{reqShortId(reqSelected.id)}</div>
+                <div className="vx-muted" style={{ marginTop: 4 }}>
+                  Клиент: {selectedUsername ? "@" + selectedUsername : ""} {selectedTgId ? "• id:" + selectedTgId : ""}
+                </div>
+
+                <div className="vx-sp10" />
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div>🔁 <b>{reqSelected.sellCurrency} → {reqSelected.buyCurrency}</b></div>
+                  <div>💸 Отдаёт: <b>{reqSelected.sellAmount}</b></div>
+                  <div>🎯 Получит: <b>{reqSelected.buyAmount}</b></div>
+                  <div>💳 Оплата: <b>{methodRu(reqSelected.payMethod)}</b></div>
+                  <div>📦 Получение: <b>{methodRu(reqSelected.receiveMethod)}</b></div>
+                </div>
+
+                <div className="hr" />
+
+                <div className="small">Статус</div>
+                <div className="vx-sp8" />
+                <div className="row vx-rowWrap vx-gap6">
+                  <button className={"btn vx-btnSm " + ((String(reqSelected.state) === "new" || String(reqSelected.state) === "in_progress") ? "vx-btnOn" : "")} onClick={() => setReqState("in_progress")}>В работе</button>
+                  <button className={"btn vx-btnSm " + (String(reqSelected.state) === "done" ? "vx-btnOn" : "")} onClick={() => setReqState("done")}>Готово</button>
+                  <button className={"btn vx-btnSm " + (String(reqSelected.state) === "canceled" ? "vx-btnOn" : "")} onClick={() => setReqState("canceled")}>Отклонена</button>
+                </div>
+
+                <div className="hr" />
+
+                <div className="small">Контакт клиента</div>
+                <div className="vx-sp8" />
+                <input className="input vx-in" value={reqFullName} onChange={(e) => setReqFullName(e.target.value)} placeholder="Имя клиента (как подписывает админ)" />
+
+                <div className="vx-sp10" />
+                <div className="small">Банки</div>
+                {bankIcons.length === 0 ? (
+                  <div className="vx-muted">Иконок нет (файлы в webapp/public/banks).</div>
+                ) : (
+                  <div className="vx-bankGrid">
+                    {bankIcons.map((ic) => {
+                      const on = reqBanks.includes(ic);
+                      return (
+                        <button
+                          key={ic}
+                          type="button"
+                          className={"vx-bankBtn " + (on ? "is-on" : "")}
+                          onClick={() => toggleReqBank(ic)}
+                          title={ic}
+                        >
+                          <img src={`/banks/${ic}`} alt="" className="vx-bankImg" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="vx-sp10" />
+                <button className="btn" type="button" onClick={saveReqContact}>Сохранить контакт</button>
+              </>
+            )
+          ) : null}
         </div>
       ) : null}
 
@@ -906,6 +1244,7 @@ export default function OwnerPortal() {
           ) : null}
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

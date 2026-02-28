@@ -616,15 +616,11 @@ body.vx-body-client #root{
 
 /* Calculator: smaller input/select boxes (as requested) */
 .theme-client .vx-exRow{
-  grid-template-columns: 132px 1fr 44px; /* ← увеличь 132px при необходимости */
+  /* widen currency selector so codes like USDT/EUR are fully visible */
+  grid-template-columns: 92px 1fr 44px;
   gap: 8px;
 }
-
-.theme-client .vx-exRow select{
-  width: 100%;           /* ← важно */
-  min-width: 132px;      /* ← важно (чтобы USDT не резалось) */
-  padding: 0 32px 0 14px;/* ← важнее чем просто padding-right (перебивает базовый padding 0 14px) */
-}
+.theme-client .vx-exRow select{ width: 92px; padding-right: 26px; }
 .theme-client .vx-exRow select,
 .theme-client .vx-exRow input{
   height: 40px;
@@ -635,8 +631,10 @@ body.vx-body-client #root{
 .theme-client .vx-blankBtn{ width: 44px; height: 40px; }
 
 @media (max-width: 360px){
-  .theme-client .vx-exRow{ grid-template-columns: 118px 1fr 42px; }
-  .theme-client .vx-exRow select{ min-width: 118px; } /* можно 118–124 */
+  .theme-client .vx-exRow{ grid-template-columns: 84px 1fr 42px; }
+  .theme-client .vx-exRow select{ width: 84px; }
+  .theme-client .vx-iconBtn{ min-width: 42px; }
+  .theme-client .vx-blankBtn{ width: 42px; }
 }
 
 /* =========================
