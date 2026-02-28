@@ -617,7 +617,7 @@ body.vx-body-client #root{
 /* Calculator: smaller input/select boxes (as requested) */
 .theme-client .vx-exRow{
   /* widen currency selector so codes like USDT/EUR are fully visible */
-  grid-template-columns: 92px 1fr 44px;
+  grid-template-columns: 120px 1fr 44px;
   gap: 8px;
 }
 .theme-client .vx-exRow select{ width: 92px; padding-right: 26px; }
