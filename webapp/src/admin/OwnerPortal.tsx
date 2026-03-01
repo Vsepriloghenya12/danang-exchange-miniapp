@@ -265,6 +265,16 @@ export default function OwnerPortal() {
     setAfEditImageDataUrl(null);
   }
 
+  function toggleEditAfisha(ev: any) {
+    const id = String(ev?.id || "");
+    if (!id) return;
+    if (afEditId === id) {
+      setAfEditId("");
+      return;
+    }
+    startEditAfisha(ev);
+  }
+
   async function createAfisha() {
     if (!token) return;
     const payload = {
@@ -299,6 +309,63 @@ export default function OwnerPortal() {
     if (!r?.ok) return showErr(r?.error || 'Ошибка');
     showOk('Сохранено');
     await loadAfishaLists();
+  }
+
+  function renderAfishaEditForm() {
+    if (!afEditId) return null;
+    return (
+      <>
+        <div className="small"><b>Редактирование</b></div>
+        <div className="vx-sp10" />
+
+        <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <select className="input vx-in" value={afEditCategory} onChange={(e) => setAfEditCategory(e.target.value)} style={{ flex: "1 1 260px" }}>
+            {AF_CATS.map((c) => (
+              <option key={c.k} value={c.k}>{c.l}</option>
+            ))}
+          </select>
+          <input className="input vx-in" type="date" value={afEditDate} onChange={(e) => setAfEditDate(e.target.value)} style={{ flex: "0 0 170px" }} />
+        </div>
+
+        <div className="vx-sp8" />
+        <input className="input vx-in" value={afEditTitle} onChange={(e) => setAfEditTitle(e.target.value)} placeholder="Название" />
+
+        <div className="vx-sp10" />
+        <div className="vx-muted">Фото мероприятия</div>
+        {afEditImageUrl ? <div className="vx-muted">Текущее: <a href={afEditImageUrl} target="_blank" rel="noreferrer">{afEditImageUrl}</a></div> : null}
+        <div className="vx-sp6" />
+        <div className="vx-rowWrap" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              const r = new FileReader();
+              r.onload = () => setAfEditImageDataUrl(String(r.result || "") || null);
+              r.readAsDataURL(f);
+            }}
+          />
+          {afEditImageDataUrl ? <img className="vx-pubThumb" src={afEditImageDataUrl} alt="" /> : null}
+        </div>
+
+        <div className="vx-sp10" />
+        <div className="vx-muted">Ссылка для кнопки «Подробнее»</div>
+        <div className="vx-sp6" />
+        <input className="input vx-in" value={afEditDetailsUrl} onChange={(e) => setAfEditDetailsUrl(e.target.value)} placeholder="https://..." />
+
+        <div className="vx-sp10" />
+        <div className="vx-muted">Ссылка для кнопки «Локация»</div>
+        <div className="vx-sp6" />
+        <input className="input vx-in" value={afEditLocationUrl} onChange={(e) => setAfEditLocationUrl(e.target.value)} placeholder="https://..." />
+
+        <div className="vx-sp10" />
+        <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
+          <button className="btn" type="button" onClick={saveAfisha}>Сохранить</button>
+          <button className="btn vx-btnSm" type="button" onClick={() => setAfEditId("")}>Свернуть</button>
+        </div>
+      </>
+    );
   }
 
 
@@ -1296,74 +1363,32 @@ export default function OwnerPortal() {
                 {afActive.map((ev) => {
                   const clicks = ev?.clicks || { details: 0, location: 0 };
                   const total = Number(clicks.details || 0) + Number(clicks.location || 0);
+                  const isOn = afEditId === String(ev.id);
                   return (
-                    <button key={ev.id} type="button" className="vx-reqRow" onClick={() => startEditAfisha(ev)}>
-                      <div className="vx-reqTop">
-                        <b>{String(ev.date || "")}</b>
-                        <span className="vx-muted">{afCatLabel(String(ev.category || ""))}</span>
-                      </div>
-                      <div><b>{String(ev.title || "")}</b></div>
-                      <div className="vx-muted">Клики: {total} (Подробнее {Number(clicks.details || 0)}, Локация {Number(clicks.location || 0)})</div>
-                    </button>
+                    <div key={ev.id}>
+                      <button
+                        type="button"
+                        className={"vx-reqRow " + (isOn ? "is-active" : "")}
+                        onClick={() => toggleEditAfisha(ev)}
+                      >
+                        <div className="vx-reqTop">
+                          <b>{String(ev.date || "")}</b>
+                          <span className="vx-muted">{afCatLabel(String(ev.category || ""))}</span>
+                        </div>
+                        <div><b>{String(ev.title || "")}</b></div>
+                        <div className="vx-muted">Клики: {total} (Подробнее {Number(clicks.details || 0)}, Локация {Number(clicks.location || 0)})</div>
+                      </button>
+
+                      {isOn ? (
+                        <div className="vx-reqExpand">
+                          {renderAfishaEditForm()}
+                        </div>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>
             )}
-
-            {afEditId ? (
-              <>
-                <div className="hr" />
-                <div className="small"><b>Редактирование</b></div>
-                <div className="vx-sp10" />
-
-                <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <select className="input vx-in" value={afEditCategory} onChange={(e) => setAfEditCategory(e.target.value)} style={{ flex: "1 1 260px" }}>
-                    {AF_CATS.map((c) => (
-                      <option key={c.k} value={c.k}>{c.l}</option>
-                    ))}
-                  </select>
-                  <input className="input vx-in" type="date" value={afEditDate} onChange={(e) => setAfEditDate(e.target.value)} style={{ flex: "0 0 170px" }} />
-                </div>
-
-                <div className="vx-sp8" />
-                <input className="input vx-in" value={afEditTitle} onChange={(e) => setAfEditTitle(e.target.value)} placeholder="Название" />
-
-                <div className="vx-sp10" />
-                <div className="vx-muted">Фото мероприятия</div>
-                {afEditImageUrl ? <div className="vx-muted">Текущее: <a href={afEditImageUrl} target="_blank" rel="noreferrer">{afEditImageUrl}</a></div> : null}
-                <div className="vx-sp6" />
-                <div className="vx-rowWrap" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (!f) return;
-                      const r = new FileReader();
-                      r.onload = () => setAfEditImageDataUrl(String(r.result || "") || null);
-                      r.readAsDataURL(f);
-                    }}
-                  />
-                  {afEditImageDataUrl ? <img className="vx-pubThumb" src={afEditImageDataUrl} alt="" /> : null}
-                </div>
-
-                <div className="vx-sp10" />
-                <div className="vx-muted">Ссылка для кнопки «Подробнее»</div>
-                <div className="vx-sp6" />
-                <input className="input vx-in" value={afEditDetailsUrl} onChange={(e) => setAfEditDetailsUrl(e.target.value)} placeholder="https://..." />
-
-                <div className="vx-sp10" />
-                <div className="vx-muted">Ссылка для кнопки «Локация»</div>
-                <div className="vx-sp6" />
-                <input className="input vx-in" value={afEditLocationUrl} onChange={(e) => setAfEditLocationUrl(e.target.value)} placeholder="https://..." />
-
-                <div className="vx-sp10" />
-                <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
-                  <button className="btn" type="button" onClick={saveAfisha}>Сохранить</button>
-                  <button className="btn vx-btnSm" type="button" onClick={() => setAfEditId("")}>Закрыть</button>
-                </div>
-              </>
-            ) : null}
           </div>
 
           <div className="vx-sp12" />
@@ -1398,15 +1423,28 @@ export default function OwnerPortal() {
                 {afHistory.map((ev) => {
                   const clicks = ev?.clicks || { details: 0, location: 0 };
                   const total = Number(clicks.details || 0) + Number(clicks.location || 0);
+                  const isOn = afEditId === String(ev.id);
                   return (
-                    <button key={ev.id} type="button" className="vx-reqRow" onClick={() => startEditAfisha(ev)}>
-                      <div className="vx-reqTop">
-                        <b>{String(ev.date || "")}</b>
-                        <span className="vx-muted">{afCatLabel(String(ev.category || ""))}</span>
-                      </div>
-                      <div><b>{String(ev.title || "")}</b></div>
-                      <div className="vx-muted">Клики: {total} (Подробнее {Number(clicks.details || 0)}, Локация {Number(clicks.location || 0)})</div>
-                    </button>
+                    <div key={ev.id}>
+                      <button
+                        type="button"
+                        className={"vx-reqRow " + (isOn ? "is-active" : "")}
+                        onClick={() => toggleEditAfisha(ev)}
+                      >
+                        <div className="vx-reqTop">
+                          <b>{String(ev.date || "")}</b>
+                          <span className="vx-muted">{afCatLabel(String(ev.category || ""))}</span>
+                        </div>
+                        <div><b>{String(ev.title || "")}</b></div>
+                        <div className="vx-muted">Клики: {total} (Подробнее {Number(clicks.details || 0)}, Локация {Number(clicks.location || 0)})</div>
+                      </button>
+
+                      {isOn ? (
+                        <div className="vx-reqExpand">
+                          {renderAfishaEditForm()}
+                        </div>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>

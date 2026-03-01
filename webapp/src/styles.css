@@ -2075,6 +2075,13 @@ label, input, select, textarea{ color: var(--text); }
   background: rgba(255,255,255,0.65);
 }
 .vx-reqRow.is-active{ outline: 2px solid rgba(34,197,94,0.35); }
+.vx-reqExpand{
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(9,23,33,0.10);
+  background: rgba(255,255,255,0.55);
+}
 .vx-reqTop{ display:flex; justify-content: space-between; gap: 8px; }
 .vx-tag{ display:inline-block; margin-right:6px; padding:2px 8px; border-radius:999px; border:1px solid rgba(9,23,33,0.10); background: rgba(255,255,255,0.6); font-size: 12px; }
 .vx-bankGrid{
