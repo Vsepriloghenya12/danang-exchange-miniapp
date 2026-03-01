@@ -15,6 +15,9 @@ import {
   apiAdminGetContacts,
   apiAdminUpsertContact,
   apiAdminGetReports,
+  apiAdminGetAfisha,
+  apiAdminCreateAfisha,
+  apiAdminUpdateAfisha,
   apiGetBankIcons,
 } from "../lib/api";
 import type { Contact, UserStatus } from "../lib/types";
@@ -75,7 +78,7 @@ export default function OwnerPortal() {
   const token = useMemo(() => (key ? `adminkey:${key}` : ""), [key]);
   const me = useMemo(() => ({ initData: token }), [token]);
 
-  type Tab = "rates" | "bonuses" | "reviews" | "clients" | "requests" | "reports";
+  type Tab = "rates" | "bonuses" | "reviews" | "clients" | "requests" | "afisha" | "reports";
   const [tab, setTab] = useState<Tab>("rates");
 
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -132,6 +135,27 @@ export default function OwnerPortal() {
   const [reqHistTo, setReqHistTo] = useState<string>(() => todayISO());
   const [reqFullName, setReqFullName] = useState<string>("");
   const [reqBanks, setReqBanks] = useState<string[]>([]);
+
+  // Afisha (owner portal): active + history with date range + click counters
+  const [afActive, setAfActive] = useState<any[]>([]);
+  const [afHistory, setAfHistory] = useState<any[]>([]);
+  const [afLoading, setAfLoading] = useState<boolean>(false);
+  const [afCreateCategory, setAfCreateCategory] = useState<string>("sport");
+  const [afCreateDate, setAfCreateDate] = useState<string>(() => todayISO());
+  const [afCreateTitle, setAfCreateTitle] = useState<string>("");
+  const [afCreateDetailsUrl, setAfCreateDetailsUrl] = useState<string>("");
+  const [afCreateLocationUrl, setAfCreateLocationUrl] = useState<string>("");
+
+  const [afEditId, setAfEditId] = useState<string>("");
+  const [afEditCategory, setAfEditCategory] = useState<string>("sport");
+  const [afEditDate, setAfEditDate] = useState<string>("");
+  const [afEditTitle, setAfEditTitle] = useState<string>("");
+  const [afEditDetailsUrl, setAfEditDetailsUrl] = useState<string>("");
+  const [afEditLocationUrl, setAfEditLocationUrl] = useState<string>("");
+
+  const [afHistFrom, setAfHistFrom] = useState<string>(() => shiftISO(-14));
+  const [afHistTo, setAfHistTo] = useState<string>(() => todayISO());
+
 
   const saveTplTimer = useRef<number | null>(null);
 
@@ -199,6 +223,77 @@ export default function OwnerPortal() {
     }
   }
 
+  const AF_CATS: Array<{ k: string; l: string }> = [
+    { k: 'sport', l: 'Спорт' },
+    { k: 'party', l: 'Вечеринки' },
+    { k: 'culture', l: 'Культура и искусство' },
+    { k: 'city', l: 'Городские мероприятия' },
+    { k: 'food', l: 'Еда' },
+    { k: 'music', l: 'Музыка' },
+  ];
+
+  function afCatLabel(k: string) {
+    const f = AF_CATS.find((x) => x.k === k);
+    return f ? f.l : k;
+  }
+
+  async function loadAfishaLists() {
+    if (!token || afLoading) return;
+    setAfLoading(true);
+    try {
+      const a = await apiAdminGetAfisha(token, { scope: 'active' });
+      if (a?.ok) setAfActive(Array.isArray((a as any).events) ? (a as any).events : []);
+      const h = await apiAdminGetAfisha(token, { scope: 'history', from: afHistFrom, to: afHistTo });
+      if (h?.ok) setAfHistory(Array.isArray((h as any).events) ? (h as any).events : []);
+    } finally {
+      setAfLoading(false);
+    }
+  }
+
+  function startEditAfisha(ev: any) {
+    if (!ev) return;
+    setAfEditId(String(ev.id || ''));
+    setAfEditCategory(String(ev.category || 'sport'));
+    setAfEditDate(String(ev.date || ''));
+    setAfEditTitle(String(ev.title || ''));
+    setAfEditDetailsUrl(String(ev.detailsUrl || ''));
+    setAfEditLocationUrl(String(ev.locationUrl || ''));
+  }
+
+  async function createAfisha() {
+    if (!token) return;
+    const payload = {
+      category: afCreateCategory,
+      date: afCreateDate,
+      title: afCreateTitle.trim(),
+      detailsUrl: afCreateDetailsUrl.trim(),
+      locationUrl: afCreateLocationUrl.trim(),
+    };
+    const r = await apiAdminCreateAfisha(token, payload as any);
+    if (!r?.ok) return showErr(r?.error || 'Ошибка');
+    showOk('Создано');
+    setAfCreateTitle('');
+    setAfCreateDetailsUrl('');
+    setAfCreateLocationUrl('');
+    await loadAfishaLists();
+  }
+
+  async function saveAfisha() {
+    if (!token || !afEditId) return;
+    const payload = {
+      category: afEditCategory,
+      date: afEditDate,
+      title: afEditTitle.trim(),
+      detailsUrl: afEditDetailsUrl.trim(),
+      locationUrl: afEditLocationUrl.trim(),
+    };
+    const r = await apiAdminUpdateAfisha(token, afEditId, payload as any);
+    if (!r?.ok) return showErr(r?.error || 'Ошибка');
+    showOk('Сохранено');
+    await loadAfishaLists();
+  }
+
+
   useEffect(() => {
     if (!token) return;
     loadAll();
@@ -208,6 +303,7 @@ export default function OwnerPortal() {
   useEffect(() => {
     if (!token) return;
     if (tab === "clients" || tab === "requests") loadClients();
+    if (tab === "afisha") loadAfishaLists();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, token]);
 
@@ -634,6 +730,7 @@ export default function OwnerPortal() {
           <button className={tab === "reviews" ? "on" : ""} onClick={() => setTab("reviews")}>Отзывы</button>
           <button className={tab === "clients" ? "on" : ""} onClick={() => setTab("clients")}>Клиенты</button>
           <button className={tab === "requests" ? "on" : ""} onClick={() => setTab("requests")}>Заявки</button>
+          <button className={tab === "afisha" ? "on" : ""} onClick={() => setTab("afisha")}>Афиша</button>
           <button className={tab === "reports" ? "on" : ""} onClick={() => setTab("reports")}>Отчёты</button>
         </div>
 
@@ -1108,6 +1205,156 @@ export default function OwnerPortal() {
             )
           ) : null}
         </div>
+      ) : null}
+
+
+      {tab === "afisha" ? (
+        <>
+          <div className="card">
+            <div className="row vx-between vx-center">
+              <div className="h3 vx-m0">Афиша</div>
+              <button className="btn vx-btnSm" type="button" onClick={loadAfishaLists} disabled={afLoading}>
+                {afLoading ? "Обновляю…" : "Обновить"}
+              </button>
+            </div>
+
+            <div className="vx-sp10" />
+            <div className="small"><b>Новое мероприятие</b></div>
+
+            <div className="vx-sp10" />
+            <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <select className="input vx-in" value={afCreateCategory} onChange={(e) => setAfCreateCategory(e.target.value)} style={{ flex: "1 1 260px" }}>
+                {AF_CATS.map((c) => (
+                  <option key={c.k} value={c.k}>{c.l}</option>
+                ))}
+              </select>
+              <input className="input vx-in" type="date" value={afCreateDate} onChange={(e) => setAfCreateDate(e.target.value)} style={{ flex: "0 0 170px" }} />
+            </div>
+
+            <div className="vx-sp8" />
+            <input className="input vx-in" value={afCreateTitle} onChange={(e) => setAfCreateTitle(e.target.value)} placeholder="Название мероприятия" />
+
+            <div className="vx-sp8" />
+            <input className="input vx-in" value={afCreateDetailsUrl} onChange={(e) => setAfCreateDetailsUrl(e.target.value)} placeholder="Ссылка Подробнее (https://...)" />
+
+            <div className="vx-sp8" />
+            <input className="input vx-in" value={afCreateLocationUrl} onChange={(e) => setAfCreateLocationUrl(e.target.value)} placeholder="Ссылка Локация (https://...)" />
+
+            <div className="vx-sp10" />
+            <button className="btn" type="button" onClick={createAfisha}>Создать</button>
+          </div>
+
+          <div className="vx-sp12" />
+
+          <div className="card">
+            <div className="row vx-between vx-center">
+              <div className="small"><b>Активные</b></div>
+              <div className="vx-muted">{afActive.length}</div>
+            </div>
+
+            <div className="vx-sp10" />
+
+            {afActive.length === 0 ? (
+              <div className="vx-muted">Активных мероприятий нет.</div>
+            ) : (
+              <div className="vx-reqList">
+                {afActive.map((ev) => {
+                  const clicks = ev?.clicks || { details: 0, location: 0 };
+                  const total = Number(clicks.details || 0) + Number(clicks.location || 0);
+                  return (
+                    <button key={ev.id} type="button" className="vx-reqRow" onClick={() => startEditAfisha(ev)}>
+                      <div className="vx-reqTop">
+                        <b>{String(ev.date || "")}</b>
+                        <span className="vx-muted">{afCatLabel(String(ev.category || ""))}</span>
+                      </div>
+                      <div><b>{String(ev.title || "")}</b></div>
+                      <div className="vx-muted">Клики: {total} (Подробнее {Number(clicks.details || 0)}, Локация {Number(clicks.location || 0)})</div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {afEditId ? (
+              <>
+                <div className="hr" />
+                <div className="small"><b>Редактирование</b></div>
+                <div className="vx-sp10" />
+
+                <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <select className="input vx-in" value={afEditCategory} onChange={(e) => setAfEditCategory(e.target.value)} style={{ flex: "1 1 260px" }}>
+                    {AF_CATS.map((c) => (
+                      <option key={c.k} value={c.k}>{c.l}</option>
+                    ))}
+                  </select>
+                  <input className="input vx-in" type="date" value={afEditDate} onChange={(e) => setAfEditDate(e.target.value)} style={{ flex: "0 0 170px" }} />
+                </div>
+
+                <div className="vx-sp8" />
+                <input className="input vx-in" value={afEditTitle} onChange={(e) => setAfEditTitle(e.target.value)} placeholder="Название" />
+
+                <div className="vx-sp8" />
+                <input className="input vx-in" value={afEditDetailsUrl} onChange={(e) => setAfEditDetailsUrl(e.target.value)} placeholder="Подробнее (ссылка)" />
+
+                <div className="vx-sp8" />
+                <input className="input vx-in" value={afEditLocationUrl} onChange={(e) => setAfEditLocationUrl(e.target.value)} placeholder="Локация (ссылка)" />
+
+                <div className="vx-sp10" />
+                <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
+                  <button className="btn" type="button" onClick={saveAfisha}>Сохранить</button>
+                  <button className="btn vx-btnSm" type="button" onClick={() => setAfEditId("")}>Закрыть</button>
+                </div>
+              </>
+            ) : null}
+          </div>
+
+          <div className="vx-sp12" />
+
+          <div className="card">
+            <div className="row vx-between vx-center" style={{ gap: 10 }}>
+              <div className="small"><b>История</b></div>
+              <button className="btn vx-btnSm" type="button" onClick={loadAfishaLists} disabled={afLoading}>
+                {afLoading ? "…" : "Обновить"}
+              </button>
+            </div>
+
+            <div className="vx-sp10" />
+
+            <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 160px" }}>
+                <div className="vx-muted">С</div>
+                <input className="input vx-in" type="date" value={afHistFrom} onChange={(e) => setAfHistFrom(e.target.value)} />
+              </div>
+              <div style={{ flex: "1 1 160px" }}>
+                <div className="vx-muted">По</div>
+                <input className="input vx-in" type="date" value={afHistTo} onChange={(e) => setAfHistTo(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="vx-sp10" />
+
+            {afHistory.length === 0 ? (
+              <div className="vx-muted">В выбранном диапазоне нет мероприятий.</div>
+            ) : (
+              <div className="vx-reqList">
+                {afHistory.map((ev) => {
+                  const clicks = ev?.clicks || { details: 0, location: 0 };
+                  const total = Number(clicks.details || 0) + Number(clicks.location || 0);
+                  return (
+                    <button key={ev.id} type="button" className="vx-reqRow" onClick={() => startEditAfisha(ev)}>
+                      <div className="vx-reqTop">
+                        <b>{String(ev.date || "")}</b>
+                        <span className="vx-muted">{afCatLabel(String(ev.category || ""))}</span>
+                      </div>
+                      <div><b>{String(ev.title || "")}</b></div>
+                      <div className="vx-muted">Клики: {total} (Подробнее {Number(clicks.details || 0)}, Локация {Number(clicks.location || 0)})</div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
       ) : null}
 
       {tab === "reports" ? (

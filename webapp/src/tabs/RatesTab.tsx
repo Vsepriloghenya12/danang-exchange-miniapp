@@ -108,7 +108,9 @@ function calcFromG(market: MarketRatesResponse | null, base: Cur, quote: Cur): {
   return { buy: G * f.buyMul, sell: G * f.sellMul };
 }
 
-export default function RatesTab() {
+type Props = { embedded?: boolean; limit?: number };
+
+export default function RatesTab({ embedded = false, limit }: Props = {}) {
   const [today, setToday] = useState<TodayRatesResponse | null>(null);
   const [market, setMarket] = useState<MarketRatesResponse | null>(null);
 
@@ -124,7 +126,7 @@ export default function RatesTab() {
         const m = await apiGetMarketRates();
         if (alive) setMarket(m);
       } catch {
-        if (alive) setMarket({ ok: false, error: "market_fetch_failed", stale: true });
+        if (alive) setMarket({ ok: false, error: "market_fetch_failed", stale: true } as any);
       }
     };
 
@@ -149,12 +151,55 @@ export default function RatesTab() {
 
   const metaParts = useMemo(() => {
     const parts: string[] = [];
-    // максимально компактно, чтобы влезало на 1 экран
     parts.push(`${today?.date ?? "—"}`);
     if (updatedAt) parts.push(`VND ${updatedAt}`);
-    if (marketUpdatedAt) parts.push(`G ${marketUpdatedAt}${market?.ok && market.stale ? " (устар.)" : ""}`);
+    if (marketUpdatedAt) parts.push(`G ${marketUpdatedAt}${market?.ok && (market as any).stale ? " (устар.)" : ""}`);
     return parts;
-  }, [today?.date, updatedAt, marketUpdatedAt, market?.ok, market?.stale]);
+  }, [today?.date, updatedAt, marketUpdatedAt, market?.ok]);
+
+  const shown = rows.slice(0, limit ?? rows.length);
+
+  const content = !today ? (
+    <div className="vx-meta">Загрузка…</div>
+  ) : !rates ? (
+    <div className="vx-meta">Курс ещё не задан владельцем.</div>
+  ) : (
+    <>
+      <div className="vx-rateList">
+        <div className="vx-rateHdr">
+          <span>Пара</span>
+          <span>BUY / SELL</span>
+        </div>
+
+        {shown.map((r) => (
+          <div key={r.id} className="vx-rateLine">
+            <div className="vx-ratePair2">
+              {r.base} → {r.quote}
+            </div>
+            <div className="vx-rateNums">
+              <span className={"vx-rateN " + (r.buy == null ? "vx-dash" : "")}>{fmt(r.quote, r.buy)}</span>
+              <span className={"vx-rateN vx-rateNMuted " + (r.sell == null ? "vx-dash" : "")}>{fmt(r.quote, r.sell)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {market && !market.ok ? <div className="vx-meta vx-mt10">Не удалось обновить G: {(market as any).error}</div> : null}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="vx-rates2 vx-ratesEmbedded">
+        <div className="vx-meta vx-metaLine">
+          {metaParts.map((p) => (
+            <span key={p}>{p}</span>
+          ))}
+        </div>
+        {content}
+      </div>
+    );
+  }
 
   return (
     <div className="vx-rates2">
@@ -168,37 +213,7 @@ export default function RatesTab() {
           </div>
         </div>
       </div>
-
-      {!today ? (
-        <div className="vx-meta">Загрузка…</div>
-      ) : !rates ? (
-        <div className="vx-meta">Курс ещё не задан владельцем.</div>
-      ) : (
-        <>
-          <div className="vx-rateList">
-            <div className="vx-rateHdr">
-              <span>Пара</span>
-              <span>BUY / SELL</span>
-            </div>
-
-            {rows.map((r) => (
-              <div key={r.id} className="vx-rateLine">
-                <div className="vx-ratePair2">
-                  {r.base} → {r.quote}
-                </div>
-                <div className="vx-rateNums">
-                  <span className={"vx-rateN " + (r.buy == null ? "vx-dash" : "")}>{fmt(r.quote, r.buy)}</span>
-                  <span className={"vx-rateN vx-rateNMuted " + (r.sell == null ? "vx-dash" : "")}>{fmt(r.quote, r.sell)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {market && !market.ok ? (
-            <div className="vx-meta vx-mt10">Не удалось обновить G: {market.error}</div>
-          ) : null}
-        </>
-      )}
+      {content}
     </div>
   );
 }

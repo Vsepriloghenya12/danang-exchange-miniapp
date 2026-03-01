@@ -14,7 +14,10 @@ import type {
   PublishTemplateResponse,
   PublishResponse,
   ReportsResponse,
-  Contact
+  Contact,
+  AfishaResponse,
+  AdminAfishaResponse,
+  AfishaEvent
 } from "./types";
 
 // Admin auth helper:
@@ -324,6 +327,57 @@ export async function apiAdminGetReports(token: string, params: { from: string; 
   if (params.tgId) q.set("tgId", String(params.tgId));
   const r = await fetch(`/api/admin/reports?${q.toString()}` , {
     headers: { ...adminAuthHeaders(token) }
+  });
+  return readJsonSafe(r);
+}
+
+
+// --------------------
+// Afisha
+// --------------------
+export async function apiGetAfisha(params: { category?: string; from?: string; to?: string } = {}): Promise<AfishaResponse> {
+  const q = new URLSearchParams();
+  if (params.category) q.set('category', params.category);
+  if (params.from) q.set('from', params.from);
+  if (params.to) q.set('to', params.to);
+  const r = await fetch(`/api/afisha?${q.toString()}`);
+  return readJsonSafe(r);
+}
+
+export async function apiAfishaClick(initData: string, id: string, kind: 'details' | 'location') {
+  const r = await fetch('/api/afisha/click', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData },
+    body: JSON.stringify({ id, kind })
+  });
+  return readJsonSafe(r);
+}
+
+export async function apiAdminGetAfisha(token: string, params: { scope?: 'active' | 'history' | 'all'; from?: string; to?: string } = {}): Promise<AdminAfishaResponse> {
+  const q = new URLSearchParams();
+  if (params.scope) q.set('scope', params.scope);
+  if (params.from) q.set('from', params.from);
+  if (params.to) q.set('to', params.to);
+  const r = await fetch(`/api/admin/afisha?${q.toString()}`, {
+    headers: { ...adminAuthHeaders(token) }
+  });
+  return readJsonSafe(r);
+}
+
+export async function apiAdminCreateAfisha(token: string, payload: { category: string; date: string; title: string; detailsUrl: string; locationUrl: string }): Promise<any> {
+  const r = await fetch('/api/admin/afisha', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...adminAuthHeaders(token) },
+    body: JSON.stringify(payload)
+  });
+  return readJsonSafe(r);
+}
+
+export async function apiAdminUpdateAfisha(token: string, id: string, payload: Partial<{ category: string; date: string; title: string; detailsUrl: string; locationUrl: string }>): Promise<any> {
+  const r = await fetch(`/api/admin/afisha/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', ...adminAuthHeaders(token) },
+    body: JSON.stringify(payload)
   });
   return readJsonSafe(r);
 }

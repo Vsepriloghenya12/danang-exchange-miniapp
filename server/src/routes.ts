@@ -269,6 +269,212 @@ export function createApiRouter(opts: {
     }
   });
 
+
+
+  // --------------------
+  // Afisha (events)
+  // --------------------
+  function todayISOInVN() {
+    // Vietnam is UTC+7. We compare YYYY-MM-DD lexicographically.
+    const d = new Date(Date.now() + 7 * 60 * 60 * 1000);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function normUrl(u: any): string {
+    const s = String(u || '').trim();
+    return s;
+  }
+
+  function normCategory(c: any): any {
+    const v = String(c || '').trim().toLowerCase();
+    if (['sport', 'спорт'].includes(v)) return 'sport';
+    if (['party', 'вечеринки', 'вечеринка'].includes(v)) return 'party';
+    if (['culture', 'культура', 'culture_art', 'искусство'].includes(v)) return 'culture';
+    if (['city', 'город', 'городские', 'мероприятия', 'city_events'].includes(v)) return 'city';
+    if (['food', 'еда'].includes(v)) return 'food';
+    if (['music', 'музыка'].includes(v)) return 'music';
+    return null;
+  }
+
+  // Public list (only future+today)
+  router.get('/afisha', (req, res) => {
+    try {
+      const today = todayISOInVN();
+      const category = String((req.query as any)?.category || 'all').toLowerCase();
+      const from = String((req.query as any)?.from || '').slice(0, 10);
+      const to = String((req.query as any)?.to || '').slice(0, 10);
+
+      const store = readStore();
+      const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
+
+      let out = items.filter((ev) => ev && typeof ev === 'object');
+      // hide past
+      out = out.filter((ev) => String(ev.date || '') >= today);
+
+      const cat = category === 'all' ? null : normCategory(category);
+      if (cat) out = out.filter((ev) => String(ev.category) === cat);
+
+      if (from) out = out.filter((ev) => String(ev.date || '') >= from);
+      if (to) out = out.filter((ev) => String(ev.date || '') <= to);
+
+      // sort by date ASC
+      out.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+      return res.json({ ok: true, today, events: out });
+    } catch (e: any) {
+      return res.status(500).json({ ok: false, error: e?.message || 'afisha_failed' });
+    }
+  });
+
+  // Click tracking
+  router.post('/afisha/click', (req, res) => {
+    try {
+      requireAuth(req); // count only real users
+      const id = String((req.body as any)?.id || '').trim();
+      const kind = String((req.body as any)?.kind || '').trim();
+      if (!id) return res.status(400).json({ ok: false, error: 'bad_id' });
+      if (kind !== 'details' && kind !== 'location') return res.status(400).json({ ok: false, error: 'bad_kind' });
+
+      const store = readStore();
+      const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
+      const ev = items.find((x) => String(x?.id || '') === id);
+      if (!ev) return res.status(404).json({ ok: false, error: 'not_found' });
+      ev.clicks = ev.clicks || { details: 0, location: 0 };
+      ev.clicks[kind] = Number(ev.clicks[kind] || 0) + 1;
+      ev.updated_at = new Date().toISOString();
+      (store as any).afisha = items;
+      writeStore(store);
+      return res.json({ ok: true });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
+    }
+  });
+
+  // Owner management
+  router.get('/admin/afisha', (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: 'not_owner' });
+
+      const today = todayISOInVN();
+      const scope = String((req.query as any)?.scope || 'all').toLowerCase();
+      const from = String((req.query as any)?.from || '').slice(0, 10);
+      const to = String((req.query as any)?.to || '').slice(0, 10);
+
+      const store = readStore();
+      let items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
+      items = items.filter((ev) => ev && typeof ev === 'object');
+
+      if (scope === 'active') items = items.filter((ev) => String(ev.date || '') >= today);
+      if (scope === 'history') items = items.filter((ev) => String(ev.date || '') < today);
+
+      if (from) items = items.filter((ev) => String(ev.date || '') >= from);
+      if (to) items = items.filter((ev) => String(ev.date || '') <= to);
+
+      // newest first for history, soonest first for active
+      if (scope === 'active') items.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+      else items.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+      return res.json({ ok: true, today, events: items });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
+    }
+  });
+
+  router.post('/admin/afisha', (req, res) => {
+    try {
+      const { isOwner, user } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: 'not_owner' });
+
+      const category = normCategory((req.body as any)?.category);
+      const date = String((req.body as any)?.date || '').slice(0, 10);
+      const title = String((req.body as any)?.title || '').trim();
+      const detailsUrl = normUrl((req.body as any)?.detailsUrl);
+      const locationUrl = normUrl((req.body as any)?.locationUrl);
+
+      if (!category) return res.status(400).json({ ok: false, error: 'bad_category' });
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ ok: false, error: 'bad_date' });
+      if (title.length < 2) return res.status(400).json({ ok: false, error: 'bad_title' });
+      if (!detailsUrl) return res.status(400).json({ ok: false, error: 'bad_details_url' });
+      if (!locationUrl) return res.status(400).json({ ok: false, error: 'bad_location_url' });
+
+      const now = new Date().toISOString();
+      const ev = {
+        id: randomUUID(),
+        category,
+        date,
+        title,
+        detailsUrl,
+        locationUrl,
+        created_at: now,
+        updated_at: now,
+        clicks: { details: 0, location: 0 },
+        created_by: user?.id || 0
+      };
+
+      const store = readStore();
+      const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
+      items.push(ev);
+      (store as any).afisha = items;
+      writeStore(store);
+      return res.json({ ok: true, event: ev });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
+    }
+  });
+
+  router.put('/admin/afisha/:id', (req, res) => {
+    try {
+      const { isOwner } = requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: 'not_owner' });
+
+      const id = String((req.params as any)?.id || '').trim();
+      if (!id) return res.status(400).json({ ok: false, error: 'bad_id' });
+
+      const categoryRaw = (req.body as any)?.category;
+      const category = categoryRaw != null ? normCategory(categoryRaw) : null;
+      const dateRaw = (req.body as any)?.date;
+      const date = dateRaw != null ? String(dateRaw || '').slice(0, 10) : null;
+      const titleRaw = (req.body as any)?.title;
+      const title = titleRaw != null ? String(titleRaw || '').trim() : null;
+      const detailsUrlRaw = (req.body as any)?.detailsUrl;
+      const detailsUrl = detailsUrlRaw != null ? normUrl(detailsUrlRaw) : null;
+      const locationUrlRaw = (req.body as any)?.locationUrl;
+      const locationUrl = locationUrlRaw != null ? normUrl(locationUrlRaw) : null;
+
+      const store = readStore();
+      const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
+      const ev = items.find((x) => String(x?.id || '') === id);
+      if (!ev) return res.status(404).json({ ok: false, error: 'not_found' });
+
+      if (categoryRaw != null) {
+        if (!category) return res.status(400).json({ ok: false, error: 'bad_category' });
+        ev.category = category;
+      }
+      if (dateRaw != null) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) return res.status(400).json({ ok: false, error: 'bad_date' });
+        ev.date = date;
+      }
+      if (titleRaw != null) {
+        if (!title || title.length < 2) return res.status(400).json({ ok: false, error: 'bad_title' });
+        ev.title = title;
+      }
+      if (detailsUrlRaw != null) {
+        if (!detailsUrl) return res.status(400).json({ ok: false, error: 'bad_details_url' });
+        ev.detailsUrl = detailsUrl;
+      }
+      if (locationUrlRaw != null) {
+        if (!locationUrl) return res.status(400).json({ ok: false, error: 'bad_location_url' });
+        ev.locationUrl = locationUrl;
+      }
+
+      ev.updated_at = new Date().toISOString();
+      (store as any).afisha = items;
+      writeStore(store);
+      return res.json({ ok: true, event: ev });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
+    }
+  });
   // --------------------
   // Rates
   // --------------------

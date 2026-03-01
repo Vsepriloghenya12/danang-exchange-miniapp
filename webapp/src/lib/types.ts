@@ -169,3 +169,36 @@ export type BonusesResponse = {
   bonuses: BonusesConfig;
   error?: string;
 };
+
+
+// --------------------
+// Afisha (events)
+// --------------------
+export type AfishaCategory = "sport" | "party" | "culture" | "city" | "food" | "music";
+export type AfishaFilterCategory = "all" | AfishaCategory;
+
+export type AfishaEvent = {
+  id: string;
+  category: AfishaCategory;
+  date: string; // YYYY-MM-DD
+  title: string;
+  detailsUrl: string;
+  locationUrl: string;
+  created_at: string;
+  updated_at: string;
+  clicks?: { details: number; location: number };
+};
+
+export type AfishaResponse = {
+  ok: boolean;
+  today?: string;
+  events: AfishaEvent[];
+  error?: string;
+};
+
+export type AdminAfishaResponse = {
+  ok: boolean;
+  today?: string;
+  events: AfishaEvent[];
+  error?: string;
+};

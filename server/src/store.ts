@@ -14,6 +14,26 @@ export type AtmItem = {
   mapUrl: string;
 };
 
+export type AfishaCategory = 
+  | "sport"
+  | "party"
+  | "culture"
+  | "city"
+  | "food"
+  | "music";
+
+export type AfishaEvent = {
+  id: string;
+  category: AfishaCategory;
+  date: string; // YYYY-MM-DD
+  title: string;
+  detailsUrl: string;
+  locationUrl: string;
+  created_at: string;
+  updated_at: string;
+  clicks: { details: number; location: number };
+};
+
 export type Rates = {
   USD: { buy_vnd: number; sell_vnd: number };
   RUB: { buy_vnd: number; sell_vnd: number };
@@ -55,6 +75,7 @@ export type Store = {
   requests: StoredRequest[];
   reviews: StoredReview[];
   atms: AtmItem[];
+  afisha: AfishaEvent[];
   contacts: Contact[];
 };
 
@@ -158,6 +179,7 @@ function defaultStore(): Store {
     requests: [],
     reviews: [],
     atms: [],
+    afisha: [],
     contacts: []
   };
 }
@@ -265,6 +287,7 @@ export function readStore(): Store {
     requests: Array.isArray(parsed?.requests) ? (parsed.requests as any) : [],
     reviews: Array.isArray(parsed?.reviews) ? (parsed.reviews as any) : [],
     atms: Array.isArray(parsed?.atms) ? parsed.atms : [],
+    afisha: Array.isArray(parsed?.afisha) ? parsed.afisha : [],
     contacts: Array.isArray(parsed?.contacts) ? parsed.contacts : []
   };
 
@@ -302,6 +325,22 @@ export function readStore(): Store {
   if (!Array.isArray(store.contacts)) {
     store.contacts = [];
     dirty = true;
+  }
+
+  if (!Array.isArray((store as any).afisha)) {
+    (store as any).afisha = [];
+    dirty = true;
+  }
+
+  // normalize afisha items
+  for (const ev of (store as any).afisha as any[]) {
+    if (!ev || typeof ev !== 'object') continue;
+    if (!ev.id) { ev.id = `af_${Date.now()}_${Math.random().toString(16).slice(2)}`; dirty = true; }
+    if (!ev.created_at) { ev.created_at = new Date().toISOString(); dirty = true; }
+    if (!ev.updated_at) { ev.updated_at = ev.created_at; dirty = true; }
+    if (!ev.clicks) { ev.clicks = { details: 0, location: 0 }; dirty = true; }
+    if (typeof ev.clicks.details !== 'number') { ev.clicks.details = Number(ev.clicks.details)||0; dirty = true; }
+    if (typeof ev.clicks.location !== 'number') { ev.clicks.location = Number(ev.clicks.location)||0; dirty = true; }
   }
 
   // миграция статусов

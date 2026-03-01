@@ -2095,3 +2095,246 @@ label, input, select, textarea{ color: var(--text); }
   .vx-admin2col{ grid-template-columns: 1fr; }
   .vx-bankGrid{ grid-template-columns: repeat(4, 1fr); }
 }
+
+/* =========================
+   v26: White "floating mirror" theme + Home screens (no bottom bar)
+   ========================= */
+
+.theme-client{
+  color-scheme: light;
+  --bg: #f6f7fb;
+  --sky: var(--bg);
+  --text: rgba(0,0,0,.88);
+  --muted: rgba(0,0,0,.56);
+  --muted2: rgba(0,0,0,.44);
+  --ph: rgba(0,0,0,.32);
+
+  --panel: rgba(255,255,255,.96);
+  --panel2: rgba(255,255,255,.92);
+  --stroke: rgba(0,0,0,.06);
+  --stroke2: rgba(0,0,0,.09);
+
+  --shadow: 0 18px 46px rgba(0,0,0,.18);
+  --shadow2: 0 12px 26px rgba(0,0,0,.14);
+  --ring: 0 0 0 4px rgba(0,0,0,.08);
+}
+
+html, body{ background: #f6f7fb !important; }
+body.vx-body-client,
+body.vx-body-client #root{ background: #f6f7fb !important; }
+
+.theme-client.vx-page{
+  background: var(--bg) !important;
+  color: var(--text);
+}
+
+/* No background image for the new design */
+.theme-client .bg-danang{ display:none !important; }
+
+/* Lift existing cards/buttons into the new style */
+.theme-client .card,
+.theme-client .vx-card2,
+.theme-client .vx-revCompose,
+.theme-client .vx-revCard,
+.theme-client .vx-atmHintBox{
+  background: var(--panel) !important;
+  border: 1px solid var(--stroke) !important;
+  box-shadow: var(--shadow) !important;
+  color: var(--text) !important;
+  backdrop-filter: none !important;
+}
+
+.theme-client .input,
+.theme-client .vx-in,
+.theme-client input,
+.theme-client select,
+.theme-client textarea{
+  background: rgba(255,255,255,.98) !important;
+  border: 1px solid var(--stroke2) !important;
+  color: var(--text) !important;
+}
+
+.theme-client .btn,
+.theme-client .vx-primary,
+.theme-client button.vx-primary,
+.theme-client button.btn{
+  background: rgba(255,255,255,.98) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--stroke2) !important;
+  box-shadow: var(--shadow2) !important;
+}
+
+.theme-client .btn:active,
+.theme-client .vx-primary:active,
+.theme-client button.btn:active{ transform: translateY(1px); }
+
+/* Home layout */
+.mx-sp10{ height: 10px; }
+.mx-sp12{ height: 12px; }
+.mx-sp24{ height: 24px; }
+
+.mx-topRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mx-statusWrap{
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.98);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow2);
+  position: relative;
+  overflow: hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.mx-statusWrap::before{
+  content:"";
+  position:absolute;
+  left:-18px;
+  top:-20px;
+  width: 90px;
+  height: 60px;
+  background: linear-gradient(135deg, rgba(255,255,255,.90), rgba(255,255,255,0));
+  transform: rotate(12deg);
+  pointer-events:none;
+}
+
+.mx-statusImg{ width: 28px; height: 28px; object-fit: contain; z-index: 1; }
+.mx-statusFallback{ z-index: 1; font-weight: 900; }
+
+.mx-weather{
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.96);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow2);
+  font-size: 13px;
+  font-weight: 800;
+  color: rgba(0,0,0,.72);
+}
+
+.mx-card{
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  padding: 14px;
+  overflow: hidden;
+}
+
+.mx-card::before{
+  content:"";
+  position:absolute;
+  inset: -40% -30% auto -30%;
+  height: 140px;
+  background: linear-gradient(135deg, rgba(255,255,255,.88), rgba(255,255,255,0));
+  transform: rotate(8deg);
+  pointer-events:none;
+}
+
+.mx-cardInner{ padding: 14px; }
+
+.mx-cardHead{ display:flex; align-items:flex-start; justify-content:space-between; gap: 10px; margin-bottom: 10px; position: relative; z-index: 1; }
+.mx-cardTitle{ font-size: 18px; font-weight: 950; letter-spacing: -0.01em; }
+.mx-cardSub{ font-size: 12.5px; font-weight: 800; color: rgba(0,0,0,.52); margin-top: 2px; }
+
+.mx-courseBody{ position: relative; z-index: 1; }
+
+.mx-btnRow{ display:flex; gap: 10px; margin-top: 12px; position: relative; z-index: 1; }
+
+.mx-btn{
+  flex: 1 1 0;
+  height: 44px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.98);
+  border: 1px solid var(--stroke2);
+  box-shadow: var(--shadow2);
+  font-weight: 950;
+  letter-spacing: -0.01em;
+}
+
+.mx-btnPrimary{
+  background: linear-gradient(180deg, rgba(255,255,255,1), rgba(245,245,245,1)) !important;
+}
+
+.mx-navCard{
+  width: 100%;
+  text-align:left;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  padding: 14px 14px;
+  border-radius: 22px;
+  background: rgba(255,255,255,.96);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+}
+
+.mx-navTitle{ font-size: 16px; font-weight: 950; }
+.mx-navSub{ font-size: 12.5px; font-weight: 800; color: rgba(0,0,0,.52); margin-top: 2px; }
+
+.mx-i{ width: 20px; height: 20px; }
+.mx-chev{ opacity: .6; }
+
+/* Screen header */
+.mx-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  margin: 8px 0 12px;
+}
+
+.mx-backBtn{
+  width: 40px;
+  height: 40px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.96);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow2);
+}
+
+.mx-hTitle{ font-size: 16px; font-weight: 950; letter-spacing: -0.01em; }
+
+/* Afisha */
+.mx-chipRow{ display:flex; gap: 8px; overflow-x:auto; padding-bottom: 8px; margin-bottom: 10px; }
+.mx-chipRow::-webkit-scrollbar{ display:none; }
+.mx-chip{
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.96);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow2);
+  font-weight: 900;
+  font-size: 13px;
+  color: rgba(0,0,0,.70);
+}
+.mx-chip.is-on{
+  color: rgba(0,0,0,.92);
+  border-color: rgba(0,0,0,.14);
+}
+
+.mx-filterRow{ display:flex; gap: 10px; margin-bottom: 12px; }
+.mx-filterItem{ flex: 1 1 0; display:flex; align-items:center; justify-content:space-between; gap: 8px; padding: 10px 12px; border-radius: 18px; background: rgba(255,255,255,.96); border:1px solid var(--stroke); box-shadow: var(--shadow2); font-weight: 900; color: rgba(0,0,0,.62); }
+.mx-date{ border: 0 !important; background: transparent !important; padding: 0 !important; height: auto !important; font-weight: 900; color: rgba(0,0,0,.86) !important; }
+
+.mx-muted{ color: rgba(0,0,0,.56); font-weight: 700; }
+
+.mx-list{ display:flex; flex-direction:column; gap: 12px; }
+.mx-afTitle{ font-size: 15px; font-weight: 950; position: relative; z-index: 1; }
+.mx-afMeta{ font-size: 12.5px; font-weight: 850; color: rgba(0,0,0,.54); margin-top: 4px; position: relative; z-index: 1; }
+
+/* Rates embedded tweaks */
+.vx-ratesEmbedded .vx-rateHdr{ opacity: .7; }
+.vx-ratesEmbedded .vx-head{ display:none; }
