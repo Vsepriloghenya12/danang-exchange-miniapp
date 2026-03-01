@@ -17,7 +17,8 @@ import type {
   Contact,
   AfishaResponse,
   AdminAfishaResponse,
-  AfishaEvent
+  AfishaEvent,
+  WeatherResponse
 } from "./types";
 
 // Admin auth helper:
@@ -53,6 +54,11 @@ export async function apiAuth(initData: string): Promise<AuthResponse> {
 export async function apiGetTodayRates(): Promise<TodayRatesResponse> {
   const r = await fetch("/api/rates/today");
   return r.json();
+}
+
+export async function apiGetWeather(): Promise<WeatherResponse> {
+  const r = await fetch("/api/weather");
+  return readJsonSafe(r);
 }
 
 export async function apiGetMarketRates(): Promise<MarketRatesResponse> {

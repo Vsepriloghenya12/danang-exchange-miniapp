@@ -2310,6 +2310,11 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
   color: rgba(0,0,0,.72);
 }
 
+.mx-weatherCity{
+  font-weight: 700;
+  color: rgba(0,0,0,.52);
+}
+
 .mx-card{
   position: relative;
   background: var(--panel);

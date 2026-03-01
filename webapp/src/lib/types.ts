@@ -54,6 +54,27 @@ export type BankIconsResponse = {
   error?: string;
 };
 
+// --------------------
+// Weather
+// --------------------
+export type WeatherResponse =
+  | {
+      ok: true;
+      data: {
+        city: string;
+        tempC: number;
+        feelsC: number;
+        desc: string;
+        humidity: number;
+        windMs: number;
+        emoji: string;
+        icon?: string;
+        updatedAt: string;
+      };
+      cached?: boolean;
+    }
+  | { ok: false; error: string };
+
 export type StaffRequestsResponse = {
   ok: boolean;
   requests: any[];

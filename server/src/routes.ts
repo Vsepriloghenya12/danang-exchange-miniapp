@@ -23,6 +23,37 @@ import {
 import { validateTelegramInitData } from "./telegramValidate.js";
 import { getMarketSnapshot } from "./marketRates.js";
 
+// --------------------
+// Weather (OpenWeatherMap)
+// --------------------
+type WeatherPayload = {
+  city: string;
+  tempC: number;
+  feelsC: number;
+  desc: string;
+  humidity: number;
+  windMs: number;
+  emoji: string;
+  icon?: string;
+  updatedAt: string;
+};
+
+const DANANG = { lat: 16.0544, lon: 108.2022 };
+const WEATHER_TTL_MS = 10 * 60 * 1000;
+let weatherCache: { ts: number; data: WeatherPayload } | null = null;
+
+function weatherEmoji(main: string) {
+  const m = String(main || "").toLowerCase();
+  if (m.includes("thunder")) return "⛈️";
+  if (m.includes("drizzle")) return "🌦️";
+  if (m.includes("rain")) return "🌧️";
+  if (m.includes("snow")) return "❄️";
+  if (m.includes("mist") || m.includes("fog") || m.includes("haze")) return "🌫️";
+  if (m.includes("cloud")) return "☁️";
+  if (m.includes("clear")) return "☀️";
+  return "🌤️";
+}
+
 type ReceiveMethod = "cash" | "transfer" | "atm";
 type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB";
 
@@ -134,6 +165,44 @@ export function createApiRouter(opts: {
   }
 
   router.get("/health", (_req, res) => res.json({ ok: true }));
+
+  // --------------------
+  // Public: current weather for Da Nang (cached)
+  // --------------------
+  router.get("/weather", async (_req, res) => {
+    try {
+      if (weatherCache && Date.now() - weatherCache.ts < WEATHER_TTL_MS) {
+        return res.json({ ok: true, data: weatherCache.data, cached: true });
+      }
+
+      const apiKey = String(process.env.OWM_API_KEY || process.env.OPENWEATHER_API_KEY || "7da2b17df52f2ac9059c7165598237cb").trim();
+      if (!apiKey) return res.status(500).json({ ok: false, error: "owm_key_missing" });
+
+      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${DANANG.lat}&lon=${DANANG.lon}&appid=${apiKey}&units=metric&lang=ru`;
+      const r = await fetch(url);
+      const j: any = await r.json();
+      if (!r.ok) return res.status(502).json({ ok: false, error: j?.message || "owm_failed" });
+
+      const w0 = Array.isArray(j?.weather) ? j.weather[0] : null;
+      const main = String(w0?.main || "");
+      const payload: WeatherPayload = {
+        city: String(j?.name || "Da Nang"),
+        tempC: Math.round(Number(j?.main?.temp ?? 0)),
+        feelsC: Math.round(Number(j?.main?.feels_like ?? 0)),
+        desc: String(w0?.description || ""),
+        humidity: Number(j?.main?.humidity ?? 0),
+        windMs: Number(j?.wind?.speed ?? 0),
+        emoji: weatherEmoji(main),
+        icon: String(w0?.icon || "") || undefined,
+        updatedAt: new Date().toISOString()
+      };
+
+      weatherCache = { ts: Date.now(), data: payload };
+      return res.json({ ok: true, data: payload, cached: false });
+    } catch (e: any) {
+      return res.status(500).json({ ok: false, error: e?.message || "weather_failed" });
+    }
+  });
 
   // --------------------
   // Public: list bank icon filenames from webapp/public/banks (or dist/banks)

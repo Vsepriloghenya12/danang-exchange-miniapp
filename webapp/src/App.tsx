@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getTg } from "./lib/telegram";
-import { apiAuth } from "./lib/api";
+import { apiAuth, apiGetWeather } from "./lib/api";
 import type { UserStatus } from "./lib/types";
 
 import RatesTab from "./tabs/RatesTab";
@@ -147,6 +147,36 @@ export default function App() {
   const [screen, setScreen] = useState<ScreenKey>("home");
   const [courseExpanded, setCourseExpanded] = useState(false);
 
+  const [weather, setWeather] = useState<null | {
+    city: string;
+    tempC: number;
+    feelsC: number;
+    desc: string;
+    humidity: number;
+    windMs: number;
+    emoji: string;
+    updatedAt: string;
+  }>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const r: any = await apiGetWeather();
+        if (!mounted) return;
+        if (r?.ok && r?.data) setWeather(r.data);
+      } catch {
+        // ignore
+      }
+    };
+    load();
+    const id = window.setInterval(load, 10 * 60 * 1000);
+    return () => {
+      mounted = false;
+      window.clearInterval(id);
+    };
+  }, []);
+
   const isDemo = useMemo(() => new URLSearchParams(window.location.search).get("demo") === "1", []);
 
   useEffect(() => {
@@ -235,7 +265,16 @@ export default function App() {
           <>
             <div className="mx-topRow">
               <StatusIcon status={me.status} />
-              <div className="mx-weather">Погода: —</div>
+              <div className="mx-weather">
+                {weather ? (
+                  <>
+                    {weather.emoji} {Math.round(weather.tempC)}°C
+                    <span className="mx-weatherCity"> Дананг</span>
+                  </>
+                ) : (
+                  "Погода: —"
+                )}
+              </div>
             </div>
 
             <div className="mx-card">
