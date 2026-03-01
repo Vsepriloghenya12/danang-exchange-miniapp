@@ -2440,13 +2440,18 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 }
 .mx-afCatBtn.is-on{ outline: 3px solid rgba(0,0,0,.18); }
 
-/* Prefer image-set for better compatibility (webp/jpg/png). Put files into server/public/brand */
-.mx-afCat--sport{ background-image: image-set(url('/brand/afisha-sport.webp') type('image/webp'), url('/brand/afisha-sport.jpg') type('image/jpeg'), url('/brand/afisha-sport.png') type('image/png')); }
-.mx-afCat--party{ background-image: image-set(url('/brand/afisha-party.webp') type('image/webp'), url('/brand/afisha-party.jpg') type('image/jpeg'), url('/brand/afisha-party.png') type('image/png')); }
-.mx-afCat--culture{ background-image: image-set(url('/brand/afisha-culture.webp') type('image/webp'), url('/brand/afisha-culture.jpg') type('image/jpeg'), url('/brand/afisha-culture.png') type('image/png')); }
-.mx-afCat--city{ background-image: image-set(url('/brand/afisha-city.webp') type('image/webp'), url('/brand/afisha-city.jpg') type('image/jpeg'), url('/brand/afisha-city.png') type('image/png')); }
-.mx-afCat--food{ background-image: image-set(url('/brand/afisha-food.webp') type('image/webp'), url('/brand/afisha-food.jpg') type('image/jpeg'), url('/brand/afisha-food.png') type('image/png')); }
-.mx-afCat--music{ background-image: image-set(url('/brand/afisha-music.webp') type('image/webp'), url('/brand/afisha-music.jpg') type('image/jpeg'), url('/brand/afisha-music.png') type('image/png')); }
+/* Afisha button backgrounds.
+   IMPORTANT: Telegram WebView may "pick" the first candidate in image-set and does not always fall back
+   if that file is missing. To avoid empty buttons, we use a plain URL by default.
+   Put files into server/public/brand (served as /brand/*).
+   If you prefer .png or .webp, just change the extension here.
+*/
+.mx-afCat--sport{ background-image: url('/brand/afisha-sport.jpg'); }
+.mx-afCat--party{ background-image: url('/brand/afisha-party.jpg'); }
+.mx-afCat--culture{ background-image: url('/brand/afisha-culture.jpg'); }
+.mx-afCat--city{ background-image: url('/brand/afisha-city.jpg'); }
+.mx-afCat--food{ background-image: url('/brand/afisha-food.jpg'); }
+.mx-afCat--music{ background-image: url('/brand/afisha-music.jpg'); }
 
 .mx-list{ display:flex; flex-direction:column; gap: 12px; }
 .mx-afTitle{ font-size: 15px; font-weight: 950; position: relative; z-index: 1; }
