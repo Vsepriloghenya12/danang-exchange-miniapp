@@ -72,6 +72,9 @@ function NavCard({ title, subtitle, onClick }: { title: string; subtitle?: strin
 }
 
 function StatusIcon({ status }: { status?: UserStatus }) {
+  // Telegram WebView caching + inconsistent image format fallback can cause the status icon to look "not loaded".
+  // We try multiple extensions and also add a tiny cache-buster.
+  const bust = "v31";
   const candidates = useMemo(() => {
     const s = String(status || "").toLowerCase();
     const list: string[] = [];
@@ -79,14 +82,22 @@ function StatusIcon({ status }: { status?: UserStatus }) {
       list.push(`/brand/status-${s}.png`);
       list.push(`/brand/status-${s}.webp`);
       list.push(`/brand/status-${s}.svg`);
+      list.push(`/brand/status-${s}.jpg`);
+      list.push(`/brand/status-${s}.jpeg`);
     }
-    list.push("/brand/status.png", "/brand/status.webp", "/brand/status.svg");
+    list.push(
+      "/brand/status.png",
+      "/brand/status.webp",
+      "/brand/status.svg",
+      "/brand/status.jpg",
+      "/brand/status.jpeg"
+    );
     return list;
   }, [status]);
 
   const [idx, setIdx] = useState(0);
   const [ok, setOk] = useState(false);
-  const src = candidates[Math.min(idx, candidates.length - 1)];
+  const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
 
   return (
     <div className="mx-statusWrap" aria-label="Статус">
