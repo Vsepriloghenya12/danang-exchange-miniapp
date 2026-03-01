@@ -59,10 +59,21 @@ function ScreenHeader({ title, onBack }: { title: string; onBack: () => void }) 
   );
 }
 
-function NavCard({ title, subtitle, onClick }: { title: string; subtitle?: string; onClick: () => void }) {
+function NavCard({
+  title,
+  subtitle,
+  iconSrc,
+  onClick,
+}: {
+  title: string;
+  subtitle?: string;
+  iconSrc: string;
+  onClick: () => void;
+}) {
   return (
     <button type="button" className="mx-navCard" onClick={onClick}>
-      <div>
+      <img className="mx-navIcon" src={iconSrc} alt="" />
+      <div className="mx-navText">
         <div className="mx-navTitle">{title}</div>
         {subtitle ? <div className="mx-navSub">{subtitle}</div> : null}
       </div>
@@ -257,16 +268,36 @@ export default function App() {
 
             <div className="mx-sp12" />
 
-            <NavCard title="Афиша" subtitle="События, спорт, вечеринки" onClick={() => setScreen("afisha")} />
+            <NavCard
+              title="Афиша"
+              subtitle="События, спорт, вечеринки"
+              iconSrc="/brand/icons/tab-afisha-256.png?v=1"
+              onClick={() => setScreen("afisha")}
+            />
             <div className="mx-sp10" />
-            <NavCard title="Банкоматы" subtitle="VIETCOMBANK и BIDV" onClick={() => setScreen("atm")} />
+            <NavCard
+              title="Банкоматы"
+              subtitle="VIETCOMBANK и BIDV"
+              iconSrc="/brand/icons/tab-atm-256.png?v=1"
+              onClick={() => setScreen("atm")}
+            />
             <div className="mx-sp10" />
-            <NavCard title="Отзывы" subtitle="Отзывы клиентов" onClick={() => setScreen("reviews")} />
+            <NavCard
+              title="Отзывы"
+              subtitle="Отзывы клиентов"
+              iconSrc="/brand/icons/tab-reviews-256.png?v=1"
+              onClick={() => setScreen("reviews")}
+            />
 
             {me.isAdmin ? (
               <>
                 <div className="mx-sp10" />
-                <NavCard title="Админ" subtitle="Заявки" onClick={() => setScreen("staff")} />
+                <NavCard
+                  title="Админ"
+                  subtitle="Заявки"
+                  iconSrc="/brand/icons/tab-rates-256.png?v=1"
+                  onClick={() => setScreen("staff")}
+                />
               </>
             ) : null}
 
