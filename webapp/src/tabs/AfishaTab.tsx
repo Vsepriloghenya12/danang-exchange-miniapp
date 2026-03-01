@@ -12,8 +12,7 @@ function openLink(url: string) {
   else window.open(url, "_blank", "noopener,noreferrer");
 }
 
-const CATS: Array<{ key: AfishaFilterCategory; label: string }> = [
-  { key: "all", label: "Все" },
+const CATS: Array<{ key: Exclude<AfishaFilterCategory, "all">; label: string; sub?: string }> = [
   { key: "sport", label: "Спорт" },
   { key: "party", label: "Вечеринки" },
   { key: "culture", label: "Культура и искусство" },
@@ -44,7 +43,8 @@ export default function AfishaTab() {
   const tg = getTg();
   const initData = tg?.initData || "";
 
-  const [category, setCategory] = useState<AfishaFilterCategory>("all");
+  // No "Все" button in UI. When category is empty, we show all events by default.
+  const [category, setCategory] = useState<AfishaFilterCategory | "">("");
   const [from, setFrom] = useState<string>(() => todayISO());
   const [to, setTo] = useState<string>("");
 
@@ -52,7 +52,10 @@ export default function AfishaTab() {
   const [events, setEvents] = useState<AfishaEvent[]>([]);
   const [err, setErr] = useState<string>("");
 
-  const params = useMemo(() => ({ category, from: from || undefined, to: to || undefined }), [category, from, to]);
+  const params = useMemo(
+    () => ({ category: (category || undefined) as any, from: from || undefined, to: to || undefined }),
+    [category, from, to]
+  );
 
   useEffect(() => {
     let alive = true;
@@ -92,19 +95,6 @@ export default function AfishaTab() {
 
   return (
     <div className="mx-afisha">
-      <div className="mx-chipRow">
-        {CATS.map((c) => (
-          <button
-            key={c.key}
-            type="button"
-            className={"mx-chip " + (category === c.key ? "is-on" : "")}
-            onClick={() => setCategory(c.key)}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-
       <div className="mx-filterRow">
         <label className="mx-filterItem">
           <span>С</span>
@@ -114,6 +104,25 @@ export default function AfishaTab() {
           <span>По</span>
           <input className="mx-date" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
+      </div>
+
+      <div className="mx-afCats">
+        {CATS.map((c) => {
+          const on = category === c.key;
+          return (
+            <button
+              key={c.key}
+              type="button"
+              className={"mx-afCatBtn mx-afCat--" + c.key + (on ? " is-on" : "")}
+              onClick={() => setCategory((prev) => (prev === c.key ? "" : c.key))}
+            >
+              <div>
+                <div className="mx-afCatLabel">{c.label}</div>
+                <div className="mx-afCatSub">Открыть раздел</div>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {loading ? <div className="mx-muted">Загрузка…</div> : null}

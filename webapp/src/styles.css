@@ -2144,6 +2144,88 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
   backdrop-filter: none !important;
 }
 
+/* Fix legacy dark overrides (older rules set WHITE text with !important) */
+.theme-client .vx-title,
+.theme-client .vx-topSub,
+.theme-client .vx-reviewsTitle,
+.theme-client .vx-revH,
+.theme-client .vx-revName,
+.theme-client .vx-revRating,
+.theme-client .vx-revTextOut,
+.theme-client .vx-atmHint,
+.theme-client .vx-pill,
+.theme-client .vx-accLbl,
+.theme-client .vx-acc > summary,
+.theme-client .vx-admin .vx-code,
+.theme-client .vx-sectionTitle,
+.theme-client .vx-ratePair2,
+.theme-client .vx-rateN,
+.theme-client .vx-pair,
+.theme-client .vx-num{
+  color: var(--text) !important;
+  text-shadow: none !important;
+}
+.theme-client .vx-acc[open] > summary{ border-bottom-color: var(--stroke) !important; }
+.theme-client .vx-muted,
+.theme-client .vx-meta,
+.theme-client .vx-note,
+.theme-client .vx-sub,
+.theme-client .vx-help{
+  color: var(--muted) !important;
+}
+.theme-client .hr{ background: var(--stroke) !important; }
+
+/* Rates list: remove neon glows + restore light separators */
+.theme-client .vx-rateList::before,
+.theme-client .vx-rateList::after{ display:none !important; }
+.theme-client .vx-rateHdr{
+  color: var(--muted) !important;
+  border-bottom: 1px solid var(--stroke) !important;
+}
+.theme-client .vx-rateList .vx-rateLine + .vx-rateLine{
+  border-top: 1px solid var(--stroke) !important;
+}
+.theme-client .vx-rateNMuted{ color: rgba(0,0,0,.56) !important; }
+.theme-client .vx-dash{ color: rgba(0,0,0,.35) !important; }
+
+/* Owner/admin portal blocks that were styled for dark glass */
+.theme-client .vx-toast,
+.theme-client .vx-pre,
+.theme-client .vx-contactRow,
+.theme-client .vx-pubGroup,
+.theme-client .vx-metricCard,
+.theme-client .vx-tableWrap,
+.theme-client .vx-adminCol,
+.theme-client .vx-reqRow,
+.theme-client .vx-reqRow.is-active{
+  background: var(--panel) !important;
+  border: 1px solid var(--stroke) !important;
+  box-shadow: var(--shadow2) !important;
+  color: var(--text) !important;
+}
+
+/* Inputs inside admin blocks were forced to dark background with !important */
+.theme-client .vx-admin input.vx-in,
+.theme-client .vx-admin textarea,
+.theme-client .vx-admin select{
+  background: rgba(255,255,255,.98) !important;
+  border: 1px solid var(--stroke2) !important;
+  color: var(--text) !important;
+}
+
+/* Segmented controls in owner/admin */
+.theme-client .vx-adminSeg{
+  background: rgba(255,255,255,.96) !important;
+  border: 1px solid var(--stroke2) !important;
+  box-shadow: var(--shadow2) !important;
+}
+.theme-client .vx-adminSeg button{ color: rgba(0,0,0,.62) !important; }
+.theme-client .vx-adminSeg .on{
+  background: rgba(0,0,0,.06) !important;
+  border: 1px solid rgba(0,0,0,.12) !important;
+  color: var(--text) !important;
+}
+
 .theme-client .input,
 .theme-client .vx-in,
 .theme-client input,
@@ -2307,29 +2389,63 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 .mx-hTitle{ font-size: 16px; font-weight: 950; letter-spacing: -0.01em; }
 
 /* Afisha */
-.mx-chipRow{ display:flex; gap: 8px; overflow-x:auto; padding-bottom: 8px; margin-bottom: 10px; }
-.mx-chipRow::-webkit-scrollbar{ display:none; }
-.mx-chip{
-  flex: 0 0 auto;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: rgba(255,255,255,.96);
-  border: 1px solid var(--stroke);
-  box-shadow: var(--shadow2);
-  font-weight: 900;
-  font-size: 13px;
-  color: rgba(0,0,0,.70);
-}
-.mx-chip.is-on{
-  color: rgba(0,0,0,.92);
-  border-color: rgba(0,0,0,.14);
-}
-
 .mx-filterRow{ display:flex; gap: 10px; margin-bottom: 12px; }
 .mx-filterItem{ flex: 1 1 0; display:flex; align-items:center; justify-content:space-between; gap: 8px; padding: 10px 12px; border-radius: 18px; background: rgba(255,255,255,.96); border:1px solid var(--stroke); box-shadow: var(--shadow2); font-weight: 900; color: rgba(0,0,0,.62); }
 .mx-date{ border: 0 !important; background: transparent !important; padding: 0 !important; height: auto !important; font-weight: 900; color: rgba(0,0,0,.86) !important; }
 
 .mx-muted{ color: rgba(0,0,0,.56); font-weight: 700; }
+
+/* Afisha category buttons with images */
+.mx-afCats{ display:grid; gap: 12px; margin-bottom: 12px; }
+.mx-afCatBtn{
+  width: 100%;
+  height: 110px;
+  border-radius: 26px;
+  border: 1px solid rgba(0,0,0,.10);
+  box-shadow: var(--shadow);
+  background-color: rgba(255,255,255,.96);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+  padding: 16px 16px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+}
+.mx-afCatBtn::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 100%);
+  opacity: .88;
+}
+.mx-afCatBtn .mx-afCatLabel{
+  position: relative;
+  z-index: 1;
+  color: rgba(255,255,255,.96);
+  font-weight: 950;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+.mx-afCatBtn .mx-afCatSub{
+  position: relative;
+  z-index: 1;
+  color: rgba(255,255,255,.78);
+  font-weight: 800;
+  font-size: 12px;
+}
+.mx-afCatBtn.is-on{ outline: 3px solid rgba(0,0,0,.18); }
+
+/* Prefer image-set for better compatibility (webp/jpg/png). Put files into server/public/brand */
+.mx-afCat--sport{ background-image: image-set(url('/brand/afisha-sport.webp') type('image/webp'), url('/brand/afisha-sport.jpg') type('image/jpeg'), url('/brand/afisha-sport.png') type('image/png')); }
+.mx-afCat--party{ background-image: image-set(url('/brand/afisha-party.webp') type('image/webp'), url('/brand/afisha-party.jpg') type('image/jpeg'), url('/brand/afisha-party.png') type('image/png')); }
+.mx-afCat--culture{ background-image: image-set(url('/brand/afisha-culture.webp') type('image/webp'), url('/brand/afisha-culture.jpg') type('image/jpeg'), url('/brand/afisha-culture.png') type('image/png')); }
+.mx-afCat--city{ background-image: image-set(url('/brand/afisha-city.webp') type('image/webp'), url('/brand/afisha-city.jpg') type('image/jpeg'), url('/brand/afisha-city.png') type('image/png')); }
+.mx-afCat--food{ background-image: image-set(url('/brand/afisha-food.webp') type('image/webp'), url('/brand/afisha-food.jpg') type('image/jpeg'), url('/brand/afisha-food.png') type('image/png')); }
+.mx-afCat--music{ background-image: image-set(url('/brand/afisha-music.webp') type('image/webp'), url('/brand/afisha-music.jpg') type('image/jpeg'), url('/brand/afisha-music.png') type('image/png')); }
 
 .mx-list{ display:flex; flex-direction:column; gap: 12px; }
 .mx-afTitle{ font-size: 15px; font-weight: 950; position: relative; z-index: 1; }
