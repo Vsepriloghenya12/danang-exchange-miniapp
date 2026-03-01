@@ -296,6 +296,30 @@ export function createApiRouter(opts: {
     return null;
   }
 
+  // Save a base64 data URL image into server/public/afisha and return a public URL like /afisha/<id>.jpg
+  function saveAfishaImage(id: string, dataUrl: string): string {
+    const m = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/i);
+    if (!m) throw new Error('bad_image');
+    const mime = String(m[1] || '').toLowerCase();
+    const b64 = String(m[2] || '');
+    const isOk = /image\/(jpeg|jpg|png|webp)/i.test(mime);
+    if (!isOk) throw new Error('bad_image');
+
+    const ext = mime.includes('png') ? '.png' : mime.includes('webp') ? '.webp' : '.jpg';
+    const buf = Buffer.from(b64, 'base64');
+    if (!buf || buf.length < 10) throw new Error('bad_image');
+    if (buf.length > 5 * 1024 * 1024) throw new Error('bad_image');
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const runtimePublic = path.resolve(__dirname, '../public');
+    const dir = path.join(runtimePublic, 'afisha');
+    fs.mkdirSync(dir, { recursive: true });
+    const filename = `${id}${ext}`;
+    fs.writeFileSync(path.join(dir, filename), buf);
+    return `/afisha/${filename}`;
+  }
+
   // Public list (only future+today)
   router.get('/afisha', (req, res) => {
     try {
@@ -390,6 +414,7 @@ export function createApiRouter(opts: {
       const title = String((req.body as any)?.title || '').trim();
       const detailsUrl = normUrl((req.body as any)?.detailsUrl);
       const locationUrl = normUrl((req.body as any)?.locationUrl);
+      const imageDataUrl = typeof (req.body as any)?.imageDataUrl === 'string' ? String((req.body as any).imageDataUrl) : '';
 
       if (!category) return res.status(400).json({ ok: false, error: 'bad_category' });
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ ok: false, error: 'bad_date' });
@@ -398,13 +423,17 @@ export function createApiRouter(opts: {
       if (!locationUrl) return res.status(400).json({ ok: false, error: 'bad_location_url' });
 
       const now = new Date().toISOString();
-      const ev = {
-        id: randomUUID(),
+      const id = randomUUID();
+      const imageUrl = imageDataUrl && imageDataUrl.startsWith('data:') ? saveAfishaImage(id, imageDataUrl) : undefined;
+
+      const ev: any = {
+        id,
         category,
         date,
         title,
         detailsUrl,
         locationUrl,
+        ...(imageUrl ? { imageUrl } : {}),
         created_at: now,
         updated_at: now,
         clicks: { details: 0, location: 0 },
@@ -441,6 +470,9 @@ export function createApiRouter(opts: {
       const locationUrlRaw = (req.body as any)?.locationUrl;
       const locationUrl = locationUrlRaw != null ? normUrl(locationUrlRaw) : null;
 
+      const imageDataUrlRaw = (req.body as any)?.imageDataUrl;
+      const imageDataUrl = typeof imageDataUrlRaw === 'string' ? String(imageDataUrlRaw) : null;
+
       const store = readStore();
       const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
       const ev = items.find((x) => String(x?.id || '') === id);
@@ -465,6 +497,12 @@ export function createApiRouter(opts: {
       if (locationUrlRaw != null) {
         if (!locationUrl) return res.status(400).json({ ok: false, error: 'bad_location_url' });
         ev.locationUrl = locationUrl;
+      }
+
+      if (imageDataUrl != null) {
+        if (imageDataUrl && imageDataUrl.startsWith('data:')) {
+          ev.imageUrl = saveAfishaImage(id, imageDataUrl);
+        }
       }
 
       ev.updated_at = new Date().toISOString();

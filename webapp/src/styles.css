@@ -2390,6 +2390,7 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 
 /* Afisha */
 .mx-filterRow{ display:flex; gap: 10px; margin-bottom: 12px; }
+.mx-filterRowNice .mx-filterItem{ box-shadow: 0 10px 26px rgba(0,0,0,.10); }
 .mx-filterItem{ flex: 1 1 0; display:flex; align-items:center; justify-content:space-between; gap: 8px; padding: 10px 12px; border-radius: 18px; background: rgba(255,255,255,.96); border:1px solid var(--stroke); box-shadow: var(--shadow2); font-weight: 900; color: rgba(0,0,0,.62); }
 .mx-date{ border: 0 !important; background: transparent !important; padding: 0 !important; height: auto !important; font-weight: 900; color: rgba(0,0,0,.86) !important; }
 
@@ -2451,6 +2452,130 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 .mx-afTitle{ font-size: 15px; font-weight: 950; position: relative; z-index: 1; }
 .mx-afMeta{ font-size: 12.5px; font-weight: 850; color: rgba(0,0,0,.54); margin-top: 4px; position: relative; z-index: 1; }
 
+/* Afisha list view */
+.mx-afTop{ display:flex; align-items:center; justify-content:space-between; gap: 10px; margin: 8px 0 12px; }
+.mx-afBack{ height: 38px; padding: 0 12px; border-radius: 16px; background: rgba(255,255,255,.96); border: 1px solid var(--stroke); box-shadow: var(--shadow2); font-weight: 900; }
+.mx-afTopTitle{ font-size: 14px; font-weight: 950; color: rgba(0,0,0,.72); }
+
+/* Event card with optional background image */
+.mx-afEvCard{
+  border-radius: 26px;
+  border: 1px solid rgba(0,0,0,.10);
+  box-shadow: var(--shadow);
+  background: rgba(255,255,255,.96);
+  overflow: hidden;
+  position: relative;
+}
+.mx-afEvCard.has-img{
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.mx-afEvCard.has-img::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.60) 100%);
+}
+.mx-afEvBody{ position: relative; z-index: 1; padding: 16px; }
+.mx-afEvCard.has-img .mx-afTitle{ color: rgba(255,255,255,.96); }
+.mx-afEvCard.has-img .mx-afMeta{ color: rgba(255,255,255,.80); }
+
+/* Rates table inside the home "Курс" card (no extra card wrapper) */
+.mx-rateTable{ display:flex; flex-direction:column; gap: 0; border-top: 1px solid rgba(0,0,0,.06); }
+.mx-rateRow{ display:grid; grid-template-columns: 1.3fr 0.85fr 0.85fr; gap: 10px; padding: 10px 0; align-items: center; font-variant-numeric: tabular-nums; }
+.mx-rateRow + .mx-rateRow{ border-top: 1px solid rgba(0,0,0,.06); }
+.mx-rateHead{ padding-top: 8px; padding-bottom: 8px; font-size: 11px; font-weight: 950; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(0,0,0,.50); }
+.mx-rateCell{ min-width: 0; }
+.mx-ratePair{ font-size: 13px; font-weight: 950; color: rgba(0,0,0,.88); }
+.mx-rateBuyH, .mx-rateBuy{ text-align: center; color: rgba(22,163,74,.95); font-weight: 950; }
+.mx-rateSellH, .mx-rateSell{ text-align: center; color: rgba(220,38,38,.92); font-weight: 950; }
+
+
 /* Rates embedded tweaks */
 .vx-ratesEmbedded .vx-rateHdr{ opacity: .7; }
 .vx-ratesEmbedded .vx-head{ display:none; }
+
+/* =========================
+   White UI overrides (client + owner)
+   Fix legacy dark-theme rules that may still exist above.
+   ========================= */
+
+.theme-client{ color-scheme: light !important; }
+.theme-client.vx-page{
+  background: #f6f7fb !important;
+  color: rgba(0,0,0,.88) !important;
+}
+
+/* Common text helpers inside the client */
+.theme-client .vx-muted,
+.theme-client .vx-meta,
+.theme-client .vx-note,
+.theme-client .vx-sub,
+.theme-client .vx-help,
+.theme-client .vx-rateHdr,
+.theme-client .vx-topSub,
+.theme-client .vx-revH,
+.theme-client .vx-revRating,
+.theme-client .vx-revReplyH{
+  color: rgba(0,0,0,.56) !important;
+}
+
+.theme-client .vx-title,
+.theme-client .vx-sectionTitle,
+.theme-client .vx-ratePair2,
+.theme-client .vx-rateN,
+.theme-client .vx-pair,
+.theme-client .vx-num,
+.theme-client .vx-reviewsTitle,
+.theme-client .vx-revName,
+.theme-client .vx-revTextOut{
+  color: rgba(0,0,0,.90) !important;
+}
+
+.theme-client .vx-revCard,
+.theme-client .vx-revCompose,
+.theme-client .vx-atmHintBox,
+.theme-client .vx-atmVideo{
+  background: rgba(255,255,255,.96) !important;
+  border-color: rgba(0,0,0,.08) !important;
+}
+
+.theme-client input.vx-in,
+.theme-client select.vx-in,
+.theme-client textarea.vx-revText{
+  background: rgba(255,255,255,.96) !important;
+  color: rgba(0,0,0,.88) !important;
+  border-color: rgba(0,0,0,.10) !important;
+}
+
+.theme-client textarea.vx-revText::placeholder,
+.theme-client input::placeholder{
+  color: rgba(0,0,0,.40) !important;
+}
+
+/* Owner portal (desktop width) */
+.theme-owner{ --appMax: 2000px; }
+.theme-owner.vx-page{ background: #f6f7fb; }
+.theme-owner .bg-danang{ background-color: #f6f7fb; background-image: none !important; }
+.theme-owner .container{
+  max-width: none;
+  width: calc(100% - 32px);
+}
+
+@media (min-width: 900px){
+  .theme-owner.vx-page{ padding: 18px 24px; }
+}
+
+.theme-owner input,
+.theme-owner select,
+.theme-owner textarea{
+  background: rgba(255,255,255,.96) !important;
+  color: rgba(0,0,0,.88) !important;
+  border-color: rgba(0,0,0,.10) !important;
+}
+
+.theme-owner .vx-adminSeg{ background: rgba(255,255,255,.70); }
+.theme-owner .vx-adminSeg button{ color: rgba(0,0,0,.62); }
+.theme-owner .vx-adminSeg .on{ background: rgba(0,0,0,.08); border-color: rgba(0,0,0,.12); }
+

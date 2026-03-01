@@ -165,41 +165,37 @@ export default function RatesTab({ embedded = false, limit }: Props = {}) {
     <div className="vx-meta">Курс ещё не задан владельцем.</div>
   ) : (
     <>
-      <div className="vx-rateList">
-        <div className="vx-rateHdr">
-          <span>Пара</span>
-          <span>BUY / SELL</span>
+      <div className={"mx-rateTable" + (embedded ? " mx-rateTableEmbedded" : "")}
+        role="table"
+        aria-label="Курс">
+        <div className="mx-rateRow mx-rateHead" role="row">
+          <div className="mx-rateCell mx-ratePairH" role="columnheader">Пара</div>
+          <div className="mx-rateCell mx-rateBuyH" role="columnheader">Покупка</div>
+          <div className="mx-rateCell mx-rateSellH" role="columnheader">Продажа</div>
         </div>
 
         {shown.map((r) => (
-          <div key={r.id} className="vx-rateLine">
-            <div className="vx-ratePair2">
+          <div key={r.id} className="mx-rateRow" role="row">
+            <div className="mx-rateCell mx-ratePair" role="cell">
               {r.base} → {r.quote}
             </div>
-            <div className="vx-rateNums">
-              <span className={"vx-rateN " + (r.buy == null ? "vx-dash" : "")}>{fmt(r.quote, r.buy)}</span>
-              <span className={"vx-rateN vx-rateNMuted " + (r.sell == null ? "vx-dash" : "")}>{fmt(r.quote, r.sell)}</span>
+            <div className={"mx-rateCell mx-rateBuy " + (r.buy == null ? "vx-dash" : "")} role="cell">
+              {fmt(r.quote, r.buy)}
+            </div>
+            <div className={"mx-rateCell mx-rateSell " + (r.sell == null ? "vx-dash" : "")} role="cell">
+              {fmt(r.quote, r.sell)}
             </div>
           </div>
         ))}
       </div>
 
-      {market && !market.ok ? <div className="vx-meta vx-mt10">Не удалось обновить G: {(market as any).error}</div> : null}
+      {market && !market.ok && !embedded ? (
+        <div className="vx-meta vx-mt10">Не удалось обновить G: {(market as any).error}</div>
+      ) : null}
     </>
   );
 
-  if (embedded) {
-    return (
-      <div className="vx-rates2 vx-ratesEmbedded">
-        <div className="vx-meta vx-metaLine">
-          {metaParts.map((p) => (
-            <span key={p}>{p}</span>
-          ))}
-        </div>
-        {content}
-      </div>
-    );
-  }
+  if (embedded) return <>{content}</>;
 
   return (
     <div className="vx-rates2">

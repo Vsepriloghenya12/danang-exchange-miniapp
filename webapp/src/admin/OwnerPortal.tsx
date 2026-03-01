@@ -145,6 +145,7 @@ export default function OwnerPortal() {
   const [afCreateTitle, setAfCreateTitle] = useState<string>("");
   const [afCreateDetailsUrl, setAfCreateDetailsUrl] = useState<string>("");
   const [afCreateLocationUrl, setAfCreateLocationUrl] = useState<string>("");
+  const [afCreateImageDataUrl, setAfCreateImageDataUrl] = useState<string | null>(null);
 
   const [afEditId, setAfEditId] = useState<string>("");
   const [afEditCategory, setAfEditCategory] = useState<string>("sport");
@@ -152,6 +153,8 @@ export default function OwnerPortal() {
   const [afEditTitle, setAfEditTitle] = useState<string>("");
   const [afEditDetailsUrl, setAfEditDetailsUrl] = useState<string>("");
   const [afEditLocationUrl, setAfEditLocationUrl] = useState<string>("");
+  const [afEditImageUrl, setAfEditImageUrl] = useState<string>("");
+  const [afEditImageDataUrl, setAfEditImageDataUrl] = useState<string | null>(null);
 
   const [afHistFrom, setAfHistFrom] = useState<string>(() => shiftISO(-14));
   const [afHistTo, setAfHistTo] = useState<string>(() => todayISO());
@@ -258,6 +261,8 @@ export default function OwnerPortal() {
     setAfEditTitle(String(ev.title || ''));
     setAfEditDetailsUrl(String(ev.detailsUrl || ''));
     setAfEditLocationUrl(String(ev.locationUrl || ''));
+    setAfEditImageUrl(String(ev.imageUrl || ''));
+    setAfEditImageDataUrl(null);
   }
 
   async function createAfisha() {
@@ -268,6 +273,7 @@ export default function OwnerPortal() {
       title: afCreateTitle.trim(),
       detailsUrl: afCreateDetailsUrl.trim(),
       locationUrl: afCreateLocationUrl.trim(),
+      imageDataUrl: afCreateImageDataUrl || undefined,
     };
     const r = await apiAdminCreateAfisha(token, payload as any);
     if (!r?.ok) return showErr(r?.error || 'Ошибка');
@@ -275,18 +281,20 @@ export default function OwnerPortal() {
     setAfCreateTitle('');
     setAfCreateDetailsUrl('');
     setAfCreateLocationUrl('');
+    setAfCreateImageDataUrl(null);
     await loadAfishaLists();
   }
 
   async function saveAfisha() {
     if (!token || !afEditId) return;
-    const payload = {
+    const payload: any = {
       category: afEditCategory,
       date: afEditDate,
       title: afEditTitle.trim(),
       detailsUrl: afEditDetailsUrl.trim(),
       locationUrl: afEditLocationUrl.trim(),
     };
+    if (afEditImageDataUrl) payload.imageDataUrl = afEditImageDataUrl;
     const r = await apiAdminUpdateAfisha(token, afEditId, payload as any);
     if (!r?.ok) return showErr(r?.error || 'Ошибка');
     showOk('Сохранено');
@@ -672,7 +680,7 @@ export default function OwnerPortal() {
 
   if (!token) {
     return (
-      <div className="vx-page theme-client theme-owner">
+      <div className="vx-page theme-owner">
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap');`}</style>
         <div className="bg-danang" aria-hidden="true" />
         <div className="container">
@@ -697,7 +705,7 @@ export default function OwnerPortal() {
   }
 
   return (
-    <div className="vx-page theme-client theme-owner">
+    <div className="vx-page theme-owner">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap');`}</style>
       <div className="bg-danang" aria-hidden="true" />
       <div className="container">
@@ -1234,11 +1242,38 @@ export default function OwnerPortal() {
             <div className="vx-sp8" />
             <input className="input vx-in" value={afCreateTitle} onChange={(e) => setAfCreateTitle(e.target.value)} placeholder="Название мероприятия" />
 
-            <div className="vx-sp8" />
-            <input className="input vx-in" value={afCreateDetailsUrl} onChange={(e) => setAfCreateDetailsUrl(e.target.value)} placeholder="Ссылка Подробнее (https://...)" />
+            <div className="vx-sp10" />
+            <div className="vx-muted">Фото мероприятия (будет фоном карточки у клиента)</div>
+            <div className="vx-sp6" />
+            <div className="vx-rowWrap" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  const r = new FileReader();
+                  r.onload = () => setAfCreateImageDataUrl(String(r.result || "") || null);
+                  r.readAsDataURL(f);
+                }}
+              />
+              {afCreateImageDataUrl ? (
+                <button className="btn vx-btnSm" type="button" onClick={() => setAfCreateImageDataUrl(null)}>
+                  Убрать фото
+                </button>
+              ) : null}
+              {afCreateImageDataUrl ? <img className="vx-pubThumb" src={afCreateImageDataUrl} alt="" /> : null}
+            </div>
 
-            <div className="vx-sp8" />
-            <input className="input vx-in" value={afCreateLocationUrl} onChange={(e) => setAfCreateLocationUrl(e.target.value)} placeholder="Ссылка Локация (https://...)" />
+            <div className="vx-sp10" />
+            <div className="vx-muted">Ссылка для кнопки «Подробнее» (страница/пост о мероприятии)</div>
+            <div className="vx-sp6" />
+            <input className="input vx-in" value={afCreateDetailsUrl} onChange={(e) => setAfCreateDetailsUrl(e.target.value)} placeholder="https://..." />
+
+            <div className="vx-sp10" />
+            <div className="vx-muted">Ссылка для кнопки «Локация» (Google Maps / 2GIS / etc.)</div>
+            <div className="vx-sp6" />
+            <input className="input vx-in" value={afCreateLocationUrl} onChange={(e) => setAfCreateLocationUrl(e.target.value)} placeholder="https://..." />
 
             <div className="vx-sp10" />
             <button className="btn" type="button" onClick={createAfisha}>Создать</button>
@@ -1293,11 +1328,34 @@ export default function OwnerPortal() {
                 <div className="vx-sp8" />
                 <input className="input vx-in" value={afEditTitle} onChange={(e) => setAfEditTitle(e.target.value)} placeholder="Название" />
 
-                <div className="vx-sp8" />
-                <input className="input vx-in" value={afEditDetailsUrl} onChange={(e) => setAfEditDetailsUrl(e.target.value)} placeholder="Подробнее (ссылка)" />
+                <div className="vx-sp10" />
+                <div className="vx-muted">Фото мероприятия</div>
+                {afEditImageUrl ? <div className="vx-muted">Текущее: <a href={afEditImageUrl} target="_blank" rel="noreferrer">{afEditImageUrl}</a></div> : null}
+                <div className="vx-sp6" />
+                <div className="vx-rowWrap" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      const r = new FileReader();
+                      r.onload = () => setAfEditImageDataUrl(String(r.result || "") || null);
+                      r.readAsDataURL(f);
+                    }}
+                  />
+                  {afEditImageDataUrl ? <img className="vx-pubThumb" src={afEditImageDataUrl} alt="" /> : null}
+                </div>
 
-                <div className="vx-sp8" />
-                <input className="input vx-in" value={afEditLocationUrl} onChange={(e) => setAfEditLocationUrl(e.target.value)} placeholder="Локация (ссылка)" />
+                <div className="vx-sp10" />
+                <div className="vx-muted">Ссылка для кнопки «Подробнее»</div>
+                <div className="vx-sp6" />
+                <input className="input vx-in" value={afEditDetailsUrl} onChange={(e) => setAfEditDetailsUrl(e.target.value)} placeholder="https://..." />
+
+                <div className="vx-sp10" />
+                <div className="vx-muted">Ссылка для кнопки «Локация»</div>
+                <div className="vx-sp6" />
+                <input className="input vx-in" value={afEditLocationUrl} onChange={(e) => setAfEditLocationUrl(e.target.value)} placeholder="https://..." />
 
                 <div className="vx-sp10" />
                 <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>

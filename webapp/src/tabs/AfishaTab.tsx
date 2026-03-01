@@ -43,23 +43,33 @@ export default function AfishaTab() {
   const tg = getTg();
   const initData = tg?.initData || "";
 
-  // No "Все" button in UI. When category is empty, we show all events by default.
-  const [category, setCategory] = useState<AfishaFilterCategory | "">("");
+  // No "Все" button in UI. We show category buttons first; events open on a separate list screen.
+  const [category, setCategory] = useState<Exclude<AfishaFilterCategory, "all"> | "">("");
   const [from, setFrom] = useState<string>(() => todayISO());
   const [to, setTo] = useState<string>("");
+
+  const [view, setView] = useState<"cats" | "list">("cats");
 
   const [loading, setLoading] = useState<boolean>(true);
   const [events, setEvents] = useState<AfishaEvent[]>([]);
   const [err, setErr] = useState<string>("");
 
-  const params = useMemo(
-    () => ({ category: (category || undefined) as any, from: from || undefined, to: to || undefined }),
-    [category, from, to]
-  );
+  const params = useMemo(() => {
+    // load events only when a category is selected and the list screen is open
+    if (view !== "list" || !category) return null;
+    return { category: category as any, from: from || undefined, to: to || undefined };
+  }, [category, from, to, view]);
 
   useEffect(() => {
     let alive = true;
     (async () => {
+      if (!params) {
+        setLoading(false);
+        setEvents([]);
+        setErr("");
+        return;
+      }
+
       setLoading(true);
       setErr("");
       try {
@@ -95,7 +105,7 @@ export default function AfishaTab() {
 
   return (
     <div className="mx-afisha">
-      <div className="mx-filterRow">
+      <div className="mx-filterRow mx-filterRowNice">
         <label className="mx-filterItem">
           <span>С</span>
           <input className="mx-date" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -106,42 +116,70 @@ export default function AfishaTab() {
         </label>
       </div>
 
-      <div className="mx-afCats">
-        {CATS.map((c) => {
-          const on = category === c.key;
-          return (
+      {view === "cats" ? (
+        <div className="mx-afCats">
+          {CATS.map((c) => (
             <button
               key={c.key}
               type="button"
-              className={"mx-afCatBtn mx-afCat--" + c.key + (on ? " is-on" : "")}
-              onClick={() => setCategory((prev) => (prev === c.key ? "" : c.key))}
+              className={"mx-afCatBtn mx-afCat--" + c.key}
+              onClick={() => {
+                setCategory(c.key);
+                setView("list");
+              }}
             >
               <div>
                 <div className="mx-afCatLabel">{c.label}</div>
-                <div className="mx-afCatSub">Открыть раздел</div>
+                <div className="mx-afCatSub">Открыть мероприятия</div>
               </div>
             </button>
-          );
-        })}
-      </div>
-
-      {loading ? <div className="mx-muted">Загрузка…</div> : null}
-      {!loading && err ? <div className="mx-muted">{err}</div> : null}
-      {!loading && !err && events.length === 0 ? <div className="mx-muted">Пока нет мероприятий.</div> : null}
-
-      <div className="mx-list">
-        {events.map((ev) => (
-          <div key={ev.id} className="mx-card mx-cardInner">
-            <div className="mx-afTitle">{ev.title}</div>
-            <div className="mx-afMeta">{fmtDate(ev.date)}</div>
-
-            <div className="mx-btnRow" style={{ marginTop: 10 }}>
-              <button type="button" className="mx-btn" onClick={() => onClick(ev, "details")}>Подробнее</button>
-              <button type="button" className="mx-btn mx-btnPrimary" onClick={() => onClick(ev, "location")}>Локация</button>
-            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="mx-afTop">
+            <button
+              type="button"
+              className="mx-afBack"
+              onClick={() => {
+                setView("cats");
+                setCategory("");
+              }}
+            >
+              ← Категории
+            </button>
+            <div className="mx-afTopTitle">{CATS.find((x) => x.key === category)?.label || ""}</div>
           </div>
-        ))}
-      </div>
+
+          {loading ? <div className="mx-muted">Загрузка…</div> : null}
+          {!loading && err ? <div className="mx-muted">{err}</div> : null}
+          {!loading && !err && events.length === 0 ? <div className="mx-muted">Пока нет мероприятий.</div> : null}
+
+          <div className="mx-list">
+            {events.map((ev) => (
+              <div
+                key={ev.id}
+                className={"mx-afEvCard" + (ev.imageUrl ? " has-img" : "")}
+                style={ev.imageUrl ? ({ backgroundImage: `url(${ev.imageUrl})` } as any) : undefined}
+              >
+                <div className="mx-afEvBody">
+                  <div className="mx-afTitle">{ev.title}</div>
+                  <div className="mx-afMeta">{fmtDate(ev.date)}</div>
+
+                  <div className="mx-btnRow" style={{ marginTop: 10 }}>
+                    <button type="button" className="mx-btn" onClick={() => onClick(ev, "details")}>
+                      Подробнее
+                    </button>
+                    <button type="button" className="mx-btn mx-btnPrimary" onClick={() => onClick(ev, "location")}>
+                      Локация
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
