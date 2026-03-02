@@ -82,6 +82,12 @@ export type StaffRequestsResponse = {
   error?: string;
 };
 
+export type MyRequestsResponse = {
+  ok: boolean;
+  requests?: any[];
+  error?: string;
+};
+
 export type AdminContactsResponse = {
   ok: boolean;
   contacts: Contact[];

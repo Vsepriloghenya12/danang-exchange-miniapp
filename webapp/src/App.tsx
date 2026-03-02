@@ -9,6 +9,9 @@ import AfishaTab from "./tabs/AfishaTab";
 import AtmTab from "./tabs/AtmTab";
 import ReviewsTab from "./tabs/ReviewsTab";
 import StaffTab from "./tabs/StaffTab";
+import HistoryTab from "./tabs/HistoryTab";
+import AboutTab from "./tabs/AboutTab";
+import SupportTab from "./tabs/SupportTab";
 import OwnerPortal from "./admin/OwnerPortal";
 
 type Me = {
@@ -23,12 +26,12 @@ type Me = {
   error?: string;
 };
 
-type ScreenKey = "home" | "calc" | "afisha" | "atm" | "reviews" | "staff";
+type ScreenKey = "home" | "calc" | "afisha" | "atm" | "reviews" | "staff" | "history" | "about" | "support";
 
 const UI = {
   title: "Обмен валют — Дананг",
   fontImport:
-    "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap",
+    "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&display=swap",
 };
 
 function IconArrowLeft({ className = "" }: { className?: string }) {
@@ -85,7 +88,7 @@ function NavCard({
 function StatusIcon({ status }: { status?: UserStatus }) {
   // Telegram WebView caching + inconsistent image format fallback can cause the status icon to look "not loaded".
   // We try multiple extensions and also add a tiny cache-buster.
-  const bust = "v31";
+  const bust = `v33-${String(status || "").toLowerCase() || "x"}`;
   const candidates = useMemo(() => {
     const s = String(status || "").toLowerCase();
     const list: string[] = [];
@@ -108,12 +111,21 @@ function StatusIcon({ status }: { status?: UserStatus }) {
 
   const [idx, setIdx] = useState(0);
   const [ok, setOk] = useState(false);
+
+  // When status changes, force a reload from the first candidate.
+  useEffect(() => {
+    setIdx(0);
+    setOk(false);
+  }, [status]);
   const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
 
   return (
     <div className="mx-statusWrap" aria-label="Статус">
-      {!ok ? <div className="mx-statusFallback">{status === "gold" ? "G" : status === "silver" ? "S" : "•"}</div> : null}
+      {!ok ? (
+        <div className="mx-statusFallback">{status === "gold" ? "G" : status === "silver" ? "S" : "•"}</div>
+      ) : null}
       <img
+        key={src}
         className="mx-statusImg"
         src={src}
         alt=""
@@ -125,6 +137,54 @@ function StatusIcon({ status }: { status?: UserStatus }) {
       />
     </div>
   );
+}
+
+function HeaderLogo() {
+  const bust = "v33";
+  const candidates = useMemo(
+    () => [
+      "/brand/header-logo.png",
+      "/brand/header-logo.webp",
+      "/brand/header-logo.svg",
+      "/brand/logo.png",
+      "/brand/logo.jpg",
+      "/brand/logo.webp",
+    ],
+    []
+  );
+  const [idx, setIdx] = useState(0);
+  const [ok, setOk] = useState(false);
+  const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
+
+  return (
+    <div className="mx-headerLogoWrap" aria-label="Логотип">
+      {!ok ? <div className="mx-headerLogoFallback" /> : null}
+      <img
+        key={src}
+        className="mx-headerLogoImg"
+        src={src}
+        alt=""
+        onLoad={() => setOk(true)}
+        onError={() => {
+          setOk(false);
+          setIdx((x) => (x < candidates.length - 1 ? x + 1 : x));
+        }}
+      />
+    </div>
+  );
+}
+
+function normalizeStatus(s: any): UserStatus {
+  const v = String(s ?? "").toLowerCase().trim();
+  if (v === "gold") return "gold";
+  if (v === "silver") return "silver";
+  return "standard";
+}
+
+function statusTitle(s: UserStatus) {
+  if (s === "gold") return "Золото";
+  if (s === "silver") return "Серебро";
+  return "Стандарт";
 }
 
 export default function App() {
@@ -256,6 +316,35 @@ export default function App() {
     setScreen("home");
   };
 
+  const displayName = useMemo(() => {
+    const u = me.user;
+    const n = String(u?.first_name || u?.username || "").trim();
+    return n || "";
+  }, [me.user?.first_name, me.user?.username]);
+
+  const showStatusInfo = () => {
+    const st = normalizeStatus(me.status);
+    const title = `Ваш статус: ${statusTitle(st)}`;
+    const msg =
+      st === "gold"
+        ? "• Максимальные надбавки к курсу в калькуляторе\n• Приоритетная обработка заявки\n• Быстрая поддержка"
+        : st === "silver"
+          ? "• Повышенные надбавки к курсу в калькуляторе\n• Быстрее обработка заявки"
+          : "• Базовые условия\n• Все функции приложения доступны";
+
+    if (tg?.showPopup) {
+      tg.showPopup({
+        title,
+        message: msg,
+        buttons: [{ type: "close", text: "Ок" }],
+      });
+    } else if (tg?.showAlert) {
+      tg.showAlert(`${title}\n\n${msg}`);
+    } else {
+      alert(`${title}\n\n${msg}`);
+    }
+  };
+
   return (
     <div className="vx-page theme-client">
       <style>{`@import url('${UI.fontImport}');`}</style>
@@ -264,7 +353,18 @@ export default function App() {
         {screen === "home" ? (
           <>
             <div className="mx-topRow">
-              <StatusIcon status={me.status} />
+              <button type="button" className="mx-statusBtn" onClick={showStatusInfo} aria-label="Ваш статус">
+                <StatusIcon status={me.status} />
+              </button>
+
+              <div className="mx-brandMid" aria-label="Заголовок">
+                <div className="mx-brandText">
+                  <div className="mx-brandName">Cash A Lot</div>
+                  <div className="mx-brandHello">Здравствуйте{displayName ? `, ${displayName}` : ""}</div>
+                </div>
+                <HeaderLogo />
+              </div>
+
               <div className="mx-weather">
                 {weather ? (
                   <>
@@ -378,6 +478,52 @@ export default function App() {
             <StaffTab me={me} />
           </>
         ) : null}
+
+        {screen === "history" ? (
+          <>
+            <ScreenHeader title="Моя история" onBack={goHome} />
+            <HistoryTab me={me} />
+          </>
+        ) : null}
+
+        {screen === "about" ? (
+          <>
+            <ScreenHeader title="О приложении" onBack={goHome} />
+            <AboutTab />
+          </>
+        ) : null}
+
+        {screen === "support" ? (
+          <>
+            <ScreenHeader title="Поддержка" onBack={goHome} />
+            <SupportTab />
+          </>
+        ) : null}
+      </div>
+
+      {/* Bottom menu */}
+      <div className="mx-bottomNav" role="navigation" aria-label="Нижнее меню">
+        <button
+          type="button"
+          className={"mx-bottomBtn " + (screen === "history" ? "is-on" : "")}
+          onClick={() => setScreen("history")}
+        >
+          Моя история
+        </button>
+        <button
+          type="button"
+          className={"mx-bottomBtn " + (screen === "about" ? "is-on" : "")}
+          onClick={() => setScreen("about")}
+        >
+          О приложении
+        </button>
+        <button
+          type="button"
+          className={"mx-bottomBtn " + (screen === "support" ? "is-on" : "")}
+          onClick={() => setScreen("support")}
+        >
+          Поддержка
+        </button>
       </div>
     </div>
   );

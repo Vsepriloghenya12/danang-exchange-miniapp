@@ -8,6 +8,7 @@ import type {
   BonusesResponse,
   BankIconsResponse,
   StaffRequestsResponse,
+  MyRequestsResponse,
   AdminContactsResponse,
   AdminAdminsResponse,
   AdminBlacklistResponse,
@@ -126,6 +127,16 @@ export async function apiAddReview(initData: string, params: { requestId: string
     body: JSON.stringify(params)
   });
   return r.json();
+}
+
+// --------------------
+// Client: my requests (history)
+// --------------------
+export async function apiGetMyRequests(initData: string): Promise<MyRequestsResponse> {
+  const r = await fetch("/api/requests/mine", {
+    headers: { "x-telegram-init-data": initData }
+  });
+  return readJsonSafe(r);
 }
 
 // Admin reviews moderation

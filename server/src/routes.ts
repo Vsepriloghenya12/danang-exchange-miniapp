@@ -1647,6 +1647,23 @@ export function createApiRouter(opts: {
   });
 
   // --------------------
+  // Client: my requests history
+  // --------------------
+  router.get("/requests/mine", (req, res) => {
+    try {
+      const { user } = requireAuth(req);
+      const store = readStore();
+      const list = (store.requests || [])
+        .filter((r) => Number((r as any)?.from?.id) === Number(user.id))
+        .slice()
+        .sort((a, b) => String((b as any)?.created_at || "").localeCompare(String((a as any)?.created_at || "")));
+      return res.json({ ok: true, requests: list });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // --------------------
   // Reviews (без звёзд):
   // - оставить отзыв можно только по выполненной заявке (state=done)
   // - отзыв сначала попадает на модерацию (pending)

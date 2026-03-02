@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&display=swap");
 
 :root{
   color-scheme: light;
@@ -2270,6 +2270,72 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
   margin-bottom: 12px;
 }
 
+/* Status icon is clickable */
+.mx-statusBtn{
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.mx-statusBtn:active{ transform: translateY(1px); }
+
+/* Middle brand block: title + greeting + logo */
+.mx-brandMid{
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mx-brandText{ min-width: 0; display:flex; flex-direction: column; }
+
+.mx-brandName{
+  font-family: "Great Vibes", cursive;
+  font-size: 26px;
+  line-height: 1;
+  color: #f6c600;
+  /* black outline */
+  -webkit-text-stroke: 1.2px rgba(0,0,0,.92);
+  text-shadow:
+    -1px -1px 0 rgba(0,0,0,.92),
+    1px -1px 0 rgba(0,0,0,.92),
+    -1px 1px 0 rgba(0,0,0,.92),
+    1px 1px 0 rgba(0,0,0,.92),
+    0 6px 16px rgba(0,0,0,.18);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mx-brandHello{
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mx-headerLogoWrap{
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.98);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow2);
+  position: relative;
+  overflow: hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex: 0 0 44px;
+}
+.mx-headerLogoImg{ width: 34px; height: 34px; object-fit: contain; z-index: 1; }
+.mx-headerLogoFallback{ width: 34px; height: 34px; }
+
 .mx-statusWrap{
   width: 44px;
   height: 44px;
@@ -2314,6 +2380,44 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
   font-weight: 700;
   color: rgba(0,0,0,.52);
 }
+
+/* Bottom navigation */
+.mx-bottomNav{
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 10px;
+  z-index: 20;
+  width: calc(min(var(--appMax), 100vw) - 24px);
+  max-width: 420px;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  border-radius: 20px;
+  background: rgba(255,255,255,.94);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow2);
+}
+
+.mx-bottomBtn{
+  flex: 1;
+  border: 1px solid rgba(0,0,0,.08);
+  background: rgba(0,0,0,.04);
+  border-radius: 16px;
+  padding: 10px 10px;
+  font-weight: 950;
+  font-size: 12px;
+  color: rgba(0,0,0,.78);
+}
+
+.mx-bottomBtn.is-on{
+  border-color: rgba(246,198,0,.92);
+  box-shadow: 0 0 0 1px rgba(246,198,0,.45) inset, 0 0 14px rgba(246,198,0,.28);
+  background: rgba(246,198,0,.12);
+}
+
+.mx-bottomBtn:active{ transform: translateY(1px); }
 
 .mx-card{
   position: relative;
@@ -2604,4 +2708,28 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 .theme-owner .vx-adminSeg{ background: rgba(255,255,255,.70); }
 .theme-owner .vx-adminSeg button{ color: rgba(0,0,0,.62); }
 .theme-owner .vx-adminSeg .on{ background: rgba(0,0,0,.08); border-color: rgba(0,0,0,.12); }
+
+/* =========================
+   v33: client header + bottom menu + ATM button highlight
+   ========================= */
+
+/* give content space for the fixed bottom menu */
+.theme-client .container{ padding-bottom: 96px; }
+
+/* ATM buttons: neon yellow outline + stronger shadow */
+.theme-client .vx-atmBtn,
+.theme-client .vx-atmFindBtn{
+  border: 1px solid rgba(246,198,0,.95) !important;
+  box-shadow:
+    0 14px 32px rgba(0,0,0,.18),
+    0 0 0 1px rgba(246,198,0,.45) inset,
+    0 0 18px rgba(246,198,0,.30) !important;
+}
+
+.theme-client .vx-atmBtnOn{
+  box-shadow:
+    0 16px 40px rgba(0,0,0,.22),
+    0 0 0 1px rgba(246,198,0,.62) inset,
+    0 0 24px rgba(246,198,0,.40) !important;
+}
 
