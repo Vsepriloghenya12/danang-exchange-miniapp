@@ -205,7 +205,7 @@ export default function AfishaTab({
     dragYRef.current = 0;
     // Close if pulled down enough; otherwise snap back
     if (dy > 120) {
-      setSheetOpen(false);
+      setSheet(null);
       setDragY(0);
       return;
     }
@@ -378,7 +378,7 @@ export default function AfishaTab({
 
   return (
     <div className="mx-afisha">
-      {view === "list" ? (
+      {view === "cats" ? (
         <div className="mx-filterRow">
           <button type="button" className="mx-filterBtn" onClick={() => setSheet("date")}>
             <div className="mx-filterBtnLeft">
@@ -387,7 +387,7 @@ export default function AfishaTab({
             </div>
             <div className="mx-filterBtnChev">▾</div>
           </button>
-          <button type="button" className="mx-filterBtn" onClick={() => setSheet("cats")}> 
+          <button type="button" className="mx-filterBtn" onClick={() => setSheet("cats")}>
             <div className="mx-filterBtnLeft">
               <div className="mx-filterBtnHint">Категории</div>
               <div className="mx-filterBtnVal">{catsLabel}</div>
@@ -415,6 +415,7 @@ export default function AfishaTab({
             onTouchStart={onSheetTouchStart}
             onTouchMove={onSheetTouchMove}
             onTouchEnd={onSheetTouchEnd}
+            onTouchCancel={onSheetTouchEnd}
             style={{
               transform: `translateY(${Math.max(-24, dragY)}px)`,
               transition: dragging ? "none" : undefined,
@@ -478,6 +479,7 @@ export default function AfishaTab({
                         setTo(r.to);
                       }
                       setSheet(null);
+                      setView("list");
                     }}
                   >
                     Показать результаты
@@ -515,6 +517,7 @@ export default function AfishaTab({
                     onClick={() => {
                       setCats(draftCats);
                       setSheet(null);
+                      setView("list");
                     }}
                   >
                     Показать результаты
@@ -553,7 +556,6 @@ export default function AfishaTab({
               className="mx-afBack"
               onClick={() => {
                 setView("cats");
-                setCats([]);
               }}
             >
               ← Категории

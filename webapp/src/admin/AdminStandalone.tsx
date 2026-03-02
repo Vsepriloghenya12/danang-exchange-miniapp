@@ -30,8 +30,6 @@ export default function AdminStandalone() {
 
   return (
     <div className="vx-page vx-adminStandalone">
-      <div className="bg-danang" aria-hidden="true" />
-
       <div className="container vx-adminContainer">
         <div className="card vx-topCard">
           <div className="vx-topRow">

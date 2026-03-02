@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&family=Allura&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800;900&family=Inter:wght@500;600;700;800;900&display=swap");
 
 /* Circular Std Bold (user-provided font files).
    Put files here (optional): webapp/public/fonts/CircularStd-Bold.woff2 + .woff */
@@ -16,7 +16,6 @@
   color-scheme: light;
   --font: "Manrope", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   --fontTitle: "Circular Std", "Manrope", "Inter", ui-sans-serif, system-ui;
-  --fontScript: "Allura", "Great Vibes", cursive;
 
   /* Poputchiki-like palette (glass) */
   --sky: #5ac4e9;
@@ -114,25 +113,11 @@ body.vx-body-client #root{
   -webkit-text-fill-color: currentColor;
 }
 
-/* Background image centered to app width (poputchiki trick).
-   Replace this file to change background:
-   webapp/public/brand/danang-bg.svg */
-.bg-danang{
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(min(var(--appMax), 100vw) + (var(--bgBleed) * 2));
-  top: calc(-1 * var(--bgBleed));
-  height: calc(100dvh + (var(--bgBleed) * 2));
-  pointer-events: none;
-  z-index: 0;
-  background-color: var(--sky);
-  /* Background image is injected by App.tsx (runtime optional). */
-  background-image: none;
-  background-size: 150% 190%;
-  background-repeat: no-repeat;
-  background-position: center center;
+.vx-page select{
+  -webkit-text-fill-color: currentColor;
 }
+
+/* (Old) Danang/beach background removed. */
 
 /* =========================
    Client neon theme (black + yellow)
@@ -167,12 +152,12 @@ html[data-theme="dark"] .theme-client{
   --muted2: rgba(246,198,0,.54);
   --ph: rgba(246,198,0,.44);
 
-  /* surfaces (matte, NOT transparent) */
-  --panel: rgba(10,10,10,1);
-  --panel2: rgba(14,14,14,.98);
+  /* surfaces: true black (blocks/buttons stay black, edges do the separation) */
+  --panel: rgba(0,0,0,1);
+  --panel2: rgba(0,0,0,1);
 
-  --stroke: rgba(246,198,0,.26);
-  --stroke2: rgba(246,198,0,.44);
+  --stroke: rgba(246,198,0,.34);
+  --stroke2: rgba(246,198,0,.52);
 
   /* neon edge lighting (yellow) */
   --neon: rgba(246,198,0,1);
@@ -211,40 +196,7 @@ html[data-theme="dark"] .theme-client .h3{
   text-shadow: 0 10px 26px rgba(0,0,0,.55);
 }
 
-html[data-theme="dark"] .theme-client .bg-danang{
-  background-color: #000;
-  /* Cover full viewport to avoid any bleed on wide screens */
-  left: 0;
-  transform: none;
-  width: 100vw;
-}
-html[data-theme="dark"] .theme-client .bg-danang::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  /* ripple texture so UI elements do not merge with the background */
-  /* Telegram WebView can be picky with blend-modes; keep it visible with normal blending.
-     Two ripple fields with different centers create a moiré-like "рябь". */
-  background-image:
-    repeating-radial-gradient(circle at 18% 22%, rgba(255,255,255,.14) 0 1px, rgba(0,0,0,0) 1px 14px),
-    repeating-radial-gradient(circle at 76% 58%, rgba(255,255,255,.10) 0 1px, rgba(0,0,0,0) 1px 18px),
-    repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 1px, rgba(0,0,0,0) 1px 26px);
-  opacity: .34;
-  mix-blend-mode: normal;
-  filter: none;
-}
-html[data-theme="dark"] .theme-client .bg-danang::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  background-image: url("/brand/noise.png");
-  background-repeat: repeat;
-  background-size: 280px 280px;
-  opacity: .20;
-  mix-blend-mode: overlay;
-}
+/* background texture removed for the new theme */
 
 
 html[data-theme="dark"] .theme-client .container{ max-width: 420px; }
@@ -253,9 +205,12 @@ html[data-theme="dark"] .theme-client .container{ max-width: 420px; }
    The ripple stays in the background, while UI elements look like "dark gadget" tiles. */
 html[data-theme="dark"] .theme-client .card,
 html[data-theme="dark"] .theme-client .vx-card2{
-  background: var(--panel2) !important;
-  border: 1px solid rgba(255,255,255,.10) !important;
-  box-shadow: 0 22px 74px rgba(0,0,0,.72), 0 0 0 1px rgba(0,0,0,.45) inset !important;
+  background: #000 !important;
+  border: 1px solid rgba(246,198,0,.36) !important;
+  box-shadow:
+    0 26px 78px rgba(0,0,0,.86),
+    0 0 34px rgba(246,198,0,.12),
+    0 0 0 1px rgba(246,198,0,.08) inset !important;
   backdrop-filter: none !important;
 }
 html[data-theme="dark"] .theme-client .card{ padding: 14px; }
@@ -406,7 +361,7 @@ html[data-theme="dark"] .theme-client .vx-blankBtn::after{
   pointer-events: none;
   box-shadow:
     0 0 0 1px rgba(255,218,125,.18) inset,
-    0 0 0 1px rgba(255,255,255,.04);
+    0 0 0 1px rgba(246,198,0,.10);
   opacity: .78;
 }
 
@@ -439,8 +394,8 @@ html[data-theme="dark"] .theme-client .vx-blankBtn:active{
   filter: brightness(1.04);
   box-shadow:
     0 18px 56px rgba(0,0,0,.82),
-    0 0 0 1px rgba(248,252,255,.16) inset,
-    0 1px 0 rgba(255,255,255,.10) inset;
+    0 0 0 1px rgba(246,198,0,.18) inset,
+    0 1px 0 rgba(246,198,0,.10) inset;
 }
 html[data-theme="dark"] .theme-client .btn:active::before,
 html[data-theme="dark"] .theme-client .vx-primary:active::before,
@@ -471,9 +426,9 @@ html[data-theme="dark"] .theme-client .vx-blankBtn:active::after{
 
 /* Active state (filters, selected) should look fully lit */
 html[data-theme="dark"] .theme-client .btn.vx-btnOn{
-  background: rgba(12,12,12,.78) !important;
-  border: 1px solid rgba(248,252,255,.28) !important;
-  color: rgba(255,255,255,.96) !important;
+  background: #000 !important;
+  border: 1px solid rgba(246,198,0,.62) !important;
+  color: var(--text) !important;
 }
 html[data-theme="dark"] .theme-client .btn.vx-btnOn::before{ opacity: .86; transform: scale(1.01); filter: blur(12px); }
 
@@ -508,21 +463,21 @@ html[data-theme="dark"] .theme-client .vx-iconBtn:active::before{
 
 /* Status buttons used in admin/client lists (avoid "white on white" inside dark theme) */
 html[data-theme="dark"] .theme-client .btn.vx-statusBtn{
-  background: rgba(255,255,255,.05) !important;
-  border: 1px solid rgba(255,255,255,.14) !important;
-  color: rgba(255,255,255,.86) !important;
+  background: #000 !important;
+  border: 1px solid rgba(246,198,0,.40) !important;
+  color: var(--text) !important;
   box-shadow:
-    0 22px 66px rgba(0,0,0,.70),
-    0 0 30px rgba(255,218,125,.14),
-    0 0 0 1px rgba(255,255,255,.06) inset;
+    0 22px 66px rgba(0,0,0,.78),
+    0 0 30px rgba(246,198,0,.16),
+    0 0 0 1px rgba(246,198,0,.10) inset;
 }
 
 /* Small chips / pills */
 html[data-theme="dark"] .theme-client .vx-pill,
 html[data-theme="dark"] .theme-client .vx-revCompose,
 html[data-theme="dark"] .theme-client .vx-revCard{
-  background: rgba(10,10,10,.96) !important;
-  border-color: rgba(255,255,255,.12) !important;
+  background: #000 !important;
+  border-color: rgba(246,198,0,.28) !important;
   box-shadow: 0 14px 40px rgba(0,0,0,.50), 0 0 18px var(--neonBloom2);
 }
 
@@ -550,7 +505,7 @@ html[data-theme="dark"] .theme-client .vx-pill::after{
   pointer-events:none;
   box-shadow:
     0 0 0 1px rgba(255,218,125,.18) inset,
-    0 0 0 1px rgba(255,255,255,.04);
+    0 0 0 1px rgba(246,198,0,.10);
   opacity: .78;
 }
 
@@ -630,8 +585,8 @@ html[data-theme="dark"] .theme-client .vx-rateList::after{
 }
 html[data-theme="dark"] .theme-client .vx-rateHdr{
   padding: 12px 14px 10px;
-  color: rgba(255,255,255,.58);
-  border-bottom: 1px solid rgba(255,255,255,.10);
+  color: var(--muted);
+  border-bottom: 1px solid rgba(246,198,0,.20);
 }
 html[data-theme="dark"] .theme-client .vx-rateList .vx-rateLine{
   border-top: 0 !important;
@@ -643,23 +598,23 @@ html[data-theme="dark"] .theme-client .vx-rateList .vx-rateLine{
   box-shadow: none !important;
 }
 html[data-theme="dark"] .theme-client .vx-rateList .vx-rateLine + .vx-rateLine{
-  border-top: 1px solid rgba(255,255,255,.08) !important;
+  border-top: 1px solid rgba(246,198,0,.16) !important;
 }
 
-/* Rates text colors in dark theme */
-html[data-theme="dark"] .theme-client .vx-ratePair2{ color: rgba(255,255,255,.92) !important; }
-html[data-theme="dark"] .theme-client .vx-rateHdr{ color: rgba(255,255,255,.58) !important; }
-html[data-theme="dark"] .theme-client .vx-rateNMuted{ color: rgba(255,255,255,.60) !important; }
-html[data-theme="dark"] .theme-client .vx-dash{ color: rgba(255,255,255,.38) !important; }
+/* Rates text colors in dark theme (yellow) */
+html[data-theme="dark"] .theme-client .vx-ratePair2{ color: var(--text) !important; }
+html[data-theme="dark"] .theme-client .vx-rateHdr{ color: var(--muted) !important; }
+html[data-theme="dark"] .theme-client .vx-rateNMuted{ color: var(--muted) !important; }
+html[data-theme="dark"] .theme-client .vx-dash{ color: rgba(246,198,0,.40) !important; }
 
 /* keep the calc info line minimal */
 html[data-theme="dark"] .theme-client .vx-calc .vx-rateLine{
   margin-top: 10px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(246,198,0,.22);
+  background: #000;
   border-radius: 18px;
   padding: 10px 12px;
-  box-shadow: 0 16px 44px rgba(0,0,0,.52), 0 0 32px rgba(255,218,125,.10);
+  box-shadow: 0 16px 44px rgba(0,0,0,.72), 0 0 32px rgba(246,198,0,.10);
 }
 
 /* Calculator: smaller input/select boxes (as requested) */
@@ -713,7 +668,7 @@ html[data-theme="dark"] .theme-client .vx-bankBtn{
   border-color: rgba(255,255,255,.10) !important;
 }
 html[data-theme="dark"] .theme-client .vx-bankBtn.is-on{ outline: 2px solid rgba(255,218,125,.32) !important; }
-html[data-theme="dark"] .theme-client .vx-pill{ color: rgba(255,255,255,.90); }
+html[data-theme="dark"] .theme-client .vx-pill{ color: var(--text); }
 html[data-theme="dark"] .theme-client .vx-pillActive{
   background: rgba(10,10,10,.88) !important;
   border-color: rgba(255,235,170,.40) !important;
@@ -786,14 +741,14 @@ html[data-theme="dark"] .theme-client .vx-pill:active{
 
 html[data-theme="dark"] .theme-client .vx-adminPanel,
 html[data-theme="dark"] .theme-client .vx-acc{
-  background: var(--panel2) !important;
-  border: 1px solid rgba(255,255,255,.12) !important;
-  box-shadow: 0 18px 60px rgba(0,0,0,.64), 0 0 64px rgba(255,218,125,.10);
+  background: #000 !important;
+  border: 1px solid rgba(246,198,0,.26) !important;
+  box-shadow: 0 18px 60px rgba(0,0,0,.84), 0 0 64px rgba(246,198,0,.10);
 }
 html[data-theme="dark"] .theme-client .vx-adminPanelH,
-html[data-theme="dark"] .theme-client .vx-accLbl{ color: rgba(255,255,255,.66); }
-html[data-theme="dark"] .theme-client .vx-acc > summary{ color: rgba(255,255,255,.90); }
-html[data-theme="dark"] .theme-client .vx-acc[open] > summary{ border-bottom-color: rgba(255,255,255,.10); }
+html[data-theme="dark"] .theme-client .vx-accLbl{ color: var(--muted); }
+html[data-theme="dark"] .theme-client .vx-acc > summary{ color: var(--text); }
+html[data-theme="dark"] .theme-client .vx-acc[open] > summary{ border-bottom-color: rgba(246,198,0,.18); }
 
 /* Bottom bar: 3 items (prev/current/next)
    Perspective must be on the immediate parent of the buttons for Telegram WebView.
@@ -802,9 +757,9 @@ html[data-theme="dark"] .theme-client .vx-bottomWrap{ perspective: 1200px; }
 html[data-theme="dark"] .theme-client .vx-bottomBar{
   perspective: 1200px;
   perspective-origin: center 70%;
-  background: var(--panel2);
-  border-color: rgba(255,255,255,.12);
-  box-shadow: 0 22px 66px rgba(0,0,0,.72), 0 0 48px rgba(255,218,125,.08);
+  background: #000;
+  border-color: rgba(246,198,0,.22);
+  box-shadow: 0 22px 66px rgba(0,0,0,.86), 0 0 48px rgba(246,198,0,.10);
   backdrop-filter: none;
   /* more room so the center item can be larger WITHOUT popping out of the bar */
   padding: 10px;
@@ -945,7 +900,7 @@ html[data-theme="dark"] .theme-client .vx-atmHint{
   text-align: center;
   line-height: 1.35;
   margin: 0;
-  color: rgba(255,255,255,.92);
+  color: var(--text);
 }
 
 /* ATM: highlighted info block (stronger than buttons, so it doesn't merge visually) */
@@ -953,13 +908,13 @@ html[data-theme="dark"] .theme-client .vx-atmHintBox{
   margin-top: 10px;
   padding: 16px 14px;
   border-radius: 22px;
-  background: var(--panel2);
-  border: 1px solid rgba(255,255,255,.12);
+  background: #000;
+  border: 1px solid rgba(246,198,0,.28);
   box-shadow:
-    0 26px 86px rgba(0,0,0,.70),
-    0 0 0 1px rgba(255,218,125,.22) inset,
-    0 0 26px rgba(255,218,125,.22),
-    0 0 66px rgba(255,218,125,.12);
+    0 26px 86px rgba(0,0,0,.84),
+    0 0 0 1px rgba(246,198,0,.10) inset,
+    0 0 26px rgba(246,198,0,.18),
+    0 0 66px rgba(246,198,0,.10);
 }
 
 html[data-theme="dark"] .theme-client .vx-atmBtnGrid{ margin-top: 18px; }
@@ -1031,18 +986,18 @@ html[data-theme="dark"] .theme-client .vx-adminSeg button:active::before{
 }
 
 html[data-theme="dark"] .theme-client .vx-adminSeg .on{
-  color: rgba(248,250,255,.96) !important;
-  border-color: rgba(248,252,255,.18) !important;
+  color: var(--text) !important;
+  border-color: rgba(246,198,0,.34) !important;
 }
 html[data-theme="dark"] .theme-client .vx-adminSeg .on::before{
   opacity: 1;
   box-shadow:
-    0 0 26px rgba(255,218,125,.44),
-    0 0 86px rgba(255,218,125,.26),
-    0 0 220px rgba(255,218,125,.16);
+    0 0 26px rgba(246,198,0,.34),
+    0 0 86px rgba(246,198,0,.18),
+    0 0 220px rgba(246,198,0,.10);
 }
-html[data-theme="dark"] .theme-client .vx-admin .vx-code{ color: rgba(255,255,255,.84) !important; }
-html[data-theme="dark"] .theme-client .vx-admin input.vx-in{ background: rgba(8,8,8,.96) !important; border-color: rgba(255,255,255,.16) !important; }
+html[data-theme="dark"] .theme-client .vx-admin .vx-code{ color: var(--text) !important; }
+html[data-theme="dark"] .theme-client .vx-admin input.vx-in{ background: #000 !important; border-color: rgba(246,198,0,.22) !important; }
 
 /* Remove big light cards in owner/admin layouts when shown inside the dark theme */
 html[data-theme="dark"] .theme-client .vx-adminCard{
@@ -1052,44 +1007,44 @@ html[data-theme="dark"] .theme-client .vx-adminCard{
 }
 html[data-theme="dark"] .theme-client .vx-toast,
 html[data-theme="dark"] .theme-client .vx-pre{
-  background: var(--panel2) !important;
-  border-color: rgba(255,255,255,.14) !important;
-  color: rgba(255,255,255,.86) !important;
+  background: #000 !important;
+  border-color: rgba(246,198,0,.26) !important;
+  color: var(--text) !important;
 }
 html[data-theme="dark"] .theme-client .vx-contactRow{
-  background: var(--panel2) !important;
-  border-color: rgba(255,255,255,.14) !important;
-  color: rgba(255,255,255,.86) !important;
+  background: #000 !important;
+  border-color: rgba(246,198,0,.26) !important;
+  color: var(--text) !important;
 }
 
 /* Text helpers */
-html[data-theme="dark"] .theme-client .vx-muted{ color: rgba(255,255,255,.55); }
-html[data-theme="dark"] .theme-client .hr{ background: rgba(255,255,255,0.10); }
+html[data-theme="dark"] .theme-client .vx-muted{ color: var(--muted); }
+html[data-theme="dark"] .theme-client .hr{ background: rgba(246,198,0,.20); }
 html[data-theme="dark"] .theme-client .vx-meta,
 html[data-theme="dark"] .theme-client .vx-note,
 html[data-theme="dark"] .theme-client .vx-sub,
-html[data-theme="dark"] .theme-client .vx-help{ color: rgba(255,255,255,.62) !important; }
+html[data-theme="dark"] .theme-client .vx-help{ color: var(--muted) !important; }
 html[data-theme="dark"] .theme-client .vx-sectionTitle{
-  color: rgba(255,255,255,.92) !important;
+  color: var(--text) !important;
   font-size: 13px;
   font-weight: 900;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  text-shadow: 0 0 14px rgba(255,218,125,.14);
+  text-shadow: 0 0 14px rgba(246,198,0,.14);
 }
-html[data-theme="dark"] .theme-client .vx-rateHdr{ color: rgba(255,255,255,.55); }
+html[data-theme="dark"] .theme-client .vx-rateHdr{ color: var(--muted); }
 html[data-theme="dark"] .theme-client .vx-ratePair2,
 html[data-theme="dark"] .theme-client .vx-rateN,
 html[data-theme="dark"] .theme-client .vx-pair,
-html[data-theme="dark"] .theme-client .vx-num{ color: rgba(255,255,255,.92) !important; }
-html[data-theme="dark"] .theme-client .vx-rateNMuted{ color: rgba(255,255,255,.70); }
+html[data-theme="dark"] .theme-client .vx-num{ color: var(--text) !important; }
+html[data-theme="dark"] .theme-client .vx-rateNMuted{ color: var(--muted); }
 
 /* Reviews: make headings readable on dark */
-html[data-theme="dark"] .theme-client .vx-reviewsTitle{ color: rgba(255,255,255,.95); }
-html[data-theme="dark"] .theme-client .vx-revH{ color: rgba(255,255,255,.70) !important; }
-html[data-theme="dark"] .theme-client .vx-revName{ color: rgba(255,255,255,.92); }
-html[data-theme="dark"] .theme-client .vx-revRating{ color: rgba(255,255,255,.78); }
-html[data-theme="dark"] .theme-client .vx-revTextOut{ color: rgba(255,255,255,.88); }
+html[data-theme="dark"] .theme-client .vx-reviewsTitle{ color: var(--text); }
+html[data-theme="dark"] .theme-client .vx-revH{ color: var(--muted) !important; }
+html[data-theme="dark"] .theme-client .vx-revName{ color: var(--text); }
+html[data-theme="dark"] .theme-client .vx-revRating{ color: var(--muted); }
+html[data-theme="dark"] .theme-client .vx-revTextOut{ color: var(--text); }
 html[data-theme="dark"] .theme-client .vx-starBtn{ color: rgba(255,223,106,.92); }
 
 /* App content above background */
@@ -2151,165 +2106,6 @@ label, input, select, textarea{ color: var(--text); }
   .vx-bankGrid{ grid-template-columns: repeat(4, 1fr); }
 }
 
-/* =========================
-   v26: White "floating mirror" theme + Home screens (no bottom bar)
-   ========================= */
-
-html[data-theme="dark"] .theme-client{
-  color-scheme: light;
-  --bg: #f6f7fb;
-  --sky: var(--bg);
-  --text: rgba(0,0,0,.88);
-  --muted: rgba(0,0,0,.56);
-  --muted2: rgba(0,0,0,.44);
-  --ph: rgba(0,0,0,.32);
-
-  --panel: rgba(255,255,255,.96);
-  --panel2: rgba(255,255,255,.92);
-  --stroke: rgba(0,0,0,.06);
-  --stroke2: rgba(0,0,0,.09);
-
-  --shadow: 0 18px 46px rgba(0,0,0,.18);
-  --shadow2: 0 12px 26px rgba(0,0,0,.14);
-  --ring: 0 0 0 4px rgba(0,0,0,.08);
-}
-
-html, body{ background: #f6f7fb !important; }
-body.vx-body-client,
-body.vx-body-client #root{ background: #f6f7fb !important; }
-
-html[data-theme="dark"] .theme-client.vx-page{
-  background: var(--bg) !important;
-  color: var(--text);
-}
-
-/* No background image for the new design */
-html[data-theme="dark"] .theme-client .bg-danang{ display:none !important; }
-
-/* Lift existing cards/buttons into the new style */
-html[data-theme="dark"] .theme-client .card,
-html[data-theme="dark"] .theme-client .vx-card2,
-html[data-theme="dark"] .theme-client .vx-revCompose,
-html[data-theme="dark"] .theme-client .vx-revCard,
-html[data-theme="dark"] .theme-client .vx-atmHintBox{
-  background: var(--panel) !important;
-  border: 1px solid var(--stroke) !important;
-  box-shadow: var(--shadow) !important;
-  color: var(--text) !important;
-  backdrop-filter: none !important;
-}
-
-/* Fix legacy dark overrides (older rules set WHITE text with !important) */
-html[data-theme="dark"] .theme-client .vx-title,
-html[data-theme="dark"] .theme-client .vx-topSub,
-html[data-theme="dark"] .theme-client .vx-reviewsTitle,
-html[data-theme="dark"] .theme-client .vx-revH,
-html[data-theme="dark"] .theme-client .vx-revName,
-html[data-theme="dark"] .theme-client .vx-revRating,
-html[data-theme="dark"] .theme-client .vx-revTextOut,
-html[data-theme="dark"] .theme-client .vx-atmHint,
-html[data-theme="dark"] .theme-client .vx-pill,
-html[data-theme="dark"] .theme-client .vx-accLbl,
-html[data-theme="dark"] .theme-client .vx-acc > summary,
-html[data-theme="dark"] .theme-client .vx-admin .vx-code,
-html[data-theme="dark"] .theme-client .vx-sectionTitle,
-html[data-theme="dark"] .theme-client .vx-ratePair2,
-html[data-theme="dark"] .theme-client .vx-rateN,
-html[data-theme="dark"] .theme-client .vx-pair,
-html[data-theme="dark"] .theme-client .vx-num{
-  color: var(--text) !important;
-  text-shadow: none !important;
-}
-
-/* Calculator pills: keep text readable on dark pill background */
-html[data-theme="dark"] .theme-client .vx-calc .vx-pill{
-  color: var(--text) !important;
-}
-html[data-theme="dark"] .theme-client .vx-acc[open] > summary{ border-bottom-color: var(--stroke) !important; }
-html[data-theme="dark"] .theme-client .vx-muted,
-html[data-theme="dark"] .theme-client .vx-meta,
-html[data-theme="dark"] .theme-client .vx-note,
-html[data-theme="dark"] .theme-client .vx-sub,
-html[data-theme="dark"] .theme-client .vx-help{
-  color: var(--muted) !important;
-}
-html[data-theme="dark"] .theme-client .hr{ background: var(--stroke) !important; }
-
-/* Rates list: remove neon glows + restore light separators */
-html[data-theme="dark"] .theme-client .vx-rateList::before,
-html[data-theme="dark"] .theme-client .vx-rateList::after{ display:none !important; }
-html[data-theme="dark"] .theme-client .vx-rateHdr{
-  color: var(--muted) !important;
-  border-bottom: 1px solid var(--stroke) !important;
-}
-html[data-theme="dark"] .theme-client .vx-rateList .vx-rateLine + .vx-rateLine{
-  border-top: 1px solid var(--stroke) !important;
-}
-html[data-theme="dark"] .theme-client .vx-rateNMuted{ color: rgba(0,0,0,.56) !important; }
-html[data-theme="dark"] .theme-client .vx-dash{ color: rgba(0,0,0,.35) !important; }
-
-/* Owner/admin portal blocks that were styled for dark glass */
-html[data-theme="dark"] .theme-client .vx-toast,
-html[data-theme="dark"] .theme-client .vx-pre,
-html[data-theme="dark"] .theme-client .vx-contactRow,
-html[data-theme="dark"] .theme-client .vx-pubGroup,
-html[data-theme="dark"] .theme-client .vx-metricCard,
-html[data-theme="dark"] .theme-client .vx-tableWrap,
-html[data-theme="dark"] .theme-client .vx-adminCol,
-html[data-theme="dark"] .theme-client .vx-reqRow,
-html[data-theme="dark"] .theme-client .vx-reqRow.is-active{
-  background: var(--panel) !important;
-  border: 1px solid var(--stroke) !important;
-  box-shadow: var(--shadow2) !important;
-  color: var(--text) !important;
-}
-
-/* Inputs inside admin blocks were forced to dark background with !important */
-html[data-theme="dark"] .theme-client .vx-admin input.vx-in,
-html[data-theme="dark"] .theme-client .vx-admin textarea,
-html[data-theme="dark"] .theme-client .vx-admin select{
-  background: rgba(255,255,255,.98) !important;
-  border: 1px solid var(--stroke2) !important;
-  color: var(--text) !important;
-}
-
-/* Segmented controls in owner/admin */
-html[data-theme="dark"] .theme-client .vx-adminSeg{
-  background: rgba(255,255,255,.96) !important;
-  border: 1px solid var(--stroke2) !important;
-  box-shadow: var(--shadow2) !important;
-}
-html[data-theme="dark"] .theme-client .vx-adminSeg button{ color: rgba(0,0,0,.62) !important; }
-html[data-theme="dark"] .theme-client .vx-adminSeg .on{
-  background: rgba(0,0,0,.06) !important;
-  border: 1px solid rgba(0,0,0,.12) !important;
-  color: var(--text) !important;
-}
-
-html[data-theme="dark"] .theme-client .input,
-html[data-theme="dark"] .theme-client .vx-in,
-html[data-theme="dark"] .theme-client input,
-html[data-theme="dark"] .theme-client select,
-html[data-theme="dark"] .theme-client textarea{
-  background: rgba(255,255,255,.98) !important;
-  border: 1px solid var(--stroke2) !important;
-  color: var(--text) !important;
-}
-
-html[data-theme="dark"] .theme-client .btn,
-html[data-theme="dark"] .theme-client .vx-primary,
-html[data-theme="dark"] .theme-client button.vx-primary,
-html[data-theme="dark"] .theme-client button.btn{
-  background: rgba(255,255,255,.98) !important;
-  color: var(--text) !important;
-  border: 1px solid var(--stroke2) !important;
-  box-shadow: var(--shadow2) !important;
-}
-
-html[data-theme="dark"] .theme-client .btn:active,
-html[data-theme="dark"] .theme-client .vx-primary:active,
-html[data-theme="dark"] .theme-client button.btn:active{ transform: translateY(1px); }
-
 /* Home layout */
 .mx-sp10{ height: 10px; }
 .mx-sp12{ height: 12px; }
@@ -2371,19 +2167,17 @@ html[data-theme="dark"] .theme-client .mx-themeBtn{
 .mx-brandName{
   width: 100%;
   text-align: center;
-  font-family: var(--fontScript);
-  font-size: clamp(34px, 7vw, 46px);
+  font-family: var(--fontTitle);
+  font-weight: 700;
+  font-size: clamp(44px, 9.2vw, 64px);
   line-height: 0.95;
   color: #f6c600;
-  /* thinner black outline for readability */
-  -webkit-text-stroke: 0.55px rgba(0,0,0,.92);
+  /* subtle black contour + shadow (readable, not "fat") */
+  -webkit-text-stroke: 0;
   text-shadow:
-    -0.6px -0.6px 0 rgba(0,0,0,.92),
-    0.6px -0.6px 0 rgba(0,0,0,.92),
-    -0.6px 0.6px 0 rgba(0,0,0,.92),
-    0.6px 0.6px 0 rgba(0,0,0,.92),
-    0 7px 18px rgba(0,0,0,.26);
-  letter-spacing: .02em;
+    0 2px 0 rgba(0,0,0,.92),
+    0 10px 26px rgba(0,0,0,.30);
+  letter-spacing: .04em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2533,6 +2327,46 @@ html[data-theme="dark"] .theme-client .mx-bottomNav{
   background: linear-gradient(135deg, rgba(255,255,255,.88), rgba(255,255,255,0));
   transform: rotate(8deg);
   pointer-events:none;
+}
+
+/* Dark theme: true black tiles + yellow neon edges */
+html[data-theme="dark"] .theme-client .mx-card,
+html[data-theme="dark"] .theme-client .mx-navCard,
+html[data-theme="dark"] .theme-client .mx-afEvCard{
+  background: #000 !important;
+  border: 1px solid rgba(246,198,0,.36) !important;
+  box-shadow:
+    0 26px 78px rgba(0,0,0,.86),
+    0 0 34px rgba(246,198,0,.12),
+    0 0 0 1px rgba(246,198,0,.08) inset !important;
+}
+html[data-theme="dark"] .theme-client .mx-card::before{ display:none !important; }
+
+html[data-theme="dark"] .theme-client .mx-cardSub,
+html[data-theme="dark"] .theme-client .mx-navSub,
+html[data-theme="dark"] .theme-client .mx-afMeta,
+html[data-theme="dark"] .theme-client .mx-muted{
+  color: var(--muted) !important;
+}
+
+html[data-theme="dark"] .theme-client .mx-btn,
+html[data-theme="dark"] .theme-client .mx-sheetBtn,
+html[data-theme="dark"] .theme-client .mx-afBack{
+  background: #000 !important;
+  border: 1px solid rgba(246,198,0,.44) !important;
+  color: var(--text) !important;
+  box-shadow: 0 22px 66px rgba(0,0,0,.86), 0 0 26px rgba(246,198,0,.18) !important;
+}
+html[data-theme="dark"] .theme-client .mx-btnPrimary{
+  background: #000 !important;
+  border-color: rgba(246,198,0,.62) !important;
+  box-shadow: 0 26px 70px rgba(0,0,0,.86), 0 0 34px rgba(246,198,0,.22) !important;
+}
+
+html[data-theme="dark"] .theme-client .mx-headerLogoWrap{
+  background: #000 !important;
+  border: 1px solid rgba(246,198,0,.36) !important;
+  box-shadow: 0 18px 56px rgba(0,0,0,.84), 0 0 26px rgba(246,198,0,.14) !important;
 }
 
 .mx-cardInner{ padding: 14px; }
@@ -2706,6 +2540,16 @@ html[data-theme="dark"] .theme-client .mx-sheet{
   border-color: rgba(246,198,0,.32);
   box-shadow: 0 -30px 96px rgba(0,0,0,.86), 0 0 28px rgba(246,198,0,.10);
 }
+
+html[data-theme="dark"] .theme-client .mx-sheetHandle{ background: rgba(246,198,0,.26); }
+html[data-theme="dark"] .theme-client .mx-sheetTitle{ color: var(--text); }
+html[data-theme="dark"] .theme-client .mx-sheetItem{
+  background: #000;
+  border: 1px solid rgba(246,198,0,.26);
+  color: var(--text);
+  box-shadow: 0 16px 48px rgba(0,0,0,.72), 0 0 18px rgba(246,198,0,.10);
+}
+html[data-theme="dark"] .theme-client .mx-sheetCheck{ color: var(--text); }
 html[data-theme="dark"] .theme-client .mx-sheetHandle{ background: rgba(246,198,0,.26); }
 html[data-theme="dark"] .theme-client .mx-sheetTitle{ color: var(--text); }
 html[data-theme="dark"] .theme-client .mx-sheetItem{
@@ -2807,6 +2651,21 @@ html[data-theme="dark"] .theme-client .mx-muted{ color: var(--muted) !important;
   font-size: 12px;
 }
 .mx-afCatBtn.is-on{ outline: 3px solid rgba(0,0,0,.18); }
+
+html[data-theme="dark"] .theme-client .mx-afCatBtn{
+  background: #000 !important;
+  background-image: none !important;
+  border: 1px solid rgba(246,198,0,.36) !important;
+  box-shadow:
+    0 26px 78px rgba(0,0,0,.86),
+    0 0 34px rgba(246,198,0,.14),
+    0 0 0 1px rgba(246,198,0,.10) inset !important;
+}
+html[data-theme="dark"] .theme-client .mx-afCatBtn::before{ display:none !important; }
+html[data-theme="dark"] .theme-client .mx-afCatBtn .mx-afCatLabel{ color: var(--text) !important; }
+html[data-theme="dark"] .theme-client .mx-afCatBtn .mx-afCatSub{ color: var(--muted) !important; }
+
+html[data-theme="dark"] .theme-client .mx-afComment{ color: var(--muted) !important; }
 
 /* Afisha button backgrounds.
    IMPORTANT: Telegram WebView may "pick" the first candidate in image-set and does not always fall back
@@ -2950,7 +2809,7 @@ html[data-theme="dark"] .theme-client input::placeholder{
 /* Owner portal (desktop width) */
 .theme-owner{ --appMax: 2000px; }
 .theme-owner.vx-page{ background: #f6f7fb; }
-.theme-owner .bg-danang{ background-color: #f6f7fb; background-image: none !important; }
+/* old background removed */
 .theme-owner .container{
   max-width: none;
   width: calc(100% - 32px);

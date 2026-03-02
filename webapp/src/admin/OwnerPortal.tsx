@@ -765,7 +765,7 @@ export default function OwnerPortal() {
     return (
       <div className="vx-page theme-owner">
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap');`}</style>
-        <div className="bg-danang" aria-hidden="true" />
+        {/* background removed (old Danang/beach style is no longer used) */}
         <div className="container">
           <div className="card">
             <div className="h1">Управление владельца</div>
@@ -790,7 +790,7 @@ export default function OwnerPortal() {
   return (
     <div className="vx-page theme-owner">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap');`}</style>
-      <div className="bg-danang" aria-hidden="true" />
+      {/* background removed (old Danang/beach style is no longer used) */}
       <div className="container">
         <div className="card vx-topCard" style={{ paddingLeft: 14, paddingRight: 14 }}>
           <div className="row vx-between vx-center" style={{ gap: 12 }}>
