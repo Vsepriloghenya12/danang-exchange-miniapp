@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { apiAfishaClick, apiGetAfisha } from "../lib/api";
 import type { AfishaEvent, AfishaFilterCategory } from "../lib/types";
 
@@ -108,6 +108,81 @@ export default function AfishaTab() {
   const [loading, setLoading] = useState<boolean>(true);
   const [events, setEvents] = useState<AfishaEvent[]>([]);
   const [err, setErr] = useState<string>("");
+
+  // Hide the fixed bottom menu while the sheet is open (prevents overlap with the footer button)
+  useEffect(() => {
+    try {
+      const el = document.documentElement;
+      if (sheetOpen) el.classList.add("mx-sheet-open");
+      else el.classList.remove("mx-sheet-open");
+      return () => el.classList.remove("mx-sheet-open");
+    } catch {
+      return;
+    }
+  }, [sheetOpen]);
+
+  // Swipe-to-close for the bottom sheet
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const dragYRef = useRef(0);
+  const startYRef = useRef(0);
+  const ptrRef = useRef<number | null>(null);
+  const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+
+  const canStartDrag = (target: HTMLElement) => {
+    // Avoid interfering with inputs
+    if (target.closest("input,select,textarea")) return false;
+    // If gesture starts on the list while it is scrolled, allow scrolling instead of dragging
+    if (target.closest(".mx-sheetList")) {
+      const ls = listRef.current;
+      if (ls && ls.scrollTop > 0) return false;
+    }
+    return true;
+  };
+
+  const onSheetPointerDown = (e: React.PointerEvent) => {
+    if (!sheetOpen) return;
+    if (e.pointerType === "mouse" && (e as any).button !== 0) return;
+    const t = e.target as HTMLElement | null;
+    if (!t || !canStartDrag(t)) return;
+
+    ptrRef.current = e.pointerId;
+    startYRef.current = e.clientY;
+    dragYRef.current = 0;
+    setDragY(0);
+    setDragging(true);
+    try {
+      (e.currentTarget as any)?.setPointerCapture?.(e.pointerId);
+    } catch {
+      // ignore
+    }
+  };
+
+  const onSheetPointerMove = (e: React.PointerEvent) => {
+    if (ptrRef.current !== e.pointerId) return;
+    const dy = e.clientY - startYRef.current;
+    // Resist upward drag
+    const next = dy < 0 ? dy * 0.25 : dy;
+    dragYRef.current = next;
+    setDragY(next);
+  };
+
+  const endDrag = (e: React.PointerEvent) => {
+    if (ptrRef.current !== e.pointerId) return;
+    ptrRef.current = null;
+    setDragging(false);
+
+    const dy = dragYRef.current;
+    dragYRef.current = 0;
+    // Close if pulled down enough; otherwise snap back
+    if (dy > 120) {
+      setSheetOpen(false);
+      setDragY(0);
+      return;
+    }
+    setDragY(0);
+  };
 
   useEffect(() => {
     if (!sheetOpen) return;
@@ -230,11 +305,23 @@ export default function AfishaTab() {
 
       {sheetOpen ? (
         <div className="mx-sheetOverlay" onClick={() => setSheetOpen(false)} role="dialog" aria-label="Фильтр даты">
-          <div className="mx-sheet" onClick={(e) => e.stopPropagation()}>
+          <div
+            ref={sheetRef}
+            className={"mx-sheet" + (dragging ? " is-dragging" : "")}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={onSheetPointerDown}
+            onPointerMove={onSheetPointerMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            style={{
+              transform: `translateY(${Math.max(-24, dragY)}px)`,
+              transition: dragging ? "none" : undefined,
+            }}
+          >
             <div className="mx-sheetHandle" />
             <div className="mx-sheetTitle">Выберите период</div>
 
-            <div className="mx-sheetList">
+            <div ref={listRef} className="mx-sheetList">
               {DATE_PRESETS.map((p) => (
                 <button
                   key={p.key}

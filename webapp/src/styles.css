@@ -1,9 +1,9 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&family=Allura&family=Cinzel:wght@600;700;800;900&family=Cormorant+Garamond:wght@600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&family=Allura&family=Unbounded:wght@600;700;800;900&display=swap");
 
 :root{
   color-scheme: light;
   --font: "Manrope", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-  --fontTitle: "Cinzel", "Cormorant Garamond", "Manrope", "Inter", ui-sans-serif, system-ui;
+  --fontTitle: "Unbounded", "Manrope", "Inter", ui-sans-serif, system-ui;
   --fontScript: "Allura", "Great Vibes", cursive;
 
   /* Poputchiki-like palette (glass) */
@@ -2184,6 +2184,11 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
   color: var(--text) !important;
   text-shadow: none !important;
 }
+
+/* Calculator pills: keep text readable on dark pill background */
+.theme-client .vx-calc .vx-pill{
+  color: rgba(255,255,255,.92) !important;
+}
 .theme-client .vx-acc[open] > summary{ border-bottom-color: var(--stroke) !important; }
 .theme-client .vx-muted,
 .theme-client .vx-meta,
@@ -2401,7 +2406,8 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 .mx-bottomNav{
   position: fixed;
   left: 50%;
-  transform: translateX(-50%);
+  --mxNavHide: 0px;
+  transform: translateX(-50%) translateY(var(--mxNavHide));
   bottom: 10px;
   z-index: 20;
   width: calc(min(var(--appMax), 100vw) - 24px);
@@ -2414,6 +2420,14 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
   background: rgba(255,255,255,.94);
   border: 1px solid var(--stroke);
   box-shadow: var(--shadow2);
+  transition: transform .18s ease, opacity .18s ease;
+}
+
+/* When the Afisha date bottom-sheet is open, hide the fixed bottom menu to avoid overlap */
+.mx-sheet-open .mx-bottomNav{
+  --mxNavHide: 200px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .mx-bottomBtn{
@@ -2831,17 +2845,17 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 .theme-client .vx-atmFindBtn{
   border: 2px solid rgba(246,198,0,.98) !important;
   box-shadow:
-    0 22px 72px rgba(0,0,0,.62),
-    0 0 0 1px rgba(246,198,0,.72) inset,
-    0 0 46px rgba(246,198,0,.62) !important;
-  text-shadow: 0 6px 16px rgba(0,0,0,.28);
+    0 18px 46px rgba(0,0,0,.78),
+    0 0 0 1px rgba(0,0,0,.45) inset,
+    0 0 0 1px rgba(246,198,0,.62) !important;
+  text-shadow: 0 2px 0 rgba(0,0,0,.28);
   transition: box-shadow .18s ease, transform .12s ease;
 }
 
 .theme-client .vx-atmBtnOn{
   box-shadow:
-    0 26px 84px rgba(0,0,0,.70),
-    0 0 0 1px rgba(246,198,0,.85) inset,
-    0 0 58px rgba(246,198,0,.78) !important;
+    0 22px 62px rgba(0,0,0,.86),
+    0 0 0 1px rgba(0,0,0,.55) inset,
+    0 0 0 1px rgba(246,198,0,.82) !important;
 }
 

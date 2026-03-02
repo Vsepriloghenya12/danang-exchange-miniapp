@@ -31,7 +31,7 @@ type ScreenKey = "home" | "calc" | "afisha" | "atm" | "reviews" | "staff" | "his
 const UI = {
   title: "Обмен валют — Дананг",
   fontImport:
-    "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&family=Allura&family=Cinzel:wght@600;700;800;900&family=Cormorant+Garamond:wght@600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&family=Allura&family=Unbounded:wght@600;700;800;900&display=swap",
 };
 
 function IconArrowLeft({ className = "" }: { className?: string }) {
