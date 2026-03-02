@@ -56,6 +56,21 @@ app.use(cors());
 // For publishing rates with an optional image (base64 data URL)
 app.use(express.json({ limit: "15mb" }));
 
+// Basic HTTP request logging (visible in Railway logs)
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint();
+  res.on("finish", () => {
+    const ms = Number(process.hrtime.bigint() - start) / 1e6;
+    const ip = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
+    const ua = String(req.headers["user-agent"] || "");
+    // Keep logs compact and readable
+    console.log(
+      `[HTTP] ${req.method} ${req.originalUrl} -> ${res.statusCode} (${ms.toFixed(1)}ms) ip=${ip} ua=${ua.slice(0, 80)}`
+    );
+  });
+  next();
+});
+
 // Рыночный курс "G" (кросс-пары) — обновление ~каждые 15 минут
 startMarketUpdater();
 

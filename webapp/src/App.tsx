@@ -164,12 +164,14 @@ function StatusIcon({ status }: { status?: UserStatus }) {
 }
 
 function HeaderLogo() {
-  const bust = "v34";
+  // cache-bust for Telegram WebView
+  const bust = "v42";
   const candidates = useMemo(
     () => [
       "/brand/header-logo.png",
       "/brand/header-logo.webp",
       "/brand/header-logo.svg",
+      "/brand/header-logo.jpg",
       "/brand/logo.png",
       "/brand/logo.jpg",
       "/brand/logo.webp",
