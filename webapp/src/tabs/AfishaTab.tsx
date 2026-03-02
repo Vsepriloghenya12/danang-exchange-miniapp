@@ -543,7 +543,6 @@ export default function AfishaTab({
             >
               <div>
                 <div className="mx-afCatLabel">{c.label}</div>
-                <div className="mx-afCatSub">Открыть мероприятия</div>
               </div>
             </button>
           ))}
