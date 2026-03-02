@@ -21,13 +21,59 @@ const CATS: Array<{ key: Exclude<AfishaFilterCategory, "all">; label: string; su
   { key: "music", label: "Музыка" },
 ];
 
-function todayISO() {
-  const d = new Date();
+function iso(d: Date) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
+
+function addDays(d: Date, n: number) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+function endOfWeekFrom(d: Date) {
+  // RU week: Monday..Sunday
+  const x = new Date(d);
+  const day = x.getDay(); // 0 Sun ... 6 Sat
+  const daysToSun = (7 - day) % 7;
+  return addDays(x, daysToSun);
+}
+
+function nextMondayFrom(d: Date) {
+  const x = new Date(d);
+  const day = x.getDay();
+  const daysToMon = (8 - (day === 0 ? 7 : day)) % 7; // Monday => 0
+  return addDays(x, daysToMon || 7);
+}
+
+function endOfMonthFrom(d: Date) {
+  const x = new Date(d);
+  return new Date(x.getFullYear(), x.getMonth() + 1, 0);
+}
+
+type DatePreset =
+  | "any"
+  | "today"
+  | "tomorrow"
+  | "weekend"
+  | "thisWeek"
+  | "nextWeek"
+  | "thisMonth"
+  | "custom";
+
+const DATE_PRESETS: Array<{ key: DatePreset; label: string }> = [
+  { key: "any", label: "Любая дата" },
+  { key: "today", label: "Сегодня" },
+  { key: "tomorrow", label: "Завтра" },
+  { key: "weekend", label: "На этих выходных" },
+  { key: "thisWeek", label: "На этой неделе" },
+  { key: "nextWeek", label: "На следующей неделе" },
+  { key: "thisMonth", label: "В этом месяце" },
+  { key: "custom", label: "Пользовательские настройки временного периода" },
+];
 
 function fmtDate(iso: string) {
   try {
@@ -45,14 +91,83 @@ export default function AfishaTab() {
 
   // No "Все" button in UI. We show category buttons first; events open on a separate list screen.
   const [category, setCategory] = useState<Exclude<AfishaFilterCategory, "all"> | "">("");
-  const [from, setFrom] = useState<string>(() => todayISO());
+
+  // Applied filter (used in queries)
+  const [datePreset, setDatePreset] = useState<DatePreset>("any");
+  const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
+
+  // Bottom sheet (draft filter)
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [draftPreset, setDraftPreset] = useState<DatePreset>("any");
+  const [draftFrom, setDraftFrom] = useState<string>("");
+  const [draftTo, setDraftTo] = useState<string>("");
 
   const [view, setView] = useState<"cats" | "list">("cats");
 
   const [loading, setLoading] = useState<boolean>(true);
   const [events, setEvents] = useState<AfishaEvent[]>([]);
   const [err, setErr] = useState<string>("");
+
+  useEffect(() => {
+    if (!sheetOpen) return;
+    setDraftPreset(datePreset);
+    setDraftFrom(from);
+    setDraftTo(to);
+  }, [sheetOpen, datePreset, from, to]);
+
+  function presetRange(p: DatePreset): { from: string; to: string } {
+    const now = new Date();
+    if (p === "any") return { from: "", to: "" };
+    if (p === "today") {
+      const x = iso(now);
+      return { from: x, to: x };
+    }
+    if (p === "tomorrow") {
+      const x = iso(addDays(now, 1));
+      return { from: x, to: x };
+    }
+    if (p === "weekend") {
+      const day = now.getDay();
+      // Sat (6) => Sat..Sun, Sun (0) => Sun only, else => next Sat..Sun
+      if (day === 6) {
+        const s = iso(now);
+        const e = iso(addDays(now, 1));
+        return { from: s, to: e };
+      }
+      if (day === 0) {
+        const s = iso(now);
+        return { from: s, to: s };
+      }
+      // next Saturday
+      const nextSat = addDays(now, (6 - day + 7) % 7);
+      return { from: iso(nextSat), to: iso(addDays(nextSat, 1)) };
+    }
+    if (p === "thisWeek") {
+      // from today till Sunday
+      return { from: iso(now), to: iso(endOfWeekFrom(now)) };
+    }
+    if (p === "nextWeek") {
+      const mon = nextMondayFrom(now);
+      const sun = endOfWeekFrom(mon);
+      return { from: iso(mon), to: iso(sun) };
+    }
+    if (p === "thisMonth") {
+      return { from: iso(now), to: iso(endOfMonthFrom(now)) };
+    }
+    return { from: "", to: "" };
+  }
+
+  function filterLabel(p: DatePreset, f: string, t: string) {
+    const presetLabel = DATE_PRESETS.find((x) => x.key === p)?.label || "";
+    if (p !== "custom") return presetLabel;
+    if (!f && !t) return presetLabel;
+    if (f && t) return `${presetLabel}: ${fmtDate(f)} — ${fmtDate(t)}`;
+    if (f) return `${presetLabel}: c ${fmtDate(f)}`;
+    return `${presetLabel}: по ${fmtDate(t)}`;
+  }
+
+  const appliedLabel = useMemo(() => filterLabel(datePreset, from, to), [datePreset, from, to]);
 
   const params = useMemo(() => {
     // load events only when a category is selected and the list screen is open
@@ -105,16 +220,81 @@ export default function AfishaTab() {
 
   return (
     <div className="mx-afisha">
-      <div className="mx-filterRow mx-filterRowNice">
-        <label className="mx-filterItem">
-          <span>С</span>
-          <input className="mx-date" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-        </label>
-        <label className="mx-filterItem">
-          <span>По</span>
-          <input className="mx-date" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-        </label>
-      </div>
+      <button type="button" className="mx-filterBtn" onClick={() => setSheetOpen(true)}>
+        <div className="mx-filterBtnLeft">
+          <div className="mx-filterBtnHint">Дата</div>
+          <div className="mx-filterBtnVal">{appliedLabel}</div>
+        </div>
+        <div className="mx-filterBtnChev">▾</div>
+      </button>
+
+      {sheetOpen ? (
+        <div className="mx-sheetOverlay" onClick={() => setSheetOpen(false)} role="dialog" aria-label="Фильтр даты">
+          <div className="mx-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-sheetHandle" />
+            <div className="mx-sheetTitle">Выберите период</div>
+
+            <div className="mx-sheetList">
+              {DATE_PRESETS.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  className={"mx-sheetItem " + (draftPreset === p.key ? "on" : "")}
+                  onClick={() => setDraftPreset(p.key)}
+                >
+                  <span className="mx-sheetItemText">{p.label}</span>
+                  {draftPreset === p.key ? <span className="mx-sheetCheck">✓</span> : <span />}
+                </button>
+              ))}
+            </div>
+
+            {draftPreset === "custom" ? (
+              <div className="mx-sheetCustom">
+                <div className="mx-customRow">
+                  <div className="mx-customLbl">С</div>
+                  <input
+                    className="mx-dateInput"
+                    type="date"
+                    value={draftFrom}
+                    onChange={(e) => setDraftFrom(e.target.value)}
+                  />
+                </div>
+                <div className="mx-customRow">
+                  <div className="mx-customLbl">По</div>
+                  <input
+                    className="mx-dateInput"
+                    type="date"
+                    value={draftTo}
+                    onChange={(e) => setDraftTo(e.target.value)}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mx-sheetFooter">
+              <button
+                type="button"
+                className="mx-sheetBtn"
+                onClick={() => {
+                  const p = draftPreset;
+                  setDatePreset(p);
+                  if (p === "custom") {
+                    setFrom(draftFrom);
+                    setTo(draftTo);
+                  } else {
+                    const r = presetRange(p);
+                    setFrom(r.from);
+                    setTo(r.to);
+                  }
+                  setSheetOpen(false);
+                }}
+              >
+                Показать результаты
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {view === "cats" ? (
         <div className="mx-afCats">

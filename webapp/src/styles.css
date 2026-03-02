@@ -1,8 +1,10 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&family=Allura&family=Cinzel:wght@600;700;800;900&family=Cormorant+Garamond:wght@600;700&display=swap");
 
 :root{
   color-scheme: light;
   --font: "Manrope", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  --fontTitle: "Cinzel", "Cormorant Garamond", "Manrope", "Inter", ui-sans-serif, system-ui;
+  --fontScript: "Allura", "Great Vibes", cursive;
 
   /* Poputchiki-like palette (glass) */
   --sky: #5ac4e9;
@@ -160,6 +162,16 @@ body.vx-body-client #root{
 .theme-client.vx-page{
   background: #000;
   color: var(--text);
+}
+
+/* More interesting typography for screen headers + in-tab headings */
+.theme-client .mx-hTitle,
+.theme-client .h1,
+.theme-client .h2,
+.theme-client .h3{
+  font-family: var(--fontTitle);
+  letter-spacing: 0.05em;
+  text-shadow: 0 10px 26px rgba(0,0,0,.55);
 }
 
 .theme-client .bg-danang{
@@ -2265,7 +2277,7 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 .mx-topRow{
   display:flex;
   align-items:center;
-  justify-content:space-between;
+  justify-content:flex-start;
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -2279,41 +2291,45 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 }
 .mx-statusBtn:active{ transform: translateY(1px); }
 
-/* Middle brand block: title + greeting + logo */
-.mx-brandMid{
+/* Middle brand line (between status and logo): title + greeting */
+.mx-brandLine{
   flex: 1;
   min-width: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: center;
+  gap: 2px;
 }
 
-.mx-brandText{ min-width: 0; display:flex; flex-direction: column; }
-
 .mx-brandName{
-  font-family: "Great Vibes", cursive;
-  font-size: 26px;
-  line-height: 1;
+  width: 100%;
+  text-align: center;
+  font-family: var(--fontScript);
+  font-size: 32px;
+  line-height: 0.95;
   color: #f6c600;
-  /* black outline */
-  -webkit-text-stroke: 1.2px rgba(0,0,0,.92);
+  /* thinner black outline for readability */
+  -webkit-text-stroke: 0.7px rgba(0,0,0,.92);
   text-shadow:
-    -1px -1px 0 rgba(0,0,0,.92),
-    1px -1px 0 rgba(0,0,0,.92),
-    -1px 1px 0 rgba(0,0,0,.92),
-    1px 1px 0 rgba(0,0,0,.92),
-    0 6px 16px rgba(0,0,0,.18);
+    -0.6px -0.6px 0 rgba(0,0,0,.92),
+    0.6px -0.6px 0 rgba(0,0,0,.92),
+    -0.6px 0.6px 0 rgba(0,0,0,.92),
+    0.6px 0.6px 0 rgba(0,0,0,.92),
+    0 7px 18px rgba(0,0,0,.26);
+  letter-spacing: .02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .mx-brandHello{
-  margin-top: 2px;
+  margin-top: 0;
   font-size: 12px;
   font-weight: 900;
   color: var(--text);
+  width: 100%;
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2487,7 +2503,7 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 
 .mx-navText{ flex: 1 1 auto; }
 
-.mx-navTitle{ font-size: 16px; font-weight: 950; }
+.mx-navTitle{ font-size: 16px; font-weight: 950; font-family: var(--fontTitle); letter-spacing: 0.02em; }
 .mx-navSub{ font-size: 12.5px; font-weight: 800; color: rgba(0,0,0,.52); margin-top: 2px; }
 
 .mx-i{ width: 20px; height: 20px; }
@@ -2511,13 +2527,107 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
   box-shadow: var(--shadow2);
 }
 
-.mx-hTitle{ font-size: 16px; font-weight: 950; letter-spacing: -0.01em; }
+.mx-hTitle{ font-size: 18px; font-weight: 900; font-family: var(--fontTitle); letter-spacing: 0.04em; }
 
 /* Afisha */
 .mx-filterRow{ display:flex; gap: 10px; margin-bottom: 12px; }
 .mx-filterRowNice .mx-filterItem{ box-shadow: 0 10px 26px rgba(0,0,0,.10); }
 .mx-filterItem{ flex: 1 1 0; display:flex; align-items:center; justify-content:space-between; gap: 8px; padding: 10px 12px; border-radius: 18px; background: rgba(255,255,255,.96); border:1px solid var(--stroke); box-shadow: var(--shadow2); font-weight: 900; color: rgba(0,0,0,.62); }
 .mx-date{ border: 0 !important; background: transparent !important; padding: 0 !important; height: auto !important; font-weight: 900; color: rgba(0,0,0,.86) !important; }
+
+/* v34: Afisha date filter as a single button + bottom sheet */
+.mx-filterBtn{
+  width: 100%;
+  height: 54px;
+  border-radius: 22px;
+  background: rgba(255,255,255,.96);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow2);
+  padding: 10px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  text-align: left;
+}
+.mx-filterBtnLeft{ min-width: 0; }
+.mx-filterBtnHint{ font-size: 11px; font-weight: 950; color: rgba(0,0,0,.52); }
+.mx-filterBtnVal{ font-size: 13px; font-weight: 950; color: rgba(0,0,0,.86); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mx-filterBtnChev{ font-size: 18px; font-weight: 900; opacity: .65; }
+
+.mx-sheetOverlay{
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0,0,0,.55);
+  display:flex;
+  justify-content:center;
+  align-items:flex-end;
+}
+.mx-sheet{
+  width: min(420px, 100vw);
+  background: rgba(255,255,255,.98);
+  border: 1px solid var(--stroke);
+  border-radius: 26px 26px 0 0;
+  box-shadow: 0 -26px 86px rgba(0,0,0,.58);
+  padding: 14px;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
+}
+.mx-sheetHandle{
+  width: 46px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.16);
+  margin: 0 auto 10px;
+}
+.mx-sheetTitle{ font-size: 14px; font-weight: 950; color: rgba(0,0,0,.82); margin-bottom: 10px; }
+.mx-sheetList{ display:flex; flex-direction: column; gap: 8px; }
+.mx-sheetItem{
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,.10);
+  background: rgba(0,0,0,.03);
+  padding: 12px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  font-weight: 950;
+  color: rgba(0,0,0,.82);
+}
+.mx-sheetItem.on{
+  border-color: rgba(246,198,0,.92);
+  background: rgba(246,198,0,.14);
+  box-shadow: 0 0 0 1px rgba(246,198,0,.45) inset, 0 0 18px rgba(246,198,0,.22);
+}
+.mx-sheetItemText{ min-width: 0; text-align:left; }
+.mx-sheetCheck{ color: rgba(0,0,0,.78); }
+
+.mx-sheetCustom{ margin-top: 12px; padding: 12px; border-radius: 20px; background: rgba(0,0,0,.03); border: 1px solid rgba(0,0,0,.08); }
+.mx-customRow{ display:flex; align-items:center; justify-content:space-between; gap: 10px; }
+.mx-customRow + .mx-customRow{ margin-top: 10px; }
+.mx-customLbl{ font-weight: 950; color: rgba(0,0,0,.62); }
+.mx-dateInput{
+  width: 70%;
+  height: 44px;
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,.10);
+  padding: 0 12px;
+  font-weight: 950;
+  background: rgba(255,255,255,.96);
+  color: rgba(0,0,0,.86);
+}
+
+.mx-sheetFooter{ margin-top: 14px; }
+.mx-sheetBtn{
+  width: 100%;
+  height: 48px;
+  border-radius: 20px;
+  border: 2px solid rgba(246,198,0,.96);
+  background: rgba(255,255,255,.98);
+  font-weight: 950;
+  box-shadow: 0 20px 64px rgba(0,0,0,.50), 0 0 40px rgba(246,198,0,.42);
+}
 
 .mx-muted{ color: rgba(0,0,0,.56); font-weight: 700; }
 
@@ -2719,17 +2829,19 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 /* ATM buttons: neon yellow outline + stronger shadow */
 .theme-client .vx-atmBtn,
 .theme-client .vx-atmFindBtn{
-  border: 1px solid rgba(246,198,0,.95) !important;
+  border: 2px solid rgba(246,198,0,.98) !important;
   box-shadow:
-    0 14px 32px rgba(0,0,0,.18),
-    0 0 0 1px rgba(246,198,0,.45) inset,
-    0 0 18px rgba(246,198,0,.30) !important;
+    0 22px 72px rgba(0,0,0,.62),
+    0 0 0 1px rgba(246,198,0,.72) inset,
+    0 0 46px rgba(246,198,0,.62) !important;
+  text-shadow: 0 6px 16px rgba(0,0,0,.28);
+  transition: box-shadow .18s ease, transform .12s ease;
 }
 
 .theme-client .vx-atmBtnOn{
   box-shadow:
-    0 16px 40px rgba(0,0,0,.22),
-    0 0 0 1px rgba(246,198,0,.62) inset,
-    0 0 24px rgba(246,198,0,.40) !important;
+    0 26px 84px rgba(0,0,0,.70),
+    0 0 0 1px rgba(246,198,0,.85) inset,
+    0 0 58px rgba(246,198,0,.78) !important;
 }
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getTg } from "./lib/telegram";
-import { apiAuth, apiGetWeather } from "./lib/api";
+import { apiAuth } from "./lib/api";
 import type { UserStatus } from "./lib/types";
 
 import RatesTab from "./tabs/RatesTab";
@@ -31,7 +31,7 @@ type ScreenKey = "home" | "calc" | "afisha" | "atm" | "reviews" | "staff" | "his
 const UI = {
   title: "Обмен валют — Дананг",
   fontImport:
-    "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&display=swap",
+    "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&family=Allura&family=Cinzel:wght@600;700;800;900&family=Cormorant+Garamond:wght@600;700&display=swap",
 };
 
 function IconArrowLeft({ className = "" }: { className?: string }) {
@@ -88,7 +88,7 @@ function NavCard({
 function StatusIcon({ status }: { status?: UserStatus }) {
   // Telegram WebView caching + inconsistent image format fallback can cause the status icon to look "not loaded".
   // We try multiple extensions and also add a tiny cache-buster.
-  const bust = `v33-${String(status || "").toLowerCase() || "x"}`;
+  const bust = `v34-${String(status || "").toLowerCase() || "x"}`;
   const candidates = useMemo(() => {
     const s = String(status || "").toLowerCase();
     const list: string[] = [];
@@ -140,7 +140,7 @@ function StatusIcon({ status }: { status?: UserStatus }) {
 }
 
 function HeaderLogo() {
-  const bust = "v33";
+  const bust = "v34";
   const candidates = useMemo(
     () => [
       "/brand/header-logo.png",
@@ -203,39 +203,30 @@ export default function App() {
   }, []);
 
   const tg = getTg();
-  const [me, setMe] = useState<Me>({ ok: false, initData: "" });
-  const [screen, setScreen] = useState<ScreenKey>("home");
-  const [courseExpanded, setCourseExpanded] = useState(false);
 
-  const [weather, setWeather] = useState<null | {
-    city: string;
-    tempC: number;
-    feelsC: number;
-    desc: string;
-    humidity: number;
-    windMs: number;
-    emoji: string;
-    updatedAt: string;
-  }>(null);
-
+  // Haptic feedback for buttons only (no vibration while typing/entering data).
   useEffect(() => {
-    let mounted = true;
-    const load = async () => {
+    const handler = (e: any) => {
+      const t = (e?.target as HTMLElement | null) ?? null;
+      if (!t) return;
+      const btn = t.closest?.("button") as HTMLButtonElement | null;
+      if (!btn) return;
+      if (btn.disabled) return;
+      if (btn.getAttribute("data-nohaptic") === "1") return;
       try {
-        const r: any = await apiGetWeather();
-        if (!mounted) return;
-        if (r?.ok && r?.data) setWeather(r.data);
+        const w = (window as any).Telegram?.WebApp;
+        w?.HapticFeedback?.impactOccurred?.("light");
       } catch {
         // ignore
       }
     };
-    load();
-    const id = window.setInterval(load, 10 * 60 * 1000);
-    return () => {
-      mounted = false;
-      window.clearInterval(id);
-    };
+    document.addEventListener("click", handler, true);
+    return () => document.removeEventListener("click", handler, true);
   }, []);
+
+  const [me, setMe] = useState<Me>({ ok: false, initData: "" });
+  const [screen, setScreen] = useState<ScreenKey>("home");
+  const [courseExpanded, setCourseExpanded] = useState(false);
 
   const isDemo = useMemo(() => new URLSearchParams(window.location.search).get("demo") === "1", []);
 
@@ -357,24 +348,12 @@ export default function App() {
                 <StatusIcon status={me.status} />
               </button>
 
-              <div className="mx-brandMid" aria-label="Заголовок">
-                <div className="mx-brandText">
-                  <div className="mx-brandName">Cash A Lot</div>
-                  <div className="mx-brandHello">Здравствуйте{displayName ? `, ${displayName}` : ""}</div>
-                </div>
-                <HeaderLogo />
+              <div className="mx-brandLine" aria-label="Заголовок">
+                <div className="mx-brandName">Cash A Lot</div>
+                <div className="mx-brandHello">Здравствуйте{displayName ? `, ${displayName}` : ""}</div>
               </div>
 
-              <div className="mx-weather">
-                {weather ? (
-                  <>
-                    {weather.emoji} {Math.round(weather.tempC)}°C
-                    <span className="mx-weatherCity"> Дананг</span>
-                  </>
-                ) : (
-                  "Погода: —"
-                )}
-              </div>
+              <HeaderLogo />
             </div>
 
             <div className="mx-card">
