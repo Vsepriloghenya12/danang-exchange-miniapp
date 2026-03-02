@@ -2374,6 +2374,17 @@ html[data-theme="dark"] .theme-client .mx-headerLogoWrap{
   box-shadow: 0 18px 56px rgba(0,0,0,.84), 0 0 26px rgba(246,198,0,.14) !important;
 }
 
+html[data-theme="dark"] .theme-client .mx-statusWrap{
+  background: #000 !important;
+  border: 1px solid rgba(246,198,0,.36) !important;
+  box-shadow: 0 18px 56px rgba(0,0,0,.84), 0 0 26px rgba(246,198,0,.14) !important;
+}
+
+html[data-theme="dark"] .theme-client .mx-statusWrap::before{
+  opacity: .18;
+  background: linear-gradient(135deg, rgba(246,198,0,.85), rgba(246,198,0,0));
+}
+
 .mx-cardInner{ padding: 14px; }
 
 .mx-cardHead{ display:flex; align-items:flex-start; justify-content:space-between; gap: 10px; margin-bottom: 10px; position: relative; z-index: 1; }
@@ -2444,6 +2455,14 @@ html[data-theme="dark"] .theme-client .mx-headerLogoWrap{
   background: rgba(255,255,255,.96);
   border: 1px solid var(--stroke);
   box-shadow: var(--shadow2);
+  color: rgba(0,0,0,.86);
+}
+
+html[data-theme="dark"] .theme-client .mx-backBtn{
+  background: #000 !important;
+  border: 1px solid rgba(246,198,0,.44) !important;
+  color: var(--text) !important;
+  box-shadow: 0 18px 56px rgba(0,0,0,.84), 0 0 26px rgba(246,198,0,.14) !important;
 }
 
 .mx-hTitle{ font-size: 18px; font-weight: 900; font-family: var(--fontTitle); letter-spacing: 0.04em; }
