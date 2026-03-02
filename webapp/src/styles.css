@@ -109,6 +109,14 @@ body.vx-body-client #root{
 .vx-page a:hover,
 .vx-page a:active{ color: inherit; }
 
+/* iOS/Telegram WebView can paint BUTTON text with system accent (blue) if color isn't set.
+   Force buttons to inherit our palette everywhere. */
+.vx-page button,
+.vx-page button *{
+  color: inherit;
+  font-family: inherit;
+}
+
 .vx-page input,
 .vx-page textarea{
   -webkit-text-fill-color: currentColor;
@@ -2402,6 +2410,7 @@ html[data-theme="dark"] .theme-client .mx-statusWrap::before{
   background: rgba(255,255,255,.98);
   border: 1px solid var(--stroke2);
   box-shadow: var(--shadow2);
+  color: var(--text);
   font-weight: 950;
   letter-spacing: -0.01em;
 }
@@ -2422,6 +2431,7 @@ html[data-theme="dark"] .theme-client .mx-statusWrap::before{
   background: rgba(255,255,255,.96);
   border: 1px solid var(--stroke);
   box-shadow: var(--shadow);
+  color: var(--text);
 }
 
 .mx-navIcon{
