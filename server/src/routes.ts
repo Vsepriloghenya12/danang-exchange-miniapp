@@ -481,6 +481,7 @@ export function createApiRouter(opts: {
       const category = normCategory((req.body as any)?.category);
       const date = String((req.body as any)?.date || '').slice(0, 10);
       const title = String((req.body as any)?.title || '').trim();
+      const comment = String((req.body as any)?.comment || '').trim();
       const detailsUrl = normUrl((req.body as any)?.detailsUrl);
       const locationUrl = normUrl((req.body as any)?.locationUrl);
       const imageDataUrl = typeof (req.body as any)?.imageDataUrl === 'string' ? String((req.body as any).imageDataUrl) : '';
@@ -488,6 +489,7 @@ export function createApiRouter(opts: {
       if (!category) return res.status(400).json({ ok: false, error: 'bad_category' });
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ ok: false, error: 'bad_date' });
       if (title.length < 2) return res.status(400).json({ ok: false, error: 'bad_title' });
+      if (comment && comment.length > 300) return res.status(400).json({ ok: false, error: 'bad_comment' });
       if (!detailsUrl) return res.status(400).json({ ok: false, error: 'bad_details_url' });
       if (!locationUrl) return res.status(400).json({ ok: false, error: 'bad_location_url' });
 
@@ -500,6 +502,7 @@ export function createApiRouter(opts: {
         category,
         date,
         title,
+        ...(comment ? { comment } : {}),
         detailsUrl,
         locationUrl,
         ...(imageUrl ? { imageUrl } : {}),
@@ -534,6 +537,9 @@ export function createApiRouter(opts: {
       const date = dateRaw != null ? String(dateRaw || '').slice(0, 10) : null;
       const titleRaw = (req.body as any)?.title;
       const title = titleRaw != null ? String(titleRaw || '').trim() : null;
+
+      const commentRaw = (req.body as any)?.comment;
+      const comment = commentRaw != null ? String(commentRaw || '').trim() : null;
       const detailsUrlRaw = (req.body as any)?.detailsUrl;
       const detailsUrl = detailsUrlRaw != null ? normUrl(detailsUrlRaw) : null;
       const locationUrlRaw = (req.body as any)?.locationUrl;
@@ -558,6 +564,11 @@ export function createApiRouter(opts: {
       if (titleRaw != null) {
         if (!title || title.length < 2) return res.status(400).json({ ok: false, error: 'bad_title' });
         ev.title = title;
+      }
+
+      if (commentRaw != null) {
+        if (comment && comment.length > 300) return res.status(400).json({ ok: false, error: 'bad_comment' });
+        ev.comment = comment || '';
       }
       if (detailsUrlRaw != null) {
         if (!detailsUrl) return res.status(400).json({ ok: false, error: 'bad_details_url' });

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { apiAfishaClick, apiGetAfisha } from "../lib/api";
-import type { AfishaEvent, AfishaFilterCategory } from "../lib/types";
+import type { AfishaCategory, AfishaEvent, AfishaFilterCategory } from "../lib/types";
 
 function getTg() {
   return (window as any).Telegram?.WebApp;
@@ -85,31 +85,42 @@ function fmtDate(iso: string) {
   }
 }
 
-export default function AfishaTab() {
+export default function AfishaTab({
+  registerBack,
+}: {
+  registerBack?: (fn: () => boolean) => void;
+}) {
   const tg = getTg();
   const initData = tg?.initData || "";
 
-  // No "Все" button in UI. We show category buttons first; events open on a separate list screen.
-  const [category, setCategory] = useState<Exclude<AfishaFilterCategory, "all"> | "">("");
+  type CatKey = Exclude<AfishaFilterCategory, "all">;
+
+  // Category selection screen -> events list screen
+  const [view, setView] = useState<"cats" | "list">("cats");
+
+  // Selected categories for filtering on the list screen (multi-select).
+  // Empty array = "all categories".
+  const [cats, setCats] = useState<AfishaCategory[]>([]);
 
   // Applied filter (used in queries)
   const [datePreset, setDatePreset] = useState<DatePreset>("any");
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
 
-  // Bottom sheet (draft filter)
-  const [sheetOpen, setSheetOpen] = useState(false);
+  // Bottom sheet (date / categories)
+  const [sheet, setSheet] = useState<null | "date" | "cats">(null);
+  const sheetOpen = sheet !== null;
   const [draftPreset, setDraftPreset] = useState<DatePreset>("any");
   const [draftFrom, setDraftFrom] = useState<string>("");
   const [draftTo, setDraftTo] = useState<string>("");
 
-  const [view, setView] = useState<"cats" | "list">("cats");
+  const [draftCats, setDraftCats] = useState<AfishaCategory[]>([]);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [events, setEvents] = useState<AfishaEvent[]>([]);
   const [err, setErr] = useState<string>("");
 
-  // Hide the fixed bottom menu while the sheet is open (prevents overlap with the footer button)
+  // Hide the fixed bottom menu while any sheet is open (prevents overlap with the footer button)
   useEffect(() => {
     try {
       const el = document.documentElement;
@@ -120,6 +131,23 @@ export default function AfishaTab() {
       return;
     }
   }, [sheetOpen]);
+
+  // Let App.tsx override the top header back button:
+  // 1) close an open sheet, 2) go back from list -> categories.
+  useEffect(() => {
+    if (!registerBack) return;
+    registerBack(() => {
+      if (sheetOpen) {
+        setSheet(null);
+        return true;
+      }
+      if (view === "list") {
+        setView("cats");
+        return true;
+      }
+      return false;
+    });
+  }, [registerBack, sheetOpen, view]);
 
   // Swipe-to-close for the bottom sheet
   const sheetRef = useRef<HTMLDivElement | null>(null);
@@ -184,12 +212,53 @@ export default function AfishaTab() {
     setDragY(0);
   };
 
+  // Touch fallback (iOS Telegram WebView can be flaky with pointer events)
+  const touchIdRef = useRef<number | null>(null);
+  const onSheetTouchStart = (e: React.TouchEvent) => {
+    if (!sheetOpen) return;
+    const t = e.target as HTMLElement | null;
+    if (!t || !canStartDrag(t)) return;
+    const touch = e.touches?.[0];
+    if (!touch) return;
+    touchIdRef.current = touch.identifier;
+    startYRef.current = touch.clientY;
+    dragYRef.current = 0;
+    setDragY(0);
+    setDragging(true);
+  };
+  const onSheetTouchMove = (e: React.TouchEvent) => {
+    if (touchIdRef.current == null) return;
+    const touch = Array.from(e.touches).find((x) => x.identifier === touchIdRef.current) || e.touches?.[0];
+    if (!touch) return;
+    const dy = touch.clientY - startYRef.current;
+    const next = dy < 0 ? dy * 0.25 : dy;
+    dragYRef.current = next;
+    setDragY(next);
+    // Prevent page scroll while dragging the sheet
+    if (Math.abs(next) > 6) e.preventDefault();
+  };
+  const onSheetTouchEnd = () => {
+    if (touchIdRef.current == null) return;
+    touchIdRef.current = null;
+    setDragging(false);
+    const dy = dragYRef.current;
+    dragYRef.current = 0;
+    if (dy > 120) {
+      setSheet(null);
+      setDragY(0);
+      return;
+    }
+    setDragY(0);
+  };
+
   useEffect(() => {
     if (!sheetOpen) return;
+    // open a sheet with current values
     setDraftPreset(datePreset);
     setDraftFrom(from);
     setDraftTo(to);
-  }, [sheetOpen, datePreset, from, to]);
+    setDraftCats(cats);
+  }, [sheetOpen, datePreset, from, to, cats]);
 
   function presetRange(p: DatePreset): { from: string; to: string } {
     const now = new Date();
@@ -244,11 +313,25 @@ export default function AfishaTab() {
 
   const appliedLabel = useMemo(() => filterLabel(datePreset, from, to), [datePreset, from, to]);
 
+  const catsLabel = useMemo(() => {
+    if (!cats || cats.length === 0) return "Все категории";
+    if (cats.length === 1) return CATS.find((x) => x.key === cats[0])?.label || "Категория";
+    return `Категории: ${cats.length}`;
+  }, [cats]);
+
   const params = useMemo(() => {
     // load events only when a category is selected and the list screen is open
-    if (view !== "list" || !category) return null;
-    return { category: category as any, from: from || undefined, to: to || undefined };
-  }, [category, from, to, view]);
+    if (view !== "list") return null;
+    // We always load all categories for the selected date range and filter client-side (supports multi-select).
+    return { from: from || undefined, to: to || undefined };
+  }, [from, to, view]);
+
+  const filteredEvents = useMemo(() => {
+    if (!events || events.length === 0) return [];
+    if (!cats || cats.length === 0) return events;
+    const set = new Set(cats);
+    return events.filter((e) => set.has(e.category));
+  }, [events, cats]);
 
   useEffect(() => {
     let alive = true;
@@ -295,16 +378,32 @@ export default function AfishaTab() {
 
   return (
     <div className="mx-afisha">
-      <button type="button" className="mx-filterBtn" onClick={() => setSheetOpen(true)}>
-        <div className="mx-filterBtnLeft">
-          <div className="mx-filterBtnHint">Дата</div>
-          <div className="mx-filterBtnVal">{appliedLabel}</div>
+      {view === "list" ? (
+        <div className="mx-filterRow">
+          <button type="button" className="mx-filterBtn" onClick={() => setSheet("date")}>
+            <div className="mx-filterBtnLeft">
+              <div className="mx-filterBtnHint">Дата</div>
+              <div className="mx-filterBtnVal">{appliedLabel}</div>
+            </div>
+            <div className="mx-filterBtnChev">▾</div>
+          </button>
+          <button type="button" className="mx-filterBtn" onClick={() => setSheet("cats")}> 
+            <div className="mx-filterBtnLeft">
+              <div className="mx-filterBtnHint">Категории</div>
+              <div className="mx-filterBtnVal">{catsLabel}</div>
+            </div>
+            <div className="mx-filterBtnChev">▾</div>
+          </button>
         </div>
-        <div className="mx-filterBtnChev">▾</div>
-      </button>
+      ) : null}
 
       {sheetOpen ? (
-        <div className="mx-sheetOverlay" onClick={() => setSheetOpen(false)} role="dialog" aria-label="Фильтр даты">
+        <div
+          className="mx-sheetOverlay"
+          onClick={() => setSheet(null)}
+          role="dialog"
+          aria-label={sheet === "date" ? "Фильтр даты" : "Фильтр категорий"}
+        >
           <div
             ref={sheetRef}
             className={"mx-sheet" + (dragging ? " is-dragging" : "")}
@@ -313,72 +412,116 @@ export default function AfishaTab() {
             onPointerMove={onSheetPointerMove}
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
+            onTouchStart={onSheetTouchStart}
+            onTouchMove={onSheetTouchMove}
+            onTouchEnd={onSheetTouchEnd}
             style={{
               transform: `translateY(${Math.max(-24, dragY)}px)`,
               transition: dragging ? "none" : undefined,
             }}
           >
             <div className="mx-sheetHandle" />
-            <div className="mx-sheetTitle">Выберите период</div>
 
-            <div ref={listRef} className="mx-sheetList">
-              {DATE_PRESETS.map((p) => (
-                <button
-                  key={p.key}
-                  type="button"
-                  className={"mx-sheetItem " + (draftPreset === p.key ? "on" : "")}
-                  onClick={() => setDraftPreset(p.key)}
-                >
-                  <span className="mx-sheetItemText">{p.label}</span>
-                  {draftPreset === p.key ? <span className="mx-sheetCheck">✓</span> : <span />}
-                </button>
-              ))}
-            </div>
-
-            {draftPreset === "custom" ? (
-              <div className="mx-sheetCustom">
-                <div className="mx-customRow">
-                  <div className="mx-customLbl">С</div>
-                  <input
-                    className="mx-dateInput"
-                    type="date"
-                    value={draftFrom}
-                    onChange={(e) => setDraftFrom(e.target.value)}
-                  />
+            {sheet === "date" ? (
+              <>
+                <div className="mx-sheetTitle">Выберите период</div>
+                <div ref={listRef} className="mx-sheetList">
+                  {DATE_PRESETS.map((p) => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      className={"mx-sheetItem " + (draftPreset === p.key ? "on" : "")}
+                      onClick={() => setDraftPreset(p.key)}
+                    >
+                      <span className="mx-sheetItemText">{p.label}</span>
+                      {draftPreset === p.key ? <span className="mx-sheetCheck">✓</span> : <span />}
+                    </button>
+                  ))}
                 </div>
-                <div className="mx-customRow">
-                  <div className="mx-customLbl">По</div>
-                  <input
-                    className="mx-dateInput"
-                    type="date"
-                    value={draftTo}
-                    onChange={(e) => setDraftTo(e.target.value)}
-                  />
-                </div>
-              </div>
-            ) : null}
 
-            <div className="mx-sheetFooter">
-              <button
-                type="button"
-                className="mx-sheetBtn"
-                onClick={() => {
-                  const p = draftPreset;
-                  setDatePreset(p);
-                  if (p === "custom") {
-                    setFrom(draftFrom);
-                    setTo(draftTo);
-                  } else {
-                    const r = presetRange(p);
-                    setFrom(r.from);
-                    setTo(r.to);
-                  }
-                  setSheetOpen(false);
-                }}
-              >
-                Показать результаты
-              </button>
-            </div>
+                {draftPreset === "custom" ? (
+                  <div className="mx-sheetCustom">
+                    <div className="mx-customRow">
+                      <div className="mx-customLbl">С</div>
+                      <input
+                        className="mx-dateInput"
+                        type="date"
+                        value={draftFrom}
+                        onChange={(e) => setDraftFrom(e.target.value)}
+                      />
+                    </div>
+                    <div className="mx-customRow">
+                      <div className="mx-customLbl">По</div>
+                      <input
+                        className="mx-dateInput"
+                        type="date"
+                        value={draftTo}
+                        onChange={(e) => setDraftTo(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="mx-sheetFooter">
+                  <button
+                    type="button"
+                    className="mx-sheetBtn"
+                    onClick={() => {
+                      const p = draftPreset;
+                      setDatePreset(p);
+                      if (p === "custom") {
+                        setFrom(draftFrom);
+                        setTo(draftTo);
+                      } else {
+                        const r = presetRange(p);
+                        setFrom(r.from);
+                        setTo(r.to);
+                      }
+                      setSheet(null);
+                    }}
+                  >
+                    Показать результаты
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mx-sheetTitle">Выберите категории</div>
+                <div ref={listRef} className="mx-sheetList">
+                  {CATS.map((c) => {
+                    const on = draftCats.includes(c.key);
+                    return (
+                      <button
+                        key={c.key}
+                        type="button"
+                        className={"mx-sheetItem " + (on ? "on" : "")}
+                        onClick={() => {
+                          setDraftCats((prev) => {
+                            const has = prev.includes(c.key);
+                            return has ? prev.filter((x) => x !== c.key) : [...prev, c.key];
+                          });
+                        }}
+                      >
+                        <span className="mx-sheetItemText">{c.label}</span>
+                        {on ? <span className="mx-sheetCheck">✓</span> : <span />}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mx-sheetFooter">
+                  <button
+                    type="button"
+                    className="mx-sheetBtn"
+                    onClick={() => {
+                      setCats(draftCats);
+                      setSheet(null);
+                    }}
+                  >
+                    Показать результаты
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       ) : null}
@@ -391,7 +534,7 @@ export default function AfishaTab() {
               type="button"
               className={"mx-afCatBtn mx-afCat--" + c.key}
               onClick={() => {
-                setCategory(c.key);
+                setCats([c.key as AfishaCategory]);
                 setView("list");
               }}
             >
@@ -410,20 +553,22 @@ export default function AfishaTab() {
               className="mx-afBack"
               onClick={() => {
                 setView("cats");
-                setCategory("");
+                setCats([]);
               }}
             >
               ← Категории
             </button>
-            <div className="mx-afTopTitle">{CATS.find((x) => x.key === category)?.label || ""}</div>
+            <div className="mx-afTopTitle">
+              {cats && cats.length === 1 ? CATS.find((x) => x.key === cats[0])?.label || "" : catsLabel}
+            </div>
           </div>
 
           {loading ? <div className="mx-muted">Загрузка…</div> : null}
           {!loading && err ? <div className="mx-muted">{err}</div> : null}
-          {!loading && !err && events.length === 0 ? <div className="mx-muted">Пока нет мероприятий.</div> : null}
+          {!loading && !err && filteredEvents.length === 0 ? <div className="mx-muted">Пока нет мероприятий.</div> : null}
 
           <div className="mx-list">
-            {events.map((ev) => (
+            {filteredEvents.map((ev) => (
               <div
                 key={ev.id}
                 className={"mx-afEvCard" + (ev.imageUrl ? " has-img" : "")}
@@ -431,13 +576,14 @@ export default function AfishaTab() {
               >
                 <div className="mx-afEvBody">
                   <div className="mx-afTitle">{ev.title}</div>
+                  {ev.comment ? <div className="mx-afComment">{ev.comment}</div> : null}
                   <div className="mx-afMeta">{fmtDate(ev.date)}</div>
 
                   <div className="mx-btnRow" style={{ marginTop: 10 }}>
-                    <button type="button" className="mx-btn" onClick={() => onClick(ev, "details")}>
+                    <button type="button" className="mx-btn mx-afLinkBtn" onClick={() => onClick(ev, "details")}>
                       Подробнее
                     </button>
-                    <button type="button" className="mx-btn mx-btnPrimary" onClick={() => onClick(ev, "location")}>
+                    <button type="button" className="mx-btn mx-btnPrimary mx-afLinkBtn" onClick={() => onClick(ev, "location")}>
                       Локация
                     </button>
                   </div>

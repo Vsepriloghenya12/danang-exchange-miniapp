@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getTg } from "./lib/telegram";
 import { apiAuth } from "./lib/api";
 import type { UserStatus } from "./lib/types";
@@ -31,8 +31,32 @@ type ScreenKey = "home" | "calc" | "afisha" | "atm" | "reviews" | "staff" | "his
 const UI = {
   title: "Обмен валют — Дананг",
   fontImport:
-    "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&family=Allura&family=Unbounded:wght@600;700;800;900&display=swap",
+    "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&family=Allura&display=swap",
 };
+
+function IconSun({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" />
+      <path d="M12 2v2" />
+      <path d="M12 20v2" />
+      <path d="M4.93 4.93l1.41 1.41" />
+      <path d="M17.66 17.66l1.41 1.41" />
+      <path d="M2 12h2" />
+      <path d="M20 12h2" />
+      <path d="M4.93 19.07l1.41-1.41" />
+      <path d="M17.66 6.34l1.41-1.41" />
+    </svg>
+  );
+}
+
+function IconMoon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M21 13.2A8.5 8.5 0 0 1 10.8 3a6.5 6.5 0 1 0 10.2 10.2Z" />
+    </svg>
+  );
+}
 
 function IconArrowLeft({ className = "" }: { className?: string }) {
   return (
@@ -193,6 +217,30 @@ export default function App() {
     return <OwnerPortal />;
   }
 
+  // Light/Dark toggle for the client miniapp.
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    try {
+      const v = String(localStorage.getItem("mx_theme") || "").toLowerCase();
+      return v === "dark" ? "dark" : "light";
+    } catch {
+      return "light";
+    }
+  });
+
+  useEffect(() => {
+    try {
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem("mx_theme", theme);
+    } catch {
+      // ignore
+    }
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+
+  // Allow Afisha screen to override the back button (e.g. return from list -> categories).
+  const afishaBackRef = useRef<null | (() => boolean)>(null);
+
   useEffect(() => {
     try {
       document.body.classList.add("vx-body-client");
@@ -344,6 +392,15 @@ export default function App() {
         {screen === "home" ? (
           <>
             <div className="mx-topRow">
+              <button
+                type="button"
+                className="mx-themeBtn"
+                onClick={toggleTheme}
+                aria-label={theme === "dark" ? "Тёмная тема" : "Светлая тема"}
+              >
+                {theme === "dark" ? <IconMoon className="mx-themeI" /> : <IconSun className="mx-themeI" />}
+              </button>
+
               <button type="button" className="mx-statusBtn" onClick={showStatusInfo} aria-label="Ваш статус">
                 <StatusIcon status={me.status} />
               </button>
@@ -370,7 +427,7 @@ export default function App() {
 
               <div className="mx-btnRow">
                 <button type="button" className="mx-btn" onClick={() => setCourseExpanded((v) => !v)}>
-                  {courseExpanded ? "Свернуть" : "Весь курс"}
+                  {courseExpanded ? "Свернуть" : "Все курсы"}
                 </button>
                 <button
                   type="button"
@@ -432,8 +489,14 @@ export default function App() {
 
         {screen === "afisha" ? (
           <>
-            <ScreenHeader title="Афиша" onBack={goHome} />
-            <AfishaTab />
+            <ScreenHeader
+              title="Афиша"
+              onBack={() => {
+                const handled = afishaBackRef.current?.() ?? false;
+                if (!handled) goHome();
+              }}
+            />
+            <AfishaTab registerBack={(fn) => (afishaBackRef.current = fn)} />
           </>
         ) : null}
 

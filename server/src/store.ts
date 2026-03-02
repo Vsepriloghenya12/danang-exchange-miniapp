@@ -27,6 +27,8 @@ export type AfishaEvent = {
   category: AfishaCategory;
   date: string; // YYYY-MM-DD
   title: string;
+  // optional short note/comment shown under the title in the client
+  comment?: string;
   detailsUrl: string;
   locationUrl: string;
   imageUrl?: string;
@@ -342,6 +344,12 @@ export function readStore(): Store {
     if (!ev.clicks) { ev.clicks = { details: 0, location: 0 }; dirty = true; }
     if (typeof ev.clicks.details !== 'number') { ev.clicks.details = Number(ev.clicks.details)||0; dirty = true; }
     if (typeof ev.clicks.location !== 'number') { ev.clicks.location = Number(ev.clicks.location)||0; dirty = true; }
+
+    // comment is optional but should be a string when present
+    if (ev.comment != null && typeof ev.comment !== 'string') {
+      ev.comment = String(ev.comment || '');
+      dirty = true;
+    }
   }
 
   // миграция статусов

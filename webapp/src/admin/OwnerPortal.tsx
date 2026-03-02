@@ -143,6 +143,7 @@ export default function OwnerPortal() {
   const [afCreateCategory, setAfCreateCategory] = useState<string>("sport");
   const [afCreateDate, setAfCreateDate] = useState<string>(() => todayISO());
   const [afCreateTitle, setAfCreateTitle] = useState<string>("");
+  const [afCreateComment, setAfCreateComment] = useState<string>("");
   const [afCreateDetailsUrl, setAfCreateDetailsUrl] = useState<string>("");
   const [afCreateLocationUrl, setAfCreateLocationUrl] = useState<string>("");
   const [afCreateImageDataUrl, setAfCreateImageDataUrl] = useState<string | null>(null);
@@ -151,6 +152,7 @@ export default function OwnerPortal() {
   const [afEditCategory, setAfEditCategory] = useState<string>("sport");
   const [afEditDate, setAfEditDate] = useState<string>("");
   const [afEditTitle, setAfEditTitle] = useState<string>("");
+  const [afEditComment, setAfEditComment] = useState<string>("");
   const [afEditDetailsUrl, setAfEditDetailsUrl] = useState<string>("");
   const [afEditLocationUrl, setAfEditLocationUrl] = useState<string>("");
   const [afEditImageUrl, setAfEditImageUrl] = useState<string>("");
@@ -259,6 +261,7 @@ export default function OwnerPortal() {
     setAfEditCategory(String(ev.category || 'sport'));
     setAfEditDate(String(ev.date || ''));
     setAfEditTitle(String(ev.title || ''));
+    setAfEditComment(String(ev.comment || ''));
     setAfEditDetailsUrl(String(ev.detailsUrl || ''));
     setAfEditLocationUrl(String(ev.locationUrl || ''));
     setAfEditImageUrl(String(ev.imageUrl || ''));
@@ -281,6 +284,7 @@ export default function OwnerPortal() {
       category: afCreateCategory,
       date: afCreateDate,
       title: afCreateTitle.trim(),
+      comment: afCreateComment.trim(),
       detailsUrl: afCreateDetailsUrl.trim(),
       locationUrl: afCreateLocationUrl.trim(),
       imageDataUrl: afCreateImageDataUrl || undefined,
@@ -289,6 +293,7 @@ export default function OwnerPortal() {
     if (!r?.ok) return showErr(r?.error || 'Ошибка');
     showOk('Создано');
     setAfCreateTitle('');
+    setAfCreateComment('');
     setAfCreateDetailsUrl('');
     setAfCreateLocationUrl('');
     setAfCreateImageDataUrl(null);
@@ -301,6 +306,7 @@ export default function OwnerPortal() {
       category: afEditCategory,
       date: afEditDate,
       title: afEditTitle.trim(),
+      comment: afEditComment.trim(),
       detailsUrl: afEditDetailsUrl.trim(),
       locationUrl: afEditLocationUrl.trim(),
     };
@@ -329,6 +335,16 @@ export default function OwnerPortal() {
 
         <div className="vx-sp8" />
         <input className="input vx-in" value={afEditTitle} onChange={(e) => setAfEditTitle(e.target.value)} placeholder="Название" />
+
+        <div className="vx-sp8" />
+        <textarea
+          className="input vx-in"
+          value={afEditComment}
+          onChange={(e) => setAfEditComment(e.target.value)}
+          placeholder="Комментарий (покажется у клиента под названием)"
+          rows={3}
+          style={{ resize: 'vertical' }}
+        />
 
         <div className="vx-sp10" />
         <div className="vx-muted">Фото мероприятия</div>
@@ -1308,6 +1324,16 @@ export default function OwnerPortal() {
 
             <div className="vx-sp8" />
             <input className="input vx-in" value={afCreateTitle} onChange={(e) => setAfCreateTitle(e.target.value)} placeholder="Название мероприятия" />
+
+            <div className="vx-sp8" />
+            <textarea
+              className="input vx-in"
+              value={afCreateComment}
+              onChange={(e) => setAfCreateComment(e.target.value)}
+              placeholder="Комментарий (покажется у клиента под названием)"
+              rows={3}
+              style={{ resize: 'vertical' }}
+            />
 
             <div className="vx-sp10" />
             <div className="vx-muted">Фото мероприятия (будет фоном карточки у клиента)</div>

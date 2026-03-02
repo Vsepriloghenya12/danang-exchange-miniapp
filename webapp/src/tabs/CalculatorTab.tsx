@@ -762,7 +762,6 @@ export default function CalculatorTab({ me }: Props) {
   return (
     <div className="vx-calc">
       <div className="vx-calcTitle">
-        <div className="vx-title18">Калькулятор</div>
         <div className="vx-muted">Статус: {statusLabel(clientStatus)}</div>
       </div>
 

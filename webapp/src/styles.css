@@ -1,9 +1,21 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&family=Allura&family=Unbounded:wght@600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&family=Great+Vibes&family=Allura&display=swap");
+
+/* Circular Std Bold (user-provided font files).
+   Put files here (optional): webapp/public/fonts/CircularStd-Bold.woff2 + .woff */
+@font-face{
+  font-family: "Circular Std";
+  src:
+    url("/fonts/CircularStd-Bold.woff2") format("woff2"),
+    url("/fonts/CircularStd-Bold.woff") format("woff");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root{
   color-scheme: light;
   --font: "Manrope", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-  --fontTitle: "Unbounded", "Manrope", "Inter", ui-sans-serif, system-ui;
+  --fontTitle: "Circular Std", "Manrope", "Inter", ui-sans-serif, system-ui;
   --fontScript: "Allura", "Great Vibes", cursive;
 
   /* Poputchiki-like palette (glass) */
@@ -91,6 +103,17 @@ body.vx-body-client #root{
 }
 .vx-page *{ box-sizing: border-box; }
 
+/* iOS/Safari sometimes paints links or form text in system blue. Force our palette. */
+.vx-page a,
+.vx-page a:visited,
+.vx-page a:hover,
+.vx-page a:active{ color: inherit; }
+
+.vx-page input,
+.vx-page textarea{
+  -webkit-text-fill-color: currentColor;
+}
+
 /* Background image centered to app width (poputchiki trick).
    Replace this file to change background:
    webapp/public/brand/danang-bg.svg */
@@ -117,36 +140,50 @@ body.vx-body-client #root{
    Owner/admin pages keep the default light theme.
    ========================= */
 
+/* Light theme (sun): clean + readable. */
+html[data-theme="light"] .theme-client{
+  color-scheme: light;
+  --text: rgba(0,0,0,.92);
+  --muted: rgba(0,0,0,.66);
+  --muted2: rgba(0,0,0,.50);
+  --ph: rgba(0,0,0,.42);
+}
+
+html[data-theme="light"] .theme-client.vx-page{
+  color: var(--text);
+}
+
 /* Skipass-like dark glass theme */
-.theme-client{
+html[data-theme="dark"] .theme-client{
   color-scheme: dark;
   /* Premium tech: Cyrillic-friendly */
   --font: "Manrope", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
 
   /* base */
   --sky: #000;
-  --text: rgba(248,250,255,.95);
-  --muted: rgba(248,250,255,.70);
-  --muted2: rgba(248,250,255,.52);
-  --ph: rgba(248,250,255,.40);
+  /* text is yellow (as requested) */
+  --text: rgba(246,198,0,.98);
+  --muted: rgba(246,198,0,.72);
+  --muted2: rgba(246,198,0,.54);
+  --ph: rgba(246,198,0,.44);
 
   /* surfaces (matte, NOT transparent) */
   --panel: rgba(10,10,10,1);
   --panel2: rgba(14,14,14,.98);
 
-  --stroke: rgba(255,255,255,.12);
-  --stroke2: rgba(255,255,255,.18);
+  --stroke: rgba(246,198,0,.26);
+  --stroke2: rgba(246,198,0,.44);
 
-  /* neon edge lighting (premium yellow) */
-  --neon: rgba(255,218,125,1);
-  --neonEdge: rgba(255,218,125,.70);
-  --neonEdge2: rgba(255,218,125,.36);
-  --neonBloom1: rgba(255,218,125,.24);
-  --neonBloom2: rgba(255,218,125,.12);
+  /* neon edge lighting (yellow) */
+  --neon: rgba(246,198,0,1);
+  --neonEdge: rgba(246,198,0,.72);
+  --neonEdge2: rgba(246,198,0,.40);
+  --neonBloom1: rgba(246,198,0,.24);
+  --neonBloom2: rgba(246,198,0,.12);
 
   /* money accent (subtle, for labels / small accents) */
-  --sun: #ffd88a;
-  --sun2: #fff0c7;
+  --sun: #f6c600;
+  --sun2: #ffe37a;
 
   /* optional accent colors (if needed per-tab) */
   --aGreen: #2de36e;
@@ -154,34 +191,34 @@ body.vx-body-client #root{
   --aBlue: #3ba3ff;
 
   /* depth */
-  --shadow: 0 30px 96px rgba(0,0,0,.82);
-  --shadow2: 0 18px 54px rgba(0,0,0,.66);
-  --ring: 0 0 0 4px rgba(255,218,125,.14);
+  --shadow: 0 30px 96px rgba(0,0,0,.86), 0 0 40px rgba(246,198,0,.10);
+  --shadow2: 0 18px 54px rgba(0,0,0,.70), 0 0 24px rgba(246,198,0,.14);
+  --ring: 0 0 0 4px rgba(246,198,0,.14);
 }
 
-.theme-client.vx-page{
+html[data-theme="dark"] .theme-client.vx-page{
   background: #000;
   color: var(--text);
 }
 
 /* More interesting typography for screen headers + in-tab headings */
-.theme-client .mx-hTitle,
-.theme-client .h1,
-.theme-client .h2,
-.theme-client .h3{
+html[data-theme="dark"] .theme-client .mx-hTitle,
+html[data-theme="dark"] .theme-client .h1,
+html[data-theme="dark"] .theme-client .h2,
+html[data-theme="dark"] .theme-client .h3{
   font-family: var(--fontTitle);
   letter-spacing: 0.05em;
   text-shadow: 0 10px 26px rgba(0,0,0,.55);
 }
 
-.theme-client .bg-danang{
+html[data-theme="dark"] .theme-client .bg-danang{
   background-color: #000;
   /* Cover full viewport to avoid any bleed on wide screens */
   left: 0;
   transform: none;
   width: 100vw;
 }
-.theme-client .bg-danang::before{
+html[data-theme="dark"] .theme-client .bg-danang::before{
   content:"";
   position:absolute;
   inset:0;
@@ -197,7 +234,7 @@ body.vx-body-client #root{
   mix-blend-mode: normal;
   filter: none;
 }
-.theme-client .bg-danang::after{
+html[data-theme="dark"] .theme-client .bg-danang::after{
   content:"";
   position:absolute;
   inset:0;
@@ -210,66 +247,66 @@ body.vx-body-client #root{
 }
 
 
-.theme-client .container{ max-width: 420px; }
+html[data-theme="dark"] .theme-client .container{ max-width: 420px; }
 
 /* Matte surfaces: blocks are NOT transparent.
    The ripple stays in the background, while UI elements look like "dark gadget" tiles. */
-.theme-client .card,
-.theme-client .vx-card2{
+html[data-theme="dark"] .theme-client .card,
+html[data-theme="dark"] .theme-client .vx-card2{
   background: var(--panel2) !important;
   border: 1px solid rgba(255,255,255,.10) !important;
   box-shadow: 0 22px 74px rgba(0,0,0,.72), 0 0 0 1px rgba(0,0,0,.45) inset !important;
   backdrop-filter: none !important;
 }
-.theme-client .card{ padding: 14px; }
-.theme-client .vx-topCard{ padding: 10px 2px 8px; }
-.theme-client .vx-topRow{
+html[data-theme="dark"] .theme-client .card{ padding: 14px; }
+html[data-theme="dark"] .theme-client .vx-topCard{ padding: 10px 2px 8px; }
+html[data-theme="dark"] .theme-client .vx-topRow{
   border-bottom: 0;
   margin-bottom: 8px;
   padding-bottom: 0;
 }
 
-.theme-client .vx-logo{
+html[data-theme="dark"] .theme-client .vx-logo{
   background: rgba(255,255,255,.04);
-  border: 1px solid rgba(248,252,255,.14);
-  box-shadow: 0 0 0 1px rgba(248,252,255,.08) inset, 0 0 34px rgba(255,218,125,.14), 0 12px 30px rgba(0,0,0,.55);
+  border: 1px solid rgba(246,198,0,.28);
+  box-shadow: 0 0 0 1px rgba(246,198,0,.12) inset, 0 0 34px rgba(246,198,0,.14), 0 12px 30px rgba(0,0,0,.55);
 }
-.theme-client .vx-logoFallback{ color: rgba(255,216,138,.92); }
-.theme-client .vx-title{ color: rgba(255,255,255,.94); }
-.theme-client .vx-topSub{ color: rgba(255,255,255,.66); }
+html[data-theme="dark"] .theme-client .vx-logoFallback{ color: var(--text); }
+html[data-theme="dark"] .theme-client .vx-title{ color: var(--text); }
+html[data-theme="dark"] .theme-client .vx-topSub{ color: var(--muted); }
 
-.theme-client .vx-title{
+html[data-theme="dark"] .theme-client .vx-title{
   font-size: 26px;
   font-weight: 950;
   letter-spacing: -0.02em;
 }
-.theme-client .vx-topSub{
+html[data-theme="dark"] .theme-client .vx-topSub{
   font-size: 12.5px;
   font-weight: 800;
   opacity: .95;
 }
 
 /* Inputs */
-.theme-client.vx-page input,
-.theme-client.vx-page select,
-.theme-client.vx-page textarea{
+html[data-theme="dark"] .theme-client.vx-page input,
+html[data-theme="dark"] .theme-client.vx-page select,
+html[data-theme="dark"] .theme-client.vx-page textarea{
   background: rgba(8,8,8,.96);
-  border-color: rgba(255,255,255,0.16);
-  color: rgba(255,255,255,.92);
+  border-color: var(--stroke2);
+  color: var(--text);
   border-radius: 22px;
   box-shadow:
     0 18px 54px rgba(0,0,0,.60),
-    0 0 0 1px rgba(255,255,255,.06) inset,
-    0 1px 0 rgba(255,255,255,.06) inset;
+    0 0 0 1px rgba(246,198,0,.10) inset,
+    0 1px 0 rgba(246,198,0,.10) inset;
 }
-.theme-client.vx-page input::placeholder,
-.theme-client.vx-page textarea::placeholder{ color: rgba(255,255,255,.40); }
+html[data-theme="dark"] .theme-client.vx-page input::placeholder,
+html[data-theme="dark"] .theme-client.vx-page textarea::placeholder{ color: var(--ph); }
 
-.theme-client.vx-page input:focus,
-.theme-client.vx-page select:focus,
-.theme-client.vx-page textarea:focus{
-  border-color: rgba(255,218,125,.75);
-  box-shadow: 0 0 0 4px rgba(255,218,125,.12), 0 18px 56px rgba(0,0,0,.54), 0 0 34px var(--neonBloom1);
+html[data-theme="dark"] .theme-client.vx-page input:focus,
+html[data-theme="dark"] .theme-client.vx-page select:focus,
+html[data-theme="dark"] .theme-client.vx-page textarea:focus{
+  border-color: rgba(246,198,0,.78);
+  box-shadow: 0 0 0 4px rgba(246,198,0,.12), 0 18px 56px rgba(0,0,0,.54), 0 0 34px var(--neonBloom1);
 }
 
 /* =============================================================
@@ -278,66 +315,65 @@ body.vx-body-client #root{
    Look: matte black surface + cold neon edge lighting + soft bloom
    as if an LED strip is BEHIND the button (separate hovering tile).
    ============================================================= */
-.theme-client .btn,
-.theme-client .vx-primary,
-.theme-client .vx-iconBtn,
-.theme-client .vx-btnGhost,
-.theme-client .vx-navBtn,
-.theme-client .vx-bankBtn,
-.theme-client .vx-blankBtn{
+html[data-theme="dark"] .theme-client .btn,
+html[data-theme="dark"] .theme-client .vx-primary,
+html[data-theme="dark"] .theme-client .vx-iconBtn,
+html[data-theme="dark"] .theme-client .vx-btnGhost,
+html[data-theme="dark"] .theme-client .vx-navBtn,
+html[data-theme="dark"] .theme-client .vx-bankBtn,
+html[data-theme="dark"] .theme-client .vx-blankBtn{
   position: relative;
   z-index: 0;
   overflow: visible;
   -webkit-tap-highlight-color: transparent;
 
-  background: rgba(10,10,10,.96) !important;
-  border: 1px solid rgba(255,255,255,.08) !important;
-  color: rgba(255,255,255,.92) !important;
+  background: rgba(6,6,6,.98) !important;
+  border: 1px solid rgba(246,198,0,.38) !important;
+  color: var(--text) !important;
 
   transform: translateY(-1px);
   box-shadow:
     0 26px 70px rgba(0,0,0,.78),
     0 12px 28px rgba(0,0,0,.62),
-    0 0 0 1px rgba(255,255,255,.05) inset,
-    0 1px 0 rgba(255,255,255,.08) inset,
+    0 0 0 1px rgba(246,198,0,.08) inset,
+    0 1px 0 rgba(246,198,0,.10) inset,
     0 -18px 30px rgba(0,0,0,.58) inset,
     0 -1px 0 rgba(0,0,0,.55) inset;
   border-radius: 999px;
   transition: transform 0.10s ease, filter 0.16s ease, box-shadow 0.20s ease;
 }
 
-.theme-client .vx-primary{
-  border-color: rgba(248,252,255,.22) !important;
-  /* money accent on text only */
-  color: rgba(255,216,138,.96) !important;
+html[data-theme="dark"] .theme-client .vx-primary{
+  border-color: rgba(246,198,0,.52) !important;
+  color: var(--text) !important;
   letter-spacing: -0.01em;
 }
 
 
 /* Rounded-square tiles (bank buttons, small icon tiles) */
-.theme-client .vx-bankBtn,
-.theme-client .vx-blankBtn{
+html[data-theme="dark"] .theme-client .vx-bankBtn,
+html[data-theme="dark"] .theme-client .vx-blankBtn{
   border-radius: 20px !important;
   height: 48px;
 }
-.theme-client .vx-blankBtn{ width: 52px; }
+html[data-theme="dark"] .theme-client .vx-blankBtn{ width: 52px; }
 /* Bloom behind the button (LED strip behind) */
-.theme-client .btn::before,
-.theme-client .vx-primary::before,
-.theme-client .vx-iconBtn::before,
-.theme-client .vx-btnGhost::before,
-.theme-client .vx-navBtn::before,
-.theme-client .vx-bankBtn::before,
-.theme-client .vx-blankBtn::before{
+html[data-theme="dark"] .theme-client .btn::before,
+html[data-theme="dark"] .theme-client .vx-primary::before,
+html[data-theme="dark"] .theme-client .vx-iconBtn::before,
+html[data-theme="dark"] .theme-client .vx-btnGhost::before,
+html[data-theme="dark"] .theme-client .vx-navBtn::before,
+html[data-theme="dark"] .theme-client .vx-bankBtn::before,
+html[data-theme="dark"] .theme-client .vx-blankBtn::before{
   content: "";
   position: absolute;
   inset: -8px;
   border-radius: inherit;
   background: transparent;
   box-shadow:
-    0 0 8px rgba(255,218,125,.14),
-    0 0 18px rgba(255,218,125,.08),
-    0 0 40px rgba(255,218,125,.05);
+    0 0 8px rgba(246,198,0,.18),
+    0 0 18px rgba(246,198,0,.10),
+    0 0 48px rgba(246,198,0,.06);
   filter: blur(10px);
   opacity: .22;
   transform: scale(.98);
@@ -345,24 +381,24 @@ body.vx-body-client #root{
   pointer-events: none;
   z-index: -1;
 }
-.theme-client .vx-primary::before{
+html[data-theme="dark"] .theme-client .vx-primary::before{
   opacity: .28;
   box-shadow:
-    0 0 10px rgba(255,218,125,.18),
-    0 0 24px rgba(255,218,125,.10),
-    0 0 54px rgba(255,218,125,.06);
+    0 0 10px rgba(246,198,0,.22),
+    0 0 24px rgba(246,198,0,.12),
+    0 0 60px rgba(246,198,0,.08);
 }
 
 /* Neon edge lighting (thin outline + tiny contour bloom)
    This makes buttons look like "expensive dark gadget".
 */
-.theme-client .btn::after,
-.theme-client .vx-primary::after,
-.theme-client .vx-iconBtn::after,
-.theme-client .vx-btnGhost::after,
-.theme-client .vx-navBtn::after,
-.theme-client .vx-bankBtn::after,
-.theme-client .vx-blankBtn::after{
+html[data-theme="dark"] .theme-client .btn::after,
+html[data-theme="dark"] .theme-client .vx-primary::after,
+html[data-theme="dark"] .theme-client .vx-iconBtn::after,
+html[data-theme="dark"] .theme-client .vx-btnGhost::after,
+html[data-theme="dark"] .theme-client .vx-navBtn::after,
+html[data-theme="dark"] .theme-client .vx-bankBtn::after,
+html[data-theme="dark"] .theme-client .vx-blankBtn::after{
   content: "";
   position: absolute;
   inset: 0;
@@ -375,15 +411,15 @@ body.vx-body-client #root{
 }
 
 /* Selected states: keep the LED edge glow even without pressing */
-.theme-client .vx-navBtnActive::before,
-.theme-client .vx-bankBtn.is-on::before{
+html[data-theme="dark"] .theme-client .vx-navBtnActive::before,
+html[data-theme="dark"] .theme-client .vx-bankBtn.is-on::before{
   opacity: .70;
   inset: -10px;
   filter: blur(13px);
   transform: scale(1.01);
 }
-.theme-client .vx-navBtnActive::after,
-.theme-client .vx-bankBtn.is-on::after{
+html[data-theme="dark"] .theme-client .vx-navBtnActive::after,
+html[data-theme="dark"] .theme-client .vx-bankBtn.is-on::after{
   opacity: 1;
   box-shadow:
     0 0 0 1px rgba(255,235,170,.78) inset,
@@ -392,13 +428,13 @@ body.vx-body-client #root{
     0 0 44px rgba(255,218,125,.12);
 }
 
-.theme-client .btn:active,
-.theme-client .vx-primary:active,
-.theme-client .vx-iconBtn:active,
-.theme-client .vx-btnGhost:active,
-.theme-client .vx-navBtn:active,
-.theme-client .vx-bankBtn:active,
-.theme-client .vx-blankBtn:active{
+html[data-theme="dark"] .theme-client .btn:active,
+html[data-theme="dark"] .theme-client .vx-primary:active,
+html[data-theme="dark"] .theme-client .vx-iconBtn:active,
+html[data-theme="dark"] .theme-client .vx-btnGhost:active,
+html[data-theme="dark"] .theme-client .vx-navBtn:active,
+html[data-theme="dark"] .theme-client .vx-bankBtn:active,
+html[data-theme="dark"] .theme-client .vx-blankBtn:active{
   transform: translateY(1px) scale(0.99);
   filter: brightness(1.04);
   box-shadow:
@@ -406,25 +442,25 @@ body.vx-body-client #root{
     0 0 0 1px rgba(248,252,255,.16) inset,
     0 1px 0 rgba(255,255,255,.10) inset;
 }
-.theme-client .btn:active::before,
-.theme-client .vx-primary:active::before,
-.theme-client .vx-iconBtn:active::before,
-.theme-client .vx-btnGhost:active::before,
-.theme-client .vx-navBtn:active::before,
-.theme-client .vx-bankBtn:active::before,
-.theme-client .vx-blankBtn:active::before{
+html[data-theme="dark"] .theme-client .btn:active::before,
+html[data-theme="dark"] .theme-client .vx-primary:active::before,
+html[data-theme="dark"] .theme-client .vx-iconBtn:active::before,
+html[data-theme="dark"] .theme-client .vx-btnGhost:active::before,
+html[data-theme="dark"] .theme-client .vx-navBtn:active::before,
+html[data-theme="dark"] .theme-client .vx-bankBtn:active::before,
+html[data-theme="dark"] .theme-client .vx-blankBtn:active::before{
   opacity: 1;
   transform: scale(1.02);
   filter: blur(14px);
 }
 
-.theme-client .btn:active::after,
-.theme-client .vx-primary:active::after,
-.theme-client .vx-iconBtn:active::after,
-.theme-client .vx-btnGhost:active::after,
-.theme-client .vx-navBtn:active::after,
-.theme-client .vx-bankBtn:active::after,
-.theme-client .vx-blankBtn:active::after{
+html[data-theme="dark"] .theme-client .btn:active::after,
+html[data-theme="dark"] .theme-client .vx-primary:active::after,
+html[data-theme="dark"] .theme-client .vx-iconBtn:active::after,
+html[data-theme="dark"] .theme-client .vx-btnGhost:active::after,
+html[data-theme="dark"] .theme-client .vx-navBtn:active::after,
+html[data-theme="dark"] .theme-client .vx-bankBtn:active::after,
+html[data-theme="dark"] .theme-client .vx-blankBtn:active::after{
   opacity: 1;
   box-shadow:
     0 0 0 1px rgba(255,218,125,.86) inset,
@@ -434,12 +470,12 @@ body.vx-body-client #root{
 }
 
 /* Active state (filters, selected) should look fully lit */
-.theme-client .btn.vx-btnOn{
+html[data-theme="dark"] .theme-client .btn.vx-btnOn{
   background: rgba(12,12,12,.78) !important;
   border: 1px solid rgba(248,252,255,.28) !important;
   color: rgba(255,255,255,.96) !important;
 }
-.theme-client .btn.vx-btnOn::before{ opacity: .86; transform: scale(1.01); filter: blur(12px); }
+html[data-theme="dark"] .theme-client .btn.vx-btnOn::before{ opacity: .86; transform: scale(1.01); filter: blur(12px); }
 
 /* Admin toggle buttons (bonuses ON/OFF)
    Fixes "white text on white button" in the dark theme.
@@ -455,23 +491,23 @@ body.vx-body-client #root{
   border: 1px solid rgba(9,23,33,.14) !important;
   box-shadow: none !important;
 }
-.theme-client .vx-toggleBtn.is-on{
+html[data-theme="dark"] .theme-client .vx-toggleBtn.is-on{
   background: rgba(255,218,125,.96) !important;
   color: rgba(12,12,12,.92) !important;
 }
-.theme-client .vx-toggleBtn.is-off{
+html[data-theme="dark"] .theme-client .vx-toggleBtn.is-off{
   background: rgba(255,255,255,.05) !important;
   color: rgba(255,255,255,.86) !important;
   border: 1px solid rgba(255,255,255,.14) !important;
   box-shadow: 0 18px 56px rgba(0,0,0,.62), 0 0 0 1px rgba(255,255,255,.06) inset !important;
 }
-.theme-client .vx-iconBtn:active::before{
+html[data-theme="dark"] .theme-client .vx-iconBtn:active::before{
   opacity: 1;
   transform: scale(1.02);
 }
 
 /* Status buttons used in admin/client lists (avoid "white on white" inside dark theme) */
-.theme-client .btn.vx-statusBtn{
+html[data-theme="dark"] .theme-client .btn.vx-statusBtn{
   background: rgba(255,255,255,.05) !important;
   border: 1px solid rgba(255,255,255,.14) !important;
   color: rgba(255,255,255,.86) !important;
@@ -482,20 +518,20 @@ body.vx-body-client #root{
 }
 
 /* Small chips / pills */
-.theme-client .vx-pill,
-.theme-client .vx-revCompose,
-.theme-client .vx-revCard{
+html[data-theme="dark"] .theme-client .vx-pill,
+html[data-theme="dark"] .theme-client .vx-revCompose,
+html[data-theme="dark"] .theme-client .vx-revCard{
   background: rgba(10,10,10,.96) !important;
   border-color: rgba(255,255,255,.12) !important;
   box-shadow: 0 14px 40px rgba(0,0,0,.50), 0 0 18px var(--neonBloom2);
 }
 
 /* Make pills look like small neon tiles too */
-.theme-client .vx-pill{
+html[data-theme="dark"] .theme-client .vx-pill{
   position: relative;
   overflow: visible;
 }
-.theme-client .vx-pill::before{
+html[data-theme="dark"] .theme-client .vx-pill::before{
   content:"";
   position:absolute;
   inset:-8px;
@@ -506,7 +542,7 @@ body.vx-body-client #root{
   opacity: .18;
   z-index:-1;
 }
-.theme-client .vx-pill::after{
+html[data-theme="dark"] .theme-client .vx-pill::after{
   content:"";
   position:absolute;
   inset:0;
@@ -519,26 +555,26 @@ body.vx-body-client #root{
 }
 
 /* Tables keep their own wrap; list & calculator are matte tiles */
-.theme-client .vx-table{
+html[data-theme="dark"] .theme-client .vx-table{
   background: transparent !important;
 }
 
 /* Admin tables in dark theme (fix white-on-white) */
-.theme-client .vx-tableWrap{
+html[data-theme="dark"] .theme-client .vx-tableWrap{
   background: var(--panel2) !important;
   border-color: rgba(255,255,255,.12) !important;
   box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(255,218,125,.10);
 }
-.theme-client .vx-table th{
+html[data-theme="dark"] .theme-client .vx-table th{
   background: rgba(255,255,255,.04) !important;
   color: rgba(255,255,255,.72) !important;
   border-bottom-color: rgba(255,255,255,.10) !important;
 }
-.theme-client .vx-table td{
+html[data-theme="dark"] .theme-client .vx-table td{
   color: rgba(255,255,255,.88) !important;
   border-bottom-color: rgba(255,255,255,.10) !important;
 }
-.theme-client .vx-calcBox{
+html[data-theme="dark"] .theme-client .vx-calcBox{
   overflow: visible !important;
   padding: 12px 12px 14px !important;
   background: var(--panel2) !important;
@@ -551,10 +587,10 @@ body.vx-body-client #root{
     0 0 0 1px rgba(255,255,255,.05) inset,
     0 1px 0 rgba(255,255,255,.08) inset;
 }
-.theme-client .vx-rateList{ padding: 0 !important; }
+html[data-theme="dark"] .theme-client .vx-rateList{ padding: 0 !important; }
 
 /* Rates: one continuous list (not separate cards) */
-.theme-client .vx-rateList{
+html[data-theme="dark"] .theme-client .vx-rateList{
   margin-top: 10px;
   position: relative;
   border-radius: 22px;
@@ -570,7 +606,7 @@ body.vx-body-client #root{
 }
 
 /* Neon edge for the whole rates block */
-.theme-client .vx-rateList::before{
+html[data-theme="dark"] .theme-client .vx-rateList::before{
   content:"";
   position:absolute;
   inset:-10px;
@@ -581,7 +617,7 @@ body.vx-body-client #root{
   opacity: .55;
   z-index: -1;
 }
-.theme-client .vx-rateList::after{
+html[data-theme="dark"] .theme-client .vx-rateList::after{
   content:"";
   position:absolute;
   inset:0;
@@ -592,12 +628,12 @@ body.vx-body-client #root{
     0 0 12px rgba(255,218,125,.14);
   opacity: .85;
 }
-.theme-client .vx-rateHdr{
+html[data-theme="dark"] .theme-client .vx-rateHdr{
   padding: 12px 14px 10px;
   color: rgba(255,255,255,.58);
   border-bottom: 1px solid rgba(255,255,255,.10);
 }
-.theme-client .vx-rateList .vx-rateLine{
+html[data-theme="dark"] .theme-client .vx-rateList .vx-rateLine{
   border-top: 0 !important;
   margin-top: 0;
   padding: 12px 14px;
@@ -606,18 +642,18 @@ body.vx-body-client #root{
   border: 0 !important;
   box-shadow: none !important;
 }
-.theme-client .vx-rateList .vx-rateLine + .vx-rateLine{
+html[data-theme="dark"] .theme-client .vx-rateList .vx-rateLine + .vx-rateLine{
   border-top: 1px solid rgba(255,255,255,.08) !important;
 }
 
 /* Rates text colors in dark theme */
-.theme-client .vx-ratePair2{ color: rgba(255,255,255,.92) !important; }
-.theme-client .vx-rateHdr{ color: rgba(255,255,255,.58) !important; }
-.theme-client .vx-rateNMuted{ color: rgba(255,255,255,.60) !important; }
-.theme-client .vx-dash{ color: rgba(255,255,255,.38) !important; }
+html[data-theme="dark"] .theme-client .vx-ratePair2{ color: rgba(255,255,255,.92) !important; }
+html[data-theme="dark"] .theme-client .vx-rateHdr{ color: rgba(255,255,255,.58) !important; }
+html[data-theme="dark"] .theme-client .vx-rateNMuted{ color: rgba(255,255,255,.60) !important; }
+html[data-theme="dark"] .theme-client .vx-dash{ color: rgba(255,255,255,.38) !important; }
 
 /* keep the calc info line minimal */
-.theme-client .vx-calc .vx-rateLine{
+html[data-theme="dark"] .theme-client .vx-calc .vx-rateLine{
   margin-top: 10px;
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.03);
@@ -627,77 +663,77 @@ body.vx-body-client #root{
 }
 
 /* Calculator: smaller input/select boxes (as requested) */
-.theme-client .vx-exRow{
+html[data-theme="dark"] .theme-client .vx-exRow{
   /* widen currency selector so codes like USDT/EUR are fully visible */
   grid-template-columns: 92px 1fr 44px;
   gap: 8px;
 }
-.theme-client .vx-exRow select{ width: 92px; padding-right: 26px; }
-.theme-client .vx-exRow select,
-.theme-client .vx-exRow input{
+html[data-theme="dark"] .theme-client .vx-exRow select{ width: 92px; padding-right: 26px; }
+html[data-theme="dark"] .theme-client .vx-exRow select,
+html[data-theme="dark"] .theme-client .vx-exRow input{
   height: 40px;
   border-radius: 16px;
   font-size: 14px;
 }
-.theme-client .vx-iconBtn{ height: 40px; min-width: 44px; border-radius: 16px; }
-.theme-client .vx-blankBtn{ width: 44px; height: 40px; }
+html[data-theme="dark"] .theme-client .vx-iconBtn{ height: 40px; min-width: 44px; border-radius: 16px; }
+html[data-theme="dark"] .theme-client .vx-blankBtn{ width: 44px; height: 40px; }
 
 @media (max-width: 360px){
-  .theme-client .vx-exRow{ grid-template-columns: 84px 1fr 42px; }
-  .theme-client .vx-exRow select{ width: 84px; }
-  .theme-client .vx-iconBtn{ min-width: 42px; }
-  .theme-client .vx-blankBtn{ width: 42px; }
+  html[data-theme="dark"] .theme-client .vx-exRow{ grid-template-columns: 84px 1fr 42px; }
+  html[data-theme="dark"] .theme-client .vx-exRow select{ width: 84px; }
+  html[data-theme="dark"] .theme-client .vx-iconBtn{ min-width: 42px; }
+  html[data-theme="dark"] .theme-client .vx-blankBtn{ width: 42px; }
 }
 
 /* =========================
    Staff tab (miniapp admin) — dark glass overrides
    Fixes "white text on white" inside theme-client
    ========================= */
-.theme-client .vx-admin2col{ gap: 10px; }
-.theme-client .vx-adminCol{
+html[data-theme="dark"] .theme-client .vx-admin2col{ gap: 10px; }
+html[data-theme="dark"] .theme-client .vx-adminCol{
   background: rgba(255,255,255,.03) !important;
   border: 1px solid rgba(255,255,255,.12) !important;
   box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(255,218,125,.10);
   border-radius: 22px;
 }
-.theme-client .vx-reqRow{
+html[data-theme="dark"] .theme-client .vx-reqRow{
   background: rgba(255,255,255,.03) !important;
   border: 1px solid rgba(255,255,255,.12) !important;
   color: rgba(255,255,255,.90) !important;
   box-shadow: 0 16px 46px rgba(0,0,0,.58), 0 0 28px rgba(255,218,125,.10);
 }
-.theme-client .vx-reqRow.is-active{ outline: 2px solid rgba(247,195,26,.32) !important; }
-.theme-client .vx-tag{
+html[data-theme="dark"] .theme-client .vx-reqRow.is-active{ outline: 2px solid rgba(247,195,26,.32) !important; }
+html[data-theme="dark"] .theme-client .vx-tag{
   border-color: rgba(255,255,255,.14) !important;
   background: rgba(255,255,255,.04) !important;
   color: rgba(255,255,255,.78) !important;
 }
-.theme-client .vx-bankBtn{
+html[data-theme="dark"] .theme-client .vx-bankBtn{
   background: rgba(10,10,10,.88) !important;
   border-color: rgba(255,255,255,.10) !important;
 }
-.theme-client .vx-bankBtn.is-on{ outline: 2px solid rgba(255,218,125,.32) !important; }
-.theme-client .vx-pill{ color: rgba(255,255,255,.90); }
-.theme-client .vx-pillActive{
+html[data-theme="dark"] .theme-client .vx-bankBtn.is-on{ outline: 2px solid rgba(255,218,125,.32) !important; }
+html[data-theme="dark"] .theme-client .vx-pill{ color: rgba(255,255,255,.90); }
+html[data-theme="dark"] .theme-client .vx-pillActive{
   background: rgba(10,10,10,.88) !important;
   border-color: rgba(255,235,170,.40) !important;
   box-shadow:
     0 18px 56px rgba(0,0,0,.68),
     0 0 0 1px rgba(255,235,170,.14) inset;
 }
-.theme-client .vx-pillActive::before{
+html[data-theme="dark"] .theme-client .vx-pillActive::before{
   opacity: .72;
   inset: -10px;
   filter: blur(13px);
 }
-.theme-client .vx-pillActive::after{
+html[data-theme="dark"] .theme-client .vx-pillActive::after{
   opacity: 1;
   box-shadow:
     0 0 0 1px rgba(255,235,170,.78) inset,
     0 0 18px rgba(255,218,125,.22),
     0 0 44px rgba(255,218,125,.12);
 }
-.theme-client .vx-pill:active{
+html[data-theme="dark"] .theme-client .vx-pill:active{
   box-shadow: 0 0 26px rgba(255,218,125,.18);
 }
 
@@ -748,22 +784,22 @@ body.vx-body-client #root{
 .vx-accInner > summary{ padding: 12px 14px; font-size: 13px; }
 .vx-accLbl{ font-size: 12px; font-weight: 950; color: var(--muted); letter-spacing: 0.02em; text-transform: uppercase; }
 
-.theme-client .vx-adminPanel,
-.theme-client .vx-acc{
+html[data-theme="dark"] .theme-client .vx-adminPanel,
+html[data-theme="dark"] .theme-client .vx-acc{
   background: var(--panel2) !important;
   border: 1px solid rgba(255,255,255,.12) !important;
   box-shadow: 0 18px 60px rgba(0,0,0,.64), 0 0 64px rgba(255,218,125,.10);
 }
-.theme-client .vx-adminPanelH,
-.theme-client .vx-accLbl{ color: rgba(255,255,255,.66); }
-.theme-client .vx-acc > summary{ color: rgba(255,255,255,.90); }
-.theme-client .vx-acc[open] > summary{ border-bottom-color: rgba(255,255,255,.10); }
+html[data-theme="dark"] .theme-client .vx-adminPanelH,
+html[data-theme="dark"] .theme-client .vx-accLbl{ color: rgba(255,255,255,.66); }
+html[data-theme="dark"] .theme-client .vx-acc > summary{ color: rgba(255,255,255,.90); }
+html[data-theme="dark"] .theme-client .vx-acc[open] > summary{ border-bottom-color: rgba(255,255,255,.10); }
 
 /* Bottom bar: 3 items (prev/current/next)
    Perspective must be on the immediate parent of the buttons for Telegram WebView.
 */
-.theme-client .vx-bottomWrap{ perspective: 1200px; }
-.theme-client .vx-bottomBar{
+html[data-theme="dark"] .theme-client .vx-bottomWrap{ perspective: 1200px; }
+html[data-theme="dark"] .theme-client .vx-bottomBar{
   perspective: 1200px;
   perspective-origin: center 70%;
   background: var(--panel2);
@@ -781,7 +817,7 @@ body.vx-body-client #root{
   align-items: center;
 }
 
-.theme-client .vx-bottomBar::before{
+html[data-theme="dark"] .theme-client .vx-bottomBar::before{
   content:"";
   position:absolute;
   inset:-10px;
@@ -792,7 +828,7 @@ body.vx-body-client #root{
   opacity: .45;
   z-index: -1;
 }
-.theme-client .vx-bottomBar::after{
+html[data-theme="dark"] .theme-client .vx-bottomBar::after{
   content:"";
   position:absolute;
   inset:0;
@@ -801,7 +837,7 @@ body.vx-body-client #root{
   box-shadow: 0 0 0 1px rgba(255,218,125,.22) inset, 0 0 16px rgba(255,218,125,.10);
   opacity: .85;
 }
-.theme-client .vx-navBtn{
+html[data-theme="dark"] .theme-client .vx-navBtn{
   /* inherits the global neon button style; only tune sizing */
   padding: 8px 8px !important;
   border-radius: 18px !important;
@@ -816,37 +852,37 @@ body.vx-body-client #root{
   backface-visibility: hidden;
   transform-style: preserve-3d;
 }
-.theme-client .vx-navBtn .vx-navIcon{ opacity: .96; }
-.theme-client .vx-navBtn .vx-navLabel{
+html[data-theme="dark"] .theme-client .vx-navBtn .vx-navIcon{ opacity: .96; }
+html[data-theme="dark"] .theme-client .vx-navBtn .vx-navLabel{
   display:block;
   line-height: 1.05;
   padding-bottom: 2px;
   margin-top: 0;
   backface-visibility: hidden;
 }
-.theme-client .vx-navBtn:active{ filter: brightness(1.04); transform: translateY(4px) scale(0.99); }
-.theme-client .vx-navBtnActive{ color: rgba(248,250,255,.96) !important; }
+html[data-theme="dark"] .theme-client .vx-navBtn:active{ filter: brightness(1.04); transform: translateY(4px) scale(0.99); }
+html[data-theme="dark"] .theme-client .vx-navBtnActive{ color: rgba(248,250,255,.96) !important; }
 
 /* Bottom bar buttons: keep the "LED" bloom INSIDE the bar bounds
    (Telegram webview makes the glow look like it's escaping otherwise). */
-.theme-client .vx-bottomBar .vx-navBtn::before{
+html[data-theme="dark"] .theme-client .vx-bottomBar .vx-navBtn::before{
   inset: -6px;
   filter: blur(10px);
   opacity: .20;
 }
-.theme-client .vx-bottomBar .vx-navBtn:active::before{
+html[data-theme="dark"] .theme-client .vx-bottomBar .vx-navBtn:active::before{
   inset: -8px;
   filter: blur(12px);
   opacity: .78;
 }
 
 /* Active tab: stronger LED edge, but still kept inside the bar */
-.theme-client .vx-bottomBar .vx-navBtnActive::before{
+html[data-theme="dark"] .theme-client .vx-bottomBar .vx-navBtnActive::before{
   inset: -10px;
   filter: blur(13px);
   opacity: .86;
 }
-.theme-client .vx-bottomBar .vx-navBtnActive::after{
+html[data-theme="dark"] .theme-client .vx-bottomBar .vx-navBtnActive::after{
   opacity: 1;
   box-shadow:
     0 0 0 1px rgba(255,235,170,.78) inset,
@@ -854,38 +890,38 @@ body.vx-body-client #root{
     0 0 44px rgba(255,218,125,.12);
 }
 
-.theme-client .vx-navPill{
+html[data-theme="dark"] .theme-client .vx-navPill{
   background: rgba(255,218,125,.12);
   border-color: rgba(255,218,125,.28);
   box-shadow: 0 0 0 1px rgba(255,218,125,.14) inset, 0 0 44px rgba(255,218,125,.16);
 }
-.theme-client .vx-navPosC{
+html[data-theme="dark"] .theme-client .vx-navPosC{
   /* center tab: slightly bigger, but NEVER outside the bar */
   transform: translateY(0) scale(1.06);
   z-index: 3;
 }
-.theme-client .vx-navPosC:active{
+html[data-theme="dark"] .theme-client .vx-navPosC:active{
   transform: translateY(2px) scale(1.02);
 }
-.theme-client .vx-navPosC .vx-navIcon{ width: 42px; height: 42px; }
-.theme-client .vx-navPosC .vx-i{ width: 22px; height: 22px; }
-.theme-client .vx-navPosC .vx-navLabel{ font-size: 10px; }
+html[data-theme="dark"] .theme-client .vx-navPosC .vx-navIcon{ width: 42px; height: 42px; }
+html[data-theme="dark"] .theme-client .vx-navPosC .vx-i{ width: 22px; height: 22px; }
+html[data-theme="dark"] .theme-client .vx-navPosC .vx-navLabel{ font-size: 10px; }
 
 /* carousel depth for side tabs (safe for Telegram WebView) */
-.theme-client .vx-navPosL,
-.theme-client .vx-navPosR{
+html[data-theme="dark"] .theme-client .vx-navPosL,
+html[data-theme="dark"] .theme-client .vx-navPosR{
   opacity: 0.72;
   transform-origin: center bottom;
   filter: blur(0.25px);
 }
-.theme-client .vx-navPosL{
+html[data-theme="dark"] .theme-client .vx-navPosL{
   transform: translateY(6px) scale(0.88);
 }
-.theme-client .vx-navPosR{
+html[data-theme="dark"] .theme-client .vx-navPosR{
   transform: translateY(6px) scale(0.88);
 }
-.theme-client .vx-navPosL .vx-navLabel,
-.theme-client .vx-navPosR .vx-navLabel{ font-size: 8.5px; }
+html[data-theme="dark"] .theme-client .vx-navPosL .vx-navLabel,
+html[data-theme="dark"] .theme-client .vx-navPosR .vx-navLabel{ font-size: 8.5px; }
 /* ATM tab (dark) */
 .vx-atmHint{
   font-size: 14px;
@@ -904,7 +940,7 @@ body.vx-body-client #root{
   border: 1px solid var(--stroke);
   box-shadow: var(--shadow2);
 }
-.theme-client .vx-atmHint{
+html[data-theme="dark"] .theme-client .vx-atmHint{
   font-size: 16px;
   text-align: center;
   line-height: 1.35;
@@ -913,7 +949,7 @@ body.vx-body-client #root{
 }
 
 /* ATM: highlighted info block (stronger than buttons, so it doesn't merge visually) */
-.theme-client .vx-atmHintBox{
+html[data-theme="dark"] .theme-client .vx-atmHintBox{
   margin-top: 10px;
   padding: 16px 14px;
   border-radius: 22px;
@@ -926,22 +962,22 @@ body.vx-body-client #root{
     0 0 66px rgba(255,218,125,.12);
 }
 
-.theme-client .vx-atmBtnGrid{ margin-top: 18px; }
-.theme-client .vx-atmFindBtn{ width: 100%; }
+html[data-theme="dark"] .theme-client .vx-atmBtnGrid{ margin-top: 18px; }
+html[data-theme="dark"] .theme-client .vx-atmFindBtn{ width: 100%; }
 
-.theme-client .vx-atmVideoCard{
+html[data-theme="dark"] .theme-client .vx-atmVideoCard{
   background: rgba(255,255,255,.03) !important;
   border-color: rgba(255,255,255,.12) !important;
   box-shadow: 0 18px 60px rgba(0,0,0,.60), 0 0 36px rgba(255,218,125,.10);
   border-radius: 22px;
 }
-.theme-client .vx-atmVideo{
+html[data-theme="dark"] .theme-client .vx-atmVideo{
   border-color: rgba(255,255,255,.12) !important;
   background: rgba(0,0,0,.40) !important;
 }
 
 /* Admin screens (inside the miniapp) */
-.theme-client .vx-adminSeg{
+html[data-theme="dark"] .theme-client .vx-adminSeg{
   background: rgba(255,255,255,.022) !important;
   border: 1px solid rgba(255,255,255,.10) !important;
   border-radius: 22px !important;
@@ -952,7 +988,7 @@ body.vx-body-client #root{
   backdrop-filter: blur(12px);
 }
 
-.theme-client .vx-adminSeg button{
+html[data-theme="dark"] .theme-client .vx-adminSeg button{
   position: relative;
   height: 40px;
   padding: 0 10px;
@@ -969,7 +1005,7 @@ body.vx-body-client #root{
     0 0 0 1px rgba(255,255,255,.05) inset;
   transition: transform .12s ease, filter .18s ease;
 }
-.theme-client .vx-adminSeg button::before{
+html[data-theme="dark"] .theme-client .vx-adminSeg button::before{
   content:"";
   position:absolute;
   inset:-16px;
@@ -984,56 +1020,56 @@ body.vx-body-client #root{
   pointer-events:none;
   transition: opacity .16s ease, transform .16s ease, filter .16s ease;
 }
-.theme-client .vx-adminSeg button:active{
+html[data-theme="dark"] .theme-client .vx-adminSeg button:active{
   transform: translateY(1px) scale(.99);
   filter: brightness(1.04);
 }
-.theme-client .vx-adminSeg button:active::before{
+html[data-theme="dark"] .theme-client .vx-adminSeg button:active::before{
   opacity: .96;
   transform: scale(1.03);
   filter: blur(12px);
 }
 
-.theme-client .vx-adminSeg .on{
+html[data-theme="dark"] .theme-client .vx-adminSeg .on{
   color: rgba(248,250,255,.96) !important;
   border-color: rgba(248,252,255,.18) !important;
 }
-.theme-client .vx-adminSeg .on::before{
+html[data-theme="dark"] .theme-client .vx-adminSeg .on::before{
   opacity: 1;
   box-shadow:
     0 0 26px rgba(255,218,125,.44),
     0 0 86px rgba(255,218,125,.26),
     0 0 220px rgba(255,218,125,.16);
 }
-.theme-client .vx-admin .vx-code{ color: rgba(255,255,255,.84) !important; }
-.theme-client .vx-admin input.vx-in{ background: rgba(8,8,8,.96) !important; border-color: rgba(255,255,255,.16) !important; }
+html[data-theme="dark"] .theme-client .vx-admin .vx-code{ color: rgba(255,255,255,.84) !important; }
+html[data-theme="dark"] .theme-client .vx-admin input.vx-in{ background: rgba(8,8,8,.96) !important; border-color: rgba(255,255,255,.16) !important; }
 
 /* Remove big light cards in owner/admin layouts when shown inside the dark theme */
-.theme-client .vx-adminCard{
+html[data-theme="dark"] .theme-client .vx-adminCard{
   background: transparent !important;
   border: 0 !important;
   padding: 0 !important;
 }
-.theme-client .vx-toast,
-.theme-client .vx-pre{
+html[data-theme="dark"] .theme-client .vx-toast,
+html[data-theme="dark"] .theme-client .vx-pre{
   background: var(--panel2) !important;
   border-color: rgba(255,255,255,.14) !important;
   color: rgba(255,255,255,.86) !important;
 }
-.theme-client .vx-contactRow{
+html[data-theme="dark"] .theme-client .vx-contactRow{
   background: var(--panel2) !important;
   border-color: rgba(255,255,255,.14) !important;
   color: rgba(255,255,255,.86) !important;
 }
 
 /* Text helpers */
-.theme-client .vx-muted{ color: rgba(255,255,255,.55); }
-.theme-client .hr{ background: rgba(255,255,255,0.10); }
-.theme-client .vx-meta,
-.theme-client .vx-note,
-.theme-client .vx-sub,
-.theme-client .vx-help{ color: rgba(255,255,255,.62) !important; }
-.theme-client .vx-sectionTitle{
+html[data-theme="dark"] .theme-client .vx-muted{ color: rgba(255,255,255,.55); }
+html[data-theme="dark"] .theme-client .hr{ background: rgba(255,255,255,0.10); }
+html[data-theme="dark"] .theme-client .vx-meta,
+html[data-theme="dark"] .theme-client .vx-note,
+html[data-theme="dark"] .theme-client .vx-sub,
+html[data-theme="dark"] .theme-client .vx-help{ color: rgba(255,255,255,.62) !important; }
+html[data-theme="dark"] .theme-client .vx-sectionTitle{
   color: rgba(255,255,255,.92) !important;
   font-size: 13px;
   font-weight: 900;
@@ -1041,20 +1077,20 @@ body.vx-body-client #root{
   text-transform: uppercase;
   text-shadow: 0 0 14px rgba(255,218,125,.14);
 }
-.theme-client .vx-rateHdr{ color: rgba(255,255,255,.55); }
-.theme-client .vx-ratePair2,
-.theme-client .vx-rateN,
-.theme-client .vx-pair,
-.theme-client .vx-num{ color: rgba(255,255,255,.92) !important; }
-.theme-client .vx-rateNMuted{ color: rgba(255,255,255,.70); }
+html[data-theme="dark"] .theme-client .vx-rateHdr{ color: rgba(255,255,255,.55); }
+html[data-theme="dark"] .theme-client .vx-ratePair2,
+html[data-theme="dark"] .theme-client .vx-rateN,
+html[data-theme="dark"] .theme-client .vx-pair,
+html[data-theme="dark"] .theme-client .vx-num{ color: rgba(255,255,255,.92) !important; }
+html[data-theme="dark"] .theme-client .vx-rateNMuted{ color: rgba(255,255,255,.70); }
 
 /* Reviews: make headings readable on dark */
-.theme-client .vx-reviewsTitle{ color: rgba(255,255,255,.95); }
-.theme-client .vx-revH{ color: rgba(255,255,255,.70) !important; }
-.theme-client .vx-revName{ color: rgba(255,255,255,.92); }
-.theme-client .vx-revRating{ color: rgba(255,255,255,.78); }
-.theme-client .vx-revTextOut{ color: rgba(255,255,255,.88); }
-.theme-client .vx-starBtn{ color: rgba(255,223,106,.92); }
+html[data-theme="dark"] .theme-client .vx-reviewsTitle{ color: rgba(255,255,255,.95); }
+html[data-theme="dark"] .theme-client .vx-revH{ color: rgba(255,255,255,.70) !important; }
+html[data-theme="dark"] .theme-client .vx-revName{ color: rgba(255,255,255,.92); }
+html[data-theme="dark"] .theme-client .vx-revRating{ color: rgba(255,255,255,.78); }
+html[data-theme="dark"] .theme-client .vx-revTextOut{ color: rgba(255,255,255,.88); }
+html[data-theme="dark"] .theme-client .vx-starBtn{ color: rgba(255,223,106,.92); }
 
 /* App content above background */
 .container{ position: relative; z-index: 2; max-width: 420px; margin: 0 auto; }
@@ -2119,7 +2155,7 @@ label, input, select, textarea{ color: var(--text); }
    v26: White "floating mirror" theme + Home screens (no bottom bar)
    ========================= */
 
-.theme-client{
+html[data-theme="dark"] .theme-client{
   color-scheme: light;
   --bg: #f6f7fb;
   --sky: var(--bg);
@@ -2142,20 +2178,20 @@ html, body{ background: #f6f7fb !important; }
 body.vx-body-client,
 body.vx-body-client #root{ background: #f6f7fb !important; }
 
-.theme-client.vx-page{
+html[data-theme="dark"] .theme-client.vx-page{
   background: var(--bg) !important;
   color: var(--text);
 }
 
 /* No background image for the new design */
-.theme-client .bg-danang{ display:none !important; }
+html[data-theme="dark"] .theme-client .bg-danang{ display:none !important; }
 
 /* Lift existing cards/buttons into the new style */
-.theme-client .card,
-.theme-client .vx-card2,
-.theme-client .vx-revCompose,
-.theme-client .vx-revCard,
-.theme-client .vx-atmHintBox{
+html[data-theme="dark"] .theme-client .card,
+html[data-theme="dark"] .theme-client .vx-card2,
+html[data-theme="dark"] .theme-client .vx-revCompose,
+html[data-theme="dark"] .theme-client .vx-revCard,
+html[data-theme="dark"] .theme-client .vx-atmHintBox{
   background: var(--panel) !important;
   border: 1px solid var(--stroke) !important;
   box-shadow: var(--shadow) !important;
@@ -2164,64 +2200,64 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 }
 
 /* Fix legacy dark overrides (older rules set WHITE text with !important) */
-.theme-client .vx-title,
-.theme-client .vx-topSub,
-.theme-client .vx-reviewsTitle,
-.theme-client .vx-revH,
-.theme-client .vx-revName,
-.theme-client .vx-revRating,
-.theme-client .vx-revTextOut,
-.theme-client .vx-atmHint,
-.theme-client .vx-pill,
-.theme-client .vx-accLbl,
-.theme-client .vx-acc > summary,
-.theme-client .vx-admin .vx-code,
-.theme-client .vx-sectionTitle,
-.theme-client .vx-ratePair2,
-.theme-client .vx-rateN,
-.theme-client .vx-pair,
-.theme-client .vx-num{
+html[data-theme="dark"] .theme-client .vx-title,
+html[data-theme="dark"] .theme-client .vx-topSub,
+html[data-theme="dark"] .theme-client .vx-reviewsTitle,
+html[data-theme="dark"] .theme-client .vx-revH,
+html[data-theme="dark"] .theme-client .vx-revName,
+html[data-theme="dark"] .theme-client .vx-revRating,
+html[data-theme="dark"] .theme-client .vx-revTextOut,
+html[data-theme="dark"] .theme-client .vx-atmHint,
+html[data-theme="dark"] .theme-client .vx-pill,
+html[data-theme="dark"] .theme-client .vx-accLbl,
+html[data-theme="dark"] .theme-client .vx-acc > summary,
+html[data-theme="dark"] .theme-client .vx-admin .vx-code,
+html[data-theme="dark"] .theme-client .vx-sectionTitle,
+html[data-theme="dark"] .theme-client .vx-ratePair2,
+html[data-theme="dark"] .theme-client .vx-rateN,
+html[data-theme="dark"] .theme-client .vx-pair,
+html[data-theme="dark"] .theme-client .vx-num{
   color: var(--text) !important;
   text-shadow: none !important;
 }
 
 /* Calculator pills: keep text readable on dark pill background */
-.theme-client .vx-calc .vx-pill{
-  color: rgba(255,255,255,.92) !important;
+html[data-theme="dark"] .theme-client .vx-calc .vx-pill{
+  color: var(--text) !important;
 }
-.theme-client .vx-acc[open] > summary{ border-bottom-color: var(--stroke) !important; }
-.theme-client .vx-muted,
-.theme-client .vx-meta,
-.theme-client .vx-note,
-.theme-client .vx-sub,
-.theme-client .vx-help{
+html[data-theme="dark"] .theme-client .vx-acc[open] > summary{ border-bottom-color: var(--stroke) !important; }
+html[data-theme="dark"] .theme-client .vx-muted,
+html[data-theme="dark"] .theme-client .vx-meta,
+html[data-theme="dark"] .theme-client .vx-note,
+html[data-theme="dark"] .theme-client .vx-sub,
+html[data-theme="dark"] .theme-client .vx-help{
   color: var(--muted) !important;
 }
-.theme-client .hr{ background: var(--stroke) !important; }
+html[data-theme="dark"] .theme-client .hr{ background: var(--stroke) !important; }
 
 /* Rates list: remove neon glows + restore light separators */
-.theme-client .vx-rateList::before,
-.theme-client .vx-rateList::after{ display:none !important; }
-.theme-client .vx-rateHdr{
+html[data-theme="dark"] .theme-client .vx-rateList::before,
+html[data-theme="dark"] .theme-client .vx-rateList::after{ display:none !important; }
+html[data-theme="dark"] .theme-client .vx-rateHdr{
   color: var(--muted) !important;
   border-bottom: 1px solid var(--stroke) !important;
 }
-.theme-client .vx-rateList .vx-rateLine + .vx-rateLine{
+html[data-theme="dark"] .theme-client .vx-rateList .vx-rateLine + .vx-rateLine{
   border-top: 1px solid var(--stroke) !important;
 }
-.theme-client .vx-rateNMuted{ color: rgba(0,0,0,.56) !important; }
-.theme-client .vx-dash{ color: rgba(0,0,0,.35) !important; }
+html[data-theme="dark"] .theme-client .vx-rateNMuted{ color: rgba(0,0,0,.56) !important; }
+html[data-theme="dark"] .theme-client .vx-dash{ color: rgba(0,0,0,.35) !important; }
 
 /* Owner/admin portal blocks that were styled for dark glass */
-.theme-client .vx-toast,
-.theme-client .vx-pre,
-.theme-client .vx-contactRow,
-.theme-client .vx-pubGroup,
-.theme-client .vx-metricCard,
-.theme-client .vx-tableWrap,
-.theme-client .vx-adminCol,
-.theme-client .vx-reqRow,
-.theme-client .vx-reqRow.is-active{
+html[data-theme="dark"] .theme-client .vx-toast,
+html[data-theme="dark"] .theme-client .vx-pre,
+html[data-theme="dark"] .theme-client .vx-contactRow,
+html[data-theme="dark"] .theme-client .vx-pubGroup,
+html[data-theme="dark"] .theme-client .vx-metricCard,
+html[data-theme="dark"] .theme-client .vx-tableWrap,
+html[data-theme="dark"] .theme-client .vx-adminCol,
+html[data-theme="dark"] .theme-client .vx-reqRow,
+html[data-theme="dark"] .theme-client .vx-reqRow.is-active{
   background: var(--panel) !important;
   border: 1px solid var(--stroke) !important;
   box-shadow: var(--shadow2) !important;
@@ -2229,50 +2265,50 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 }
 
 /* Inputs inside admin blocks were forced to dark background with !important */
-.theme-client .vx-admin input.vx-in,
-.theme-client .vx-admin textarea,
-.theme-client .vx-admin select{
+html[data-theme="dark"] .theme-client .vx-admin input.vx-in,
+html[data-theme="dark"] .theme-client .vx-admin textarea,
+html[data-theme="dark"] .theme-client .vx-admin select{
   background: rgba(255,255,255,.98) !important;
   border: 1px solid var(--stroke2) !important;
   color: var(--text) !important;
 }
 
 /* Segmented controls in owner/admin */
-.theme-client .vx-adminSeg{
+html[data-theme="dark"] .theme-client .vx-adminSeg{
   background: rgba(255,255,255,.96) !important;
   border: 1px solid var(--stroke2) !important;
   box-shadow: var(--shadow2) !important;
 }
-.theme-client .vx-adminSeg button{ color: rgba(0,0,0,.62) !important; }
-.theme-client .vx-adminSeg .on{
+html[data-theme="dark"] .theme-client .vx-adminSeg button{ color: rgba(0,0,0,.62) !important; }
+html[data-theme="dark"] .theme-client .vx-adminSeg .on{
   background: rgba(0,0,0,.06) !important;
   border: 1px solid rgba(0,0,0,.12) !important;
   color: var(--text) !important;
 }
 
-.theme-client .input,
-.theme-client .vx-in,
-.theme-client input,
-.theme-client select,
-.theme-client textarea{
+html[data-theme="dark"] .theme-client .input,
+html[data-theme="dark"] .theme-client .vx-in,
+html[data-theme="dark"] .theme-client input,
+html[data-theme="dark"] .theme-client select,
+html[data-theme="dark"] .theme-client textarea{
   background: rgba(255,255,255,.98) !important;
   border: 1px solid var(--stroke2) !important;
   color: var(--text) !important;
 }
 
-.theme-client .btn,
-.theme-client .vx-primary,
-.theme-client button.vx-primary,
-.theme-client button.btn{
+html[data-theme="dark"] .theme-client .btn,
+html[data-theme="dark"] .theme-client .vx-primary,
+html[data-theme="dark"] .theme-client button.vx-primary,
+html[data-theme="dark"] .theme-client button.btn{
   background: rgba(255,255,255,.98) !important;
   color: var(--text) !important;
   border: 1px solid var(--stroke2) !important;
   box-shadow: var(--shadow2) !important;
 }
 
-.theme-client .btn:active,
-.theme-client .vx-primary:active,
-.theme-client button.btn:active{ transform: translateY(1px); }
+html[data-theme="dark"] .theme-client .btn:active,
+html[data-theme="dark"] .theme-client .vx-primary:active,
+html[data-theme="dark"] .theme-client button.btn:active{ transform: translateY(1px); }
 
 /* Home layout */
 .mx-sp10{ height: 10px; }
@@ -2285,6 +2321,31 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
   justify-content:flex-start;
   gap: 10px;
   margin-bottom: 12px;
+}
+
+/* Theme toggle (sun/moon) */
+.mx-themeBtn{
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,.98);
+  box-shadow: var(--shadow2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  color: rgba(0,0,0,.72);
+}
+.mx-themeBtn:active{ transform: translateY(1px); }
+.mx-themeI{ width: 22px; height: 22px; }
+
+html[data-theme="dark"] .theme-client .mx-themeBtn{
+  background: rgba(6,6,6,.98);
+  border-color: rgba(246,198,0,.44);
+  box-shadow: 0 0 0 1px rgba(246,198,0,.12) inset, 0 0 22px rgba(246,198,0,.12), 0 16px 40px rgba(0,0,0,.72);
+  color: rgba(246,198,0,.98);
 }
 
 /* Status icon is clickable */
@@ -2311,11 +2372,11 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
   width: 100%;
   text-align: center;
   font-family: var(--fontScript);
-  font-size: 32px;
+  font-size: clamp(34px, 7vw, 46px);
   line-height: 0.95;
   color: #f6c600;
   /* thinner black outline for readability */
-  -webkit-text-stroke: 0.7px rgba(0,0,0,.92);
+  -webkit-text-stroke: 0.55px rgba(0,0,0,.92);
   text-shadow:
     -0.6px -0.6px 0 rgba(0,0,0,.92),
     0.6px -0.6px 0 rgba(0,0,0,.92),
@@ -2405,46 +2466,51 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 /* Bottom navigation */
 .mx-bottomNav{
   position: fixed;
-  left: 50%;
   --mxNavHide: 0px;
-  transform: translateX(-50%) translateY(var(--mxNavHide));
-  bottom: 10px;
+  transform: translateY(var(--mxNavHide));
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 20;
-  width: calc(min(var(--appMax), 100vw) - 24px);
-  max-width: 420px;
   display: flex;
   gap: 8px;
-  padding: 8px;
-  padding-bottom: calc(8px + env(safe-area-inset-bottom));
-  border-radius: 20px;
+  padding: 10px 12px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  border-radius: 0;
   background: rgba(255,255,255,.94);
-  border: 1px solid var(--stroke);
-  box-shadow: var(--shadow2);
+  border-top: 1px solid var(--stroke);
+  box-shadow: 0 -18px 40px rgba(0,0,0,.10);
   transition: transform .18s ease, opacity .18s ease;
 }
 
 /* When the Afisha date bottom-sheet is open, hide the fixed bottom menu to avoid overlap */
 .mx-sheet-open .mx-bottomNav{
-  --mxNavHide: 200px;
+  --mxNavHide: 120px;
   opacity: 0;
   pointer-events: none;
 }
 
+/* Dark theme bottom menu: black bar + yellow neon edge */
+html[data-theme="dark"] .theme-client .mx-bottomNav{
+  background: rgba(0,0,0,.96);
+  border-top: 1px solid rgba(246,198,0,.34);
+  box-shadow: 0 -22px 54px rgba(0,0,0,.78), 0 0 28px rgba(246,198,0,.10);
+}
+
 .mx-bottomBtn{
   flex: 1;
-  border: 1px solid rgba(0,0,0,.08);
-  background: rgba(0,0,0,.04);
+  border: 0;
+  background: transparent;
   border-radius: 16px;
   padding: 10px 10px;
   font-weight: 950;
   font-size: 12px;
-  color: rgba(0,0,0,.78);
+  color: var(--text);
 }
 
 .mx-bottomBtn.is-on{
-  border-color: rgba(246,198,0,.92);
-  box-shadow: 0 0 0 1px rgba(246,198,0,.45) inset, 0 0 14px rgba(246,198,0,.28);
-  background: rgba(246,198,0,.12);
+  box-shadow: 0 0 0 1px rgba(246,198,0,.55) inset, 0 0 18px rgba(246,198,0,.22);
+  background: rgba(246,198,0,.10);
 }
 
 .mx-bottomBtn:active{ transform: translateY(1px); }
@@ -2586,6 +2652,7 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
   box-shadow: 0 -26px 86px rgba(0,0,0,.58);
   padding: 14px;
   padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  touch-action: none; /* helps swipe-to-close on mobile */
 }
 .mx-sheetHandle{
   width: 46px;
@@ -2595,7 +2662,15 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
   margin: 0 auto 10px;
 }
 .mx-sheetTitle{ font-size: 14px; font-weight: 950; color: rgba(0,0,0,.82); margin-bottom: 10px; }
-.mx-sheetList{ display:flex; flex-direction: column; gap: 8px; }
+.mx-sheetList{
+  display:flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 46vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
 .mx-sheetItem{
   width: 100%;
   border-radius: 18px;
@@ -2617,6 +2692,34 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 .mx-sheetItemText{ min-width: 0; text-align:left; }
 .mx-sheetCheck{ color: rgba(0,0,0,.78); }
 
+/* Dark theme: black surfaces + yellow neon */
+html[data-theme="dark"] .theme-client .mx-filterBtn{
+  background: rgba(6,6,6,.98);
+  border-color: rgba(246,198,0,.34);
+  box-shadow: 0 18px 54px rgba(0,0,0,.72), 0 0 20px rgba(246,198,0,.10);
+}
+html[data-theme="dark"] .theme-client .mx-filterBtnHint{ color: var(--muted2); }
+html[data-theme="dark"] .theme-client .mx-filterBtnVal{ color: var(--text); }
+
+html[data-theme="dark"] .theme-client .mx-sheet{
+  background: rgba(0,0,0,.98);
+  border-color: rgba(246,198,0,.32);
+  box-shadow: 0 -30px 96px rgba(0,0,0,.86), 0 0 28px rgba(246,198,0,.10);
+}
+html[data-theme="dark"] .theme-client .mx-sheetHandle{ background: rgba(246,198,0,.26); }
+html[data-theme="dark"] .theme-client .mx-sheetTitle{ color: var(--text); }
+html[data-theme="dark"] .theme-client .mx-sheetItem{
+  border-color: rgba(246,198,0,.18);
+  background: rgba(246,198,0,.06);
+  color: var(--text);
+}
+html[data-theme="dark"] .theme-client .mx-sheetItem.on{
+  border-color: rgba(246,198,0,.95);
+  background: rgba(246,198,0,.14);
+  box-shadow: 0 0 0 1px rgba(246,198,0,.46) inset, 0 0 22px rgba(246,198,0,.20);
+}
+html[data-theme="dark"] .theme-client .mx-sheetCheck{ color: var(--text); }
+
 .mx-sheetCustom{ margin-top: 12px; padding: 12px; border-radius: 20px; background: rgba(0,0,0,.03); border: 1px solid rgba(0,0,0,.08); }
 .mx-customRow{ display:flex; align-items:center; justify-content:space-between; gap: 10px; }
 .mx-customRow + .mx-customRow{ margin-top: 10px; }
@@ -2632,6 +2735,15 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
   color: rgba(0,0,0,.86);
 }
 
+html[data-theme="dark"] .theme-client .mx-sheetCustom{ background: rgba(246,198,0,.05); border-color: rgba(246,198,0,.18); }
+html[data-theme="dark"] .theme-client .mx-customLbl{ color: var(--muted); }
+html[data-theme="dark"] .theme-client .mx-dateInput{
+  background: rgba(6,6,6,.98);
+  border-color: rgba(246,198,0,.34);
+  color: var(--text);
+  -webkit-text-fill-color: rgba(246,198,0,.98);
+}
+
 .mx-sheetFooter{ margin-top: 14px; }
 .mx-sheetBtn{
   width: 100%;
@@ -2643,7 +2755,14 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
   box-shadow: 0 20px 64px rgba(0,0,0,.50), 0 0 40px rgba(246,198,0,.42);
 }
 
+html[data-theme="dark"] .theme-client .mx-sheetBtn{
+  background: rgba(0,0,0,.98);
+  color: var(--text);
+  box-shadow: 0 22px 70px rgba(0,0,0,.78), 0 0 44px rgba(246,198,0,.18);
+}
+
 .mx-muted{ color: rgba(0,0,0,.56); font-weight: 700; }
+html[data-theme="dark"] .theme-client .mx-muted{ color: var(--muted) !important; }
 
 /* Afisha category buttons with images */
 .mx-afCats{ display:grid; gap: 12px; margin-bottom: 12px; }
@@ -2703,13 +2822,32 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 .mx-afCat--music{ background-image: url('/brand/afisha-music.jpg'); }
 
 .mx-list{ display:flex; flex-direction:column; gap: 12px; }
-.mx-afTitle{ font-size: 15px; font-weight: 950; position: relative; z-index: 1; }
-.mx-afMeta{ font-size: 12.5px; font-weight: 850; color: rgba(0,0,0,.54); margin-top: 4px; position: relative; z-index: 1; }
+.mx-afTitle{ font-size: 18px; font-weight: 950; line-height: 1.12; position: relative; z-index: 1; }
+.mx-afComment{ font-size: 13.5px; font-weight: 850; line-height: 1.22; color: rgba(0,0,0,.70); margin-top: 6px; position: relative; z-index: 1; }
+.mx-afMeta{ font-size: 12.5px; font-weight: 850; color: rgba(0,0,0,.54); margin-top: 6px; position: relative; z-index: 1; }
+.mx-afLinkBtn{ opacity: .80; }
+.mx-afLinkBtn:active{ opacity: .92; }
 
 /* Afisha list view */
 .mx-afTop{ display:flex; align-items:center; justify-content:space-between; gap: 10px; margin: 8px 0 12px; }
 .mx-afBack{ height: 38px; padding: 0 12px; border-radius: 16px; background: rgba(255,255,255,.96); border: 1px solid var(--stroke); box-shadow: var(--shadow2); font-weight: 900; }
 .mx-afTopTitle{ font-size: 14px; font-weight: 950; color: rgba(0,0,0,.72); }
+
+html[data-theme="dark"] .theme-client .mx-afMeta{ color: var(--muted) !important; }
+html[data-theme="dark"] .theme-client .mx-afComment{ color: var(--muted) !important; }
+html[data-theme="dark"] .theme-client .mx-afBack{
+  background: rgba(6,6,6,.98);
+  border-color: rgba(246,198,0,.34);
+  color: var(--text);
+  box-shadow: 0 18px 56px rgba(0,0,0,.72), 0 0 18px rgba(246,198,0,.10);
+}
+html[data-theme="dark"] .theme-client .mx-afTopTitle{ color: var(--text); }
+
+html[data-theme="dark"] .theme-client .mx-afEvCard{
+  border-color: rgba(246,198,0,.22);
+  background: rgba(0,0,0,.98);
+  box-shadow: 0 30px 96px rgba(0,0,0,.86), 0 0 34px rgba(246,198,0,.08);
+}
 
 /* Event card with optional background image */
 .mx-afEvCard{
@@ -2733,6 +2871,7 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 }
 .mx-afEvBody{ position: relative; z-index: 1; padding: 16px; }
 .mx-afEvCard.has-img .mx-afTitle{ color: rgba(255,255,255,.96); }
+.mx-afEvCard.has-img .mx-afComment{ color: rgba(255,255,255,.88); }
 .mx-afEvCard.has-img .mx-afMeta{ color: rgba(255,255,255,.80); }
 
 /* Rates table inside the home "Курс" card (no extra card wrapper) */
@@ -2755,56 +2894,56 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
    Fix legacy dark-theme rules that may still exist above.
    ========================= */
 
-.theme-client{ color-scheme: light !important; }
-.theme-client.vx-page{
+html[data-theme="dark"] .theme-client{ color-scheme: light !important; }
+html[data-theme="dark"] .theme-client.vx-page{
   background: #f6f7fb !important;
   color: rgba(0,0,0,.88) !important;
 }
 
 /* Common text helpers inside the client */
-.theme-client .vx-muted,
-.theme-client .vx-meta,
-.theme-client .vx-note,
-.theme-client .vx-sub,
-.theme-client .vx-help,
-.theme-client .vx-rateHdr,
-.theme-client .vx-topSub,
-.theme-client .vx-revH,
-.theme-client .vx-revRating,
-.theme-client .vx-revReplyH{
+html[data-theme="dark"] .theme-client .vx-muted,
+html[data-theme="dark"] .theme-client .vx-meta,
+html[data-theme="dark"] .theme-client .vx-note,
+html[data-theme="dark"] .theme-client .vx-sub,
+html[data-theme="dark"] .theme-client .vx-help,
+html[data-theme="dark"] .theme-client .vx-rateHdr,
+html[data-theme="dark"] .theme-client .vx-topSub,
+html[data-theme="dark"] .theme-client .vx-revH,
+html[data-theme="dark"] .theme-client .vx-revRating,
+html[data-theme="dark"] .theme-client .vx-revReplyH{
   color: rgba(0,0,0,.56) !important;
 }
 
-.theme-client .vx-title,
-.theme-client .vx-sectionTitle,
-.theme-client .vx-ratePair2,
-.theme-client .vx-rateN,
-.theme-client .vx-pair,
-.theme-client .vx-num,
-.theme-client .vx-reviewsTitle,
-.theme-client .vx-revName,
-.theme-client .vx-revTextOut{
+html[data-theme="dark"] .theme-client .vx-title,
+html[data-theme="dark"] .theme-client .vx-sectionTitle,
+html[data-theme="dark"] .theme-client .vx-ratePair2,
+html[data-theme="dark"] .theme-client .vx-rateN,
+html[data-theme="dark"] .theme-client .vx-pair,
+html[data-theme="dark"] .theme-client .vx-num,
+html[data-theme="dark"] .theme-client .vx-reviewsTitle,
+html[data-theme="dark"] .theme-client .vx-revName,
+html[data-theme="dark"] .theme-client .vx-revTextOut{
   color: rgba(0,0,0,.90) !important;
 }
 
-.theme-client .vx-revCard,
-.theme-client .vx-revCompose,
-.theme-client .vx-atmHintBox,
-.theme-client .vx-atmVideo{
+html[data-theme="dark"] .theme-client .vx-revCard,
+html[data-theme="dark"] .theme-client .vx-revCompose,
+html[data-theme="dark"] .theme-client .vx-atmHintBox,
+html[data-theme="dark"] .theme-client .vx-atmVideo{
   background: rgba(255,255,255,.96) !important;
   border-color: rgba(0,0,0,.08) !important;
 }
 
-.theme-client input.vx-in,
-.theme-client select.vx-in,
-.theme-client textarea.vx-revText{
+html[data-theme="dark"] .theme-client input.vx-in,
+html[data-theme="dark"] .theme-client select.vx-in,
+html[data-theme="dark"] .theme-client textarea.vx-revText{
   background: rgba(255,255,255,.96) !important;
   color: rgba(0,0,0,.88) !important;
   border-color: rgba(0,0,0,.10) !important;
 }
 
-.theme-client textarea.vx-revText::placeholder,
-.theme-client input::placeholder{
+html[data-theme="dark"] .theme-client textarea.vx-revText::placeholder,
+html[data-theme="dark"] .theme-client input::placeholder{
   color: rgba(0,0,0,.40) !important;
 }
 
@@ -2840,22 +2979,50 @@ body.vx-body-client #root{ background: #f6f7fb !important; }
 /* give content space for the fixed bottom menu */
 .theme-client .container{ padding-bottom: 96px; }
 
-/* ATM buttons: neon yellow outline + stronger shadow */
+/* ATM buttons: yellow outline + strong black shadow (must look clickable) */
 .theme-client .vx-atmBtn,
 .theme-client .vx-atmFindBtn{
   border: 2px solid rgba(246,198,0,.98) !important;
   box-shadow:
-    0 18px 46px rgba(0,0,0,.78),
-    0 0 0 1px rgba(0,0,0,.45) inset,
-    0 0 0 1px rgba(246,198,0,.62) !important;
+    0 22px 54px rgba(0,0,0,.60),
+    0 0 0 2px rgba(0,0,0,.88) inset,
+    0 0 18px rgba(246,198,0,.18);
   text-shadow: 0 2px 0 rgba(0,0,0,.28);
   transition: box-shadow .18s ease, transform .12s ease;
 }
 
 .theme-client .vx-atmBtnOn{
   box-shadow:
-    0 22px 62px rgba(0,0,0,.86),
-    0 0 0 1px rgba(0,0,0,.55) inset,
-    0 0 0 1px rgba(246,198,0,.82) !important;
+    0 26px 70px rgba(0,0,0,.70),
+    0 0 0 2px rgba(0,0,0,.92) inset,
+    0 0 24px rgba(246,198,0,.26);
+}
+
+/* Dark theme: force yellow text across legacy widgets that hard-coded white */
+html[data-theme="dark"] .theme-client .vx-ratePair2,
+html[data-theme="dark"] .theme-client .vx-rateN,
+html[data-theme="dark"] .theme-client .vx-num,
+html[data-theme="dark"] .theme-client .vx-pill,
+html[data-theme="dark"] .theme-client .vx-reviewsTitle,
+html[data-theme="dark"] .theme-client .vx-revName,
+html[data-theme="dark"] .theme-client .vx-revTextOut,
+html[data-theme="dark"] .theme-client .vx-acc > summary{
+  color: var(--text) !important;
+}
+
+html[data-theme="dark"] .theme-client .vx-rateHdr,
+html[data-theme="dark"] .theme-client .vx-rateNMuted,
+html[data-theme="dark"] .theme-client .vx-dash,
+html[data-theme="dark"] .theme-client .vx-revH,
+html[data-theme="dark"] .theme-client .vx-revRating,
+html[data-theme="dark"] .theme-client .vx-muted,
+html[data-theme="dark"] .theme-client .vx-help,
+html[data-theme="dark"] .theme-client .vx-note,
+html[data-theme="dark"] .theme-client .vx-meta{
+  color: var(--muted) !important;
+}
+
+html[data-theme="dark"] .theme-client .hr{
+  background: rgba(246,198,0,.20) !important;
 }
 

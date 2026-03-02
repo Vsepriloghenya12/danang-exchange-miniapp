@@ -383,7 +383,7 @@ export async function apiAdminGetAfisha(token: string, params: { scope?: 'active
 
 export async function apiAdminCreateAfisha(
   token: string,
-  payload: { category: string; date: string; title: string; detailsUrl: string; locationUrl: string; imageDataUrl?: string | null }
+  payload: { category: string; date: string; title: string; comment?: string; detailsUrl: string; locationUrl: string; imageDataUrl?: string | null }
 ): Promise<any> {
   const r = await fetch('/api/admin/afisha', {
     method: 'POST',
@@ -396,7 +396,7 @@ export async function apiAdminCreateAfisha(
 export async function apiAdminUpdateAfisha(
   token: string,
   id: string,
-  payload: Partial<{ category: string; date: string; title: string; detailsUrl: string; locationUrl: string; imageDataUrl?: string | null }>
+  payload: Partial<{ category: string; date: string; title: string; comment?: string; detailsUrl: string; locationUrl: string; imageDataUrl?: string | null }>
 ): Promise<any> {
   const r = await fetch(`/api/admin/afisha/${encodeURIComponent(id)}`, {
     method: 'PUT',

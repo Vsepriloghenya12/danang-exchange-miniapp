@@ -209,6 +209,7 @@ export type AfishaEvent = {
   category: AfishaCategory;
   date: string; // YYYY-MM-DD
   title: string;
+  comment?: string;
   detailsUrl: string;
   locationUrl: string;
   // optional background image URL served from server/public (e.g. /afisha/<id>.jpg)
