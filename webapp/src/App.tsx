@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getTg } from "./lib/telegram";
-import { apiAuth } from "./lib/api";
+import { apiAuth, apiEvent } from "./lib/api";
 import type { UserStatus } from "./lib/types";
 
 import RatesTab from "./tabs/RatesTab";
@@ -277,6 +277,42 @@ export default function App() {
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
   const [screen, setScreen] = useState<ScreenKey>("home");
   const [courseExpanded, setCourseExpanded] = useState(false);
+
+  const sessionId = useMemo(() => {
+    try {
+      // session per app open
+      return (crypto as any).randomUUID ? (crypto as any).randomUUID() : `s_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    } catch {
+      return `s_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    }
+  }, []);
+
+  const didTrackOpen = useRef(false);
+  useEffect(() => {
+    if (!me.ok || !me.initData || isDemo) return;
+    if (didTrackOpen.current) return;
+    didTrackOpen.current = true;
+
+    const platform = (window as any).Telegram?.WebApp?.platform || "";
+    void apiEvent(me.initData, {
+      name: "app_open",
+      sessionId,
+      platform,
+      path: window.location.pathname + window.location.search,
+    });
+  }, [me.ok, me.initData, isDemo, sessionId]);
+
+  useEffect(() => {
+    if (!me.ok || !me.initData || isDemo) return;
+    const platform = (window as any).Telegram?.WebApp?.platform || "";
+    void apiEvent(me.initData, {
+      name: "screen_open",
+      sessionId,
+      platform,
+      path: window.location.pathname + window.location.search,
+      props: { screen },
+    });
+  }, [screen, me.ok, me.initData, isDemo, sessionId]);
 
   const isDemo = useMemo(() => new URLSearchParams(window.location.search).get("demo") === "1", []);
 

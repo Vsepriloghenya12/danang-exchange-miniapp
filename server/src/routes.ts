@@ -22,6 +22,8 @@ import {
 } from "./store.js";
 import { validateTelegramInitData } from "./telegramValidate.js";
 import { getMarketSnapshot } from "./marketRates.js";
+import { HAS_DATABASE, ensureSchema, getPool } from "./db.js";
+
 
 // --------------------
 // Weather (OpenWeatherMap)
@@ -104,7 +106,7 @@ export function createApiRouter(opts: {
     return false;
   }
 
-  function requireAuth(req: express.Request) {
+  async function requireAuth(req: express.Request) {
     const auth = (req.headers.authorization as string | undefined) || "";
     const initFromAuth = auth.startsWith("tma ") ? auth.slice(4) : undefined;
     const initFromHeader = req.headers["x-telegram-init-data"] as string | undefined;
@@ -116,11 +118,11 @@ export function createApiRouter(opts: {
 
     const v = validateTelegramInitData(initData, opts.botToken);
 
-    const up = upsertUserFromTelegram(v.user);
+    const up = await upsertUserFromTelegram(v.user);
     const status = (up?.status ?? "standard") as UserStatus;
     const isOwner = isOwnerId(v.user.id);
 
-    const store = readStore();
+    const store = await readStore();
     const adminIds = Array.isArray((store.config as any)?.adminTgIds) ? (store.config as any).adminTgIds : [];
     const isAdmin = adminIds.includes(v.user.id);
 
@@ -137,7 +139,7 @@ export function createApiRouter(opts: {
 
   // Admin access for a standalone PC dashboard.
   // If ADMIN_WEB_KEY is set, requests with header `x-admin-key: <key>` are treated as owner.
-  function requireAdmin(req: express.Request) {
+  async function requireAdmin(req: express.Request) {
     const envKey = String(process.env.ADMIN_WEB_KEY || "").trim();
     const key = String(req.headers["x-admin-key"] || "").trim();
 
@@ -155,16 +157,79 @@ export function createApiRouter(opts: {
     }
 
     // Otherwise allow Telegram owner access (if someone calls /admin API from inside the miniapp).
-    return requireAuth(req);
+    return await requireAuth(req);
   }
 
-  function requireStaff(req: express.Request) {
-    const a = requireAuth(req);
+  async function requireStaff(req: express.Request) {
+    const a = await requireAuth(req);
     if (!a.isAdmin) throw new Error("not_admin");
     return a;
   }
 
-  router.get("/health", (_req, res) => res.json({ ok: true }));
+  router.get("/health", async (_req, res) => res.json({ ok: true }));
+
+  // --------------------
+  // Analytics events (tab opens, clicks, sessions)
+  // Client sends: { name, sessionId, props, path, platform, appVersion }
+  // --------------------
+  router.post("/events", async (req, res) => {
+    try {
+      const { user, blocked } = await requireAuth(req);
+      if (blocked) return res.status(403).json({ ok: false, error: "blocked" });
+
+      const body: any = req.body || {};
+      const name = String(body.name || body.event || "").trim();
+      const sessionId = String(body.sessionId || body.session_id || "").trim() || undefined;
+      const props = typeof body.props === "object" && body.props ? body.props : undefined;
+      const pathStr = String(body.path || "").trim() || undefined;
+      const platform = String(body.platform || "").trim() || undefined;
+      const appVersion = String(body.appVersion || body.app_version || "").trim() || undefined;
+
+      if (!name) return res.status(400).json({ ok: false, error: "missing_name" });
+
+      if (HAS_DATABASE) {
+        await ensureSchema();
+        await getPool().query(
+          "INSERT INTO app_events (tg_id, session_id, event_name, props, app_version, platform, path) VALUES ($1,$2,$3,$4,$5,$6,$7)",
+          [user.id, sessionId || null, name, props || null, appVersion || null, platform || null, pathStr || null]
+        );
+      } else {
+        console.log("[EVENT]", { tg_id: user.id, name, sessionId, platform, appVersion, path: pathStr, props });
+      }
+
+      return res.json({ ok: true });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "unauthorized" });
+    }
+  });
+
+  // Basic metrics for owner/admin (requires DB)
+  router.get("/metrics", async (req, res) => {
+    try {
+      const { isOwner, isAdmin } = await requireAuth(req);
+      if (!isOwner && !isAdmin) return res.status(403).json({ ok: false, error: "forbidden" });
+      if (!HAS_DATABASE) return res.json({ ok: true, db: false, note: "DATABASE_URL not set" });
+
+      await ensureSchema();
+      const pool = getPool();
+
+      const last24 = await pool.query(
+        "SELECT count(*)::int AS events, count(distinct tg_id)::int AS users FROM app_events WHERE ts > now() - interval '24 hours'"
+      );
+      const byEvent = await pool.query(
+        "SELECT event_name, count(*)::int AS cnt FROM app_events WHERE ts > now() - interval '24 hours' GROUP BY event_name ORDER BY cnt DESC LIMIT 50"
+      );
+
+      return res.json({
+        ok: true,
+        db: true,
+        last24: last24.rows[0],
+        byEvent: byEvent.rows
+      });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "unauthorized" });
+    }
+  });
 
   // --------------------
   // Public: current weather for Da Nang (cached)
@@ -214,7 +279,7 @@ export function createApiRouter(opts: {
     path.resolve(__dirname, "../../webapp/public/banks")
   ];
 
-  router.get("/banks/icons", (_req, res) => {
+  router.get("/banks/icons", async (_req, res) => {
     try {
       const dir = banksCandidates.find((d) => fs.existsSync(d));
       if (!dir) return res.json({ ok: true, icons: [] });
@@ -228,10 +293,10 @@ export function createApiRouter(opts: {
     }
   });
 
-  router.post("/auth", (req, res) => {
+  router.post("/auth", async (req, res) => {
     try {
-      const { user, status, isOwner, isAdmin, blocked } = requireAuth(req);
-      const store = readStore();
+      const { user, status, isOwner, isAdmin, blocked } = await requireAuth(req);
+      const store = await readStore();
       const adminIds = Array.isArray((store.config as any)?.adminTgIds) ? ((store.config as any).adminTgIds as number[]) : [];
       const adminTgId = adminIds[0] ?? opts.ownerTgId ?? null;
       const adminUsername = String((store.config as any)?.adminUsername || "").trim();
@@ -255,10 +320,10 @@ export function createApiRouter(opts: {
     }
   });
 
-  router.get("/me", (req, res) => {
+  router.get("/me", async (req, res) => {
     try {
-      const { user, status, isOwner, isAdmin, blocked } = requireAuth(req);
-      const store = readStore();
+      const { user, status, isOwner, isAdmin, blocked } = await requireAuth(req);
+      const store = await readStore();
       const adminIds = Array.isArray((store.config as any)?.adminTgIds) ? ((store.config as any).adminTgIds as number[]) : [];
       const adminTgId = adminIds[0] ?? opts.ownerTgId ?? null;
       const adminUsername = String((store.config as any)?.adminUsername || "").trim();
@@ -287,11 +352,11 @@ export function createApiRouter(opts: {
   // --------------------
   // Owner config: blacklist (usernames)
   // --------------------
-  router.get("/admin/blacklist", (req, res) => {
+  router.get("/admin/blacklist", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-      const store = readStore();
+      const store = await readStore();
       const usernames = Array.isArray((store.config as any).blacklistUsernames)
         ? ((store.config as any).blacklistUsernames as any[])
             .map((x) => normUsername(String(x)))
@@ -303,9 +368,9 @@ export function createApiRouter(opts: {
     }
   });
 
-  router.post("/admin/blacklist", (req, res) => {
+  router.post("/admin/blacklist", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const raw =
@@ -329,9 +394,9 @@ export function createApiRouter(opts: {
         )
       );
 
-      const store = readStore();
+      const store = await readStore();
       store.config = { ...(store.config || {}), blacklistUsernames: normalized };
-      writeStore(store);
+      await writeStore(store);
       return res.json({ ok: true, usernames: normalized });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -390,14 +455,14 @@ export function createApiRouter(opts: {
   }
 
   // Public list (only future+today)
-  router.get('/afisha', (req, res) => {
+  router.get('/afisha', async (req, res) => {
     try {
       const today = todayISOInVN();
       const category = String((req.query as any)?.category || 'all').toLowerCase();
       const from = String((req.query as any)?.from || '').slice(0, 10);
       const to = String((req.query as any)?.to || '').slice(0, 10);
 
-      const store = readStore();
+      const store = await readStore();
       const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
 
       let out = items.filter((ev) => ev && typeof ev === 'object');
@@ -419,15 +484,15 @@ export function createApiRouter(opts: {
   });
 
   // Click tracking
-  router.post('/afisha/click', (req, res) => {
+  router.post('/afisha/click', async (req, res) => {
     try {
-      requireAuth(req); // count only real users
+      await requireAuth(req); // count only real users
       const id = String((req.body as any)?.id || '').trim();
       const kind = String((req.body as any)?.kind || '').trim();
       if (!id) return res.status(400).json({ ok: false, error: 'bad_id' });
       if (kind !== 'details' && kind !== 'location') return res.status(400).json({ ok: false, error: 'bad_kind' });
 
-      const store = readStore();
+      const store = await readStore();
       const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
       const ev = items.find((x) => String(x?.id || '') === id);
       if (!ev) return res.status(404).json({ ok: false, error: 'not_found' });
@@ -435,7 +500,7 @@ export function createApiRouter(opts: {
       ev.clicks[kind] = Number(ev.clicks[kind] || 0) + 1;
       ev.updated_at = new Date().toISOString();
       (store as any).afisha = items;
-      writeStore(store);
+      await writeStore(store);
       return res.json({ ok: true });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
@@ -443,9 +508,9 @@ export function createApiRouter(opts: {
   });
 
   // Owner management
-  router.get('/admin/afisha', (req, res) => {
+  router.get('/admin/afisha', async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: 'not_owner' });
 
       const today = todayISOInVN();
@@ -453,7 +518,7 @@ export function createApiRouter(opts: {
       const from = String((req.query as any)?.from || '').slice(0, 10);
       const to = String((req.query as any)?.to || '').slice(0, 10);
 
-      const store = readStore();
+      const store = await readStore();
       let items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
       items = items.filter((ev) => ev && typeof ev === 'object');
 
@@ -473,9 +538,9 @@ export function createApiRouter(opts: {
     }
   });
 
-  router.post('/admin/afisha', (req, res) => {
+  router.post('/admin/afisha', async (req, res) => {
     try {
-      const { isOwner, user } = requireAdmin(req);
+      const { isOwner, user } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: 'not_owner' });
 
       const category = normCategory((req.body as any)?.category);
@@ -512,20 +577,20 @@ export function createApiRouter(opts: {
         created_by: user?.id || 0
       };
 
-      const store = readStore();
+      const store = await readStore();
       const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
       items.push(ev);
       (store as any).afisha = items;
-      writeStore(store);
+      await writeStore(store);
       return res.json({ ok: true, event: ev });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
     }
   });
 
-  router.put('/admin/afisha/:id', (req, res) => {
+  router.put('/admin/afisha/:id', async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: 'not_owner' });
 
       const id = String((req.params as any)?.id || '').trim();
@@ -548,7 +613,7 @@ export function createApiRouter(opts: {
       const imageDataUrlRaw = (req.body as any)?.imageDataUrl;
       const imageDataUrl = typeof imageDataUrlRaw === 'string' ? String(imageDataUrlRaw) : null;
 
-      const store = readStore();
+      const store = await readStore();
       const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
       const ev = items.find((x) => String(x?.id || '') === id);
       if (!ev) return res.status(404).json({ ok: false, error: 'not_found' });
@@ -587,7 +652,7 @@ export function createApiRouter(opts: {
 
       ev.updated_at = new Date().toISOString();
       (store as any).afisha = items;
-      writeStore(store);
+      await writeStore(store);
       return res.json({ ok: true, event: ev });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
@@ -596,8 +661,8 @@ export function createApiRouter(opts: {
   // --------------------
   // Rates
   // --------------------
-  router.get("/rates/today", (_req, res) => {
-    const store = readStore();
+  router.get("/rates/today", async (_req, res) => {
+    const store = await readStore();
     const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
     const data = store.ratesByDate?.[today] || null;
     res.json({ ok: true, date: today, data });
@@ -613,8 +678,8 @@ export function createApiRouter(opts: {
   // --------------------
   // Bonuses (надбавки)
   // --------------------
-  router.get("/bonuses", (_req, res) => {
-    const store = readStore();
+  router.get("/bonuses", async (_req, res) => {
+    const store = await readStore();
     // Нормализуем/мигрируем, чтобы старые store.json (где bonuses мог быть пустым объектом)
     // не ломали фронт (например, bonuses.enabled может отсутствовать).
     const current = (store.config as any)?.bonuses;
@@ -623,24 +688,24 @@ export function createApiRouter(opts: {
     // Если по дороге что-то «починили» — сохраним обратно, чтобы больше не повторялось.
     if (JSON.stringify(current ?? null) !== JSON.stringify(bonuses)) {
       store.config = { ...(store.config || {}), bonuses };
-      writeStore(store);
+      await writeStore(store);
     }
 
     res.json({ ok: true, bonuses });
   });
 
-  router.get("/admin/bonuses", (req, res) => {
+  router.get("/admin/bonuses", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
-      const store = readStore();
+      const store = await readStore();
       const current = (store.config as any)?.bonuses;
       const bonuses = cleanBonuses(current);
 
       if (JSON.stringify(current ?? null) !== JSON.stringify(bonuses)) {
         store.config = { ...(store.config || {}), bonuses };
-        writeStore(store);
+        await writeStore(store);
       }
 
       res.json({ ok: true, bonuses });
@@ -711,17 +776,17 @@ export function createApiRouter(opts: {
     return out;
   }
 
-  router.post("/admin/bonuses", (req, res) => {
+  router.post("/admin/bonuses", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const body = req.body || {};
       const bonuses = cleanBonuses(body.bonuses ?? body);
 
-      const store = readStore();
+      const store = await readStore();
       store.config = { ...(store.config || {}), bonuses };
-      writeStore(store);
+      await writeStore(store);
       res.json({ ok: true, bonuses });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -732,18 +797,18 @@ export function createApiRouter(opts: {
   // ATMs
   // --------------------
   // публичный список банкоматов
-  router.get("/atms", (_req, res) => {
-    const store = readStore();
+  router.get("/atms", async (_req, res) => {
+    const store = await readStore();
     res.json({ ok: true, atms: Array.isArray((store as any).atms) ? (store as any).atms : [] });
   });
 
   // список для владельца (через Telegram initData или x-admin-key)
-  router.get("/admin/atms", (req, res) => {
+  router.get("/admin/atms", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
-      const store = readStore();
+      const store = await readStore();
       res.json({ ok: true, atms: Array.isArray((store as any).atms) ? (store as any).atms : [] });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -751,9 +816,9 @@ export function createApiRouter(opts: {
   });
 
   // сохранить список (полностью перезаписываем)
-  router.post("/admin/atms", (req, res) => {
+  router.post("/admin/atms", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const body = req.body || {};
@@ -783,21 +848,21 @@ export function createApiRouter(opts: {
         }
       }
 
-      const store: any = readStore();
+      const store: any = await readStore();
       store.atms = cleaned;
-      writeStore(store);
+      await writeStore(store);
       res.json({ ok: true, atms: store.atms });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
-  router.get("/admin/rates/today", (req, res) => {
+  router.get("/admin/rates/today", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
-      const store = readStore();
+      const store = await readStore();
       const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
       const data = store.ratesByDate?.[today] || null;
       res.json({ ok: true, date: today, data });
@@ -806,9 +871,9 @@ export function createApiRouter(opts: {
     }
   });
 
-  router.post("/admin/rates/today", (req, res) => {
+  router.post("/admin/rates/today", async (req, res) => {
     try {
-      const { isOwner, user } = requireAdmin(req);
+      const { isOwner, user } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const body = req.body || {};
@@ -855,7 +920,7 @@ export function createApiRouter(opts: {
         return res.status(400).json({ ok: false, error: "bad_numbers" });
       }
 
-      const store = readStore();
+      const store = await readStore();
       const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
 
       store.ratesByDate[today] = {
@@ -864,7 +929,7 @@ export function createApiRouter(opts: {
         rates: data
       };
 
-      writeStore(store);
+      await writeStore(store);
       res.json({ ok: true, date: today, data: store.ratesByDate[today] });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -874,11 +939,11 @@ export function createApiRouter(opts: {
   // --------------------
   // Owner config: admins list
   // --------------------
-  router.get("/admin/admins", (req, res) => {
+  router.get("/admin/admins", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-      const store = readStore();
+      const store = await readStore();
       const adminTgIds = Array.isArray((store.config as any).adminTgIds) ? (store.config as any).adminTgIds : [];
       return res.json({ ok: true, adminTgIds });
     } catch (e: any) {
@@ -886,9 +951,9 @@ export function createApiRouter(opts: {
     }
   });
 
-  router.post("/admin/admins", (req, res) => {
+  router.post("/admin/admins", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const raw = (req.body as any)?.adminTgIds ?? (req.body as any)?.admins;
@@ -903,9 +968,9 @@ export function createApiRouter(opts: {
         .map((x) => Number(x))
         .filter((n) => Number.isFinite(n) && n > 0);
 
-      const store = readStore();
+      const store = await readStore();
       store.config = { ...(store.config || {}), adminTgIds };
-      writeStore(store);
+      await writeStore(store);
       return res.json({ ok: true, adminTgIds });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -915,11 +980,11 @@ export function createApiRouter(opts: {
   // --------------------
   // Owner: publish template
   // --------------------
-  router.get("/admin/publish-template", (req, res) => {
+  router.get("/admin/publish-template", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-      const store = readStore();
+      const store = await readStore();
       const template = String((store.config as any)?.publishTemplate || "");
       return res.json({ ok: true, template });
     } catch (e: any) {
@@ -927,14 +992,14 @@ export function createApiRouter(opts: {
     }
   });
 
-  router.post("/admin/publish-template", (req, res) => {
+  router.post("/admin/publish-template", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
       const template = String((req.body as any)?.template || "");
-      const store = readStore();
+      const store = await readStore();
       store.config = { ...(store.config || {}), publishTemplate: template };
-      writeStore(store);
+      await writeStore(store);
       return res.json({ ok: true, template });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -944,23 +1009,23 @@ export function createApiRouter(opts: {
   // --------------------
   // Owner: contacts
   // --------------------
-  router.get("/admin/contacts", (req, res) => {
+  router.get("/admin/contacts", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-      const store = readStore();
+      const store = await readStore();
       return res.json({ ok: true, contacts: Array.isArray(store.contacts) ? store.contacts : [] });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
-  router.post("/admin/contacts/upsert", (req, res) => {
+  router.post("/admin/contacts/upsert", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
-      const store = readStore();
+      const store = await readStore();
       const tg_id = req.body?.tg_id ? Number(req.body.tg_id) : undefined;
       const username = normUsername(req.body?.username);
       const fullName = String(req.body?.fullName || req.body?.full_name || "").trim();
@@ -1017,7 +1082,7 @@ export function createApiRouter(opts: {
         store.users[String(tg_id)].status = status;
       }
 
-      writeStore(store);
+      await writeStore(store);
       return res.json({ ok: true, contact: c });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -1027,9 +1092,9 @@ export function createApiRouter(opts: {
   // --------------------
   // Owner: reports
   // --------------------
-  router.get("/admin/reports", (req, res) => {
+  router.get("/admin/reports", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const from = String(req.query.from || "").trim();
@@ -1041,7 +1106,7 @@ export function createApiRouter(opts: {
         return res.status(400).json({ ok: false, error: "bad_date" });
       }
 
-      const store = readStore();
+      const store = await readStore();
       const fromTs = new Date(from + "T00:00:00.000Z").getTime();
       const toTs = new Date(to + "T23:59:59.999Z").getTime();
 
@@ -1087,10 +1152,10 @@ export function createApiRouter(opts: {
   // --------------------
   router.post("/admin/publish", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
-      const store = readStore();
+      const store = await readStore();
 
       // Group chat to publish into.
       // Priority: store.config.groupChatId (editable by owner) -> env GROUP_CHAT_ID
@@ -1294,21 +1359,21 @@ export function createApiRouter(opts: {
   // --------------------
   // Admin users
   // --------------------
-  router.get("/admin/users", (req, res) => {
+  router.get("/admin/users", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
-      const store = readStore();
+      const store = await readStore();
       res.json({ ok: true, users: Object.values(store.users || {}) });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
-  router.post("/admin/users/:tgId/status", (req, res) => {
+  router.post("/admin/users/:tgId/status", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const tgId = Number(req.params.tgId);
@@ -1325,12 +1390,12 @@ export function createApiRouter(opts: {
         });
       }
 
-      const store = readStore();
+      const store = await readStore();
       const key = String(tgId);
       if (!store.users?.[key]) return res.status(404).json({ ok: false, error: "user_not_found" });
 
       store.users[key].status = next;
-      writeStore(store);
+      await writeStore(store);
 
       res.json({ ok: true, status: next, statusLabel: statusLabel[next] });
     } catch (e: any) {
@@ -1342,10 +1407,10 @@ export function createApiRouter(opts: {
   // Requests
   // --------------------
   // список заявок (для админов внутри miniapp)
-  router.get("/staff/requests", (req, res) => {
+  router.get("/staff/requests", async (req, res) => {
     try {
-      requireStaff(req);
-      const store = readStore();
+      await requireStaff(req);
+      const store = await readStore();
       // legacy: migrate any "new" to "in_progress"
       const requests = [...(store.requests || [])]
         .map((r) => ({ ...r, state: (r as any).state === "new" ? "in_progress" : (r as any).state }))
@@ -1363,20 +1428,20 @@ export function createApiRouter(opts: {
   // изменить статус заявки (админ внутри miniapp)
   router.post("/staff/requests/:id/state", async (req, res) => {
     try {
-      const { user } = requireStaff(req);
+      const { user } = await requireStaff(req);
       const id = String(req.params.id || "");
       const next = parseRequestState(req.body?.state);
       if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
       if (!next) return res.status(400).json({ ok: false, error: "bad_state" });
 
-      const store = readStore();
+      const store = await readStore();
       const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
       if (!r) return res.status(404).json({ ok: false, error: "not_found" });
 
       r.state = next;
       r.state_updated_at = new Date().toISOString();
       r.state_updated_by = user.id;
-      writeStore(store);
+      await writeStore(store);
 
       // notify user
       try {
@@ -1403,10 +1468,10 @@ export function createApiRouter(opts: {
   });
 
   // контакты (админ внутри miniapp)
-  router.post("/staff/contacts/upsert", (req, res) => {
+  router.post("/staff/contacts/upsert", async (req, res) => {
     try {
-      const { user } = requireStaff(req);
-      const store = readStore();
+      const { user } = await requireStaff(req);
+      const store = await readStore();
 
       const tg_id = req.body?.tg_id ? Number(req.body.tg_id) : undefined;
       const username = normUsername(req.body?.username);
@@ -1455,7 +1520,7 @@ export function createApiRouter(opts: {
       if (banks !== undefined) c.banks = banks;
 
       // note: staff doesn't change status here
-      writeStore(store);
+      await writeStore(store);
       return res.json({ ok: true, contact: c, by: user.id });
     } catch (e: any) {
       return res.status(e?.message === "not_admin" ? 403 : 401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -1463,12 +1528,12 @@ export function createApiRouter(opts: {
   });
 
   // список заявок (для владельца)
-  router.get("/admin/requests", (req, res) => {
+  router.get("/admin/requests", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
-      const store = readStore();
+      const store = await readStore();
       const requests = [...(store.requests || [])].sort((a, b) =>
         String(b.created_at).localeCompare(String(a.created_at))
       );
@@ -1482,7 +1547,7 @@ export function createApiRouter(opts: {
   // изменить статус заявки (и отправить пуш пользователю через Telegram)
   router.post("/admin/requests/:id/state", async (req, res) => {
     try {
-      const { isOwner, user } = requireAdmin(req);
+      const { isOwner, user } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const id = String(req.params.id || "");
@@ -1496,14 +1561,14 @@ export function createApiRouter(opts: {
         });
       }
 
-      const store = readStore();
+      const store = await readStore();
       const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
       if (!r) return res.status(404).json({ ok: false, error: "not_found" });
 
       r.state = next;
       r.state_updated_at = new Date().toISOString();
       r.state_updated_by = user.id;
-      writeStore(store);
+      await writeStore(store);
 
       // Уведомление пользователю (это и будет "push" на телефоне через Telegram)
       const shortId = id.slice(-6);
@@ -1539,7 +1604,7 @@ export function createApiRouter(opts: {
 
   router.post("/requests", async (req, res) => {
     try {
-      const { user, status } = requireAuth(req);
+      const { user, status } = await requireAuth(req);
 
       const p = req.body || {};
       const sellCurrency = String(p.sellCurrency || "") as Currency;
@@ -1561,7 +1626,7 @@ export function createApiRouter(opts: {
         return res.status(400).json({ ok: false, error: "bad_method" });
       }
 
-      const store = readStore();
+      const store = await readStore();
 
       // Requests are posted into a dedicated managers group (preferred).
       // The bot may also publish rates into another group, so we support 2 separate chat IDs.
@@ -1598,7 +1663,7 @@ export function createApiRouter(opts: {
         created_at: new Date().toISOString()
       };
       store.requests.push(request);
-      writeStore(store);
+      await writeStore(store);
 
       // Notify: post into requests group (preferred), fallback to private admins if not configured
       try {
@@ -1660,10 +1725,10 @@ export function createApiRouter(opts: {
   // --------------------
   // Client: my requests history
   // --------------------
-  router.get("/requests/mine", (req, res) => {
+  router.get("/requests/mine", async (req, res) => {
     try {
-      const { user } = requireAuth(req);
-      const store = readStore();
+      const { user } = await requireAuth(req);
+      const store = await readStore();
       const list = (store.requests || [])
         .filter((r) => Number((r as any)?.from?.id) === Number(user.id))
         .slice()
@@ -1706,8 +1771,8 @@ export function createApiRouter(opts: {
   }
 
   // Публичный список: только одобренные
-  router.get("/reviews", (_req, res) => {
-    const store = readStore();
+  router.get("/reviews", async (_req, res) => {
+    const store = await readStore();
     const list = (store.reviews || [])
       .filter((r) => r && r.state === "approved")
       .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
@@ -1716,10 +1781,10 @@ export function createApiRouter(opts: {
   });
 
   // Список сделок, по которым пользователь МОЖЕТ оставить отзыв
-  router.get("/reviews/eligible", (req, res) => {
+  router.get("/reviews/eligible", async (req, res) => {
     try {
-      const { user } = requireAuth(req);
-      const store = readStore();
+      const { user } = await requireAuth(req);
+      const store = await readStore();
 
       const mineDone = (store.requests || [])
         .filter((x) => x?.from?.id === user.id && x.state === "done")
@@ -1749,9 +1814,9 @@ export function createApiRouter(opts: {
   });
 
   // Создать отзыв (pending)
-  router.post("/reviews", (req, res) => {
+  router.post("/reviews", async (req, res) => {
     try {
-      const { user } = requireAuth(req);
+      const { user } = await requireAuth(req);
       const text = String(req.body?.text || "").trim();
       const anonymous = Boolean(req.body?.anonymous);
       const requestId = String(req.body?.requestId || req.body?.request_id || "").trim();
@@ -1759,7 +1824,7 @@ export function createApiRouter(opts: {
       if (!requestId) return res.status(400).json({ ok: false, error: "request_id_missing" });
       if (text.length < 3) return res.status(400).json({ ok: false, error: "text_too_short" });
 
-      const store = readStore();
+      const store = await readStore();
       const reqObj = (store.requests || []).find((x) => String(x.id) === requestId);
       if (!reqObj) return res.status(404).json({ ok: false, error: "request_not_found" });
       if (reqObj.from?.id !== user.id) return res.status(403).json({ ok: false, error: "not_your_request" });
@@ -1785,7 +1850,7 @@ export function createApiRouter(opts: {
 
       store.reviews = store.reviews || [];
       store.reviews.push(review);
-      writeStore(store);
+      await writeStore(store);
 
       return res.json({ ok: true, id: review.id, state: review.state });
     } catch (e: any) {
@@ -1794,12 +1859,12 @@ export function createApiRouter(opts: {
   });
 
   // ---- Admin moderation ----
-  router.get("/admin/reviews", (req, res) => {
+  router.get("/admin/reviews", async (req, res) => {
     try {
-      const { isOwner } = requireAdmin(req);
+      const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
-      const store = readStore();
+      const store = await readStore();
       const list = (store.reviews || []).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
       const counts = {
         pending: list.filter((r) => r.state === "pending").length,
@@ -1813,51 +1878,51 @@ export function createApiRouter(opts: {
     }
   });
 
-  router.post("/admin/reviews/:id/approve", (req, res) => {
+  router.post("/admin/reviews/:id/approve", async (req, res) => {
     try {
-      const { isOwner, user } = requireAdmin(req);
+      const { isOwner, user } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
       const id = String(req.params.id || "").trim();
       if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
 
-      const store = readStore();
+      const store = await readStore();
       const r = (store.reviews || []).find((x) => String(x.id) === id);
       if (!r) return res.status(404).json({ ok: false, error: "not_found" });
 
       r.state = "approved";
       r.approved_at = new Date().toISOString();
       r.approved_by = user.id;
-      writeStore(store);
+      await writeStore(store);
       return res.json({ ok: true, review: r });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
-  router.post("/admin/reviews/:id/reject", (req, res) => {
+  router.post("/admin/reviews/:id/reject", async (req, res) => {
     try {
-      const { isOwner, user } = requireAdmin(req);
+      const { isOwner, user } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
       const id = String(req.params.id || "").trim();
       if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
 
-      const store = readStore();
+      const store = await readStore();
       const r = (store.reviews || []).find((x) => String(x.id) === id);
       if (!r) return res.status(404).json({ ok: false, error: "not_found" });
 
       r.state = "rejected";
       r.rejected_at = new Date().toISOString();
       r.rejected_by = user.id;
-      writeStore(store);
+      await writeStore(store);
       return res.json({ ok: true, review: r });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
-  router.post("/admin/reviews/:id/reply", (req, res) => {
+  router.post("/admin/reviews/:id/reply", async (req, res) => {
     try {
-      const { isOwner, user } = requireAdmin(req);
+      const { isOwner, user } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
       const id = String(req.params.id || "").trim();
       if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
@@ -1865,12 +1930,12 @@ export function createApiRouter(opts: {
       const text = String(req.body?.text || "").trim();
       if (text.length < 1) return res.status(400).json({ ok: false, error: "text_required" });
 
-      const store = readStore();
+      const store = await readStore();
       const r = (store.reviews || []).find((x) => String(x.id) === id);
       if (!r) return res.status(404).json({ ok: false, error: "not_found" });
 
       r.company_reply = { text, created_at: new Date().toISOString(), by: user.id };
-      writeStore(store);
+      await writeStore(store);
       return res.json({ ok: true, review: r });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });

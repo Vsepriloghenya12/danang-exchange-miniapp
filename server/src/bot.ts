@@ -39,7 +39,7 @@ export function createBot(opts: {
   };
 
   bot.start(async (ctx) => {
-    if (ctx.from) upsertUserFromTelegram(ctx.from);
+    if (ctx.from) await upsertUserFromTelegram(ctx.from);
 
     let webappUrl = opts.webappUrl || "";
     if (webappUrl && !/^https?:\/\//i.test(webappUrl)) webappUrl = "https://" + webappUrl;
@@ -54,7 +54,7 @@ export function createBot(opts: {
 
   bot.command("whoami", async (ctx) => {
     if (ctx.from) {
-      const u = upsertUserFromTelegram(ctx.from);
+      const u = await upsertUserFromTelegram(ctx.from);
       await ctx.reply(
         `Твой tg_id: ${u.tg_id}\n` +
           `username: ${u.username ? "@" + u.username : "(нет)"}\n` +
@@ -73,9 +73,9 @@ export function createBot(opts: {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setgroup");
     if (!ctx.chat || ctx.chat.type === "private") return ctx.reply("Используй /setgroup в группе.");
 
-    const store = readStore();
+    const store = await readStore();
     store.config.groupChatId = ctx.chat.id;
-    writeStore(store);
+    await writeStore(store);
 
     await ctx.reply(`Группа сохранена ✅ groupChatId=${ctx.chat.id}`);
   });
@@ -85,16 +85,16 @@ export function createBot(opts: {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setrequestsgroup");
     if (!ctx.chat || ctx.chat.type === "private") return ctx.reply("Используй /setrequestsgroup в группе.");
 
-    const store = readStore();
+    const store = await readStore();
     (store.config as any).requestsGroupChatId = ctx.chat.id;
-    writeStore(store);
+    await writeStore(store);
 
     await ctx.reply(`Группа для заявок сохранена ✅ requestsGroupChatId=${ctx.chat.id}`);
   });
 
   bot.command("showgroup", async (ctx) => {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /showgroup");
-    const store = readStore();
+    const store = await readStore();
     const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
     const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;
     await ctx.reply(
@@ -108,7 +108,7 @@ export function createBot(opts: {
 
   bot.command("pinggroup", async (ctx) => {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /pinggroup");
-    const store = readStore();
+    const store = await readStore();
     const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
     const groupChatId = store.config.groupChatId || envGroup;
 
@@ -125,7 +125,7 @@ export function createBot(opts: {
 
   bot.command("pingrequestsgroup", async (ctx) => {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /pingrequestsgroup");
-    const store = readStore();
+    const store = await readStore();
     const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;
     const reqGroupChatId = (store.config as any).requestsGroupChatId || envReqGroup || store.config.groupChatId || (process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined);
 
@@ -163,7 +163,7 @@ export function createBot(opts: {
       return ctx.reply("Статус только: standard | silver | gold (можно: стандарт/серебро/золото)");
     }
 
-    const store = readStore();
+    const store = await readStore();
     const key = String(tgId);
     const now = new Date().toISOString();
 
@@ -182,7 +182,7 @@ export function createBot(opts: {
       store.users[key].last_seen_at = now;
     }
 
-    writeStore(store);
+    await writeStore(store);
     return ctx.reply(`Готово ✅ tg_id=${tgId} → статус ${statusLabel[next]}`);
   });
 
@@ -194,7 +194,7 @@ export function createBot(opts: {
 
     console.log("✅ web_app_data received len=", String(wad).length);
 
-    if (ctx.from) upsertUserFromTelegram(ctx.from);
+    if (ctx.from) await upsertUserFromTelegram(ctx.from);
 
     let payload: any;
     try {
@@ -204,7 +204,7 @@ export function createBot(opts: {
       return;
     }
 
-    const store = readStore();
+    const store = await readStore();
 
     const userKey = String(ctx.from?.id ?? "");
     const status: UserStatus = store.users[userKey]?.status ?? "standard";
@@ -246,7 +246,7 @@ export function createBot(opts: {
       created_at: new Date().toISOString()
     };
     store.requests.push(reqObj);
-    writeStore(store);
+    await writeStore(store);
 
     const shortId = id.slice(-6);
     const text =

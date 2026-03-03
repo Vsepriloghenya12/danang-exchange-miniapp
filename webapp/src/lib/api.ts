@@ -405,3 +405,22 @@ export async function apiAdminUpdateAfisha(
   });
   return readJsonSafe(r);
 }
+
+export async function apiEvent(
+  initData: string,
+  payload: {
+    name: string;
+    sessionId?: string;
+    props?: any;
+    path?: string;
+    platform?: string;
+    appVersion?: string;
+  }
+) {
+  const r = await fetch("/api/events", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-telegram-init-data": initData },
+    body: JSON.stringify(payload)
+  });
+  return readJsonSafe(r);
+}
