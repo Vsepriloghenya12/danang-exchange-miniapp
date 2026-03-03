@@ -2144,9 +2144,12 @@ label, input, select, textarea{ color: var(--text); }
   padding: 0;
   cursor: pointer;
   color: rgba(0,0,0,.72);
+  line-height: 0;
 }
 .mx-themeBtn:active{ transform: translateY(1px); }
-.mx-themeI{ width: 22px; height: 22px; }
+.mx-themeI{ width: 22px; height: 22px; display:block; }
+.mx-themeBtn svg{ display:block; }
+
 
 html[data-theme="dark"] .theme-client .mx-themeBtn{
   background: rgba(6,6,6,.98);
@@ -2251,8 +2254,11 @@ html[data-theme="dark"] .theme-client .mx-themeBtn{
   pointer-events:none;
 }
 
-.mx-statusImg{ width: 28px; height: 28px; object-fit: contain; z-index: 1; }
+.mx-statusImg{ width: 28px; height: 28px; object-fit: contain; z-index: 1; transition: opacity .16s ease; }
 .mx-statusFallback{ z-index: 1; font-weight: 900; }
+.mx-statusSkeleton{ position:absolute; inset:0; background: rgba(0,0,0,.04); }
+html[data-theme="dark"] .theme-client .mx-statusSkeleton{ background: rgba(246,198,0,.06); }
+
 
 .mx-weather{
   padding: 10px 12px;
@@ -2566,8 +2572,9 @@ html[data-theme="dark"] .theme-client .mx-filterBtn{
   border-color: rgba(246,198,0,.34);
   box-shadow: 0 18px 54px rgba(0,0,0,.72), 0 0 20px rgba(246,198,0,.10);
 }
-html[data-theme="dark"] .theme-client .mx-filterBtnHint{ color: var(--muted2); }
+html[data-theme="dark"] .theme-client .mx-filterBtnHint{ color: var(--text); opacity: .94; }
 html[data-theme="dark"] .theme-client .mx-filterBtnVal{ color: var(--text); }
+html[data-theme="dark"] .theme-client .mx-filterBtnChev{ color: var(--text); opacity: .85; }
 
 html[data-theme="dark"] .theme-client .mx-sheet{
   background: rgba(0,0,0,.98);
@@ -2701,7 +2708,7 @@ html[data-theme="dark"] .theme-client .mx-afCatBtn::before{
   opacity: .92;
   background: linear-gradient(180deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.78) 100%);
 }
-html[data-theme="dark"] .theme-client .mx-afCatBtn .mx-afCatLabel{ color: var(--text) !important; }
+html[data-theme="dark"] .theme-client .mx-afCatBtn .mx-afCatLabel{ color: var(--text) !important; text-shadow: 0 0 14px rgba(246,198,0,.22), 0 10px 26px rgba(0,0,0,.72); }
 html[data-theme="dark"] .theme-client .mx-afCatBtn .mx-afCatSub{ color: var(--muted) !important; }
 
 html[data-theme="dark"] .theme-client .mx-afComment{ color: var(--muted) !important; }
@@ -2715,9 +2722,10 @@ html[data-theme="dark"] .theme-client .mx-afComment{ color: var(--muted) !import
 .mx-afCat--sport{ background-image: url('/brand/afisha-sport.jpg'); }
 .mx-afCat--party{ background-image: url('/brand/afisha-party.jpg'); }
 .mx-afCat--culture{ background-image: url('/brand/afisha-culture.jpg'); }
-.mx-afCat--city{ background-image: url('/brand/afisha-city.jpg'); }
 .mx-afCat--food{ background-image: url('/brand/afisha-food.jpg'); }
 .mx-afCat--music{ background-image: url('/brand/afisha-music.jpg'); }
+.mx-afCat--games{ background-image: url('/brand/afisha-games.jpg'); }
+.mx-afCat--market{ background-image: url('/brand/afisha-market.jpg'); }
 
 .mx-list{ display:flex; flex-direction:column; gap: 12px; }
 .mx-afTitle{ font-size: 18px; font-weight: 950; line-height: 1.12; position: relative; z-index: 1; }
@@ -2839,7 +2847,7 @@ html[data-theme="dark"] .theme-client .mx-ratePair{ color: var(--text); }
     0 22px 54px rgba(0,0,0,.60),
     0 0 0 2px rgba(0,0,0,.88) inset,
     0 0 18px rgba(246,198,0,.18);
-  text-shadow: 0 2px 0 rgba(0,0,0,.28);
+  text-shadow: none;
   transition: box-shadow .18s ease, transform .12s ease;
 }
 
@@ -2849,6 +2857,21 @@ html[data-theme="dark"] .theme-client .mx-ratePair{ color: var(--text); }
     0 0 0 2px rgba(0,0,0,.92) inset,
     0 0 24px rgba(246,198,0,.26);
 }
+
+/* Light theme: avoid "double" text effect on ATM buttons */
+html[data-theme="light"] .theme-client .vx-atmBtn,
+html[data-theme="light"] .theme-client .vx-atmFindBtn{
+  text-shadow: none !important;
+}
+
+/* Dark theme: subtle text emboss for readability */
+html[data-theme="dark"] .theme-client .vx-atmBtn,
+html[data-theme="dark"] .theme-client .vx-atmFindBtn{
+  text-shadow: 0 2px 0 rgba(0,0,0,.28) !important;
+}
+
+.theme-client .vx-atmFindBtn{ width: 100% !important; display:block; }
+
 
 /* Dark theme: force yellow text across legacy widgets that hard-coded white */
 html[data-theme="dark"] .theme-client .vx-ratePair2,

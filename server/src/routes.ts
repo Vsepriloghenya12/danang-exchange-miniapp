@@ -226,6 +226,64 @@ export function createApiRouter(opts: {
         last24: last24.rows[0],
         byEvent: byEvent.rows
       });
+
+  // Detailed analytics summary for owner/admin (requires DB)
+  // GET /api/admin/events/summary?from=YYYY-MM-DD&to=YYYY-MM-DD
+  router.get("/admin/events/summary", async (req, res) => {
+    try {
+      const { isOwner } = await requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      if (!HAS_DATABASE) return res.json({ ok: true, db: false, note: "DATABASE_URL not set" });
+
+      await ensureSchema();
+      const pool = getPool();
+
+      const qFrom = String((req.query as any)?.from || "").slice(0, 10);
+      const qTo = String((req.query as any)?.to || "").slice(0, 10);
+
+      // default range: last 7 days
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+      const defFromDate = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+      const defFrom = defFromDate.toISOString().slice(0, 10);
+
+      const from = /^\d{4}-\d{2}-\d{2}$/.test(qFrom) ? qFrom : defFrom;
+      const to = /^\d{4}-\d{2}-\d{2}$/.test(qTo) ? qTo : today;
+
+      const totals = await pool.query(
+        "SELECT count(*)::int AS events, count(distinct tg_id)::int AS users, count(distinct session_id)::int AS sessions FROM app_events WHERE ts >= $1::date AND ts < ($2::date + interval '1 day')",
+        [from, to]
+      );
+
+      const byEvent = await pool.query(
+        "SELECT event_name, count(*)::int AS cnt FROM app_events WHERE ts >= $1::date AND ts < ($2::date + interval '1 day') GROUP BY event_name ORDER BY cnt DESC LIMIT 100",
+        [from, to]
+      );
+
+      const byScreen = await pool.query(
+        "SELECT COALESCE(props->>'screen','') AS screen, count(*)::int AS cnt FROM app_events WHERE event_name='screen_open' AND ts >= $1::date AND ts < ($2::date + interval '1 day') GROUP BY screen ORDER BY cnt DESC",
+        [from, to]
+      );
+
+      const byClick = await pool.query(
+        "SELECT COALESCE(props->>'target','') AS target, count(*)::int AS cnt FROM app_events WHERE event_name='click' AND ts >= $1::date AND ts < ($2::date + interval '1 day') GROUP BY target ORDER BY cnt DESC LIMIT 200",
+        [from, to]
+      );
+
+      return res.json({
+        ok: true,
+        db: true,
+        from,
+        to,
+        totals: totals.rows[0],
+        byEvent: byEvent.rows,
+        byScreen: byScreen.rows,
+        byClick: byClick.rows
+      });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "unauthorized" });
     }
@@ -424,7 +482,10 @@ export function createApiRouter(opts: {
     if (['sport', 'спорт'].includes(v)) return 'sport';
     if (['party', 'вечеринки', 'вечеринка'].includes(v)) return 'party';
     if (['culture', 'культура', 'culture_art', 'искусство'].includes(v)) return 'culture';
-    if (['city', 'город', 'городские', 'мероприятия', 'city_events'].includes(v)) return 'city';
+    // legacy removed category: map to culture so old events remain visible
+    if (['city', 'город', 'городские', 'мероприятия', 'city_events'].includes(v)) return 'culture';
+    if (['games', 'game', 'игры', 'игра'].includes(v)) return 'games';
+    if (['market', 'fair', 'ярмарки', 'ярмарка', 'marketplace'].includes(v)) return 'market';
     if (['food', 'еда'].includes(v)) return 'food';
     if (['music', 'музыка'].includes(v)) return 'music';
     return null;
@@ -470,7 +531,14 @@ export function createApiRouter(opts: {
       out = out.filter((ev) => String(ev.date || '') >= today);
 
       const cat = category === 'all' ? null : normCategory(category);
-      if (cat) out = out.filter((ev) => String(ev.category) === cat);
+      if (cat) out = out.filter((ev) => {
+        const cats = Array.isArray((ev as any).categories)
+          ? ((ev as any).categories as any[])
+          : (ev as any).category
+          ? [(ev as any).category]
+          : [];
+        return cats.map((x) => String(x || '')).includes(cat);
+      });
 
       if (from) out = out.filter((ev) => String(ev.date || '') >= from);
       if (to) out = out.filter((ev) => String(ev.date || '') <= to);
@@ -543,7 +611,10 @@ export function createApiRouter(opts: {
       const { isOwner, user } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: 'not_owner' });
 
-      const category = normCategory((req.body as any)?.category);
+      const catsRaw: any = (req.body as any)?.categories ?? (req.body as any)?.category;
+      const catsIn: any[] = Array.isArray(catsRaw) ? catsRaw : catsRaw != null ? [catsRaw] : [];
+      const catsNorm = Array.from(new Set(catsIn.map((x) => normCategory(x)).filter(Boolean)));
+      const category = catsNorm[0] || null;
       const date = String((req.body as any)?.date || '').slice(0, 10);
       const title = String((req.body as any)?.title || '').trim();
       const comment = String((req.body as any)?.comment || '').trim();
@@ -552,6 +623,7 @@ export function createApiRouter(opts: {
       const imageDataUrl = typeof (req.body as any)?.imageDataUrl === 'string' ? String((req.body as any).imageDataUrl) : '';
 
       if (!category) return res.status(400).json({ ok: false, error: 'bad_category' });
+      if (catsNorm.length < 1 || catsNorm.length > 3) return res.status(400).json({ ok: false, error: 'bad_categories' });
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ ok: false, error: 'bad_date' });
       if (title.length < 2) return res.status(400).json({ ok: false, error: 'bad_title' });
       if (comment && comment.length > 300) return res.status(400).json({ ok: false, error: 'bad_comment' });
@@ -565,6 +637,7 @@ export function createApiRouter(opts: {
       const ev: any = {
         id,
         category,
+        categories: catsNorm,
         date,
         title,
         ...(comment ? { comment } : {}),
@@ -596,8 +669,11 @@ export function createApiRouter(opts: {
       const id = String((req.params as any)?.id || '').trim();
       if (!id) return res.status(400).json({ ok: false, error: 'bad_id' });
 
-      const categoryRaw = (req.body as any)?.category;
-      const category = categoryRaw != null ? normCategory(categoryRaw) : null;
+      const categoriesRaw: any = (req.body as any)?.categories;
+      const categoryRaw: any = (req.body as any)?.category;
+      const catsSrc: any[] = categoriesRaw != null ? (Array.isArray(categoriesRaw) ? categoriesRaw : [categoriesRaw]) : (categoryRaw != null ? (Array.isArray(categoryRaw) ? categoryRaw : [categoryRaw]) : []);
+      const catsNorm = catsSrc.length ? Array.from(new Set(catsSrc.map((x) => normCategory(x)).filter(Boolean))) : [];
+      const category = catsNorm.length ? catsNorm[0] : (categoryRaw != null ? normCategory(categoryRaw) : null);
       const dateRaw = (req.body as any)?.date;
       const date = dateRaw != null ? String(dateRaw || '').slice(0, 10) : null;
       const titleRaw = (req.body as any)?.title;
@@ -620,6 +696,7 @@ export function createApiRouter(opts: {
 
       if (categoryRaw != null) {
         if (!category) return res.status(400).json({ ok: false, error: 'bad_category' });
+      if (catsNorm.length < 1 || catsNorm.length > 3) return res.status(400).json({ ok: false, error: 'bad_categories' });
         ev.category = category;
       }
       if (dateRaw != null) {

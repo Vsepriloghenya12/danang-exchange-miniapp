@@ -18,6 +18,7 @@ import {
   apiAdminGetAfisha,
   apiAdminCreateAfisha,
   apiAdminUpdateAfisha,
+  apiAdminEventsSummary,
   apiGetBankIcons,
 } from "../lib/api";
 import type { Contact, UserStatus } from "../lib/types";
@@ -78,7 +79,7 @@ export default function OwnerPortal() {
   const token = useMemo(() => (key ? `adminkey:${key}` : ""), [key]);
   const me = useMemo(() => ({ initData: token }), [token]);
 
-  type Tab = "rates" | "bonuses" | "reviews" | "clients" | "requests" | "afisha" | "reports";
+  type Tab = "rates" | "bonuses" | "reviews" | "clients" | "requests" | "afisha" | "reports" | "analytics";
   const [tab, setTab] = useState<Tab>("rates");
 
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -127,6 +128,12 @@ export default function OwnerPortal() {
   const [repTgId, setRepTgId] = useState<string>("");
   const [report, setReport] = useState<any>(null);
 
+  // Analytics (events)
+  const [anFrom, setAnFrom] = useState<string>(() => shiftISO(-7));
+  const [anTo, setAnTo] = useState<string>(() => todayISO());
+  const [anLoading, setAnLoading] = useState<boolean>(false);
+  const [anData, setAnData] = useState<any>(null);
+
   // Requests (owner portal): list -> details, like in the staff tab.
   type ReqView = "active" | "rejected" | "history" | "detail";
   const [reqView, setReqView] = useState<ReqView>("active");
@@ -140,7 +147,7 @@ export default function OwnerPortal() {
   const [afActive, setAfActive] = useState<any[]>([]);
   const [afHistory, setAfHistory] = useState<any[]>([]);
   const [afLoading, setAfLoading] = useState<boolean>(false);
-  const [afCreateCategory, setAfCreateCategory] = useState<string>("sport");
+  const [afCreateCats, setAfCreateCats] = useState<string[]>(["sport"]);
   const [afCreateDate, setAfCreateDate] = useState<string>(() => todayISO());
   const [afCreateTitle, setAfCreateTitle] = useState<string>("");
   const [afCreateComment, setAfCreateComment] = useState<string>("");
@@ -149,7 +156,7 @@ export default function OwnerPortal() {
   const [afCreateImageDataUrl, setAfCreateImageDataUrl] = useState<string | null>(null);
 
   const [afEditId, setAfEditId] = useState<string>("");
-  const [afEditCategory, setAfEditCategory] = useState<string>("sport");
+  const [afEditCats, setAfEditCats] = useState<string[]>(["sport"]);
   const [afEditDate, setAfEditDate] = useState<string>("");
   const [afEditTitle, setAfEditTitle] = useState<string>("");
   const [afEditComment, setAfEditComment] = useState<string>("");
@@ -232,7 +239,8 @@ export default function OwnerPortal() {
     { k: 'sport', l: 'Спорт' },
     { k: 'party', l: 'Вечеринки' },
     { k: 'culture', l: 'Культура и искусство' },
-    { k: 'city', l: 'Городские мероприятия' },
+    { k: 'games', l: 'Игры' },
+    { k: 'market', l: 'Ярмарки' },
     { k: 'food', l: 'Еда' },
     { k: 'music', l: 'Музыка' },
   ];
@@ -241,6 +249,13 @@ export default function OwnerPortal() {
     const f = AF_CATS.find((x) => x.k === k);
     return f ? f.l : k;
   }
+
+  function afCatsLabel(ev: any) {
+    const raw = Array.isArray(ev?.categories) ? ev.categories : ev?.category ? [ev.category] : [];
+    const cats = Array.from(new Set(raw.map((x: any) => String(x || "")).filter(Boolean))).slice(0, 3);
+    return cats.length ? cats.map((c) => afCatLabel(c)).join(", ") : "—";
+  }
+
 
   async function loadAfishaLists() {
     if (!token || afLoading) return;
@@ -255,10 +270,28 @@ export default function OwnerPortal() {
     }
   }
 
+
+  async function loadAnalytics() {
+    if (!token || anLoading) return;
+    setAnLoading(true);
+    try {
+      const r = await apiAdminEventsSummary(token, { from: anFrom, to: anTo });
+      if (!r?.ok) {
+        showErr(r?.error || "Ошибка");
+        setAnData(null);
+      } else {
+        setAnData(r);
+      }
+    } finally {
+      setAnLoading(false);
+    }
+  }
+
   function startEditAfisha(ev: any) {
     if (!ev) return;
     setAfEditId(String(ev.id || ''));
-    setAfEditCategory(String(ev.category || 'sport'));
+    const cats = Array.isArray((ev as any).categories) ? (ev as any).categories : ev.category ? [ev.category] : ['sport'];
+    setAfEditCats(cats.map((x: any) => String(x || '')).filter(Boolean).slice(0, 3));
     setAfEditDate(String(ev.date || ''));
     setAfEditTitle(String(ev.title || ''));
     setAfEditComment(String(ev.comment || ''));
@@ -281,7 +314,7 @@ export default function OwnerPortal() {
   async function createAfisha() {
     if (!token) return;
     const payload = {
-      category: afCreateCategory,
+      categories: afCreateCats,
       date: afCreateDate,
       title: afCreateTitle.trim(),
       comment: afCreateComment.trim(),
@@ -303,7 +336,7 @@ export default function OwnerPortal() {
   async function saveAfisha() {
     if (!token || !afEditId) return;
     const payload: any = {
-      category: afEditCategory,
+      categories: afEditCats,
       date: afEditDate,
       title: afEditTitle.trim(),
       comment: afEditComment.trim(),
@@ -324,14 +357,35 @@ export default function OwnerPortal() {
         <div className="small"><b>Редактирование</b></div>
         <div className="vx-sp10" />
 
-        <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <select className="input vx-in" value={afEditCategory} onChange={(e) => setAfEditCategory(e.target.value)} style={{ flex: "1 1 260px" }}>
-            {AF_CATS.map((c) => (
-              <option key={c.k} value={c.k}>{c.l}</option>
-            ))}
-          </select>
+        <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ flex: "1 1 260px", display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {AF_CATS.map((c) => {
+              const on = afEditCats.includes(c.k);
+              const disabled = !on && afEditCats.length >= 3;
+              return (
+                <button
+                  key={c.k}
+                  type="button"
+                  className={"btn vx-btnSm " + (on ? "vx-btnOn" : "")}
+                  disabled={disabled}
+                  onClick={() => {
+                    setAfEditCats((prev) => {
+                      const has = prev.includes(c.k);
+                      if (has) return prev.length <= 1 ? prev : prev.filter((x) => x !== c.k);
+                      if (prev.length >= 3) return prev;
+                      return [...prev, c.k];
+                    });
+                  }}
+                  title={disabled ? "Максимум 3 категории" : ""}
+                >
+                  {c.l}
+                </button>
+              );
+            })}
+          </div>
           <input className="input vx-in" type="date" value={afEditDate} onChange={(e) => setAfEditDate(e.target.value)} style={{ flex: "0 0 170px" }} />
         </div>
+        <div className="vx-muted" style={{ marginTop: 6 }}>Можно выбрать до 3 категорий</div>
 
         <div className="vx-sp8" />
         <input className="input vx-in" value={afEditTitle} onChange={(e) => setAfEditTitle(e.target.value)} placeholder="Название" />
@@ -395,6 +449,7 @@ export default function OwnerPortal() {
     if (!token) return;
     if (tab === "clients" || tab === "requests") loadClients();
     if (tab === "afisha") loadAfishaLists();
+    if (tab === "analytics") loadAnalytics();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, token]);
 
@@ -823,6 +878,7 @@ export default function OwnerPortal() {
           <button className={tab === "requests" ? "on" : ""} onClick={() => setTab("requests")}>Заявки</button>
           <button className={tab === "afisha" ? "on" : ""} onClick={() => setTab("afisha")}>Афиша</button>
           <button className={tab === "reports" ? "on" : ""} onClick={() => setTab("reports")}>Отчёты</button>
+          <button className={tab === "analytics" ? "on" : ""} onClick={() => setTab("analytics")}>Статистика</button>
         </div>
 
         <div className="vx-mt10" />
@@ -1313,14 +1369,35 @@ export default function OwnerPortal() {
             <div className="small"><b>Новое мероприятие</b></div>
 
             <div className="vx-sp10" />
-            <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <select className="input vx-in" value={afCreateCategory} onChange={(e) => setAfCreateCategory(e.target.value)} style={{ flex: "1 1 260px" }}>
-                {AF_CATS.map((c) => (
-                  <option key={c.k} value={c.k}>{c.l}</option>
-                ))}
-              </select>
+            <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ flex: "1 1 260px", display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {AF_CATS.map((c) => {
+                  const on = afCreateCats.includes(c.k);
+                  const disabled = !on && afCreateCats.length >= 3;
+                  return (
+                    <button
+                      key={c.k}
+                      type="button"
+                      className={"btn vx-btnSm " + (on ? "vx-btnOn" : "")}
+                      disabled={disabled}
+                      onClick={() => {
+                        setAfCreateCats((prev) => {
+                          const has = prev.includes(c.k);
+                          if (has) return prev.length <= 1 ? prev : prev.filter((x) => x !== c.k);
+                          if (prev.length >= 3) return prev;
+                          return [...prev, c.k];
+                        });
+                      }}
+                      title={disabled ? "Максимум 3 категории" : ""}
+                    >
+                      {c.l}
+                    </button>
+                  );
+                })}
+              </div>
               <input className="input vx-in" type="date" value={afCreateDate} onChange={(e) => setAfCreateDate(e.target.value)} style={{ flex: "0 0 170px" }} />
             </div>
+            <div className="vx-muted" style={{ marginTop: 6 }}>Можно выбрать до 3 категорий</div>
 
             <div className="vx-sp8" />
             <input className="input vx-in" value={afCreateTitle} onChange={(e) => setAfCreateTitle(e.target.value)} placeholder="Название мероприятия" />
@@ -1399,7 +1476,7 @@ export default function OwnerPortal() {
                       >
                         <div className="vx-reqTop">
                           <b>{String(ev.date || "")}</b>
-                          <span className="vx-muted">{afCatLabel(String(ev.category || ""))}</span>
+                          <span className="vx-muted">{afCatsLabel(ev)}</span>
                         </div>
                         <div><b>{String(ev.title || "")}</b></div>
                         <div className="vx-muted">Клики: {total} (Подробнее {Number(clicks.details || 0)}, Локация {Number(clicks.location || 0)})</div>
@@ -1459,7 +1536,7 @@ export default function OwnerPortal() {
                       >
                         <div className="vx-reqTop">
                           <b>{String(ev.date || "")}</b>
-                          <span className="vx-muted">{afCatLabel(String(ev.category || ""))}</span>
+                          <span className="vx-muted">{afCatsLabel(ev)}</span>
                         </div>
                         <div><b>{String(ev.title || "")}</b></div>
                         <div className="vx-muted">Клики: {total} (Подробнее {Number(clicks.details || 0)}, Локация {Number(clicks.location || 0)})</div>

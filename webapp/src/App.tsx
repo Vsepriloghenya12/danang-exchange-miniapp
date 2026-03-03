@@ -36,7 +36,7 @@ const UI = {
 
 function IconSun({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" />
       <path d="M12 2v2" />
       <path d="M12 20v2" />
@@ -52,7 +52,7 @@ function IconSun({ className = "" }: { className?: string }) {
 
 function IconMoon({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 13.2A8.5 8.5 0 0 1 10.8 3a6.5 6.5 0 1 0 10.2 10.2Z" />
     </svg>
   );
@@ -60,7 +60,7 @@ function IconMoon({ className = "" }: { className?: string }) {
 
 function IconArrowLeft({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M15 18l-6-6 6-6" />
     </svg>
   );
@@ -68,7 +68,7 @@ function IconArrowLeft({ className = "" }: { className?: string }) {
 
 function IconChevron({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 18l6-6-6-6" />
     </svg>
   );
@@ -110,9 +110,9 @@ function NavCard({
 }
 
 function StatusIcon({ status }: { status?: UserStatus }) {
-  // Telegram WebView caching + inconsistent image format fallback can cause the status icon to look "not loaded".
-  // We try multiple extensions and also add a tiny cache-buster.
-  const bust = `v34-${String(status || "").toLowerCase() || "x"}`;
+  // Telegram WebView can be slow to paint images after navigation.
+  // We avoid showing a "dot" placeholder: keep a stable tile and fade the icon in when loaded.
+  const bust = `v48-${String(status || "").toLowerCase() || "x"}`;
   const candidates = useMemo(() => {
     const s = String(status || "").toLowerCase();
     const list: string[] = [];
@@ -136,23 +136,24 @@ function StatusIcon({ status }: { status?: UserStatus }) {
   const [idx, setIdx] = useState(0);
   const [ok, setOk] = useState(false);
 
-  // When status changes, force a reload from the first candidate.
   useEffect(() => {
     setIdx(0);
     setOk(false);
   }, [status]);
+
   const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
 
   return (
     <div className="mx-statusWrap" aria-label="Статус">
-      {!ok ? (
-        <div className="mx-statusFallback">{status === "gold" ? "G" : status === "silver" ? "S" : "•"}</div>
-      ) : null}
+      {!ok ? <div className="mx-statusSkeleton" aria-hidden="true" /> : null}
       <img
         key={src}
         className="mx-statusImg"
         src={src}
         alt=""
+        loading="eager"
+        decoding="async"
+        style={{ opacity: ok ? 1 : 0 }}
         onLoad={() => setOk(true)}
         onError={() => {
           setOk(false);
@@ -162,6 +163,7 @@ function StatusIcon({ status }: { status?: UserStatus }) {
     </div>
   );
 }
+
 
 function HeaderLogo() {
   // cache-bust for Telegram WebView
@@ -249,6 +251,23 @@ export default function App() {
       return () => document.body.classList.remove("vx-body-client");
     } catch {
       return;
+    }
+  }, []);
+
+
+  // Preload status icons to avoid a visible "loading" placeholder when returning to the home screen.
+  useEffect(() => {
+    try {
+      const sts = ["standard", "silver", "gold"];
+      const exts = [".svg", ".png", ".webp"];
+      for (const s of sts) {
+        for (const ext of exts) {
+          const img = new Image();
+          img.src = `/brand/status-${s}${ext}`;
+        }
+      }
+    } catch {
+      // ignore
     }
   }, []);
 
@@ -395,6 +414,27 @@ export default function App() {
     setScreen("home");
   };
 
+  const trackClick = (target: string, props: any = {}) => {
+    try {
+      if (!me.ok || !me.initData || isDemo) return;
+      const platform = (window as any).Telegram?.WebApp?.platform || "";
+      void apiEvent(me.initData, {
+        name: "click",
+        sessionId,
+        platform,
+        path: window.location.pathname + window.location.search,
+        props: { target, ...props },
+      });
+    } catch {
+      // ignore
+    }
+  };
+
+  const goTo = (next: ScreenKey, target: string) => {
+    trackClick(target, { to: next });
+    setScreen(next);
+  };
+
   const displayName = useMemo(() => {
     const u = me.user;
     const n = String(u?.first_name || u?.username || "").trim();
@@ -472,9 +512,7 @@ export default function App() {
                 <button
                   type="button"
                   className="mx-btn mx-btnPrimary"
-                  onClick={() => {
-                    setScreen("calc");
-                  }}
+                  onClick={() => goTo("calc","home_calc_btn")}
                 >
                   Калькулятор
                 </button>
@@ -487,21 +525,21 @@ export default function App() {
               title="Афиша"
               subtitle="События, спорт, вечеринки"
               iconSrc="/brand/icons/tab-afisha-256.png?v=1"
-              onClick={() => setScreen("afisha")}
+              onClick={() => goTo("afisha","nav_afisha")}
             />
             <div className="mx-sp10" />
             <NavCard
               title="Банкоматы"
               subtitle="VIETCOMBANK и BIDV"
               iconSrc="/brand/icons/tab-atm-256.png?v=1"
-              onClick={() => setScreen("atm")}
+              onClick={() => goTo("atm","nav_atm")}
             />
             <div className="mx-sp10" />
             <NavCard
               title="Отзывы"
               subtitle="Отзывы клиентов"
               iconSrc="/brand/icons/tab-reviews-256.png?v=1"
-              onClick={() => setScreen("reviews")}
+              onClick={() => goTo("reviews","nav_reviews")}
             />
 
             {me.isAdmin ? (
@@ -511,7 +549,7 @@ export default function App() {
                   title="Админ"
                   subtitle="Заявки"
                   iconSrc="/brand/icons/tab-rates-256.png?v=1"
-                  onClick={() => setScreen("staff")}
+                  onClick={() => goTo("staff","nav_staff")}
                 />
               </>
             ) : null}
@@ -588,21 +626,21 @@ export default function App() {
         <button
           type="button"
           className={"mx-bottomBtn " + (screen === "history" ? "is-on" : "")}
-          onClick={() => setScreen("history")}
+          onClick={() => goTo("history","bottom_history")}
         >
           Моя история
         </button>
         <button
           type="button"
           className={"mx-bottomBtn " + (screen === "about" ? "is-on" : "")}
-          onClick={() => setScreen("about")}
+          onClick={() => goTo("about","bottom_about")}
         >
           О приложении
         </button>
         <button
           type="button"
           className={"mx-bottomBtn " + (screen === "support" ? "is-on" : "")}
-          onClick={() => setScreen("support")}
+          onClick={() => goTo("support","bottom_support")}
         >
           Поддержка
         </button>

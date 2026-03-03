@@ -406,6 +406,19 @@ export async function apiAdminUpdateAfisha(
   return readJsonSafe(r);
 }
 
+
+export async function apiAdminEventsSummary(
+  token: string,
+  params: { from?: string; to?: string } = {}
+): Promise<any> {
+  const qs = new URLSearchParams();
+  if (params.from) qs.set("from", params.from);
+  if (params.to) qs.set("to", params.to);
+  const url = `/api/admin/events/summary${qs.toString() ? `?${qs.toString()}` : ""}`;
+  const r = await fetch(url, { headers: { ...adminAuthHeaders(token) } });
+  return readJsonSafe(r);
+}
+
 export async function apiEvent(
   initData: string,
   payload: {

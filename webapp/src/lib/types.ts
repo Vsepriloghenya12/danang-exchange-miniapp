@@ -201,12 +201,15 @@ export type BonusesResponse = {
 // --------------------
 // Afisha (events)
 // --------------------
-export type AfishaCategory = "sport" | "party" | "culture" | "city" | "food" | "music";
+export type AfishaCategory = "sport" | "party" | "culture" | "food" | "music" | "games" | "market";
 export type AfishaFilterCategory = "all" | AfishaCategory;
 
 export type AfishaEvent = {
   id: string;
-  category: AfishaCategory;
+  // NEW: an event may belong to up to 3 categories
+  categories?: AfishaCategory[];
+  // legacy (single category)
+  category?: AfishaCategory;
   date: string; // YYYY-MM-DD
   title: string;
   comment?: string;
