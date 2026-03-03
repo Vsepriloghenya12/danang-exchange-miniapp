@@ -238,15 +238,16 @@ export function createApiRouter(opts: {
     try {
       const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
-      if (!HAS_DATABASE) 
-
       // Disable caching to avoid 304 responses breaking JSON fetch in browsers
       res.setHeader("Cache-Control", "no-store");
       res.setHeader("Pragma", "no-cache");
       res.setHeader("Expires", "0");
       // Force a changing ETag so intermediaries/browsers never respond with 304
       res.setHeader("ETag", `"${Date.now().toString(36)}"`);
-return res.json({ ok: true, db: false, note: "DATABASE_URL not set" });
+
+      if (!HAS_DATABASE) {
+        return res.json({ ok: true, db: false, note: "DATABASE_URL not set" });
+      }
 
       await ensureSchema();
       const pool = getPool();
