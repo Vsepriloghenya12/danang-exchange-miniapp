@@ -1,13 +1,11 @@
-import pg from "pg";
-
-const { Pool } = pg;
+import { Pool } from "pg";
 
 export const HAS_DATABASE = !!process.env.DATABASE_URL;
 
-let _pool: pg.Pool | null = null;
+let _pool: Pool | null = null;
 let _inited = false;
 
-export function getPool(): pg.Pool {
+export function getPool(): Pool {
   if (!HAS_DATABASE) throw new Error("DATABASE_URL not set");
   if (_pool) return _pool;
 

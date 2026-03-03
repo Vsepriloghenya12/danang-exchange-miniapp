@@ -251,6 +251,8 @@ export function normalizeStatus(s: any): UserStatus {
 
   return parseStatusInput(v) ?? "standard";
 
+}
+
 function ensureDir() {
   const dir = path.dirname(STORE_PATH);
   fs.mkdirSync(dir, { recursive: true });
