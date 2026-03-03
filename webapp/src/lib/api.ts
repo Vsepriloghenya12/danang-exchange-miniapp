@@ -415,7 +415,7 @@ export async function apiAdminEventsSummary(
   if (params.from) qs.set("from", params.from);
   if (params.to) qs.set("to", params.to);
   const url = `/api/admin/events/summary${qs.toString() ? `?${qs.toString()}` : ""}`;
-  const r = await fetch(url, { headers: { ...adminAuthHeaders(token) } });
+  const r = await fetch(url, { cache: "no-store", headers: { ...adminAuthHeaders(token), "cache-control": "no-cache" } });
   return readJsonSafe(r);
 }
 

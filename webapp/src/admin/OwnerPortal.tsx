@@ -1690,6 +1690,92 @@ export default function OwnerPortal() {
           ) : null}
         </div>
       ) : null}
+      {tab === "analytics" ? (
+        <div className="card">
+          <div className="small"><b>Статистика</b></div>
+          <div className="vx-sp10" />
+
+          <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 160px" }}>
+              <div className="vx-muted">С</div>
+              <input className="input vx-in" type="date" value={anFrom} onChange={(e) => setAnFrom(e.target.value)} />
+            </div>
+            <div style={{ flex: "1 1 160px" }}>
+              <div className="vx-muted">По</div>
+              <input className="input vx-in" type="date" value={anTo} onChange={(e) => setAnTo(e.target.value)} />
+            </div>
+          </div>
+
+          <button className="btn" type="button" onClick={loadAnalytics} disabled={anLoading}>
+            {anLoading ? "Загрузка..." : "Показать"}
+          </button>
+
+          {!anData ? (
+            <div className="vx-muted">
+              Данных пока нет. Открой клиентское приложение и покликай вкладки/кнопки — события появятся здесь.
+            </div>
+          ) : anData.db === false ? (
+            <div className="vx-muted">База не подключена (DATABASE_URL).</div>
+          ) : (
+            <>
+              <div className="vx-sp10" />
+              <div className="small"><b>Итоги</b></div>
+
+              <div className="vx-metricGrid">
+                <div className="vx-metricCard">
+                  <div className="vx-muted">Действия</div>
+                  <div className="vx-metricVal">{fmtNum(anData?.totals?.events)}</div>
+                </div>
+                <div className="vx-metricCard">
+                  <div className="vx-muted">Уникальных</div>
+                  <div className="vx-metricVal">{fmtNum(anData?.totals?.users)}</div>
+                </div>
+                <div className="vx-metricCard">
+                  <div className="vx-muted">Сессий</div>
+                  <div className="vx-metricVal">{fmtNum(anData?.totals?.sessions)}</div>
+                </div>
+              </div>
+
+              <div className="vx-sp10" />
+              <div className="small"><b>Переходы по вкладкам</b></div>
+              <div className="vx-chipRow">
+                {Array.isArray(anData?.byScreen) && anData.byScreen.length ? (
+                  anData.byScreen.slice(0, 30).map((x: any) => (
+                    <span key={x.screen} className="vx-chip">{x.screen || "?"}: <b>{fmtNum(x.cnt)}</b></span>
+                  ))
+                ) : (
+                  <span className="vx-muted">–</span>
+                )}
+              </div>
+
+              <div className="vx-sp10" />
+              <div className="small"><b>Клики</b></div>
+              <div className="vx-chipRow">
+                {Array.isArray(anData?.byClick) && anData.byClick.length ? (
+                  anData.byClick.slice(0, 50).map((x: any) => (
+                    <span key={x.target} className="vx-chip">{x.target || "?"}: <b>{fmtNum(x.cnt)}</b></span>
+                  ))
+                ) : (
+                  <span className="vx-muted">–</span>
+                )}
+              </div>
+
+              <div className="vx-sp10" />
+              <div className="small"><b>События</b></div>
+              <div className="vx-chipRow">
+                {Array.isArray(anData?.byEvent) && anData.byEvent.length ? (
+                  anData.byEvent.slice(0, 50).map((x: any) => (
+                    <span key={x.event_name} className="vx-chip">{x.event_name || "?"}: <b>{fmtNum(x.cnt)}</b></span>
+                  ))
+                ) : (
+                  <span className="vx-muted">–</span>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
+
       </div>
     </div>
   );
