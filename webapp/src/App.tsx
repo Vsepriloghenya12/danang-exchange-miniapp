@@ -278,6 +278,10 @@ export default function App() {
   const [screen, setScreen] = useState<ScreenKey>("home");
   const [courseExpanded, setCourseExpanded] = useState(false);
 
+  // Demo mode for opening the webapp in a normal browser without Telegram initData.
+  // IMPORTANT: must be declared before any hooks that reference it (avoid TDZ runtime crash).
+  const isDemo = useMemo(() => new URLSearchParams(window.location.search).get("demo") === "1", []);
+
   const sessionId = useMemo(() => {
     try {
       // session per app open
@@ -313,8 +317,6 @@ export default function App() {
       props: { screen },
     });
   }, [screen, me.ok, me.initData, isDemo, sessionId]);
-
-  const isDemo = useMemo(() => new URLSearchParams(window.location.search).get("demo") === "1", []);
 
   useEffect(() => {
     tg?.ready?.();
