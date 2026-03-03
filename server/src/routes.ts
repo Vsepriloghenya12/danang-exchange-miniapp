@@ -227,6 +227,11 @@ export function createApiRouter(opts: {
         byEvent: byEvent.rows
       });
 
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "unauthorized" });
+    }
+  });
+
   // Detailed analytics summary for owner/admin (requires DB)
   // GET /api/admin/events/summary?from=YYYY-MM-DD&to=YYYY-MM-DD
   router.get("/admin/events/summary", async (req, res) => {
@@ -281,11 +286,6 @@ export function createApiRouter(opts: {
       });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
-    }
-  });
-
-    } catch (e: any) {
-      return res.status(401).json({ ok: false, error: e?.message || "unauthorized" });
     }
   });
 
