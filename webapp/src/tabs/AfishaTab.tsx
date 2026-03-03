@@ -300,19 +300,19 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
   const appliedLabel = useMemo(() => filterLabel(datePreset, from, to), [datePreset, from, to]);
 
   const catsLabel = useMemo(() => {
-    if (!cats || cats.length === 0) return "Все категории";
+    if (!cats || cats.length === 0) return "Все";
     if (cats.length === 1) return CATS.find((x) => x.key === cats[0])?.label || "Категория";
-    return `Категории: ${cats.length}`;
+    const names = cats
+      .slice(0, 2)
+      .map((k) => CATS.find((x) => x.key === k)?.label)
+      .filter(Boolean);
+    return names.length ? `${names.join(", ")}${cats.length > 2 ? ` +${cats.length - 2}` : ""}` : `Категории: ${cats.length}`;
   }, [cats]);
 
-  const shouldShowResults = useMemo(() => {
-    return (cats && cats.length > 0) || !!from || !!to || datePreset !== "any";
-  }, [cats, from, to, datePreset]);
-
+  // Always show the list of events. Filters (date/categories) just narrow it down.
   const params = useMemo(() => {
-    if (!shouldShowResults) return null;
     return { from: from || undefined, to: to || undefined };
-  }, [from, to, shouldShowResults]);
+  }, [from, to]);
 
   const filteredEvents = useMemo(() => {
     if (!events || events.length === 0) return [];
@@ -327,13 +327,6 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (!params) {
-        setLoading(false);
-        setEvents([]);
-        setErr("");
-        return;
-      }
-
       setLoading(true);
       setErr("");
       try {
@@ -387,72 +380,35 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
         </button>
       </div>
 
-      {/* Category grid */}
-      <div className="mx-afCats">
-        {CATS.map((c) => {
-          const on = cats.includes(c.key);
-          return (
-            <button
-              key={c.key}
-              type="button"
-              className={"mx-afCatBtn mx-afCat--" + c.key + (on ? " is-on" : "")}
-              onClick={() => {
-                setCats((prev) => {
-                  const has = prev.includes(c.key);
-                  return has ? prev.filter((x) => x !== c.key) : [...prev, c.key];
-                });
-              }}
-            >
-              <div>
-                <div className="mx-afCatLabel">{c.label}</div>
+      {/* Events list (always visible). Filters narrow it down. */}
+      {loading ? <div className="mx-muted">Загрузка…</div> : null}
+      {!loading && err ? <div className="mx-muted">{err}</div> : null}
+      {!loading && !err && filteredEvents.length === 0 ? <div className="mx-muted">Пока нет мероприятий.</div> : null}
+
+      <div className="mx-list">
+        {filteredEvents.map((ev) => (
+          <div
+            key={ev.id}
+            className={"mx-afEvCard" + (ev.imageUrl ? " has-img" : "")}
+            style={ev.imageUrl ? ({ backgroundImage: `url(${ev.imageUrl})` } as any) : undefined}
+          >
+            <div className="mx-afEvBody">
+              <div className="mx-afTitle">{ev.title}</div>
+              {ev.comment ? <div className="mx-afComment">{ev.comment}</div> : null}
+              <div className="mx-afMeta">{fmtDate(ev.date)}</div>
+
+              <div className="mx-btnRow" style={{ marginTop: 10 }}>
+                <button type="button" className="mx-btn mx-afLinkBtn" onClick={() => onClick(ev, "details")} style={{ opacity: 0.8 }}>
+                  Подробнее
+                </button>
+                <button type="button" className="mx-btn mx-btnPrimary mx-afLinkBtn" onClick={() => onClick(ev, "location")} style={{ opacity: 0.8 }}>
+                  Локация
+                </button>
               </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Results list (appears immediately after selecting categories / filters) */}
-      {shouldShowResults ? (
-        <>
-          {loading ? <div className="mx-muted">Загрузка…</div> : null}
-          {!loading && err ? <div className="mx-muted">{err}</div> : null}
-          {!loading && !err && filteredEvents.length === 0 ? (
-            <div className="mx-muted">Пока нет мероприятий.</div>
-          ) : null}
-
-          <div className="mx-list">
-            {filteredEvents.map((ev) => (
-              <div
-                key={ev.id}
-                className={"mx-afEvCard" + (ev.imageUrl ? " has-img" : "")}
-                style={ev.imageUrl ? ({ backgroundImage: `url(${ev.imageUrl})` } as any) : undefined}
-              >
-                <div className="mx-afEvBody">
-                  <div className="mx-afTitle">{ev.title}</div>
-                  {ev.comment ? <div className="mx-afComment">{ev.comment}</div> : null}
-                  <div className="mx-afMeta">{fmtDate(ev.date)}</div>
-
-                  <div className="mx-btnRow" style={{ marginTop: 10 }}>
-                    <button type="button" className="mx-btn mx-afLinkBtn" onClick={() => onClick(ev, "details")} style={{ opacity: 0.8 }}>
-                      Подробнее
-                    </button>
-                    <button
-                      type="button"
-                      className="mx-btn mx-btnPrimary mx-afLinkBtn"
-                      onClick={() => onClick(ev, "location")}
-                      style={{ opacity: 0.8 }}
-                    >
-                      Локация
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+            </div>
           </div>
-        </>
-      ) : (
-        <div className="mx-muted">Выберите категорию, чтобы увидеть мероприятия.</div>
-      )}
+        ))}
+      </div>
 
       {/* Bottom sheets */}
       {sheetOpen ? (
@@ -532,34 +488,38 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
               <>
                 <div className="mx-sheetTitle">Категории</div>
                 <div ref={listRef} className="mx-sheetList">
-                  <button
-                    type="button"
-                    className={"mx-sheetItem " + (cats.length === 0 ? "on" : "")}
-                    onClick={() => setCats([])}
-                  >
-                    <span className="mx-sheetItemText">Все категории</span>
-                    {cats.length === 0 ? <span className="mx-sheetCheck">✓</span> : <span />}
-                  </button>
+                  <div className="mx-afCats mx-afCats--sheet">
+                    <button
+                      type="button"
+                      className={"mx-afCatBtn mx-afCat--all" + (cats.length === 0 ? " is-on" : "")}
+                      onClick={() => setCats([])}
+                    >
+                      <div>
+                        <div className="mx-afCatLabel">Все категории</div>
+                      </div>
+                    </button>
 
-                  {CATS.map((c) => {
-                    const on = cats.includes(c.key);
-                    return (
-                      <button
-                        key={c.key}
-                        type="button"
-                        className={"mx-sheetItem " + (on ? "on" : "")}
-                        onClick={() => {
-                          setCats((prev) => {
-                            const has = prev.includes(c.key);
-                            return has ? prev.filter((x) => x !== c.key) : [...prev, c.key];
-                          });
-                        }}
-                      >
-                        <span className="mx-sheetItemText">{c.label}</span>
-                        {on ? <span className="mx-sheetCheck">✓</span> : <span />}
-                      </button>
-                    );
-                  })}
+                    {CATS.map((c) => {
+                      const on = cats.includes(c.key);
+                      return (
+                        <button
+                          key={c.key}
+                          type="button"
+                          className={"mx-afCatBtn mx-afCat--" + c.key + (on ? " is-on" : "")}
+                          onClick={() => {
+                            setCats((prev) => {
+                              const has = prev.includes(c.key);
+                              return has ? prev.filter((x) => x !== c.key) : [...prev, c.key];
+                            });
+                          }}
+                        >
+                          <div>
+                            <div className="mx-afCatLabel">{c.label}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div className="mx-sheetFooter">
                   <button type="button" className="mx-sheetBtn" onClick={() => setSheet(null)}>

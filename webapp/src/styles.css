@@ -1200,6 +1200,14 @@ label, input, select, textarea{ color: var(--text); }
   box-shadow: 0 14px 34px rgba(255,179,87,0.18);
 }
 .btn:disabled{ opacity: .55; cursor: not-allowed; }
+
+/* Selected state for owner portal buttons */
+.theme-owner .btn.vx-btnOn{
+  background: rgba(9,23,33,.92) !important;
+  color: rgba(255,255,255,.96) !important;
+  border: 1px solid rgba(9,23,33,.18) !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.20);
+}
 .vx-btnSm{
   height: 40px;
   padding: 0 12px;
@@ -2226,7 +2234,13 @@ html[data-theme="dark"] .theme-client .mx-themeBtn{
   flex: 0 0 44px;
 }
 .mx-headerLogoImg{ width: 34px; height: 34px; object-fit: contain; z-index: 1; }
-.mx-headerLogoFallback{ width: 34px; height: 34px; }
+.mx-headerLogoFallback{
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: rgba(0,0,0,.06);
+  border: 1px solid rgba(0,0,0,.10);
+}
 
 .mx-statusWrap{
   width: 44px;
@@ -2256,8 +2270,19 @@ html[data-theme="dark"] .theme-client .mx-themeBtn{
 
 .mx-statusImg{ width: 28px; height: 28px; object-fit: contain; z-index: 1; transition: opacity .16s ease; }
 .mx-statusFallback{ z-index: 1; font-weight: 900; }
-.mx-statusSkeleton{ position:absolute; inset:0; background: rgba(0,0,0,.04); }
-html[data-theme="dark"] .theme-client .mx-statusSkeleton{ background: rgba(246,198,0,.06); }
+.mx-statusSkeleton{
+  position:absolute;
+  inset:0;
+  background: linear-gradient(90deg, rgba(0,0,0,.05), rgba(0,0,0,.10), rgba(0,0,0,.05));
+  background-size: 200% 100%;
+  animation: mxShimmer 1.2s ease-in-out infinite;
+}
+html[data-theme="dark"] .theme-client .mx-statusSkeleton{
+  background: linear-gradient(90deg, rgba(246,198,0,.06), rgba(246,198,0,.14), rgba(246,198,0,.06));
+  background-size: 200% 100%;
+}
+
+@keyframes mxShimmer{ 0%{ background-position: 0% 50%; } 100%{ background-position: 200% 50%; } }
 
 
 .mx-weather{
@@ -2362,11 +2387,14 @@ html[data-theme="dark"] .theme-client .mx-afEvCard{
 html[data-theme="dark"] .theme-client .mx-card::before{ display:none !important; }
 
 html[data-theme="dark"] .theme-client .mx-cardSub,
-html[data-theme="dark"] .theme-client .mx-navSub,
 html[data-theme="dark"] .theme-client .mx-afMeta,
 html[data-theme="dark"] .theme-client .mx-muted{
   color: var(--muted) !important;
 }
+
+/* Home nav cards should be as bright as other sections in dark theme */
+html[data-theme="dark"] .theme-client .mx-navTitle{ color: var(--text) !important; }
+html[data-theme="dark"] .theme-client .mx-navSub{ color: rgba(246,198,0,.92) !important; }
 
 html[data-theme="dark"] .theme-client .mx-btn,
 html[data-theme="dark"] .theme-client .mx-sheetBtn,
@@ -2386,6 +2414,10 @@ html[data-theme="dark"] .theme-client .mx-headerLogoWrap{
   background: #000 !important;
   border: 1px solid rgba(246,198,0,.36) !important;
   box-shadow: 0 18px 56px rgba(0,0,0,.84), 0 0 26px rgba(246,198,0,.14) !important;
+}
+html[data-theme="dark"] .theme-client .mx-headerLogoFallback{
+  background: rgba(246,198,0,.06);
+  border-color: rgba(246,198,0,.18);
 }
 
 html[data-theme="dark"] .theme-client .mx-statusWrap{
@@ -2727,6 +2759,24 @@ html[data-theme="dark"] .theme-client .mx-afComment{ color: var(--muted) !import
 .mx-afCat--games{ background-image: url('/brand/afisha-games.jpg'); }
 .mx-afCat--market{ background-image: url('/brand/afisha-market.jpg'); }
 
+/* Special category tile for "All" */
+.mx-afCat--all{
+  background-image: none !important;
+  background: linear-gradient(135deg, rgba(0,0,0,.04), rgba(0,0,0,.10));
+}
+html[data-theme="dark"] .theme-client .mx-afCat--all{
+  background: linear-gradient(135deg, rgba(246,198,0,.06), rgba(0,0,0,.98));
+}
+
+/* Category grid inside the bottom sheet */
+.mx-afCats--sheet{
+  padding: 6px 4px 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.mx-afCats--sheet .mx-afCatBtn{ min-height: 96px; }
+
 .mx-list{ display:flex; flex-direction:column; gap: 12px; }
 .mx-afTitle{ font-size: 18px; font-weight: 950; line-height: 1.12; position: relative; z-index: 1; }
 .mx-afComment{ font-size: 13.5px; font-weight: 850; line-height: 1.22; color: rgba(0,0,0,.70); margin-top: 6px; position: relative; z-index: 1; }
@@ -2848,6 +2898,8 @@ html[data-theme="dark"] .theme-client .mx-ratePair{ color: var(--text); }
     0 0 0 2px rgba(0,0,0,.88) inset,
     0 0 18px rgba(246,198,0,.18);
   text-shadow: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   transition: box-shadow .18s ease, transform .12s ease;
 }
 

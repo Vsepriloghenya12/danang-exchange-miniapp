@@ -252,6 +252,12 @@ export function createApiRouter(opts: {
       await ensureSchema();
       const pool = getPool();
 
+      // Total users in the app (from the shared store).
+      // This is different from "unique users in period".
+      const store = await readStore();
+      const usersObj = (store as any)?.users;
+      const allUsers = usersObj && typeof usersObj === 'object' ? Object.keys(usersObj).length : 0;
+
       const qFrom = String((req.query as any)?.from || "").slice(0, 10);
       const qTo = String((req.query as any)?.to || "").slice(0, 10);
 
@@ -288,7 +294,7 @@ export function createApiRouter(opts: {
         db: true,
         from,
         to,
-        totals: totals.rows[0],
+        totals: { ...(totals.rows[0] || {}), all_users: allUsers },
         byEvent: byEvent.rows,
         byScreen: byScreen.rows,
         byClick: byClick.rows

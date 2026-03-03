@@ -287,6 +287,35 @@ export default function OwnerPortal() {
     }
   }
 
+  const screenRu: Record<string, string> = {
+    home: 'Главная',
+    calc: 'Калькулятор',
+    afisha: 'Афиша',
+    atm: 'Банкоматы',
+    reviews: 'Отзывы',
+    staff: 'Админ',
+    history: 'Моя история',
+    about: 'О приложении',
+    support: 'Поддержка',
+  };
+
+  function screenLabel(s: any) {
+    const k = String(s || '').trim();
+    return screenRu[k] || k || '—';
+  }
+
+  const eventRu: Record<string, string> = {
+    app_open: 'Запуск приложения',
+    screen_open: 'Открытие вкладки',
+    click: 'Клик',
+    auth: 'Авторизация',
+  };
+
+  function eventLabel(s: any) {
+    const k = String(s || '').trim();
+    return eventRu[k] || k || '—';
+  }
+
   function startEditAfisha(ev: any) {
     if (!ev) return;
     setAfEditId(String(ev.id || ''));
@@ -1727,12 +1756,19 @@ export default function OwnerPortal() {
                   <div className="vx-metricVal">{fmtNum(anData?.totals?.events)}</div>
                 </div>
                 <div className="vx-metricCard">
-                  <div className="vx-muted">Уникальных</div>
+                  <div className="vx-muted">Пользователей всего</div>
+                  <div className="vx-metricVal">{fmtNum((anData as any)?.totals?.all_users)}</div>
+                </div>
+                <div className="vx-metricCard">
+                  <div className="vx-muted">Уникальных за период</div>
                   <div className="vx-metricVal">{fmtNum(anData?.totals?.users)}</div>
                 </div>
                 <div className="vx-metricCard">
-                  <div className="vx-muted">Сессий</div>
+                  <div className="vx-muted">Запусков (сессий)</div>
                   <div className="vx-metricVal">{fmtNum(anData?.totals?.sessions)}</div>
+                  <div className="vx-muted" style={{ marginTop: 4, fontSize: 12 }}>
+                    Сессия = один запуск приложения (session_id)
+                  </div>
                 </div>
               </div>
 
@@ -1741,7 +1777,7 @@ export default function OwnerPortal() {
               <div className="vx-chipRow">
                 {Array.isArray(anData?.byScreen) && anData.byScreen.length ? (
                   anData.byScreen.slice(0, 30).map((x: any) => (
-                    <span key={x.screen} className="vx-chip">{x.screen || "?"}: <b>{fmtNum(x.cnt)}</b></span>
+                    <span key={x.screen} className="vx-chip">{screenLabel(x.screen)}: <b>{fmtNum(x.cnt)}</b></span>
                   ))
                 ) : (
                   <span className="vx-muted">–</span>
@@ -1765,7 +1801,7 @@ export default function OwnerPortal() {
               <div className="vx-chipRow">
                 {Array.isArray(anData?.byEvent) && anData.byEvent.length ? (
                   anData.byEvent.slice(0, 50).map((x: any) => (
-                    <span key={x.event_name} className="vx-chip">{x.event_name || "?"}: <b>{fmtNum(x.cnt)}</b></span>
+                    <span key={x.event_name} className="vx-chip">{eventLabel(x.event_name)}: <b>{fmtNum(x.cnt)}</b></span>
                   ))
                 ) : (
                   <span className="vx-muted">–</span>

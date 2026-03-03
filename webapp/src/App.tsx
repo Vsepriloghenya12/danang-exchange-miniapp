@@ -53,7 +53,8 @@ function IconSun({ className = "" }: { className?: string }) {
 function IconMoon({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 13.2A8.5 8.5 0 0 1 10.8 3a6.5 6.5 0 1 0 10.2 10.2Z" />
+      {/* More centered moon icon (Telegram WebView sometimes shows the old path off-center) */}
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
     </svg>
   );
 }
@@ -192,6 +193,8 @@ function HeaderLogo() {
         className="mx-headerLogoImg"
         src={src}
         alt=""
+        loading="eager"
+        decoding="async"
         onLoad={() => setOk(true)}
         onError={() => {
           setOk(false);
@@ -239,6 +242,25 @@ export default function App() {
       // ignore
     }
   }, [theme]);
+
+  // Warm up critical images early to avoid a visible "pop-in" in Telegram WebView.
+  useEffect(() => {
+    const urls = [
+      "/brand/header-logo.png?v42",
+      "/brand/status-standard.svg?v48-standard",
+      "/brand/status-silver.svg?v48-silver",
+      "/brand/status-gold.svg?v48-gold",
+    ];
+    try {
+      urls.forEach((u) => {
+        const img = new Image();
+        img.decoding = "async";
+        img.src = u;
+      });
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
