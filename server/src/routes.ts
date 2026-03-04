@@ -1029,6 +1029,33 @@ export function createApiRouter(opts: {
   });
 
   // --------------------
+  // Owner: rates by date range (for profit/cashbox calculator)
+  // --------------------
+  router.get("/admin/rates/range", async (req, res) => {
+    try {
+      const { isOwner } = await requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const from = String(req.query.from || "").trim();
+      const to = String(req.query.to || "").trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+        return res.status(400).json({ ok: false, error: "bad_date" });
+      }
+
+      const store = await readStore();
+      const src = (store as any).ratesByDate || {};
+      const items = Object.keys(src)
+        .filter((d) => typeof d === "string" && d >= from && d <= to)
+        .sort((a, b) => a.localeCompare(b))
+        .map((date) => ({ date, ...(src[date] || {}) }));
+
+      return res.json({ ok: true, from, to, items });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // --------------------
   // Owner config: admins list
   // --------------------
   router.get("/admin/admins", async (req, res) => {

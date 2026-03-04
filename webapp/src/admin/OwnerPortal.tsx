@@ -20,10 +20,14 @@ import {
   apiAdminUpdateAfisha,
   apiAdminEventsSummary,
   apiGetBankIcons,
+  apiAdminGetRatesRange,
+  apiGetTodayRates,
 } from "../lib/api";
 import type { Contact, UserStatus } from "../lib/types";
 
 const LS_KEY = "dx_admin_key";
+const LS_CASH_DEFAULT_RATES = "dx_cash_default_rates_v1";
+const LS_CASH_OVERRIDES = "dx_cash_overrides_v1";
 
 const STATUS_OPTIONS: Array<{ v: UserStatus; l: string }> = [
   { v: "standard", l: "Стандарт" },
@@ -79,7 +83,7 @@ export default function OwnerPortal() {
   const token = useMemo(() => (key ? `adminkey:${key}` : ""), [key]);
   const me = useMemo(() => ({ initData: token }), [token]);
 
-  type Tab = "rates" | "bonuses" | "reviews" | "clients" | "requests" | "afisha" | "reports" | "analytics";
+  type Tab = "rates" | "bonuses" | "reviews" | "clients" | "requests" | "afisha" | "cashbox" | "reports" | "analytics";
   const [tab, setTab] = useState<Tab>("rates");
 
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -127,6 +131,59 @@ export default function OwnerPortal() {
   const [repOnlyDone, setRepOnlyDone] = useState<boolean>(true);
   const [repTgId, setRepTgId] = useState<string>("");
   const [report, setReport] = useState<any>(null);
+
+  // Cashbox / Profit calculator ("КАССА")
+  const [cashFrom, setCashFrom] = useState<string>(() => shiftISO(-7));
+  const [cashTo, setCashTo] = useState<string>(() => todayISO());
+  const [cashOnlyDone, setCashOnlyDone] = useState<boolean>(true);
+  const [cashUseHistoryRates, setCashUseHistoryRates] = useState<boolean>(true);
+  const [cashLoading, setCashLoading] = useState<boolean>(false);
+  const [cashReport, setCashReport] = useState<any>(null);
+  const [cashRatesByDate, setCashRatesByDate] = useState<Record<string, any>>({});
+  const [cashDefaultRates, setCashDefaultRates] = useState<Record<string, { buy: string; sell: string }>>(() => {
+    try {
+      const raw = localStorage.getItem(LS_CASH_DEFAULT_RATES);
+      const j = raw ? JSON.parse(raw) : null;
+      if (j && typeof j === "object") return j;
+    } catch {
+      // ignore
+    }
+    return {
+      RUB: { buy: "", sell: "" },
+      USD: { buy: "", sell: "" },
+      USDT: { buy: "", sell: "" },
+      EUR: { buy: "", sell: "" },
+      THB: { buy: "", sell: "" },
+    };
+  });
+
+  const [cashOverrides, setCashOverrides] = useState<Record<string, { in?: string; out?: string }>>(() => {
+    try {
+      const raw = localStorage.getItem(LS_CASH_OVERRIDES);
+      const j = raw ? JSON.parse(raw) : null;
+      if (j && typeof j === "object") return j;
+    } catch {
+      // ignore
+    }
+    return {};
+  });
+
+  // persist cashbox settings locally (owner can tune rates per deal)
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_CASH_DEFAULT_RATES, JSON.stringify(cashDefaultRates || {}));
+    } catch {
+      // ignore
+    }
+  }, [cashDefaultRates]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_CASH_OVERRIDES, JSON.stringify(cashOverrides || {}));
+    } catch {
+      // ignore
+    }
+  }, [cashOverrides]);
 
   // Analytics (events)
   const [anFrom, setAnFrom] = useState<string>(() => shiftISO(-7));
@@ -648,6 +705,76 @@ export default function OwnerPortal() {
     setReport(r);
   }
 
+  function toNumLoose(s: any): number {
+    const n = Number(String(s ?? "").replace(/\s+/g, "").replace(",", ".").trim());
+    return Number.isFinite(n) ? n : Number.NaN;
+  }
+
+  function fmtRate(n: any) {
+    const x = Number(n);
+    if (!Number.isFinite(x)) return "";
+    // show up to 4 decimals, but trim trailing zeros
+    const s = x.toFixed(4).replace(/0+$/g, "").replace(/\.$/g, "");
+    return s;
+  }
+
+  async function loadCashbox() {
+    if (!token || cashLoading) return;
+    setCashLoading(true);
+    try {
+      const [rep, rr, today] = await Promise.allSettled([
+        apiAdminGetReports(token, { from: cashFrom, to: cashTo, onlyDone: cashOnlyDone }),
+        apiAdminGetRatesRange(token, { from: cashFrom, to: cashTo }),
+        apiGetTodayRates(),
+      ]);
+
+      if (rep.status === "fulfilled" && rep.value?.ok) {
+        setCashReport(rep.value);
+      } else if (rep.status === "fulfilled" && rep.value && !rep.value.ok) {
+        showErr(rep.value?.error || "Ошибка");
+      }
+
+      if (rr.status === "fulfilled" && rr.value?.ok) {
+        const map: Record<string, any> = {};
+        for (const it of rr.value.items || []) {
+          if (it?.date && it?.rates) map[String(it.date)] = it.rates;
+        }
+        setCashRatesByDate(map);
+      }
+
+      // auto-fill defaults from today's rates once (if empty)
+      if (today.status === "fulfilled" && today.value?.ok) {
+        const rates = (today.value as any)?.data?.rates;
+        if (rates && typeof rates === "object") {
+          setCashDefaultRates((prev) => {
+            const next = { ...(prev || {}) } as any;
+            for (const cur of ["RUB", "USD", "USDT", "EUR", "THB"]) {
+              const p = next[cur] || { buy: "", sell: "" };
+              const r = (rates as any)?.[cur];
+              const buy = toNumLoose(r?.buy_vnd);
+              const sell = toNumLoose(r?.sell_vnd);
+              // fill only when empty
+              if ((!p.buy || !String(p.buy).trim()) && Number.isFinite(buy) && buy > 0) p.buy = fmtRate(buy);
+              if ((!p.sell || !String(p.sell).trim()) && Number.isFinite(sell) && sell > 0) p.sell = fmtRate(sell);
+              next[cur] = p;
+            }
+            return next;
+          });
+        }
+      }
+    } finally {
+      setCashLoading(false);
+    }
+  }
+
+  // Auto-load cashbox data when entering the tab / changing filters
+  useEffect(() => {
+    if (tab !== "cashbox") return;
+    if (!token) return;
+    loadCashbox();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, token, cashFrom, cashTo, cashOnlyDone]);
+
   function fmtNum(n: any) {
     const x = Number(n);
     if (!Number.isFinite(x)) return "–";
@@ -700,6 +827,88 @@ export default function OwnerPortal() {
     }
     return m;
   }, [contacts]);
+
+  // Cashbox computed rows (profit in VND)
+  const cashComputed = useMemo(() => {
+    const reqs = Array.isArray(cashReport?.requests) ? cashReport.requests : [];
+
+    const getBaseRates = (dateKey: string): any => {
+      if (!cashUseHistoryRates) return null;
+      return cashRatesByDate?.[dateKey] || null;
+    };
+
+    const getAutoRate = (rates: any, cur: string, kind: "in" | "out") => {
+      const c = String(cur || "").toUpperCase();
+      if (!c || c === "VND") return 1;
+      const key = kind === "in" ? "sell_vnd" : "buy_vnd";
+      const n1 = toNumLoose(rates?.[c]?.[key]);
+      if (Number.isFinite(n1) && n1 > 0) return n1;
+      const def = cashDefaultRates?.[c];
+      const n2 = toNumLoose(kind === "in" ? def?.sell : def?.buy);
+      if (Number.isFinite(n2) && n2 > 0) return n2;
+      return Number.NaN;
+    };
+
+    const getEffectiveRate = (id: string, rates: any, cur: string, kind: "in" | "out") => {
+      const c = String(cur || "").toUpperCase();
+      if (!c || c === "VND") return 1;
+      const ov = cashOverrides?.[String(id)] || {};
+      const ovText = kind === "in" ? ov.in : ov.out;
+      const ovNum = toNumLoose(ovText);
+      if (Number.isFinite(ovNum) && ovNum > 0) return ovNum;
+      return getAutoRate(rates, c, kind);
+    };
+
+    const rows = reqs.map((r: any) => {
+      const id = String(r?.id || "");
+      const created = String(r?.created_at || "");
+      const dateKey = /^\d{4}-\d{2}-\d{2}/.test(created) ? created.slice(0, 10) : "";
+      const sellCur = String(r?.sellCurrency || "").toUpperCase();
+      const buyCur = String(r?.buyCurrency || "").toUpperCase();
+      const sellAmount = Number(r?.sellAmount);
+      const buyAmount = Number(r?.buyAmount);
+      const baseRates = getBaseRates(dateKey);
+
+      const inAuto = getAutoRate(baseRates, sellCur, "in");
+      const outAuto = getAutoRate(baseRates, buyCur, "out");
+      const inRate = getEffectiveRate(id, baseRates, sellCur, "in");
+      const outRate = getEffectiveRate(id, baseRates, buyCur, "out");
+
+      const inVnd = sellCur === "VND" ? sellAmount : sellAmount * inRate;
+      const outVnd = buyCur === "VND" ? buyAmount : buyAmount * outRate;
+      const profit = Number.isFinite(inVnd) && Number.isFinite(outVnd) ? inVnd - outVnd : Number.NaN;
+
+      const ov = cashOverrides?.[id] || {};
+      const inValue = sellCur === "VND" ? "" : (ov.in != null ? String(ov.in) : fmtRate(inAuto));
+      const outValue = buyCur === "VND" ? "" : (ov.out != null ? String(ov.out) : fmtRate(outAuto));
+
+      return {
+        id,
+        dateKey,
+        created_at: created,
+        who: who(r),
+        state: String(r?.state || ""),
+        payMethod: r?.payMethod,
+        receiveMethod: r?.receiveMethod,
+        sellCur,
+        buyCur,
+        sellAmount,
+        buyAmount,
+        inAuto,
+        outAuto,
+        inValue,
+        outValue,
+        profit,
+        profitOk: Number.isFinite(profit),
+        missingRates: (!Number.isFinite(inRate) && sellCur !== "VND") || (!Number.isFinite(outRate) && buyCur !== "VND"),
+      };
+    });
+
+    const totalProfit = rows.reduce((acc: number, x: any) => (Number.isFinite(x.profit) ? acc + x.profit : acc), 0);
+    const missing = rows.reduce((acc: number, x: any) => (x.missingRates ? acc + 1 : acc), 0);
+
+    return { rows, totalProfit, missing, total: rows.length };
+  }, [cashReport, cashRatesByDate, cashOverrides, cashDefaultRates, cashUseHistoryRates]);
 
   const reqSelected = useMemo(
     () => (requests || []).find((r) => String(r?.id) === String(reqSelectedId)) || null,
@@ -906,6 +1115,7 @@ export default function OwnerPortal() {
           <button className={tab === "clients" ? "on" : ""} onClick={() => setTab("clients")}>Клиенты</button>
           <button className={tab === "requests" ? "on" : ""} onClick={() => setTab("requests")}>Заявки</button>
           <button className={tab === "afisha" ? "on" : ""} onClick={() => setTab("afisha")}>Афиша</button>
+          <button className={tab === "cashbox" ? "on" : ""} onClick={() => setTab("cashbox")}>Касса</button>
           <button className={tab === "reports" ? "on" : ""} onClick={() => setTab("reports")}>Отчёты</button>
           <button className={tab === "analytics" ? "on" : ""} onClick={() => setTab("analytics")}>Статистика</button>
         </div>
@@ -1583,6 +1793,240 @@ export default function OwnerPortal() {
             )}
           </div>
         </>
+      ) : null}
+
+      {tab === "cashbox" ? (
+        <div className="card">
+          <div className="small"><b>Калькулятор прибыли (КАССА)</b></div>
+          <div className="vx-muted" style={{ marginTop: 6 }}>
+            Логика как в твоей таблице: <b>прибыль = (ценность того, что клиент отдал) − (ценность того, что клиент получил)</b>, в VND.
+            Для оценки используем курсы <b>sell_vnd</b> (вход) и <b>buy_vnd</b> (выход). Курсы можно менять — глобально и по каждой сделке.
+          </div>
+
+          <div className="vx-sp10" />
+
+          <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 160px" }}>
+              <div className="vx-muted">С</div>
+              <input className="input vx-in" type="date" value={cashFrom} onChange={(e) => setCashFrom(e.target.value)} />
+            </div>
+            <div style={{ flex: "1 1 160px" }}>
+              <div className="vx-muted">По</div>
+              <input className="input vx-in" type="date" value={cashTo} onChange={(e) => setCashTo(e.target.value)} />
+            </div>
+          </div>
+
+          <label className="vx-checkRow">
+            <input type="checkbox" checked={cashOnlyDone} onChange={(e) => setCashOnlyDone(e.target.checked)} />
+            <span>Только «Готово»</span>
+          </label>
+
+          <label className="vx-checkRow">
+            <input type="checkbox" checked={cashUseHistoryRates} onChange={(e) => setCashUseHistoryRates(e.target.checked)} />
+            <span>Подставлять курсы по датам (из вкладки «Курс»)</span>
+          </label>
+
+          <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <button className="btn" type="button" onClick={loadCashbox} disabled={cashLoading}>
+              {cashLoading ? "Загрузка..." : "Пересчитать"}
+            </button>
+            <button
+              className="btn vx-btnSm"
+              type="button"
+              onClick={() => {
+                setCashOverrides({});
+                showOk("Сброшены ручные курсы по сделкам");
+              }}
+            >
+              Сбросить ручные (сделки)
+            </button>
+          </div>
+
+          <div className="vx-sp12" />
+
+          <div className="small"><b>Курсы по умолчанию (VND за 1 единицу)</b></div>
+          <div className="vx-muted" style={{ marginTop: 6 }}>
+            <b>buy_vnd</b> — по этому курсу мы <u>покупаем</u> валюту у клиента (это себестоимость). <b>sell_vnd</b> — по этому курсу мы <u>продаём</u> валюту.
+          </div>
+
+          <div className="vx-sp10" />
+          <div className="vx-tableWrap">
+            <table className="vx-table">
+              <thead>
+                <tr>
+                  <th>Валюта</th>
+                  <th>buy_vnd</th>
+                  <th>sell_vnd</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(["RUB", "USD", "USDT", "EUR", "THB"] as const).map((cur) => (
+                  <tr key={cur}>
+                    <td><b>{cur}</b></td>
+                    <td>
+                      <input
+                        className="input vx-in"
+                        inputMode="decimal"
+                        value={(cashDefaultRates as any)?.[cur]?.buy ?? ""}
+                        onChange={(e) =>
+                          setCashDefaultRates((prev) => ({
+                            ...(prev || {}),
+                            [cur]: { buy: e.target.value, sell: (prev as any)?.[cur]?.sell ?? "" },
+                          }))
+                        }
+                        placeholder="0"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input vx-in"
+                        inputMode="decimal"
+                        value={(cashDefaultRates as any)?.[cur]?.sell ?? ""}
+                        onChange={(e) =>
+                          setCashDefaultRates((prev) => ({
+                            ...(prev || {}),
+                            [cur]: { buy: (prev as any)?.[cur]?.buy ?? "", sell: e.target.value },
+                          }))
+                        }
+                        placeholder="0"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="vx-sp12" />
+
+          <div className="small"><b>Итоги</b></div>
+          <div className="vx-metricGrid">
+            <div className="vx-metricCard">
+              <div className="vx-muted">Сделок</div>
+              <div className="vx-metricVal">{fmtNum(cashComputed.total)}</div>
+            </div>
+            <div className="vx-metricCard">
+              <div className="vx-muted">Прибыль (VND)</div>
+              <div className="vx-metricVal">{fmtNum(cashComputed.totalProfit)}</div>
+            </div>
+            <div className="vx-metricCard">
+              <div className="vx-muted">Без курсов</div>
+              <div className="vx-metricVal">{fmtNum(cashComputed.missing)}</div>
+              <div className="vx-muted" style={{ marginTop: 4, fontSize: 12 }}>
+                Если есть «Без курсов» — заполни курсы по умолчанию или поправь конкретные сделки.
+              </div>
+            </div>
+          </div>
+
+          <div className="vx-sp12" />
+          <div className="small"><b>Сделки</b></div>
+          <div className="vx-muted">Показано: {cashComputed.rows.length || 0}</div>
+
+          {cashComputed.rows.length ? (
+            <div className="vx-tableWrap">
+              <table className="vx-table">
+                <thead>
+                  <tr>
+                    <th>Дата</th>
+                    <th>Клиент</th>
+                    <th>Пара</th>
+                    <th>Отдал</th>
+                    <th>Получил</th>
+                    <th>Курс входа (sell_vnd)</th>
+                    <th>Курс выхода (buy_vnd)</th>
+                    <th>КАССА (VND)</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cashComputed.rows.slice(0, 300).map((x: any) => (
+                    <tr key={x.id}>
+                      <td>{x.dateKey ? x.dateKey : fmtDt(x.created_at)}</td>
+                      <td>{x.who}</td>
+                      <td>{x.sellCur} → {x.buyCur}</td>
+                      <td>{fmtNum(x.sellAmount)} {x.sellCur}</td>
+                      <td>{fmtNum(x.buyAmount)} {x.buyCur}</td>
+                      <td>
+                        {x.sellCur === "VND" ? (
+                          <span className="vx-muted">–</span>
+                        ) : (
+                          <input
+                            className="input vx-in"
+                            inputMode="decimal"
+                            value={x.inValue}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setCashOverrides((prev) => {
+                                const next = { ...(prev || {}) } as any;
+                                const cur = { ...(next[x.id] || {}) };
+                                if (!String(v || "").trim()) delete cur.in;
+                                else cur.in = v;
+                                if (!cur.in && !cur.out) delete next[x.id];
+                                else next[x.id] = cur;
+                                return next;
+                              });
+                            }}
+                            placeholder={fmtRate(x.inAuto)}
+                          />
+                        )}
+                      </td>
+                      <td>
+                        {x.buyCur === "VND" ? (
+                          <span className="vx-muted">–</span>
+                        ) : (
+                          <input
+                            className="input vx-in"
+                            inputMode="decimal"
+                            value={x.outValue}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setCashOverrides((prev) => {
+                                const next = { ...(prev || {}) } as any;
+                                const cur = { ...(next[x.id] || {}) };
+                                if (!String(v || "").trim()) delete cur.out;
+                                else cur.out = v;
+                                if (!cur.in && !cur.out) delete next[x.id];
+                                else next[x.id] = cur;
+                                return next;
+                              });
+                            }}
+                            placeholder={fmtRate(x.outAuto)}
+                          />
+                        )}
+                      </td>
+                      <td>
+                        {x.profitOk ? (
+                          <b style={{ color: x.profit < 0 ? "#c0392b" : undefined }}>{fmtNum(x.profit)}</b>
+                        ) : (
+                          <span className="vx-muted">–</span>
+                        )}
+                      </td>
+                      <td>
+                        {cashOverrides?.[x.id] ? (
+                          <button
+                            className="btn vx-btnSm"
+                            type="button"
+                            onClick={() =>
+                              setCashOverrides((prev) => {
+                                const next = { ...(prev || {}) } as any;
+                                delete next[x.id];
+                                return next;
+                              })
+                            }
+                          >
+                            Сброс
+                          </button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="vx-muted">Нет сделок за выбранный период.</div>
+          )}
+        </div>
       ) : null}
 
       {tab === "reports" ? (

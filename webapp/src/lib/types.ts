@@ -133,6 +133,14 @@ export type ReportsResponse = {
   error?: string;
 };
 
+export type AdminRatesRangeResponse = {
+  ok: boolean;
+  from: string;
+  to: string;
+  items: Array<{ date: string; updated_at?: string; updated_by?: number; rates?: any }>;
+  error?: string;
+};
+
 export type MarketRatesResponse =
   | {
       ok: true;

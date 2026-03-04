@@ -15,6 +15,7 @@ import type {
   PublishTemplateResponse,
   PublishResponse,
   ReportsResponse,
+  AdminRatesRangeResponse,
   Contact,
   AfishaResponse,
   AdminAfishaResponse,
@@ -343,6 +344,16 @@ export async function apiAdminGetReports(token: string, params: { from: string; 
   if (params.onlyDone != null) q.set("onlyDone", String(params.onlyDone ? 1 : 0));
   if (params.tgId) q.set("tgId", String(params.tgId));
   const r = await fetch(`/api/admin/reports?${q.toString()}` , {
+    headers: { ...adminAuthHeaders(token) }
+  });
+  return readJsonSafe(r);
+}
+
+export async function apiAdminGetRatesRange(token: string, params: { from: string; to: string }): Promise<AdminRatesRangeResponse> {
+  const q = new URLSearchParams();
+  q.set("from", params.from);
+  q.set("to", params.to);
+  const r = await fetch(`/api/admin/rates/range?${q.toString()}`, {
     headers: { ...adminAuthHeaders(token) }
   });
   return readJsonSafe(r);
