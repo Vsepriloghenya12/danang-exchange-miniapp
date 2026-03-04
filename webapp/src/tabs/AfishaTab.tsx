@@ -526,7 +526,7 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
         <div className="mx-sheetOverlay" onClick={() => setSheet(null)} role="dialog">
           <div
             ref={sheetRef}
-            className={"mx-sheet" + (dragging ? " is-dragging" : "")}
+            className={"mx-sheet" + (sheet === "cats" ? " mx-sheet--cats" : "") + (dragging ? " is-dragging" : "")}
             onClick={(e) => e.stopPropagation()}
             onPointerDown={onSheetPointerDown}
             onPointerMove={onSheetPointerMove}
@@ -599,7 +599,7 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
             ) : (
               <>
                 <div className="mx-sheetTitle">Категории</div>
-                <div ref={listRef} className="mx-sheetList">
+                <div ref={listRef} className="mx-sheetList mx-sheetList--cats">
                   <div className="mx-afCats mx-afCats--sheet">
                     <button
                       type="button"

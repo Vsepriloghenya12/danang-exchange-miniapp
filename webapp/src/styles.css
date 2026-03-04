@@ -2627,6 +2627,8 @@ html[data-theme="dark"] .theme-client .mx-hTitle{ letter-spacing: 0.02em !import
   box-shadow: 0 -26px 86px rgba(0,0,0,.58);
   padding: 14px;
   padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  display:flex;
+  flex-direction: column;
   touch-action: none; /* helps swipe-to-close on mobile */
   overscroll-behavior: none;
   overscroll-behavior-y: none;
@@ -2649,6 +2651,18 @@ html[data-theme="dark"] .theme-client .mx-hTitle{ letter-spacing: 0.02em !import
   touch-action: pan-y;
   overscroll-behavior: none;
   overscroll-behavior-y: none;
+  flex: 1 1 auto;
+}
+
+/* Categories sheet should open tall enough to show the full grid without scrolling on most phones */
+.mx-sheet--cats{
+  /* fallback + stable viewport height */
+  max-height: 92vh;
+  max-height: calc(var(--vh, 1vh) * 92);
+}
+.mx-sheetList--cats{
+  max-height: 72vh;
+  max-height: calc(var(--vh, 1vh) * 72);
 }
 
 /* When a bottom sheet is open, freeze page overscroll (Telegram/WebView can "pull" the whole app).
@@ -2859,12 +2873,48 @@ html[data-theme="dark"] .theme-client .mx-afCat--all{
 
 /* Category grid inside the bottom sheet */
 .mx-afCats--sheet{
-  padding: 6px 4px 12px;
+  padding: 4px 2px 8px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
 }
-.mx-afCats--sheet .mx-afCatBtn{ min-height: 96px; }
+
+/* In the sheet, center the labels and make tiles slightly smaller to fit all categories */
+.mx-afCats--sheet .mx-afCatBtn{
+  min-height: 88px;
+  height: 88px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 14px;
+}
+.mx-afCats--sheet .mx-afCatBtn > div{ width: 100%; }
+.mx-afCats--sheet .mx-afCatBtn .mx-afCatLabel{ width: 100%; }
+.mx-afCats--sheet .mx-afCatBtn::before{
+  /* keep readability but avoid a heavy bottom-only gradient since text is centered */
+  opacity: .86;
+  background: linear-gradient(180deg, rgba(0,0,0,.10) 0%, rgba(0,0,0,.62) 100%);
+}
+.mx-afCats--sheet .mx-afCatBtn .mx-afCatLabel{
+  text-shadow: 0 2px 8px rgba(0,0,0,.28);
+}
+
+/* Selected category: visible yellow glow (instead of a thin outline) */
+.mx-afCats--sheet .mx-afCatBtn.is-on{
+  outline: none;
+  border-color: rgba(246,198,0,.55);
+  box-shadow:
+    0 18px 58px rgba(0,0,0,.28),
+    0 0 22px rgba(246,198,0,.32),
+    0 0 0 2px rgba(246,198,0,.86) inset;
+}
+html[data-theme="dark"] .theme-client .mx-afCats--sheet .mx-afCatBtn.is-on{
+  border-color: rgba(246,198,0,.64) !important;
+  box-shadow:
+    0 30px 86px rgba(0,0,0,.86),
+    0 0 28px rgba(246,198,0,.26),
+    0 0 0 2px rgba(246,198,0,.82) inset !important;
+}
 
 .mx-list{ display:flex; flex-direction:column; gap: 12px; }
 .mx-afTitle{ font-size: 18px; font-weight: 950; line-height: 1.12; position: relative; z-index: 1; }
