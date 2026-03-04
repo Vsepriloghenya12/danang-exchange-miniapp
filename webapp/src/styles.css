@@ -2996,11 +2996,13 @@ html[data-theme="dark"] .theme-client .mx-ratePair{ color: var(--text); }
    It is intentionally removed: dark theme is true black + yellow neon.
    ========================= */
 
-/* Owner portal: full width */
+/* Owner portal: compact, tidy desktop layout */
+.theme-owner{ --appMax: 1200px; }
+.theme-owner.vx-page{ background: #f6f7fb; padding: 14px 12px; }
 .theme-owner .container{
-  max-width: none;
-  width: 100%;
-  margin: 0;
+  max-width: 1200px;
+  width: calc(100% - 24px);
+  margin: 0 auto;
 }
 
 @media (min-width: 900px){

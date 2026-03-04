@@ -410,6 +410,25 @@ export default function OwnerPortal() {
     return eventRu[k] || k || '—';
   }
 
+  // Click target labels (client UI buttons)
+  const clickRu: Record<string, string> = {
+    // Home
+    home_calc_btn: 'Главная → Калькулятор',
+    // Main nav cards
+    nav_afisha: 'Главная → Афиша',
+    nav_atm: 'Главная → Банкоматы',
+    nav_reviews: 'Главная → Отзывы',
+    // Bottom menu
+    bottom_history: 'Нижнее меню → Моя история',
+    bottom_about: 'Нижнее меню → О приложении',
+    bottom_support: 'Нижнее меню → Поддержка',
+  };
+
+  function clickLabel(s: any) {
+    const k = String(s || '').trim();
+    return clickRu[k] || k || '—';
+  }
+
   function startEditAfisha(ev: any) {
     if (!ev) return;
     setAfEditId(String(ev.id || ''));
@@ -2644,7 +2663,7 @@ export default function OwnerPortal() {
               <div className="vx-chipRow">
                 {Array.isArray(anData?.byClick) && anData.byClick.length ? (
                   anData.byClick.slice(0, 50).map((x: any) => (
-                    <span key={x.target} className="vx-chip">{x.target || "?"}: <b>{fmtNum(x.cnt)}</b></span>
+                    <span key={x.target} className="vx-chip">{clickLabel(x.target)}: <b>{fmtNum(x.cnt)}</b></span>
                   ))
                 ) : (
                   <span className="vx-muted">–</span>
