@@ -55,17 +55,27 @@ body{
   background: #000;
 }
 
-/* Miniapp (client) forces true black under everything (fixes "blue bleed") */
-body.vx-body-client,
-body.vx-body-client #root{
-  background: #000;
-}
-
-/* Telegram Android WebView sometimes shows rubber-band overscroll ("gap" at bottom).
-   We disable overscroll on the client app surface. */
+/* Miniapp (client) forces true black under everything (fixes "blue bleed")
+   AND makes #root the only scroll container (prevents Telegram rubber-band "gap"). */
 body.vx-body-client{
+  background: #000;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: calc(var(--vh, 1vh) * 100);
+  overflow: hidden;
   overscroll-behavior: none;
   overscroll-behavior-y: none;
+  touch-action: none;
+}
+
+body.vx-body-client #root{
+  background: #000;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+  touch-action: pan-y;
 }
 
 /* Blacklist screen (image-only) */
@@ -99,10 +109,7 @@ body.vx-body-client{
    ========================= */
 .vx-page{
   /* stable viewport height in Telegram/WebView */
-  min-height: 100vh;
-  min-height: calc(var(--vh, 1vh) * 100);
-  min-height: 100svh;
-  min-height: 100dvh;
+  min-height: 100%;
   padding: 14px 12px;
   box-sizing: border-box;
   color: var(--text);
@@ -2406,11 +2413,13 @@ html[data-theme="dark"] .theme-client .mx-muted{
 /* Home nav cards should be as bright as other sections in dark theme */
 html[data-theme="dark"] .theme-client .mx-navTitle{ color: var(--text) !important; text-shadow: 0 0 14px rgba(246,198,0,.16); }
 html[data-theme="dark"] .theme-client .mx-navSub{
-  color: rgba(246,198,0,1) !important;
+  color: #f6c600 !important;
   opacity: 1 !important;
-  font-weight: 900 !important;
-  font-size: 13px !important;
-  text-shadow: 0 0 22px rgba(246,198,0,.22), 0 1px 0 rgba(0,0,0,.65);
+  font-weight: 950 !important;
+  font-size: 14px !important;
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 32px rgba(246,198,0,.28), 0 2px 0 rgba(0,0,0,.70);
+  filter: brightness(1.12) saturate(1.15);
 }
 
 html[data-theme="dark"] .theme-client .mx-btn,
@@ -2609,6 +2618,10 @@ html.mx-sheet-open body{
   overflow: hidden;
   touch-action: none;
 }
+html.mx-sheet-open body.vx-body-client #root{
+  overflow: hidden !important;
+}
+
 .mx-sheetItem{
   width: 100%;
   border-radius: 18px;

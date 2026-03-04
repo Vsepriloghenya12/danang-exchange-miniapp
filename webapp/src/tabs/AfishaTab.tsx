@@ -171,44 +171,38 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
   const [events, setEvents] = useState<AfishaEvent[]>([]);
   const [err, setErr] = useState<string>("");
 
-  // When a sheet is open, we must hard-lock the page scroll.
+  // When a sheet is open, hard-lock the scroll container.
   // In Telegram Android WebView, drag gestures can otherwise "pull" the whole app (rubber-band)
   // and show a bottom gap.
   useEffect(() => {
     const html = document.documentElement;
-    const body = document.body;
+    const sc = document.getElementById("root") as HTMLElement | null;
+
     if (!sheetOpen) {
       try {
         html.classList.remove("mx-sheet-open");
       } catch {}
+      if (sc) {
+        sc.style.overflow = "";
+        sc.style.touchAction = "";
+      }
       return;
     }
-
-    const scrollY = window.scrollY || window.pageYOffset || 0;
-    const prev = {
-      overflow: body.style.overflow,
-      position: body.style.position,
-      top: body.style.top,
-      left: body.style.left,
-      right: body.style.right,
-      width: body.style.width,
-      paddingRight: body.style.paddingRight,
-    };
 
     try {
       html.classList.add("mx-sheet-open");
     } catch {}
 
-    // Avoid layout shift on desktop due to scrollbar disappearance
-    const sbw = window.innerWidth - html.clientWidth;
-    if (sbw > 0) body.style.paddingRight = `${sbw}px`;
+    const prev = {
+      overflow: sc?.style.overflow || "",
+      touchAction: sc?.style.touchAction || "",
+      scrollTop: sc ? sc.scrollTop : 0,
+    };
 
-    body.style.overflow = "hidden";
-    body.style.position = "fixed";
-    body.style.top = `-${scrollY}px`;
-    body.style.left = "0";
-    body.style.right = "0";
-    body.style.width = "100%";
+    if (sc) {
+      sc.style.overflow = "hidden";
+      sc.style.touchAction = "none";
+    }
 
     // Extra protection: block touchmove outside of the scrollable list.
     const onTouchMove = (e: TouchEvent) => {
@@ -223,17 +217,11 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
       try {
         html.classList.remove("mx-sheet-open");
       } catch {}
-
-      body.style.overflow = prev.overflow;
-      body.style.position = prev.position;
-      body.style.top = prev.top;
-      body.style.left = prev.left;
-      body.style.right = prev.right;
-      body.style.width = prev.width;
-      body.style.paddingRight = prev.paddingRight;
-
-      // Restore scroll position
-      window.scrollTo(0, scrollY);
+      if (sc) {
+        sc.style.overflow = prev.overflow;
+        sc.style.touchAction = prev.touchAction;
+        sc.scrollTop = prev.scrollTop;
+      }
     };
   }, [sheetOpen]);
 

@@ -204,7 +204,9 @@ export default function StaffTab({ me }: any) {
     setSelectedId(String(id));
     setView("detail");
     try {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      const sc = document.getElementById("root");
+      if (sc && (sc as any).scrollTo) (sc as any).scrollTo({ top: 0, behavior: "smooth" });
+      else window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       // ignore
     }
