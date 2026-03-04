@@ -23,12 +23,31 @@ import {
   apiAdminGetRatesRange,
   apiAdminSetRatesForDate,
   apiGetTodayRates,
+  apiAdminGetGFormulas,
+  apiAdminSetGFormulas,
 } from "../lib/api";
 import type { Contact, UserStatus } from "../lib/types";
 
 const LS_KEY = "dx_admin_key";
 const LS_CASH_DEFAULT_RATES = "dx_cash_default_rates_v1";
 const LS_CASH_OVERRIDES = "dx_cash_overrides_v1";
+
+// Cross-pair formulas (multipliers) — defaults match the current app logic.
+// BUY = G * buyMul, SELL = G * sellMul
+const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
+  "USDT/RUB": { buyMul: 0.98, sellMul: 1.08 },
+  "USD/RUB": { buyMul: 0.98, sellMul: 1.08 },
+  "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
+  "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
+  "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
+  "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
+  "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
+  "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
+  "USDT/THB": { buyMul: 0.95, sellMul: 1.07 },
+  "EUR/THB": { buyMul: 0.95, sellMul: 1.07 }
+};
+
+const G_FORMULA_KEYS = Object.keys(DEFAULT_G_FORMULAS);
 
 const STATUS_OPTIONS: Array<{ v: UserStatus; l: string }> = [
   { v: "standard", l: "Стандарт" },
@@ -118,6 +137,20 @@ export default function OwnerPortal() {
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [bankIcons, setBankIcons] = useState<string[]>([]);
+
+  // G-formulas editor (owner)
+  const [gFormulasDraft, setGFormulasDraft] = useState<Record<string, { buyMul: string; sellMul: string }>>(() => {
+    const d: any = {};
+    for (const k of G_FORMULA_KEYS) {
+      d[k] = {
+        buyMul: String(DEFAULT_G_FORMULAS[k]?.buyMul ?? ""),
+        sellMul: String(DEFAULT_G_FORMULAS[k]?.sellMul ?? "")
+      };
+    }
+    return d;
+  });
+  const [gFormulasLoaded, setGFormulasLoaded] = useState(false);
+  const [gFormulasSaving, setGFormulasSaving] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [clientsLoading, setClientsLoading] = useState<boolean>(false);
@@ -540,8 +573,9 @@ export default function OwnerPortal() {
     if (tab === "clients" || tab === "requests") loadClients();
     if (tab === "afisha") loadAfishaLists();
     if (tab === "analytics") loadAnalytics();
+    if (tab === "rates" && !gFormulasLoaded) loadGFormulas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, token]);
+  }, [tab, token, gFormulasLoaded]);
 
   // autosave template (no button)
   useEffect(() => {
@@ -611,6 +645,65 @@ export default function OwnerPortal() {
     }
     setBlacklistText((r.usernames || []).join("\n"));
     showOk("Сохранено ✅");
+  }
+
+  function resetGFormulasToDefault() {
+    const d: any = {};
+    for (const k of G_FORMULA_KEYS) {
+      d[k] = {
+        buyMul: String(DEFAULT_G_FORMULAS[k]?.buyMul ?? ""),
+        sellMul: String(DEFAULT_G_FORMULAS[k]?.sellMul ?? "")
+      };
+    }
+    setGFormulasDraft(d);
+  }
+
+  async function loadGFormulas() {
+    try {
+      const r = await apiAdminGetGFormulas(token);
+      if (!r?.ok || !r?.formulas) return;
+      const next: any = {};
+      for (const k of G_FORMULA_KEYS) {
+        const v = r.formulas?.[k] || DEFAULT_G_FORMULAS[k];
+        next[k] = {
+          buyMul: String(v?.buyMul ?? DEFAULT_G_FORMULAS[k].buyMul),
+          sellMul: String(v?.sellMul ?? DEFAULT_G_FORMULAS[k].sellMul)
+        };
+      }
+      setGFormulasDraft(next);
+      setGFormulasLoaded(true);
+    } catch {
+      // ignore
+    }
+  }
+
+  async function saveGFormulas() {
+    if (gFormulasSaving) return;
+    setGFormulasSaving(true);
+    try {
+      const next: any = {};
+      for (const k of G_FORMULA_KEYS) {
+        const v = gFormulasDraft[k] || ({} as any);
+        const buy = Number(String(v.buyMul ?? "").replace(",", ".").trim());
+        const sell = Number(String(v.sellMul ?? "").replace(",", ".").trim());
+        next[k] = {
+          buyMul: Number.isFinite(buy) && buy > 0 ? buy : DEFAULT_G_FORMULAS[k].buyMul,
+          sellMul: Number.isFinite(sell) && sell > 0 ? sell : DEFAULT_G_FORMULAS[k].sellMul
+        };
+      }
+
+      const r = await apiAdminSetGFormulas(token, next);
+      if (!r?.ok) {
+        showErr(r?.error || "Ошибка");
+        return;
+      }
+      showOk("Сохранено ✅");
+      // reload normalized values from server
+      setGFormulasLoaded(false);
+      await loadGFormulas();
+    } finally {
+      setGFormulasSaving(false);
+    }
   }
 
   async function setClientStatus(tgId: number, status: UserStatus) {
@@ -1252,6 +1345,72 @@ export default function OwnerPortal() {
       {tab === "rates" ? (
         <>
           <div className="card"><AdminTab me={me} forcedSection="rates" hideHeader hideSeg /></div>
+
+          <div className="vx-sp12" />
+
+          <div className="card">
+            <div className="row vx-between vx-center">
+              <div className="small"><b>Формулы кросс‑курсов (G)</b></div>
+              <button className="btn vx-btnSm" type="button" onClick={resetGFormulasToDefault}>
+                Сбросить
+              </button>
+            </div>
+            <div className="vx-sp6" />
+            <div className="small" style={{ opacity: 0.85 }}>
+              Эти формулы применяются к парам без VND. Курс считается так: <b>BUY = G × buyMul</b>, <b>SELL = G × sellMul</b>.
+            </div>
+
+            <div className="vx-sp10" />
+
+            <div className="vx-rateRow" style={{ opacity: 0.9 }}>
+              <div className="vx-code">Пара</div>
+              <div className="vx-fields">
+                <div className="vx-field"><div className="small"><b>buyMul</b></div></div>
+                <div className="vx-field"><div className="small"><b>sellMul</b></div></div>
+              </div>
+            </div>
+
+            {G_FORMULA_KEYS.map((k) => (
+              <div key={k} className="vx-rateRow">
+                <div className="vx-code">{k}</div>
+                <div className="vx-fields">
+                  <div className="vx-field">
+                    <input
+                      className="input vx-in"
+                      inputMode="decimal"
+                      value={gFormulasDraft[k]?.buyMul ?? ""}
+                      onChange={(e) =>
+                        setGFormulasDraft((prev) => ({
+                          ...(prev || {}),
+                          [k]: { ...(prev?.[k] || {}), buyMul: e.target.value }
+                        }))
+                      }
+                      placeholder={String(DEFAULT_G_FORMULAS[k]?.buyMul ?? "")}
+                    />
+                  </div>
+                  <div className="vx-field">
+                    <input
+                      className="input vx-in"
+                      inputMode="decimal"
+                      value={gFormulasDraft[k]?.sellMul ?? ""}
+                      onChange={(e) =>
+                        setGFormulasDraft((prev) => ({
+                          ...(prev || {}),
+                          [k]: { ...(prev?.[k] || {}), sellMul: e.target.value }
+                        }))
+                      }
+                      placeholder={String(DEFAULT_G_FORMULAS[k]?.sellMul ?? "")}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <div className="vx-sp10" />
+            <button className="btn" type="button" onClick={saveGFormulas} disabled={gFormulasSaving}>
+              {gFormulasSaving ? "Сохраняю…" : "Сохранить формулы"}
+            </button>
+          </div>
 
           <div className="vx-sp12" />
 

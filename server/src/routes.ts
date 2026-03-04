@@ -8,6 +8,7 @@ import {
   writeStore,
   upsertUserFromTelegram,
   defaultBonuses,
+  defaultGFormulas,
   normUsername,
   type Contact,
   type UserStatus,
@@ -765,6 +766,70 @@ export function createApiRouter(opts: {
     const snap = await getMarketSnapshot();
     if (snap.ok) return res.json(snap);
     return res.status(503).json(snap);
+  });
+
+  // --------------------
+  // G-formulas (multipliers for cross-pairs)
+  // BUY = G * buyMul, SELL = G * sellMul
+  // --------------------
+  function cleanGFormulas(input: any) {
+    const def = defaultGFormulas();
+    const src = input && typeof input === "object" ? input : {};
+    const out: any = {};
+    for (const k of Object.keys(def)) {
+      const v = (src as any)[k];
+      const buy = Number(String(v?.buyMul ?? def[k].buyMul).replace(",", "."));
+      const sell = Number(String(v?.sellMul ?? def[k].sellMul).replace(",", "."));
+      out[k] = {
+        buyMul: Number.isFinite(buy) && buy > 0 ? buy : def[k].buyMul,
+        sellMul: Number.isFinite(sell) && sell > 0 ? sell : def[k].sellMul
+      };
+    }
+    return out as Record<string, { buyMul: number; sellMul: number }>;
+  }
+
+  // Public: client uses it for Rates/Calculator
+  router.get("/g-formulas", async (_req, res) => {
+    const store = await readStore();
+    const current = (store.config as any)?.gFormulas;
+    const formulas = cleanGFormulas(current);
+    if (JSON.stringify(current ?? null) !== JSON.stringify(formulas)) {
+      store.config = { ...(store.config || {}), gFormulas: formulas };
+      await writeStore(store);
+    }
+    res.json({ ok: true, formulas });
+  });
+
+  router.get("/admin/g-formulas", async (req, res) => {
+    try {
+      const { isOwner } = await requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      const store = await readStore();
+      const current = (store.config as any)?.gFormulas;
+      const formulas = cleanGFormulas(current);
+      if (JSON.stringify(current ?? null) !== JSON.stringify(formulas)) {
+        store.config = { ...(store.config || {}), gFormulas: formulas };
+        await writeStore(store);
+      }
+      res.json({ ok: true, formulas });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  router.post("/admin/g-formulas", async (req, res) => {
+    try {
+      const { isOwner } = await requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      const body: any = req.body || {};
+      const next = cleanGFormulas(body.formulas);
+      const store = await readStore();
+      store.config = { ...(store.config || {}), gFormulas: next };
+      await writeStore(store);
+      res.json({ ok: true, formulas: next });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
   });
 
   // --------------------

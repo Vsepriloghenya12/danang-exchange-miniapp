@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { apiGetBonuses, apiGetMarketRates } from "../lib/api";
+import { apiGetBonuses, apiGetGFormulas, apiGetMarketRates } from "../lib/api";
 import type { BonusesConfig, MarketRatesResponse, UserStatus } from "../lib/types";
 
 type Currency = "RUB" | "USDT" | "USD" | "EUR" | "THB" | "VND";
@@ -27,7 +27,7 @@ const ALL_PAY: PayMethod[] = ["cash", "transfer"];
 const ALL_RECEIVE: ReceiveMethod[] = ["cash", "transfer", "atm"];
 
 // Формулы с картинки (на эти пары НЕ действуют бонусы/надбавки)
-const G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
+const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
   "USDT/RUB": { buyMul: 0.98, sellMul: 1.08 },
   "USD/RUB": { buyMul: 0.98, sellMul: 1.08 },
   "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
@@ -352,45 +352,58 @@ function calcSellAmountVnd(rates: Rates, sellCurrency: Currency, buyCurrency: Cu
 }
 
 // ---------- G-конвертация ----------
-function isGModePair(a: Currency, b: Currency): boolean {
+function isGModePair(formulas: Record<string, { buyMul: number; sellMul: number }>, a: Currency, b: Currency): boolean {
   if (a === "VND" || b === "VND") return false;
-  return !!G_FORMULAS[`${a}/${b}`] || !!G_FORMULAS[`${b}/${a}`];
+  return !!formulas[`${a}/${b}`] || !!formulas[`${b}/${a}`];
 }
 
 function getGPairRates(
   market: MarketRatesResponse | null,
+  formulas: Record<string, { buyMul: number; sellMul: number }>,
   base: Currency,
   quote: Currency
 ): { buy: number; sell: number } | null {
   if (!market || !market.ok) return null;
   const key = `${base}/${quote}`;
-  const f = G_FORMULAS[key];
+  const f = formulas[key];
   const G = Number(market.g?.[key]);
   if (!f || !Number.isFinite(G) || G <= 0) return null;
   return { buy: G * f.buyMul, sell: G * f.sellMul };
 }
 
-function calcBuyAmountG(market: MarketRatesResponse | null, sellCur: Currency, buyCur: Currency, sellAmount: number): number {
+function calcBuyAmountG(
+  market: MarketRatesResponse | null,
+  formulas: Record<string, { buyMul: number; sellMul: number }>,
+  sellCur: Currency,
+  buyCur: Currency,
+  sellAmount: number
+): number {
   if (sellAmount <= 0) return 0;
   if (sellCur === buyCur) return sellAmount;
 
-  const direct = getGPairRates(market, sellCur, buyCur);
+  const direct = getGPairRates(market, formulas, sellCur, buyCur);
   if (direct) return sellAmount * direct.buy;
 
-  const inverse = getGPairRates(market, buyCur, sellCur);
+  const inverse = getGPairRates(market, formulas, buyCur, sellCur);
   if (inverse) return sellAmount / inverse.sell;
 
   return Number.NaN;
 }
 
-function calcSellAmountG(market: MarketRatesResponse | null, sellCur: Currency, buyCur: Currency, buyAmount: number): number {
+function calcSellAmountG(
+  market: MarketRatesResponse | null,
+  formulas: Record<string, { buyMul: number; sellMul: number }>,
+  sellCur: Currency,
+  buyCur: Currency,
+  buyAmount: number
+): number {
   if (buyAmount <= 0) return 0;
   if (sellCur === buyCur) return buyAmount;
 
-  const direct = getGPairRates(market, sellCur, buyCur);
+  const direct = getGPairRates(market, formulas, sellCur, buyCur);
   if (direct) return buyAmount / direct.buy;
 
-  const inverse = getGPairRates(market, buyCur, sellCur);
+  const inverse = getGPairRates(market, formulas, buyCur, sellCur);
   if (inverse) return buyAmount * inverse.sell;
 
   return Number.NaN;
@@ -413,6 +426,7 @@ export default function CalculatorTab({ me }: Props) {
   const [rates, setRates] = useState<Rates | null>(null);
   const [market, setMarket] = useState<MarketRatesResponse | null>(null);
   const [bonuses, setBonuses] = useState<BonusesConfig | null>(null);
+  const [formulas, setFormulas] = useState<Record<string, { buyMul: number; sellMul: number }>>(DEFAULT_G_FORMULAS);
 
   const [sellCurrency, setSellCurrency] = useState<Currency>("RUB");
   const [buyCurrency, setBuyCurrency] = useState<Currency>("VND");
@@ -434,7 +448,7 @@ export default function CalculatorTab({ me }: Props) {
     return () => window.clearTimeout(t);
   }, [banner]);
 
-  const gMode = useMemo(() => isGModePair(sellCurrency, buyCurrency), [sellCurrency, buyCurrency]);
+  const gMode = useMemo(() => isGModePair(formulas, sellCurrency, buyCurrency), [formulas, sellCurrency, buyCurrency]);
 
   // Enforce pay-method restrictions based on SELL currency
   useEffect(() => {
@@ -486,9 +500,20 @@ export default function CalculatorTab({ me }: Props) {
       }
     };
 
+    const loadFormulas = async () => {
+      try {
+        const f = await apiGetGFormulas();
+        if (alive && f?.ok && f.formulas && typeof f.formulas === "object") {
+          setFormulas(f.formulas);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
     (async () => {
       setLoading(true);
-      await Promise.allSettled([loadRates(), loadMarket(), loadBonuses()]);
+      await Promise.allSettled([loadRates(), loadMarket(), loadBonuses(), loadFormulas()]);
       if (alive) setLoading(false);
     })();
 
@@ -593,11 +618,11 @@ export default function CalculatorTab({ me }: Props) {
 
     if (gMode) {
       if (lastEdited.current === "sell") {
-        const outRaw = calcBuyAmountG(market, sellCurrency, buyCurrency, sellAmount);
+        const outRaw = calcBuyAmountG(market, formulas, sellCurrency, buyCurrency, sellAmount);
         const next = sellText.trim() !== "" && Number.isFinite(outRaw) ? formatComputed(buyCurrency, outRaw) : "";
         if (next !== buyText) setBuyText(next);
       } else {
-        const needRaw = calcSellAmountG(market, sellCurrency, buyCurrency, buyAmount);
+        const needRaw = calcSellAmountG(market, formulas, sellCurrency, buyCurrency, buyAmount);
         const next = buyText.trim() !== "" && Number.isFinite(needRaw) ? formatComputedSell(sellCurrency, needRaw) : "";
         if (next !== sellText) setSellText(next);
       }
@@ -656,6 +681,7 @@ export default function CalculatorTab({ me }: Props) {
     buyCurrency,
     rates,
     market,
+    formulas,
     bonuses,
     payMethod,
     receiveMethod,

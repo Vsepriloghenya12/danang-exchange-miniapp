@@ -68,6 +68,28 @@ export async function apiGetMarketRates(): Promise<MarketRatesResponse> {
   return r.json();
 }
 
+// Cross-pair formulas (multipliers)
+export async function apiGetGFormulas() {
+  const r = await fetch("/api/g-formulas");
+  return readJsonSafe(r);
+}
+
+export async function apiAdminGetGFormulas(token: string) {
+  const r = await fetch("/api/admin/g-formulas", {
+    headers: { ...adminAuthHeaders(token) }
+  });
+  return readJsonSafe(r);
+}
+
+export async function apiAdminSetGFormulas(token: string, formulas: any) {
+  const r = await fetch("/api/admin/g-formulas", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
+    body: JSON.stringify({ formulas })
+  });
+  return readJsonSafe(r);
+}
+
 export async function apiAdminSetTodayRates(initData: string, rates: any) {
   const r = await fetch("/api/admin/rates/today", {
     method: "POST",

@@ -45,6 +45,13 @@ export type Rates = {
   USDT: { buy_vnd: number; sell_vnd: number };
 };
 
+// Multipliers for cross-pairs computed from the market snapshot "G".
+// For a pair BASE/QUOTE: BUY = G * buyMul, SELL = G * sellMul.
+export type GFormula = {
+  buyMul: number;
+  sellMul: number;
+};
+
 export type StoredUser = {
   tg_id: number;
   username?: string;
@@ -67,6 +74,9 @@ export type Store = {
     adminUsername?: string;
     adminDeepLink?: string;
     publishTemplate?: string;
+
+    // Cross-pair formulas (multipliers) used by client Rates/Calculator.
+    gFormulas?: Record<string, GFormula>;
   };
   users: Record<string, StoredUser>;
   ratesByDate: Record<
@@ -177,7 +187,8 @@ function defaultStore(): Store {
       blacklistUsernames: [],
       adminUsername: "",
       adminDeepLink: "",
-      publishTemplate: ""
+      publishTemplate: "",
+      gFormulas: defaultGFormulas()
     },
     users: {},
     ratesByDate: {},
@@ -215,6 +226,22 @@ export function defaultBonuses(): BonusesConfig {
       transfer: { RUB: 1, USD: 100, USDT: 100 },
       atm: { RUB: 1, USD: 100, USDT: 100 }
     }
+  };
+}
+
+export function defaultGFormulas(): Record<string, GFormula> {
+  // Defaults match the current client multipliers.
+  return {
+    "USDT/RUB": { buyMul: 0.98, sellMul: 1.08 },
+    "USD/RUB": { buyMul: 0.98, sellMul: 1.08 },
+    "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
+    "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
+    "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
+    "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
+    "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
+    "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
+    "USDT/THB": { buyMul: 0.95, sellMul: 1.07 },
+    "EUR/THB": { buyMul: 0.95, sellMul: 1.07 }
   };
 }
 
@@ -301,6 +328,29 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
   if (typeof (store.config as any).adminDeepLink !== "string") {
     (store.config as any).adminDeepLink = "";
     dirty = true;
+  }
+
+  // gFormulas
+  {
+    const def = defaultGFormulas();
+    const src = (store.config as any).gFormulas;
+    const obj = src && typeof src === "object" ? src : {};
+    const cleaned: any = {};
+    for (const k of Object.keys(def)) {
+      const v = (obj as any)[k];
+      const buy = Number(String(v?.buyMul ?? def[k].buyMul).replace(",", "."));
+      const sell = Number(String(v?.sellMul ?? def[k].sellMul).replace(",", "."));
+      cleaned[k] = {
+        buyMul: Number.isFinite(buy) && buy > 0 ? buy : def[k].buyMul,
+        sellMul: Number.isFinite(sell) && sell > 0 ? sell : def[k].sellMul
+      };
+    }
+    const before = JSON.stringify(obj ?? null);
+    const after = JSON.stringify(cleaned);
+    if (before !== after) {
+      (store.config as any).gFormulas = cleaned;
+      dirty = true;
+    }
   }
 
   if (!Array.isArray(store.contacts)) {

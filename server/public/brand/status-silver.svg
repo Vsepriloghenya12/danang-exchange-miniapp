@@ -1,24 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#F6F8FF"/>
-      <stop offset="0.35" stop-color="#D7DCE8"/>
-      <stop offset="0.7" stop-color="#AEB6C8"/>
-      <stop offset="1" stop-color="#F0F3FF"/>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFF3B0"/>
+      <stop offset="0.25" stop-color="#FFD15A"/>
+      <stop offset="0.55" stop-color="#FFB100"/>
+      <stop offset="0.8" stop-color="#E39A00"/>
+      <stop offset="1" stop-color="#FFF0A6"/>
     </linearGradient>
-    <radialGradient id="shine" cx="30%" cy="25%" r="70%">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.9"/>
-      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>
-    </radialGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="rgba(255,255,255,0.75)"/>
+      <stop offset="0.6" stop-color="rgba(255,255,255,0.10)"/>
+      <stop offset="1" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+    <path id="shield" d="M64 10c18 12 32 10 44 12v35c0 30-18 52-44 61C38 109 20 87 20 57V22c12-2 26 0 44-12z"/>
+    <path id="star" d="M64 38l6.8 13.8 15.2 2.2-11 10.7 2.6 15.1L64 73.5 50.4 80.6 53 65.5 42 54l15.2-2.2z"/>
   </defs>
 
-  <circle cx="64" cy="64" r="54" fill="url(#g)" stroke="#0B1020" stroke-opacity="0.28" stroke-width="4"/>
-  <circle cx="64" cy="64" r="50" fill="url(#shine)"/>
+  <g filter="url(#shadow)">
+    <use href="#shield" fill="url(#gold)" stroke="rgba(0,0,0,0.18)" stroke-width="2"/>
+    <path d="M24 24c14-2 26 0 40-10 14 10 26 8 40 10v10c-12-2-24 0-40-10-16 10-28 8-40 10z" fill="url(#glass)"/>
+  </g>
 
-  <path
-    d="M64 36l8.6 17.5 19.2 2.8-13.9 13.5 3.3 19.1L64 80.2l-17.2 8.7 3.3-19.1L36.2 56.3l19.2-2.8L64 36z"
-    fill="#FFFFFF" fill-opacity="0.9"/>
-  <path
-    d="M64 42l6.0 12.1 13.4 2.0-9.7 9.4 2.3 13.4L64 72.4l-11.9 6.5 2.3-13.4-9.7-9.4 13.4-2.0L64 42z"
-    fill="#000" fill-opacity="0.12"/>
+  <use href="#star" fill="rgba(0,0,0,0.18)" transform="translate(1 1)" opacity="0.55"/>
+  <use href="#star" fill="rgba(255,255,255,0.95)" opacity="0.55"/>
+  <use href="#star" fill="url(#gold)"/>
+
+  <g opacity="0.95">
+    <use href="#star" transform="translate(42 84) scale(0.22)" fill="url(#gold)"/>
+    <use href="#star" transform="translate(58 84) scale(0.22)" fill="url(#gold)"/>
+  </g>
 </svg>

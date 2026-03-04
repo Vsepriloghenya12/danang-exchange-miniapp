@@ -2251,7 +2251,15 @@ html[data-theme="dark"] .theme-client .mx-themeBtn{
   justify-content:center;
   flex: 0 0 44px;
 }
-.mx-headerLogoImg{ width: 34px; height: 34px; object-fit: contain; z-index: 1; }
+.mx-headerLogoImg{
+  /* Header logo can be a square image, while the slot is rounded.
+     Fill the slot and clip corners for a clean look. */
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 14px;
+  z-index: 1;
+}
 .mx-headerLogoFallback{
   width: 34px;
   height: 34px;
@@ -2413,6 +2421,7 @@ html[data-theme="dark"] .theme-client .mx-muted{
 /* Home nav cards should be as bright as other sections in dark theme */
 html[data-theme="dark"] .theme-client .mx-navTitle{
   color: #f6c600 !important;
+  -webkit-text-fill-color: #f6c600 !important;
   opacity: 1 !important;
   font-weight: 950 !important;
   filter: brightness(1.22) saturate(1.12);
@@ -2424,6 +2433,7 @@ html[data-theme="dark"] .theme-client .mx-navTitle{
    (User reported: "Афиша" title remains dim while subtitle is already bright.) */
 html[data-theme="dark"] .theme-client .mx-navCard .mx-navTitle{
   color: #f6c600 !important;
+  -webkit-text-fill-color: #f6c600 !important;
   opacity: 1 !important;
   filter: brightness(1.34) saturate(1.18);
   text-shadow: 0 0 40px rgba(246,198,0,.34), 0 2px 0 rgba(0,0,0,.78);

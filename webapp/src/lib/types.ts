@@ -158,6 +158,12 @@ export type MarketRatesResponse =
       g?: Record<string, number>;
     };
 
+export type GFormulas = Record<string, { buyMul: number; sellMul: number }>;
+
+export type GFormulasResponse =
+  | { ok: true; formulas: GFormulas }
+  | { ok: false; error: string; formulas?: GFormulas };
+
 export type AtmItem = {
   id: string;
   title: string;

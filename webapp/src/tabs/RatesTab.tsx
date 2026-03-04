@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { apiGetMarketRates, apiGetTodayRates } from "../lib/api";
+import { apiGetGFormulas, apiGetMarketRates, apiGetTodayRates } from "../lib/api";
 import type { MarketRatesResponse, TodayRatesResponse } from "../lib/types";
 
 type Cur = "RUB" | "USD" | "USDT" | "EUR" | "THB" | "VND";
@@ -27,7 +27,7 @@ const PAIRS: Pair[] = [
   { id: "eur-thb", base: "EUR", quote: "THB", mode: "g" }
 ];
 
-const G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
+const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
   "USDT/RUB": { buyMul: 0.98, sellMul: 1.08 },
   "USD/RUB": { buyMul: 0.98, sellMul: 1.08 },
   "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
@@ -99,10 +99,15 @@ function calcFromVnd(rates: any, base: Cur, quote: Cur): { buy: number | null; s
   };
 }
 
-function calcFromG(market: MarketRatesResponse | null, base: Cur, quote: Cur): { buy: number | null; sell: number | null } {
+function calcFromG(
+  market: MarketRatesResponse | null,
+  formulas: Record<string, { buyMul: number; sellMul: number }> | null,
+  base: Cur,
+  quote: Cur
+): { buy: number | null; sell: number | null } {
   if (!market || !market.ok) return { buy: null, sell: null };
   const key = `${base}/${quote}`;
-  const f = G_FORMULAS[key];
+  const f = (formulas && formulas[key]) || DEFAULT_G_FORMULAS[key];
   const G = Number(market.g?.[key]);
   if (!f || !Number.isFinite(G) || G <= 0) return { buy: null, sell: null };
   return { buy: G * f.buyMul, sell: G * f.sellMul };
@@ -113,9 +118,20 @@ type Props = { embedded?: boolean; limit?: number };
 export default function RatesTab({ embedded = false, limit }: Props = {}) {
   const [today, setToday] = useState<TodayRatesResponse | null>(null);
   const [market, setMarket] = useState<MarketRatesResponse | null>(null);
+  const [formulas, setFormulas] = useState<Record<string, { buyMul: number; sellMul: number }>>(DEFAULT_G_FORMULAS);
 
   useEffect(() => {
     apiGetTodayRates().then(setToday);
+  }, []);
+
+  useEffect(() => {
+    apiGetGFormulas()
+      .then((r: any) => {
+        if (r && r.ok && r.formulas && typeof r.formulas === "object") {
+          setFormulas(r.formulas);
+        }
+      })
+      .catch(() => null);
   }, []);
 
   useEffect(() => {
@@ -144,10 +160,11 @@ export default function RatesTab({ embedded = false, limit }: Props = {}) {
 
   const rows = useMemo(() => {
     return PAIRS.map((p) => {
-      const { buy, sell } = p.mode === "g" ? calcFromG(market, p.base, p.quote) : calcFromVnd(rates, p.base, p.quote);
+      const { buy, sell } =
+        p.mode === "g" ? calcFromG(market, formulas, p.base, p.quote) : calcFromVnd(rates, p.base, p.quote);
       return { ...p, buy, sell };
     });
-  }, [rates, market]);
+  }, [rates, market, formulas]);
 
   const metaParts = useMemo(() => {
     const parts: string[] = [];

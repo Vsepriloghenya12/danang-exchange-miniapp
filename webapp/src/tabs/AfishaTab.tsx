@@ -302,11 +302,13 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
 
   const canStartDrag = (target: HTMLElement) => {
     if (target.closest("input,select,textarea")) return false;
-    if (target.closest(".mx-sheetList")) {
-      const ls = listRef.current;
-      if (ls && ls.scrollTop > 0) return false;
-    }
-    return true;
+    // IMPORTANT: dragging the sheet from inside the list/grid causes a visual "lift" (gap at the bottom)
+    // in Telegram Android WebView. Restrict swipe-to-close to the handle/top area only.
+    if (target.closest(".mx-sheetList")) return false;
+    if (target.closest(".mx-sheetHandle")) return true;
+    if (target.closest(".mx-sheetTitle")) return true;
+    // Allow dragging from the top padding area of the sheet.
+    return !!target.closest(".mx-sheet");
   };
 
   const onSheetPointerDown = (e: React.PointerEvent) => {
@@ -333,7 +335,8 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
   const onSheetPointerMove = (e: React.PointerEvent) => {
     if (ptrRef.current !== e.pointerId) return;
     const dy = e.clientY - startYRef.current;
-    const next = dy < 0 ? dy * 0.25 : dy;
+    // Only allow dragging DOWN to close. Swiping up should never move the sheet.
+    const next = dy > 0 ? dy : 0;
     dragYRef.current = next;
     setDragY(next);
 
@@ -377,7 +380,8 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
     const touch = Array.from(e.touches).find((x) => x.identifier === touchIdRef.current) || e.touches?.[0];
     if (!touch) return;
     const dy = touch.clientY - startYRef.current;
-    const next = dy < 0 ? dy * 0.25 : dy;
+    // Only allow dragging DOWN to close. Swiping up should never move the sheet.
+    const next = dy > 0 ? dy : 0;
     dragYRef.current = next;
     setDragY(next);
     if (Math.abs(next) > 6) e.preventDefault();
@@ -533,7 +537,8 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
             onTouchEnd={onSheetTouchEnd}
             onTouchCancel={onSheetTouchEnd}
             style={{
-              transform: `translateY(${Math.max(-24, dragY)}px)`,
+              // No negative translate: this was creating a visible bottom gap when swiping up.
+              transform: `translateY(${Math.max(0, dragY)}px)`,
               transition: dragging ? "none" : undefined,
             }}
           >
