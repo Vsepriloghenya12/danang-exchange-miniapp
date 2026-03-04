@@ -2996,30 +2996,78 @@ html[data-theme="dark"] .theme-client .mx-ratePair{ color: var(--text); }
    It is intentionally removed: dark theme is true black + yellow neon.
    ========================= */
 
-/* Owner portal (desktop width) */
-.theme-owner{ --appMax: 2000px; }
-.theme-owner.vx-page{ background: #f6f7fb; }
-/* old background removed */
+/* Owner portal: compact, tidy desktop layout */
+.theme-owner{ --appMax: 1200px; }
+.theme-owner.vx-page{ background: #f6f7fb; padding: 14px 12px; }
 .theme-owner .container{
-  max-width: none;
-  width: calc(100% - 32px);
+  max-width: 1200px;
+  width: calc(100% - 24px);
+  margin: 0 auto;
 }
 
 @media (min-width: 900px){
-  .theme-owner.vx-page{ padding: 18px 24px; }
+  .theme-owner.vx-page{ padding: 16px 14px; }
 }
 
+/* Denser cards */
+.theme-owner .card{ padding: 12px; border-radius: 18px; }
+.theme-owner .vx-topCard{ padding: 12px; }
+
+/* Denser form controls */
 .theme-owner input,
-.theme-owner select,
+.theme-owner select{
+  height: 40px;
+  border-radius: 14px;
+  font-size: 14px;
+  padding: 0 12px;
+  background: rgba(255,255,255,.96) !important;
+  color: rgba(0,0,0,.88) !important;
+  border-color: rgba(0,0,0,.10) !important;
+}
 .theme-owner textarea{
+  border-radius: 14px;
+  font-size: 13.5px;
+  padding: 10px 12px;
   background: rgba(255,255,255,.96) !important;
   color: rgba(0,0,0,.88) !important;
   border-color: rgba(0,0,0,.10) !important;
 }
 
-.theme-owner .vx-adminSeg{ background: rgba(255,255,255,.70); }
-.theme-owner .vx-adminSeg button{ color: rgba(0,0,0,.62); }
+/* Denser buttons */
+.theme-owner .btn{ height: 42px; border-radius: 16px; padding: 0 12px; }
+.theme-owner .btn.vx-btnSm{ height: 34px; border-radius: 14px; padding: 0 10px; font-size: 12.5px; }
+
+/* Segmented tabs: compact pills, no stretching */
+.theme-owner .vx-adminSeg{
+  background: rgba(255,255,255,.70);
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.theme-owner .vx-adminSeg::-webkit-scrollbar{ height: 0; }
+.theme-owner .vx-adminSeg button{
+  color: rgba(0,0,0,.66);
+  flex: 0 0 auto;
+  padding: 0 12px;
+  height: 36px;
+}
 .theme-owner .vx-adminSeg .on{ background: rgba(0,0,0,.08); border-color: rgba(0,0,0,.12); }
+
+/* Compact rows in admin tables (rates, formulas, etc.) */
+.theme-owner .vx-rateRow{ padding: 6px 0; align-items: center; }
+.theme-owner .vx-code{ width: 56px; flex: 0 0 56px; padding-top: 0; font-size: 13px; }
+.theme-owner input.vx-in{ height: 36px; border-radius: 14px; font-size: 14px; }
+.theme-owner .vx-field{ flex: 1 1 120px; }
+
+/* Slightly tighter typography & spacing (owner only) */
+.theme-owner .h1{ font-size: 20px; margin-bottom: 6px; }
+.theme-owner .h2{ font-size: 16.5px; margin-bottom: 8px; }
+.theme-owner .small{ font-size: 12.5px; }
+.theme-owner .row{ gap: 8px; }
+.theme-owner .vx-sp10{ height: 8px; }
+.theme-owner .vx-sp12{ height: 10px; }
+.theme-owner .vx-sp14{ height: 12px; }
 
 /* =========================
    v33: client header + bottom menu + ATM button highlight
