@@ -2146,6 +2146,7 @@ label, input, select, textarea{ color: var(--text); }
 /* Home layout */
 .mx-sp10{ height: 10px; }
 .mx-sp12{ height: 12px; }
+.mx-sp18{ height: 18px; }
 .mx-sp24{ height: 24px; }
 
 .mx-topRow{
@@ -2570,7 +2571,15 @@ html[data-theme="dark"] .theme-client .mx-backBtn{
   box-shadow: 0 18px 56px rgba(0,0,0,.84), 0 0 26px rgba(246,198,0,.14) !important;
 }
 
-.mx-hTitle{ font-size: 18px; font-weight: 900; font-family: var(--fontTitle); letter-spacing: 0.04em; }
+.mx-hTitle{
+  font-size: 20px;
+  font-weight: 950;
+  font-family: var(--fontTitle);
+  letter-spacing: 0.02em;
+}
+
+/* Keep the header title more "professional" (less tracking) in dark theme too */
+html[data-theme="dark"] .theme-client .mx-hTitle{ letter-spacing: 0.02em !important; }
 
 /* Afisha */
 .mx-filterRow{ display:flex; gap: 10px; margin-bottom: 12px; }
@@ -3110,6 +3119,9 @@ html[data-theme="dark"] .theme-client .mx-btn{
 .theme-client .vx-atmSuggestBtn{
   font-size: 15px;
 }
+
+/* "Добавить локацию" should be full width */
+.theme-client .vx-atmSuggestBtn{ width: 100%; }
 html[data-theme="light"] .theme-client .vx-atmHint{ font-size: 15px; }
 
 html[data-theme="light"] .theme-client .vx-atmBtn,
@@ -3151,9 +3163,11 @@ html[data-theme="dark"] .theme-client .vx-atmNote{
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: flex-end;
+  /* Center the modal so it never gets covered by the fixed bottom navigation */
+  align-items: center;
   justify-content: center;
   padding: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
   background: rgba(0,0,0,.45);
   z-index: 1000;
 }

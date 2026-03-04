@@ -27,37 +27,13 @@ export default function AtmTab() {
     return "";
   }, [active]);
 
-  // When modal is open, lock the root scroll (Telegram Android WebView can otherwise "pull" the UI).
+  // When the modal is open, freeze page overscroll and hide the fixed bottom menu.
+  // We reuse the same global switch that the Afisha bottom-sheet uses.
   useEffect(() => {
-    const sc = document.getElementById("root") as HTMLElement | null;
-    if (!suggestOpen) {
-      if (sc) {
-        sc.style.overflow = "";
-        sc.style.touchAction = "";
-      }
-      return;
-    }
-
-    const prev = { overflow: sc?.style.overflow || "", touchAction: sc?.style.touchAction || "" };
-    if (sc) {
-      sc.style.overflow = "hidden";
-      sc.style.touchAction = "none";
-    }
-
-    const onTouchMove = (e: TouchEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t?.closest?.(".vx-modalCard")) return;
-      e.preventDefault();
-    };
-    document.addEventListener("touchmove", onTouchMove, { passive: false });
-
-    return () => {
-      document.removeEventListener("touchmove", onTouchMove as any);
-      if (sc) {
-        sc.style.overflow = prev.overflow;
-        sc.style.touchAction = prev.touchAction;
-      }
-    };
+    const html = document.documentElement;
+    if (suggestOpen) html.classList.add("mx-sheet-open");
+    else html.classList.remove("mx-sheet-open");
+    return () => html.classList.remove("mx-sheet-open");
   }, [suggestOpen]);
 
   async function submitSuggest() {

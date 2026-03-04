@@ -541,7 +541,8 @@ export default function App() {
               </div>
             </div>
 
-            <div className="mx-sp12" />
+            {/* Extra gap so the "Курс" card shadow doesn't visually "dirty" the first nav card */}
+            <div className="mx-sp18" />
 
             <NavCard
               title="Афиша"
