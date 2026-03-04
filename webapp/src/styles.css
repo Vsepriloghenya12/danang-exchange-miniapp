@@ -2411,7 +2411,28 @@ html[data-theme="dark"] .theme-client .mx-muted{
 }
 
 /* Home nav cards should be as bright as other sections in dark theme */
-html[data-theme="dark"] .theme-client .mx-navTitle{ color: var(--text) !important; text-shadow: 0 0 14px rgba(246,198,0,.16); }
+html[data-theme="dark"] .theme-client .mx-navTitle{
+  color: #f6c600 !important;
+  opacity: 1 !important;
+  font-weight: 950 !important;
+  filter: brightness(1.22) saturate(1.12);
+  text-shadow: 0 0 32px rgba(246,198,0,.28), 0 2px 0 rgba(0,0,0,.70);
+}
+
+/* Extra specificity: some Telegram/Android WebViews apply an unexpected alpha to the first line
+   of text inside buttons. Ensure the title line is always as bright as the subtitle.
+   (User reported: "Афиша" title remains dim while subtitle is already bright.) */
+html[data-theme="dark"] .theme-client .mx-navCard .mx-navTitle{
+  color: #f6c600 !important;
+  opacity: 1 !important;
+  filter: brightness(1.34) saturate(1.18);
+  text-shadow: 0 0 40px rgba(246,198,0,.34), 0 2px 0 rgba(0,0,0,.78);
+}
+/* Afisha is the first nav card on the home screen — make it slightly stronger to match perception */
+html[data-theme="dark"] .theme-client .mx-navCard:first-of-type .mx-navTitle{
+  filter: brightness(1.44) saturate(1.22);
+  text-shadow: 0 0 46px rgba(246,198,0,.36), 0 2px 0 rgba(0,0,0,.82);
+}
 html[data-theme="dark"] .theme-client .mx-navSub{
   color: #f6c600 !important;
   opacity: 1 !important;
@@ -2588,6 +2609,8 @@ html[data-theme="dark"] .theme-client .mx-backBtn{
   padding: 14px;
   padding-bottom: calc(14px + env(safe-area-inset-bottom));
   touch-action: none; /* helps swipe-to-close on mobile */
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 }
 .mx-sheetHandle{
   width: 46px;
@@ -2605,7 +2628,8 @@ html[data-theme="dark"] .theme-client .mx-backBtn{
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 }
 
 /* When a bottom sheet is open, freeze page overscroll (Telegram/WebView can "pull" the whole app).

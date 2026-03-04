@@ -171,6 +171,10 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
   const [events, setEvents] = useState<AfishaEvent[]>([]);
   const [err, setErr] = useState<string>("");
 
+  // Bottom sheet refs
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+
   // When a sheet is open, hard-lock the scroll container.
   // In Telegram Android WebView, drag gestures can otherwise "pull" the whole app (rubber-band)
   // and show a bottom gap.
@@ -225,6 +229,58 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
     };
   }, [sheetOpen]);
 
+  // Prevent scroll-chain "rubber-band" inside the sheet list.
+  // Telegram Android WebView can visually "lift" the sheet and reveal a bottom gap
+  // when the user swipes on a list/grid that can't scroll further.
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const el = listRef.current;
+    if (!el) return;
+
+    let startY = 0;
+    let startX = 0;
+
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches?.[0];
+      if (!t) return;
+      startY = t.clientY;
+      startX = t.clientX;
+    };
+
+    const onMove = (e: TouchEvent) => {
+      const t = e.touches?.[0];
+      if (!t) return;
+
+      const dy = t.clientY - startY;
+      const dx = t.clientX - startX;
+
+      // Don't interfere with horizontal gestures.
+      if (Math.abs(dx) > Math.abs(dy)) return;
+
+      const canScroll = el.scrollHeight > el.clientHeight + 1;
+      if (!canScroll) {
+        // The grid/list doesn't scroll -> block WebView overscroll completely.
+        e.preventDefault();
+        return;
+      }
+
+      const atTop = el.scrollTop <= 0;
+      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+
+      // If the user tries to scroll past the ends, block it to avoid chaining to the WebView.
+      if ((atTop && dy > 0) || (atBottom && dy < 0)) {
+        e.preventDefault();
+      }
+    };
+
+    el.addEventListener("touchstart", onStart, { passive: true } as any);
+    el.addEventListener("touchmove", onMove, { passive: false } as any);
+    return () => {
+      el.removeEventListener("touchstart", onStart as any);
+      el.removeEventListener("touchmove", onMove as any);
+    };
+  }, [sheetOpen, sheet]);
+
   // Let App.tsx override the top header back button: close an open sheet.
   useEffect(() => {
     if (!registerBack) return;
@@ -238,8 +294,6 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
   }, [registerBack, sheetOpen]);
 
   // Swipe-to-close for the bottom sheet
-  const sheetRef = useRef<HTMLDivElement | null>(null);
-  const listRef = useRef<HTMLDivElement | null>(null);
   const dragYRef = useRef(0);
   const startYRef = useRef(0);
   const ptrRef = useRef<number | null>(null);
