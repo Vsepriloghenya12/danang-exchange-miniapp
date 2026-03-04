@@ -171,16 +171,70 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
   const [events, setEvents] = useState<AfishaEvent[]>([]);
   const [err, setErr] = useState<string>("");
 
-  // Hide the fixed bottom menu while any sheet is open (prevents overlap)
+  // When a sheet is open, we must hard-lock the page scroll.
+  // In Telegram Android WebView, drag gestures can otherwise "pull" the whole app (rubber-band)
+  // and show a bottom gap.
   useEffect(() => {
-    try {
-      const el = document.documentElement;
-      if (sheetOpen) el.classList.add("mx-sheet-open");
-      else el.classList.remove("mx-sheet-open");
-      return () => el.classList.remove("mx-sheet-open");
-    } catch {
+    const html = document.documentElement;
+    const body = document.body;
+    if (!sheetOpen) {
+      try {
+        html.classList.remove("mx-sheet-open");
+      } catch {}
       return;
     }
+
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    const prev = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      paddingRight: body.style.paddingRight,
+    };
+
+    try {
+      html.classList.add("mx-sheet-open");
+    } catch {}
+
+    // Avoid layout shift on desktop due to scrollbar disappearance
+    const sbw = window.innerWidth - html.clientWidth;
+    if (sbw > 0) body.style.paddingRight = `${sbw}px`;
+
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+
+    // Extra protection: block touchmove outside of the scrollable list.
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest?.(".mx-sheetList")) return;
+      e.preventDefault();
+    };
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+
+    return () => {
+      document.removeEventListener("touchmove", onTouchMove as any);
+      try {
+        html.classList.remove("mx-sheet-open");
+      } catch {}
+
+      body.style.overflow = prev.overflow;
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.left = prev.left;
+      body.style.right = prev.right;
+      body.style.width = prev.width;
+      body.style.paddingRight = prev.paddingRight;
+
+      // Restore scroll position
+      window.scrollTo(0, scrollY);
+    };
   }, [sheetOpen]);
 
   // Let App.tsx override the top header back button: close an open sheet.
@@ -219,6 +273,11 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
     const t = e.target as HTMLElement | null;
     if (!t || !canStartDrag(t)) return;
 
+    // Prevent the gesture from scrolling the page (Telegram WebView sometimes scrolls anyway).
+    try {
+      e.preventDefault();
+    } catch {}
+
     ptrRef.current = e.pointerId;
     startYRef.current = e.clientY;
     dragYRef.current = 0;
@@ -235,6 +294,12 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
     const next = dy < 0 ? dy * 0.25 : dy;
     dragYRef.current = next;
     setDragY(next);
+
+    if (Math.abs(next) > 6) {
+      try {
+        e.preventDefault();
+      } catch {}
+    }
   };
 
   const endDrag = (e: React.PointerEvent) => {

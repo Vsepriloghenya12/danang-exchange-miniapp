@@ -61,6 +61,13 @@ body.vx-body-client #root{
   background: #000;
 }
 
+/* Telegram Android WebView sometimes shows rubber-band overscroll ("gap" at bottom).
+   We disable overscroll on the client app surface. */
+body.vx-body-client{
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+
 /* Blacklist screen (image-only) */
 .vx-blockedOnly{
   position: fixed;
@@ -91,7 +98,11 @@ body.vx-body-client #root{
    App frame / base visuals
    ========================= */
 .vx-page{
+  /* stable viewport height in Telegram/WebView */
   min-height: 100vh;
+  min-height: calc(var(--vh, 1vh) * 100);
+  min-height: 100svh;
+  min-height: 100dvh;
   padding: 14px 12px;
   box-sizing: border-box;
   color: var(--text);
@@ -2394,7 +2405,13 @@ html[data-theme="dark"] .theme-client .mx-muted{
 
 /* Home nav cards should be as bright as other sections in dark theme */
 html[data-theme="dark"] .theme-client .mx-navTitle{ color: var(--text) !important; text-shadow: 0 0 14px rgba(246,198,0,.16); }
-html[data-theme="dark"] .theme-client .mx-navSub{ color: rgba(246,198,0,.98) !important; opacity: 1 !important; text-shadow: 0 0 18px rgba(246,198,0,.18); }
+html[data-theme="dark"] .theme-client .mx-navSub{
+  color: rgba(246,198,0,1) !important;
+  opacity: 1 !important;
+  font-weight: 900 !important;
+  font-size: 13px !important;
+  text-shadow: 0 0 22px rgba(246,198,0,.22), 0 1px 0 rgba(0,0,0,.65);
+}
 
 html[data-theme="dark"] .theme-client .mx-btn,
 html[data-theme="dark"] .theme-client .mx-sheetBtn,
