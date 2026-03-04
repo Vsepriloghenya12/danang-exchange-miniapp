@@ -21,6 +21,7 @@ import {
   apiAdminEventsSummary,
   apiGetBankIcons,
   apiAdminGetRatesRange,
+  apiAdminSetRatesForDate,
   apiGetTodayRates,
 } from "../lib/api";
 import type { Contact, UserStatus } from "../lib/types";
@@ -140,6 +141,9 @@ export default function OwnerPortal() {
   const [cashLoading, setCashLoading] = useState<boolean>(false);
   const [cashReport, setCashReport] = useState<any>(null);
   const [cashRatesByDate, setCashRatesByDate] = useState<Record<string, any>>({});
+  // Draft (editable) rates per day (strings). Saved to server via /admin/rates/date.
+  const [cashDayDraft, setCashDayDraft] = useState<Record<string, any>>({});
+  const [cashDaySaving, setCashDaySaving] = useState<Record<string, boolean>>({});
   const [cashDefaultRates, setCashDefaultRates] = useState<Record<string, { buy: string; sell: string }>>(() => {
     try {
       const raw = localStorage.getItem(LS_CASH_DEFAULT_RATES);
@@ -775,6 +779,61 @@ export default function OwnerPortal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, token, cashFrom, cashTo, cashOnlyDone]);
 
+  async function saveCashDayRates(date: string) {
+    if (!token) return;
+    const day = String(date || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+      showErr("Неверная дата");
+      return;
+    }
+
+    setCashDaySaving((prev) => ({ ...(prev || {}), [day]: true }));
+    try {
+      const draft = (cashDayDraft as any)?.[day] || {};
+      const mk = (cur: string) => {
+        const d = (draft as any)?.[cur] || {};
+        const def = (cashDefaultRates as any)?.[cur] || {};
+        const buy = toNumLoose(d.buy != null ? d.buy : def.buy);
+        const sell = toNumLoose(d.sell != null ? d.sell : def.sell);
+        return { buy, sell };
+      };
+
+      const USD = mk("USD");
+      const RUB = mk("RUB");
+      const USDT = mk("USDT");
+      if (![USD, RUB, USDT].every((x) => Number.isFinite(x.buy) && Number.isFinite(x.sell) && x.buy > 0 && x.sell > 0)) {
+        showErr("Заполни buy/sell для USD, RUB и USDT");
+        return;
+      }
+
+      const payload: any = {
+        USD: { buy_vnd: USD.buy, sell_vnd: USD.sell },
+        RUB: { buy_vnd: RUB.buy, sell_vnd: RUB.sell },
+        USDT: { buy_vnd: USDT.buy, sell_vnd: USDT.sell },
+      };
+
+      const EUR = mk("EUR");
+      const THB = mk("THB");
+      if (Number.isFinite(EUR.buy) && Number.isFinite(EUR.sell) && EUR.buy > 0 && EUR.sell > 0) {
+        payload.EUR = { buy_vnd: EUR.buy, sell_vnd: EUR.sell };
+      }
+      if (Number.isFinite(THB.buy) && Number.isFinite(THB.sell) && THB.buy > 0 && THB.sell > 0) {
+        payload.THB = { buy_vnd: THB.buy, sell_vnd: THB.sell };
+      }
+
+      const r = await apiAdminSetRatesForDate(token, day, payload);
+      if (!r?.ok) {
+        showErr(r?.error || "Ошибка сохранения курса");
+        return;
+      }
+
+      setCashRatesByDate((prev) => ({ ...(prev || {}), [day]: payload }));
+      showOk(`Курс сохранён за ${day}`);
+    } finally {
+      setCashDaySaving((prev) => ({ ...(prev || {}), [day]: false }));
+    }
+  }
+
   function fmtNum(n: any) {
     const x = Number(n);
     if (!Number.isFinite(x)) return "–";
@@ -832,8 +891,25 @@ export default function OwnerPortal() {
   const cashComputed = useMemo(() => {
     const reqs = Array.isArray(cashReport?.requests) ? cashReport.requests : [];
 
+    const draftToRates = (draft: any) => {
+      if (!draft || typeof draft !== "object") return null;
+      const out: any = {};
+      for (const cur of ["RUB", "USD", "USDT", "EUR", "THB"]) {
+        const d = (draft as any)[cur];
+        const buy = toNumLoose(d?.buy);
+        const sell = toNumLoose(d?.sell);
+        if (Number.isFinite(buy) && Number.isFinite(sell) && buy > 0 && sell > 0) {
+          out[cur] = { buy_vnd: buy, sell_vnd: sell };
+        }
+      }
+      return Object.keys(out).length ? out : null;
+    };
+
     const getBaseRates = (dateKey: string): any => {
       if (!cashUseHistoryRates) return null;
+      // Prefer draft (editable) rates for live preview; fall back to saved ratesByDate
+      const dr = draftToRates((cashDayDraft as any)?.[dateKey]);
+      if (dr) return dr;
       return cashRatesByDate?.[dateKey] || null;
     };
 
@@ -908,7 +984,58 @@ export default function OwnerPortal() {
     const missing = rows.reduce((acc: number, x: any) => (x.missingRates ? acc + 1 : acc), 0);
 
     return { rows, totalProfit, missing, total: rows.length };
-  }, [cashReport, cashRatesByDate, cashOverrides, cashDefaultRates, cashUseHistoryRates]);
+  }, [cashReport, cashRatesByDate, cashDayDraft, cashOverrides, cashDefaultRates, cashUseHistoryRates]);
+
+  // Cashbox summary grouped by day (helps input per-day selling prices like in Excel)
+  const cashByDay = useMemo(() => {
+    const map: Record<string, any> = {};
+    for (const x of cashComputed.rows || []) {
+      const dk = String(x?.dateKey || "").trim();
+      if (!dk) continue;
+      if (!map[dk]) map[dk] = { date: dk, cnt: 0, profit: 0, sell: {}, buy: {} };
+      map[dk].cnt++;
+      if (Number.isFinite(x.profit)) map[dk].profit += x.profit;
+
+      const sc = String(x.sellCur || "");
+      const bc = String(x.buyCur || "");
+      if (sc && Number.isFinite(Number(x.sellAmount))) {
+        map[dk].sell[sc] = (map[dk].sell[sc] || 0) + Number(x.sellAmount);
+      }
+      if (bc && Number.isFinite(Number(x.buyAmount))) {
+        map[dk].buy[bc] = (map[dk].buy[bc] || 0) + Number(x.buyAmount);
+      }
+    }
+    return Object.keys(map)
+      .sort((a, b) => b.localeCompare(a))
+      .map((k) => map[k]);
+  }, [cashComputed.rows]);
+
+  // Seed day drafts from saved rates / defaults (do not overwrite existing drafts)
+  useEffect(() => {
+    if (!cashByDay.length) return;
+    setCashDayDraft((prev) => {
+      const next: any = { ...(prev || {}) };
+      let changed = false;
+      for (const d of cashByDay) {
+        const date = String(d?.date || "");
+        if (!date || next[date]) continue;
+        const saved = cashRatesByDate?.[date] || null;
+        const seeded: any = {};
+        for (const cur of ["RUB", "USD", "USDT", "EUR", "THB"]) {
+          const sBuy = toNumLoose(saved?.[cur]?.buy_vnd);
+          const sSell = toNumLoose(saved?.[cur]?.sell_vnd);
+          const def = (cashDefaultRates as any)?.[cur] || {};
+          const buy = Number.isFinite(sBuy) && sBuy > 0 ? fmtRate(sBuy) : String(def.buy || "");
+          const sell = Number.isFinite(sSell) && sSell > 0 ? fmtRate(sSell) : String(def.sell || "");
+          seeded[cur] = { buy, sell };
+        }
+        next[date] = seeded;
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cashByDay, cashRatesByDate, cashDefaultRates]);
 
   const reqSelected = useMemo(
     () => (requests || []).find((r) => String(r?.id) === String(reqSelectedId)) || null,
@@ -1799,8 +1926,9 @@ export default function OwnerPortal() {
         <div className="card">
           <div className="small"><b>Калькулятор прибыли (КАССА)</b></div>
           <div className="vx-muted" style={{ marginTop: 6 }}>
-            Логика как в твоей таблице: <b>прибыль = (ценность того, что клиент отдал) − (ценность того, что клиент получил)</b>, в VND.
-            Для оценки используем курсы <b>sell_vnd</b> (вход) и <b>buy_vnd</b> (выход). Курсы можно менять — глобально и по каждой сделке.
+            Логика как в твоей таблице: <b>КАССА = (ценность того, что клиент отдал) − (ценность того, что клиент получил)</b>, в VND.
+            Для оценки используем курсы <b>sell_vnd</b> (вход) и <b>buy_vnd</b> (выход).
+            <b>Главное:</b> ты можешь поставить разные цены <b>по дням</b> (как в Excel) и/или поправить курс <b>по конкретной сделке</b>.
           </div>
 
           <div className="vx-sp10" />
@@ -1896,6 +2024,130 @@ export default function OwnerPortal() {
               </tbody>
             </table>
           </div>
+
+          <div className="vx-sp12" />
+
+          <div className="small"><b>По дням: объём и курсы</b></div>
+          <div className="vx-muted" style={{ marginTop: 6 }}>
+            Здесь можно выбрать день и указать, <b>по какой цене</b> ты покупал/продавал валюту. Эти курсы автоматически подставятся во все сделки этого дня.
+          </div>
+
+          {cashByDay.length ? (
+            <div style={{ marginTop: 10 }}>
+              {cashByDay.slice(0, 31).map((d: any) => {
+                const day = String(d.date || "");
+                const draft = (cashDayDraft as any)?.[day] || {};
+                const saving = !!(cashDaySaving as any)?.[day];
+                const sellEntries = Object.entries(d.sell || {}).sort((a: any, b: any) => Number(b[1]) - Number(a[1]));
+                const buyEntries = Object.entries(d.buy || {}).sort((a: any, b: any) => Number(b[1]) - Number(a[1]));
+
+                return (
+                  <div key={day} className="vx-metricCard" style={{ marginBottom: 10 }}>
+                    <div className="row vx-between vx-center" style={{ gap: 10 }}>
+                      <div>
+                        <div style={{ fontWeight: 950 }}>{day}</div>
+                        <div className="vx-muted" style={{ marginTop: 2 }}>
+                          Сделок: <b>{fmtNum(d.cnt)}</b> · Прибыль: <b>{fmtNum(d.profit)}</b> VND
+                        </div>
+                      </div>
+                      <button className="btn vx-btnSm" type="button" onClick={() => saveCashDayRates(day)} disabled={saving}>
+                        {saving ? "Сохраняю…" : "Сохранить курс"}
+                      </button>
+                    </div>
+
+                    <div className="vx-sp10" />
+
+                    <div className="vx-muted">Отдал:</div>
+                    <div className="vx-chipRow">
+                      {sellEntries.length ? (
+                        sellEntries.slice(0, 12).map(([k, v]: any) => (
+                          <span key={k} className="vx-chip">{k}: <b>{fmtNum(v)}</b></span>
+                        ))
+                      ) : (
+                        <span className="vx-muted">–</span>
+                      )}
+                    </div>
+
+                    <div className="vx-sp10" />
+
+                    <div className="vx-muted">Получил:</div>
+                    <div className="vx-chipRow">
+                      {buyEntries.length ? (
+                        buyEntries.slice(0, 12).map(([k, v]: any) => (
+                          <span key={k} className="vx-chip">{k}: <b>{fmtNum(v)}</b></span>
+                        ))
+                      ) : (
+                        <span className="vx-muted">–</span>
+                      )}
+                    </div>
+
+                    <div className="vx-sp10" />
+
+                    <div className="vx-tableWrap">
+                      <table className="vx-table">
+                        <thead>
+                          <tr>
+                            <th>Валюта</th>
+                            <th>buy_vnd</th>
+                            <th>sell_vnd</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(["RUB", "USD", "USDT", "EUR", "THB"] as const).map((cur) => (
+                            <tr key={cur}>
+                              <td><b>{cur}</b></td>
+                              <td>
+                                <input
+                                  className="input vx-in"
+                                  inputMode="decimal"
+                                  value={String((draft as any)?.[cur]?.buy ?? "")}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setCashDayDraft((prev) => {
+                                      const next: any = { ...(prev || {}) };
+                                      const dayObj: any = { ...(next[day] || {}) };
+                                      const curObj: any = { ...(dayObj[cur] || {}) };
+                                      curObj.buy = v;
+                                      dayObj[cur] = curObj;
+                                      next[day] = dayObj;
+                                      return next;
+                                    });
+                                  }}
+                                  placeholder={String((cashDefaultRates as any)?.[cur]?.buy || "0")}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  className="input vx-in"
+                                  inputMode="decimal"
+                                  value={String((draft as any)?.[cur]?.sell ?? "")}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setCashDayDraft((prev) => {
+                                      const next: any = { ...(prev || {}) };
+                                      const dayObj: any = { ...(next[day] || {}) };
+                                      const curObj: any = { ...(dayObj[cur] || {}) };
+                                      curObj.sell = v;
+                                      dayObj[cur] = curObj;
+                                      next[day] = dayObj;
+                                      return next;
+                                    });
+                                  }}
+                                  placeholder={String((cashDefaultRates as any)?.[cur]?.sell || "0")}
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="vx-muted" style={{ marginTop: 10 }}>Нет сделок за выбранный период.</div>
+          )}
 
           <div className="vx-sp12" />
 

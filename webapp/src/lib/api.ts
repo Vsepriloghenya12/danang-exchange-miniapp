@@ -77,6 +77,15 @@ export async function apiAdminSetTodayRates(initData: string, rates: any) {
   return r.json();
 }
 
+export async function apiAdminSetRatesForDate(initData: string, date: string, rates: any) {
+  const r = await fetch("/api/admin/rates/date", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(initData) },
+    body: JSON.stringify({ date, rates })
+  });
+  return readJsonSafe(r);
+}
+
 export async function apiAdminUsers(initData: string) {
   const r = await fetch("/api/admin/users", {
     headers: { ...adminAuthHeaders(initData) }

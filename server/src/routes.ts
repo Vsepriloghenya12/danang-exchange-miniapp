@@ -1029,6 +1029,77 @@ export function createApiRouter(opts: {
   });
 
   // --------------------
+  // Owner: set rates for any date (manual backfill for cashbox)
+  // --------------------
+  router.post("/admin/rates/date", async (req, res) => {
+    try {
+      const { isOwner, user } = await requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const body = req.body || {};
+      const date = String(body.date || body.day || "").trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ ok: false, error: "bad_date" });
+      }
+
+      const rates = body.rates || body;
+
+      const USD = rates?.USD;
+      const RUB = rates?.RUB;
+      const USDT = rates?.USDT;
+
+      if (!USD || !RUB || !USDT) {
+        return res.status(400).json({ ok: false, error: "rates_missing" });
+      }
+
+      const num = (x: any) => Number(x);
+
+      const data: any = {
+        USD: { buy_vnd: num(USD.buy_vnd), sell_vnd: num(USD.sell_vnd) },
+        RUB: { buy_vnd: num(RUB.buy_vnd), sell_vnd: num(RUB.sell_vnd) },
+        USDT: { buy_vnd: num(USDT.buy_vnd), sell_vnd: num(USDT.sell_vnd) }
+      };
+
+      // EUR/THB — optional
+      const EUR = rates?.EUR;
+      const THB = rates?.THB;
+      const eurBuy = num(EUR?.buy_vnd);
+      const eurSell = num(EUR?.sell_vnd);
+      if (Number.isFinite(eurBuy) && Number.isFinite(eurSell) && eurBuy > 0 && eurSell > 0) {
+        data.EUR = { buy_vnd: eurBuy, sell_vnd: eurSell };
+      }
+      const thbBuy = num(THB?.buy_vnd);
+      const thbSell = num(THB?.sell_vnd);
+      if (Number.isFinite(thbBuy) && Number.isFinite(thbSell) && thbBuy > 0 && thbSell > 0) {
+        data.THB = { buy_vnd: thbBuy, sell_vnd: thbSell };
+      }
+
+      const required = [
+        data.USD.buy_vnd, data.USD.sell_vnd,
+        data.RUB.buy_vnd, data.RUB.sell_vnd,
+        data.USDT.buy_vnd, data.USDT.sell_vnd
+      ];
+      if (!required.every((n) => Number.isFinite(n) && n > 0)) {
+        return res.status(400).json({ ok: false, error: "bad_numbers" });
+      }
+
+      const store: any = await readStore();
+      if (!store.ratesByDate || typeof store.ratesByDate !== "object") store.ratesByDate = {};
+
+      store.ratesByDate[date] = {
+        updated_at: new Date().toISOString(),
+        updated_by: user.id,
+        rates: data
+      };
+
+      await writeStore(store);
+      return res.json({ ok: true, date, data: store.ratesByDate[date] });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  // --------------------
   // Owner: rates by date range (for profit/cashbox calculator)
   // --------------------
   router.get("/admin/rates/range", async (req, res) => {
