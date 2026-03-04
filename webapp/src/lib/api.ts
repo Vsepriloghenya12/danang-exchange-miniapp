@@ -479,3 +479,15 @@ export async function apiEvent(
   });
   return readJsonSafe(r);
 }
+
+// --------------------
+// Client: suggest a new ATM location
+// --------------------
+export async function apiSuggestAtm(initData: string, text: string): Promise<any> {
+  const r = await fetch("/api/atms/suggest", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-telegram-init-data": initData },
+    body: JSON.stringify({ text })
+  });
+  return readJsonSafe(r);
+}

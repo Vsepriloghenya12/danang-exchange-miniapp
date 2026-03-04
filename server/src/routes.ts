@@ -1014,6 +1014,73 @@ export function createApiRouter(opts: {
     }
   });
 
+
+  // предложить новый банкомат (клиент -> менеджеру)
+  router.post("/atms/suggest", async (req, res) => {
+    try {
+      const { user, blocked } = await requireAuth(req);
+      if (blocked) return res.status(403).json({ ok: false, error: "blocked" });
+
+      const textIn = String(req.body?.text || req.body?.location || req.body?.url || "").trim();
+      if (!textIn) return res.status(400).json({ ok: false, error: "missing_text" });
+
+      const store = await readStore();
+
+      const dtDaNang = new Intl.DateTimeFormat("ru-RU", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      }).format(new Date()).replace(",", "");
+
+      const who =
+        (user.username
+          ? `@${user.username}`
+          : `${user.first_name || ""} ${user.last_name || ""}`.trim() || `id ${user.id}`);
+
+      const msg =
+        `🏧 Новый банкомат\n` +
+        `👤 ${who}\n` +
+        `📍 Новый банкомат тут: ${textIn}\n` +
+        `🕒 ${dtDaNang}`;
+
+      const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;
+      const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
+      const reqGroupChatId =
+        Number((store.config as any)?.requestsGroupChatId) || envReqGroup || Number((store.config as any)?.groupChatId) || envGroup;
+
+      if (reqGroupChatId && Number.isFinite(reqGroupChatId)) {
+        await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ chat_id: reqGroupChatId, text: msg, disable_web_page_preview: true })
+        });
+      } else {
+        const recipients = (Array.isArray(opts.ownerTgIds) && opts.ownerTgIds.length)
+          ? opts.ownerTgIds
+          : opts.ownerTgId
+          ? [opts.ownerTgId]
+          : Array.isArray((store.config as any)?.adminTgIds)
+          ? ((store.config as any).adminTgIds as number[])
+          : [];
+
+        for (const rid of recipients) {
+          await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ chat_id: rid, text: msg, disable_web_page_preview: true })
+          });
+        }
+      }
+
+      return res.json({ ok: true });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
   router.get("/admin/rates/today", async (req, res) => {
     try {
       const { isOwner } = await requireAdmin(req);

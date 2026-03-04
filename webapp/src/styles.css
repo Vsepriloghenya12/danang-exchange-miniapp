@@ -3033,3 +3033,144 @@ html[data-theme="dark"] .theme-client .hr{
   background: rgba(246,198,0,.20) !important;
 }
 
+
+/* =========================
+   v23 patch7: cleaner shadows (no "dirty" overlap)
+   ========================= */
+
+/* Make the two buttons on the home "Курс" card breathe a bit more (shadows won't collide). */
+.mx-btnRow{ gap: 14px; }
+
+/* Light theme: slightly smaller button shadow overall. */
+.btn{ box-shadow: 0 10px 22px rgba(255,179,87,0.14); }
+
+/* Dark theme: reduce huge outer shadows & bloom so they don't spill onto neighbour buttons/cards. */
+html[data-theme="dark"] .theme-client .btn,
+html[data-theme="dark"] .theme-client .vx-primary,
+html[data-theme="dark"] .theme-client .vx-iconBtn,
+html[data-theme="dark"] .theme-client .vx-btnGhost,
+html[data-theme="dark"] .theme-client .vx-navBtn,
+html[data-theme="dark"] .theme-client .vx-bankBtn,
+html[data-theme="dark"] .theme-client .vx-blankBtn{
+  background: #000 !important;
+  transform: translateY(0) !important;
+  box-shadow:
+    0 16px 44px rgba(0,0,0,.78),
+    0 8px 18px rgba(0,0,0,.62),
+    0 0 0 1px rgba(246,198,0,.08) inset,
+    0 1px 0 rgba(246,198,0,.10) inset,
+    0 -10px 18px rgba(0,0,0,.58) inset,
+    0 -1px 0 rgba(0,0,0,.55) inset;
+}
+
+html[data-theme="dark"] .theme-client .btn::before,
+html[data-theme="dark"] .theme-client .vx-primary::before,
+html[data-theme="dark"] .theme-client .vx-iconBtn::before,
+html[data-theme="dark"] .theme-client .vx-btnGhost::before,
+html[data-theme="dark"] .theme-client .vx-navBtn::before,
+html[data-theme="dark"] .theme-client .vx-bankBtn::before,
+html[data-theme="dark"] .theme-client .vx-blankBtn::before{
+  inset: -4px !important;
+  filter: blur(8px) !important;
+  opacity: .14 !important;
+}
+
+html[data-theme="dark"] .theme-client .btn:active,
+html[data-theme="dark"] .theme-client .vx-primary:active,
+html[data-theme="dark"] .theme-client .vx-iconBtn:active,
+html[data-theme="dark"] .theme-client .vx-btnGhost:active,
+html[data-theme="dark"] .theme-client .vx-navBtn:active,
+html[data-theme="dark"] .theme-client .vx-bankBtn:active,
+html[data-theme="dark"] .theme-client .vx-blankBtn:active{
+  box-shadow:
+    0 14px 36px rgba(0,0,0,.82),
+    0 0 0 1px rgba(246,198,0,.18) inset,
+    0 1px 0 rgba(246,198,0,.10) inset;
+}
+
+html[data-theme="dark"] .theme-client .btn:active::before,
+html[data-theme="dark"] .theme-client .vx-primary:active::before,
+html[data-theme="dark"] .theme-client .vx-iconBtn:active::before,
+html[data-theme="dark"] .theme-client .vx-btnGhost:active::before,
+html[data-theme="dark"] .theme-client .vx-navBtn:active::before,
+html[data-theme="dark"] .theme-client .vx-bankBtn:active::before,
+html[data-theme="dark"] .theme-client .vx-blankBtn:active::before{
+  inset: -6px !important;
+  filter: blur(10px) !important;
+}
+
+/* Dark theme: smaller shadow for home card buttons too */
+html[data-theme="dark"] .theme-client .mx-btn{
+  box-shadow: 0 16px 44px rgba(0,0,0,.82), 0 0 18px rgba(246,198,0,.12) !important;
+}
+
+/* ATM page: reduce heavy glow/shadow + slightly bigger font in light theme */
+.theme-client .vx-atmBtn,
+.theme-client .vx-atmFindBtn,
+.theme-client .vx-atmSuggestBtn{
+  font-size: 15px;
+}
+html[data-theme="light"] .theme-client .vx-atmHint{ font-size: 15px; }
+
+html[data-theme="light"] .theme-client .vx-atmBtn,
+html[data-theme="light"] .theme-client .vx-atmFindBtn,
+html[data-theme="light"] .theme-client .vx-atmSuggestBtn{
+  box-shadow:
+    0 12px 26px rgba(9,23,33,.16),
+    0 0 0 2px rgba(255,255,255,.92) inset,
+    0 0 12px rgba(246,198,0,.10) !important;
+}
+
+html[data-theme="dark"] .theme-client .vx-atmBtn,
+html[data-theme="dark"] .theme-client .vx-atmFindBtn,
+html[data-theme="dark"] .theme-client .vx-atmSuggestBtn{
+  box-shadow:
+    0 16px 42px rgba(0,0,0,.62),
+    0 0 0 2px rgba(0,0,0,.92) inset,
+    0 0 14px rgba(246,198,0,.14) !important;
+}
+
+/* ATM note + modal */
+.vx-atmNote{
+  font-size: 13.5px;
+  font-weight: 850;
+  line-height: 1.35;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,.56);
+  color: var(--text);
+}
+html[data-theme="dark"] .theme-client .vx-atmNote{
+  background: #000;
+  border-color: rgba(246,198,0,.26);
+  box-shadow: 0 18px 60px rgba(0,0,0,.84), 0 0 46px rgba(246,198,0,.08);
+}
+
+.vx-modalOverlay{
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(0,0,0,.45);
+  z-index: 1000;
+}
+
+.vx-modalCard{
+  width: min(420px, 100%);
+  border-radius: 24px;
+  padding: 14px;
+  background: rgba(255,255,255,.96);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+}
+html[data-theme="dark"] .theme-client .vx-modalCard{
+  background: #000;
+  border: 1px solid rgba(246,198,0,.36);
+  box-shadow: 0 26px 78px rgba(0,0,0,.86), 0 0 34px rgba(246,198,0,.12);
+}
+
+.vx-modalTitle{ font-size: 15px; font-weight: 950; }
+.vx-modalSub{ font-size: 12.5px; font-weight: 850; color: var(--muted); margin-top: 2px; }
