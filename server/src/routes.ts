@@ -75,6 +75,30 @@ const statusLabel: Record<UserStatus, string> = {
   gold: "золото"
 };
 
+// Thousands separator must be a comma (1,000 / 10,000) — same as in the calculator UI
+function fmtGroupedInt(n: number): string {
+  const s = String(Math.trunc(Math.abs(n)));
+  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function fmtReqAmount(cur: Currency, n: number): string {
+  if (!Number.isFinite(n)) return String(n);
+  if (cur === "USDT") {
+    const v = Math.round(n * 10) / 10;
+    const sign = v < 0 ? "-" : "";
+    const abs = Math.abs(v);
+    const intPart = Math.trunc(abs);
+    const dec = Math.round((abs - intPart) * 10);
+    const grouped = fmtGroupedInt(intPart);
+    return dec ? `${sign}${grouped}.${dec}` : `${sign}${grouped}`;
+  }
+  return fmtGroupedInt(Math.round(n));
+}
+
+function ignoreStatusForPair(a: Currency, b: Currency) {
+  return (a === "THB" && b === "RUB") || (a === "RUB" && b === "THB");
+}
+
 const requestStateLabel: Record<RequestState, string> = {
   in_progress: "в работе",
   done: "готова",
@@ -1948,7 +1972,12 @@ export function createApiRouter(opts: {
         return res.status(400).json({ ok: false, error: "bad_method" });
       }
 
-      const store = await readStore();
+	      const store = await readStore();
+
+	      // For THB↔RUB we intentionally ignore status markups (treat as standard)
+	      const effStatus: UserStatus = ignoreStatusForPair(sellCurrency, buyCurrency)
+	        ? "standard"
+	        : normalizeStatus(status);
 
       // Requests are posted into a dedicated managers group (preferred).
       // The bot may also publish rates into another group, so we support 2 separate chat IDs.
@@ -1970,7 +1999,7 @@ export function createApiRouter(opts: {
       };
 
       store.requests = store.requests || [];
-      const request: StoredRequest = {
+	      const request: StoredRequest = {
         id: randomUUID(),
         // By default заявки сразу "в работе"
         state: "in_progress",
@@ -1981,7 +2010,7 @@ export function createApiRouter(opts: {
         payMethod: String(p.payMethod || ""),
         receiveMethod,
         from: user,
-        status: normalizeStatus(status),
+	        status: effStatus,
         created_at: new Date().toISOString()
       };
       store.requests.push(request);
@@ -1990,21 +2019,21 @@ export function createApiRouter(opts: {
       // Notify: post into requests group (preferred), fallback to private admins if not configured
       try {
         const shortId = request.id.slice(-6);
-        const who =
+	        const who =
           (user.username
             ? `@${user.username}`
             : `${user.first_name || ""} ${user.last_name || ""}`.trim() || `id ${user.id}`) +
-          ` • статус: ${statusLabel[normalizeStatus(status)]}`;
+	          ` • статус: ${statusLabel[effStatus]}`;
 
         const payMap: Record<string, string> = { cash: "наличные", transfer: "перевод", other: "другое" };
 
-        const text =
+	        const text =
           `💱 Новая заявка (в работе)\n` +
           `🆔 #${shortId}\n` +
           `👤 ${who}\n` +
           `🔁 ${sellCurrency} → ${buyCurrency}\n` +
-          `💸 Отдаёт: ${sellAmount}\n` +
-          `🎯 Получит: ${buyAmount}\n` +
+	          `💸 Отдаёт: ${fmtReqAmount(sellCurrency, sellAmount)}\n` +
+	          `🎯 Получит: ${fmtReqAmount(buyCurrency, buyAmount)}\n` +
           `💳 Оплата: ${payMap[String(p.payMethod || "")] || String(p.payMethod || "—")}\n` +
           `📦 Получение: ${methodMap[receiveMethod]}\n` +
           `🕒 ${dtDaNang}`;

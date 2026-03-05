@@ -383,11 +383,12 @@ export default function OwnerPortal() {
 
   const screenRu: Record<string, string> = {
     home: 'Главная',
-    calc: 'Калькулятор',
+		calc: 'Оставить заявку',
     afisha: 'Афиша',
     atm: 'Банкоматы',
     reviews: 'Отзывы',
     staff: 'Админ',
+		pay: 'Оплата и брони',
     history: 'Моя история',
     about: 'О приложении',
     support: 'Поддержка',
@@ -413,12 +414,13 @@ export default function OwnerPortal() {
   // Click target labels (client UI buttons)
   const clickRu: Record<string, string> = {
     // Home
-    home_calc_btn: 'Главная → Калькулятор',
+		home_calc_btn: 'Главная → Оставить заявку',
     // Main nav cards
     nav_afisha: 'Главная → Афиша',
     nav_atm: 'Главная → Банкоматы',
     nav_reviews: 'Главная → Отзывы',
     // Bottom menu
+		bottom_pay: 'Нижнее меню → Оплата и брони',
     bottom_history: 'Нижнее меню → Моя история',
     bottom_about: 'Нижнее меню → О приложении',
     bottom_support: 'Нижнее меню → Поддержка',

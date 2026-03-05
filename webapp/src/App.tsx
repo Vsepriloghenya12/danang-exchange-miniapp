@@ -12,6 +12,7 @@ import StaffTab from "./tabs/StaffTab";
 import HistoryTab from "./tabs/HistoryTab";
 import AboutTab from "./tabs/AboutTab";
 import SupportTab from "./tabs/SupportTab";
+import PaymentsTab from "./tabs/PaymentsTab";
 import OwnerPortal from "./admin/OwnerPortal";
 
 type Me = {
@@ -26,7 +27,7 @@ type Me = {
   error?: string;
 };
 
-type ScreenKey = "home" | "calc" | "afisha" | "atm" | "reviews" | "staff" | "history" | "about" | "support";
+type ScreenKey = "home" | "calc" | "afisha" | "atm" | "reviews" | "staff" | "pay" | "history" | "about" | "support";
 
 const UI = {
   title: "Обмен валют — Дананг",
@@ -468,9 +469,9 @@ export default function App() {
     const title = `Ваш статус: ${statusTitle(st)}`;
     const msg =
       st === "gold"
-        ? "• Максимальные надбавки к курсу в калькуляторе\n• Приоритетная обработка заявки\n• Быстрая поддержка"
+        ? "Курс стал ещё лучше."
         : st === "silver"
-          ? "• Повышенные надбавки к курсу в калькуляторе\n• Быстрее обработка заявки"
+          ? "Повышенный курс."
           : "• Базовые условия\n• Все функции приложения доступны";
 
     if (tg?.showPopup) {
@@ -536,7 +537,7 @@ export default function App() {
                   className="mx-btn mx-btnPrimary"
                   onClick={() => goTo("calc","home_calc_btn")}
                 >
-                  Калькулятор
+                  Оставить заявку
                 </button>
               </div>
             </div>
@@ -583,8 +584,15 @@ export default function App() {
 
         {screen === "calc" ? (
           <>
-            <ScreenHeader title="Калькулятор" onBack={goHome} />
+            <ScreenHeader title="Оставить заявку" onBack={goHome} />
             <CalculatorTab me={me} />
+          </>
+        ) : null}
+
+        {screen === "pay" ? (
+          <>
+            <ScreenHeader title="Оплата и брони" onBack={goHome} />
+            <PaymentsTab />
           </>
         ) : null}
 
@@ -648,17 +656,17 @@ export default function App() {
       <div className="mx-bottomNav" role="navigation" aria-label="Нижнее меню">
         <button
           type="button"
+          className={"mx-bottomBtn " + (screen === "pay" ? "is-on" : "")}
+          onClick={() => goTo("pay","bottom_pay")}
+        >
+          Оплата и брони
+        </button>
+        <button
+          type="button"
           className={"mx-bottomBtn " + (screen === "history" ? "is-on" : "")}
           onClick={() => goTo("history","bottom_history")}
         >
           Моя история
-        </button>
-        <button
-          type="button"
-          className={"mx-bottomBtn " + (screen === "about" ? "is-on" : "")}
-          onClick={() => goTo("about","bottom_about")}
-        >
-          О приложении
         </button>
         <button
           type="button"

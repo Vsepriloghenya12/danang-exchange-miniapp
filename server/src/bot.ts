@@ -18,6 +18,30 @@ const statusLabel: Record<UserStatus, string> = {
   gold: "золото"
 };
 
+// Thousands separator must be a comma (1,000 / 10,000) — same as in the calculator UI
+function fmtGroupedInt(n: number): string {
+  const s = String(Math.trunc(Math.abs(n)));
+  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function fmtReqAmount(cur: string, n: number): string {
+  if (!Number.isFinite(n)) return String(n);
+  if (String(cur) === "USDT") {
+    const v = Math.round(n * 10) / 10;
+    const sign = v < 0 ? "-" : "";
+    const abs = Math.abs(v);
+    const intPart = Math.trunc(abs);
+    const dec = Math.round((abs - intPart) * 10);
+    const grouped = fmtGroupedInt(intPart);
+    return dec ? `${sign}${grouped}.${dec}` : `${sign}${grouped}`;
+  }
+  return fmtGroupedInt(Math.round(n));
+}
+
+function ignoreStatusForPair(a: string, b: string) {
+  return (a === "THB" && b === "RUB") || (a === "RUB" && b === "THB");
+}
+
 export function createBot(opts: {
   token: string;
   webappUrl?: string;
@@ -223,11 +247,15 @@ export function createBot(opts: {
       .format(new Date())
       .replace(",", "");
 
-    const who =
+	    const sellCur = String(payload.sellCurrency || "");
+	    const buyCur = String(payload.buyCurrency || "");
+	    const effStatus: UserStatus = ignoreStatusForPair(sellCur, buyCur) ? "standard" : normalizeStatus(status);
+
+	    const who =
       (ctx.from?.username
         ? `@${ctx.from.username}`
         : `${ctx.from?.first_name || ""} ${ctx.from?.last_name || ""}`.trim() || `id ${ctx.from?.id}`) +
-      ` • статус: ${statusLabel[normalizeStatus(status)]}`;
+	      ` • статус: ${statusLabel[effStatus]}`;
 
     // Create a request in the store (so it appears in the miniapp admin tab instantly)
     store.requests = store.requests || [];
@@ -235,14 +263,14 @@ export function createBot(opts: {
     const reqObj: StoredRequest = {
       id,
       state: "in_progress",
-      sellCurrency: String(payload.sellCurrency || "") as any,
-      buyCurrency: String(payload.buyCurrency || "") as any,
+	      sellCurrency: sellCur as any,
+	      buyCurrency: buyCur as any,
       sellAmount: Number(payload.sellAmount),
       buyAmount: Number(payload.buyAmount),
       payMethod: String(payload.payMethod || ""),
       receiveMethod: String(payload.receiveMethod || "") as any,
       from: ctx.from as any,
-      status: normalizeStatus(status),
+	      status: effStatus,
       created_at: new Date().toISOString()
     };
     store.requests.push(reqObj);
@@ -253,9 +281,9 @@ export function createBot(opts: {
       `💱 Новая заявка (в работе)\n` +
       `🆔 #${shortId}\n` +
       `👤 ${who}\n` +
-      `🔁 ${payload.sellCurrency} → ${payload.buyCurrency}\n` +
-      `💸 Отдаёт: ${payload.sellAmount}\n` +
-      `🎯 Получит: ${payload.buyAmount}\n` +
+	      `🔁 ${sellCur} → ${buyCur}\n` +
+	      `💸 Отдаёт: ${fmtReqAmount(sellCur, Number(payload.sellAmount))}\n` +
+	      `🎯 Получит: ${fmtReqAmount(buyCur, Number(payload.buyAmount))}\n` +
       `💳 Оплата: ${payMap[String(payload.payMethod)] || String(payload.payMethod || "—")}\n` +
       `📦 Получение: ${methodMap[payload.receiveMethod as ReceiveMethod] || payload.receiveMethod}\n` +
       `🕒 ${dtDaNang}`;
