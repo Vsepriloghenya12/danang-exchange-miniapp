@@ -2171,7 +2171,9 @@ label, input, select, textarea{ color: var(--text); }
 }
 
 .mx-mainLogoWrap{
-  height: 44px;
+  /* Bigger, wider home logo (Telegram WebView often renders the image with extra padding) */
+  height: 62px;
+  width: min(86vw, 420px);
   display:flex;
   align-items:center;
   justify-content:center;
@@ -2179,16 +2181,16 @@ label, input, select, textarea{ color: var(--text); }
 }
 
 .mx-mainLogoImg{
-  height: 44px;
-  width: auto;
-  max-width: min(66vw, 320px);
+  height: 62px;
+  width: 100%;
+  max-width: none;
   object-fit: contain;
   filter: drop-shadow(0 2px 0 rgba(0,0,0,.70)) drop-shadow(0 10px 22px rgba(0,0,0,.18));
 }
 
 .mx-mainLogoFallback{
-  width: min(52vw, 220px);
-  height: 30px;
+  width: min(68vw, 320px);
+  height: 38px;
   border-radius: 16px;
   background: rgba(0,0,0,.06);
   border: 1px solid rgba(0,0,0,.08);
