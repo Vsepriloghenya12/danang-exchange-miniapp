@@ -2195,7 +2195,7 @@ label, input, select, textarea{ color: var(--text); }
 }
 
 .mx-mainLogoFallback{
-  width: min(68vw, 320px);
+  width: min(34vw, 160px);
   height: 38px;
   border-radius: 16px;
   background: rgba(0,0,0,.06);
