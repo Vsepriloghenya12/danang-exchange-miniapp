@@ -2172,8 +2172,8 @@ label, input, select, textarea{ color: var(--text); }
 
 .mx-mainLogoWrap{
   /* Bigger, wider home logo (Telegram WebView often renders the image with extra padding) */
-  height: 62px;
-  width: min(86vw, 420px);
+  height: 124px;
+  width: min(170vw, 420px);
   display:flex;
   align-items:center;
   justify-content:center;
