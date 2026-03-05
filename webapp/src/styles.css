@@ -2173,7 +2173,7 @@ label, input, select, textarea{ color: var(--text); }
 
 .mx-mainLogoWrap{
   /* Home logo should span from theme button to status button */
-  height: 84px;
+  height: 168px;
   width: 100%;
   max-width: none;
   box-sizing: border-box;
