@@ -2173,7 +2173,7 @@ label, input, select, textarea{ color: var(--text); }
 
 .mx-mainLogoWrap{
   /* Home logo should span from theme button to status button */
-  height: 168px;
+  height: 84px;
   width: 100%;
   max-width: none;
   box-sizing: border-box;
@@ -2195,9 +2195,9 @@ label, input, select, textarea{ color: var(--text); }
 }
 
 .mx-mainLogoFallback{
-  width: min(34vw, 160px);
-  height: 16px;
-  border-radius: 8px;
+  width: min(68vw, 320px);
+  height: 38px;
+  border-radius: 16px;
   background: rgba(0,0,0,.06);
   border: 1px solid rgba(0,0,0,.08);
 }
