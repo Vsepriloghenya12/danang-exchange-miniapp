@@ -2167,13 +2167,17 @@ label, input, select, textarea{ color: var(--text); }
   min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  /* stretch so the home logo can fill the full space between the side buttons */
+  justify-content: stretch;
 }
 
 .mx-mainLogoWrap{
-  /* Bigger, wider home logo (Telegram WebView often renders the image with extra padding) */
-  height: 124px;
-  width: min(170vw, 420px);
+  /* Home logo should span from theme button to status button */
+  height: 84px;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 0 4px;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -2181,10 +2185,12 @@ label, input, select, textarea{ color: var(--text); }
 }
 
 .mx-mainLogoImg{
-  height: 62px;
+  height: 100%;
   width: 100%;
   max-width: none;
   object-fit: contain;
+  /* Many logo files have built-in transparent padding; a tiny scale helps visually */
+  transform: scale(1.05);
   filter: drop-shadow(0 2px 0 rgba(0,0,0,.70)) drop-shadow(0 10px 22px rgba(0,0,0,.18));
 }
 
