@@ -6,7 +6,9 @@ export default function AboutTab() {
       <div className="h3" style={{ marginBottom: 6 }}>
         О приложении
       </div>
-      <div className="small">Текст добавим позже.</div>
+      <div className="small">
+        Будь в курсе того, что происходит в городе — и деняк меняй.
+      </div>
     </div>
   );
 }

@@ -164,6 +164,19 @@ export type GFormulasResponse =
   | { ok: true; formulas: GFormulas }
   | { ok: false; error: string; formulas?: GFormulas };
 
+
+export type FaqItem = {
+  id: string;
+  q: string;
+  a: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FaqResponse =
+  | { ok: true; items: FaqItem[] }
+  | { ok: false; error: string; items?: FaqItem[] };
+
 export type AtmItem = {
   id: string;
   title: string;

@@ -39,6 +39,16 @@ export type AfishaEvent = {
   clicks: { details: number; location: number };
 };
 
+
+export type FaqItem = {
+  id: string;
+  q: string;
+  a: string;
+  created_at: string;
+  updated_at: string;
+};
+
+
 export type Rates = {
   USD: { buy_vnd: number; sell_vnd: number };
   RUB: { buy_vnd: number; sell_vnd: number };
@@ -92,6 +102,7 @@ export type Store = {
   atms: AtmItem[];
   afisha: AfishaEvent[];
   contacts: Contact[];
+  faq: FaqItem[];
 };
 
 export type Contact = {
@@ -196,7 +207,8 @@ function defaultStore(): Store {
     reviews: [],
     atms: [],
     afisha: [],
-    contacts: []
+    contacts: [],
+    faq: []
   };
 }
 
@@ -296,7 +308,8 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
     reviews: Array.isArray(parsed?.reviews) ? (parsed.reviews as any) : [],
     atms: Array.isArray(parsed?.atms) ? parsed.atms : [],
     afisha: Array.isArray(parsed?.afisha) ? parsed.afisha : [],
-    contacts: Array.isArray(parsed?.contacts) ? parsed.contacts : []
+    contacts: Array.isArray(parsed?.contacts) ? parsed.contacts : [],
+    faq: Array.isArray(parsed?.faq) ? parsed.faq : []
   };
 
   let dirty = false;
@@ -356,6 +369,36 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
   if (!Array.isArray(store.contacts)) {
     store.contacts = [];
     dirty = true;
+  }
+
+  if (!Array.isArray((store as any).faq)) {
+    (store as any).faq = [];
+    dirty = true;
+  }
+
+  // normalize FAQ items
+  for (const it of (store as any).faq as any[]) {
+    if (!it || typeof it !== "object") continue;
+    if (!it.id) {
+      it.id = `faq_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      dirty = true;
+    }
+    if (typeof it.q !== "string") {
+      it.q = String(it.q || "");
+      dirty = true;
+    }
+    if (typeof it.a !== "string") {
+      it.a = String(it.a || "");
+      dirty = true;
+    }
+    if (!it.created_at) {
+      it.created_at = new Date().toISOString();
+      dirty = true;
+    }
+    if (!it.updated_at) {
+      it.updated_at = it.created_at;
+      dirty = true;
+    }
   }
 
   if (!Array.isArray((store as any).afisha)) {

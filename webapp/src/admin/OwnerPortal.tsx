@@ -25,6 +25,8 @@ import {
   apiGetTodayRates,
   apiAdminGetGFormulas,
   apiAdminSetGFormulas,
+  apiAdminGetFaq,
+  apiAdminSetFaq,
 } from "../lib/api";
 import type { Contact, UserStatus } from "../lib/types";
 
@@ -103,7 +105,7 @@ export default function OwnerPortal() {
   const token = useMemo(() => (key ? `adminkey:${key}` : ""), [key]);
   const me = useMemo(() => ({ initData: token }), [token]);
 
-  type Tab = "rates" | "bonuses" | "reviews" | "clients" | "requests" | "afisha" | "cashbox" | "reports" | "analytics";
+  type Tab = "rates" | "bonuses" | "reviews" | "clients" | "requests" | "afisha" | "faq" | "cashbox" | "reports" | "analytics";
   const [tab, setTab] = useState<Tab>("rates");
 
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -137,6 +139,13 @@ export default function OwnerPortal() {
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [bankIcons, setBankIcons] = useState<string[]>([]);
+
+// FAQ editor (owner)
+const [faqItems, setFaqItems] = useState<Array<{ id: string; q: string; a: string }>>([]);
+const [faqLoading, setFaqLoading] = useState<boolean>(false);
+const [faqSaving, setFaqSaving] = useState<boolean>(false);
+const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
+
 
   // G-formulas editor (owner)
   const [gFormulasDraft, setGFormulasDraft] = useState<Record<string, { buyMul: string; sellMul: string }>>(() => {
@@ -301,6 +310,73 @@ export default function OwnerPortal() {
     }
   }
 
+
+async function loadFaq() {
+  if (!token || faqLoading) return;
+  setFaqLoading(true);
+  try {
+    const r: any = await apiAdminGetFaq(token);
+    if (r?.ok) {
+      const arr = Array.isArray(r.items) ? r.items : [];
+      setFaqItems(
+        arr.map((x: any) => ({
+          id: String(x.id || `faq_${Date.now()}_${Math.random().toString(16).slice(2)}`),
+          q: String(x.q || "").trim(),
+          a: String(x.a || "").trim()
+        }))
+      );
+      setFaqLoaded(true);
+    } else {
+      showErr(r?.error || "Ошибка");
+    }
+  } catch (e: any) {
+    showErr(e?.message || "Ошибка");
+  } finally {
+    setFaqLoading(false);
+  }
+}
+
+async function saveFaq() {
+  if (!token || faqSaving) return;
+  setFaqSaving(true);
+  try {
+    const items = (faqItems || [])
+      .map((x) => ({ ...x, q: String(x.q || "").trim(), a: String(x.a || "").trim() }))
+      .filter((x) => x.q && x.a);
+    const r: any = await apiAdminSetFaq(token, items);
+    if (r?.ok) {
+      showOk("Сохранено");
+      const arr = Array.isArray(r.items) ? r.items : items;
+      setFaqItems(arr.map((x: any) => ({ id: String(x.id), q: String(x.q || ""), a: String(x.a || "") })));
+    } else {
+      showErr(r?.error || "Ошибка");
+    }
+  } catch (e: any) {
+    showErr(e?.message || "Ошибка");
+  } finally {
+    setFaqSaving(false);
+  }
+}
+
+function addFaqItem() {
+  const id = `faq_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  setFaqItems((prev) => [...(prev || []), { id, q: "", a: "" }]);
+}
+
+function moveFaq(id: string, dir: -1 | 1) {
+  setFaqItems((prev) => {
+    const a = [...(prev || [])];
+    const i = a.findIndex((x) => x.id === id);
+    if (i < 0) return a;
+    const j = i + dir;
+    if (j < 0 || j >= a.length) return a;
+    const tmp = a[i];
+    a[i] = a[j];
+    a[j] = tmp;
+    return a;
+  });
+}
+
   async function loadClients() {
     if (!token || clientsLoading) return;
     setClientsLoading(true);
@@ -423,7 +499,12 @@ export default function OwnerPortal() {
 		bottom_pay: 'Нижнее меню → Оплата и брони',
     bottom_history: 'Нижнее меню → Моя история',
     bottom_about: 'Нижнее меню → О приложении',
-    bottom_support: 'Нижнее меню → Поддержка',
+    bottom_other: 'Нижнее меню → Прочее',
+    other_faq: 'Прочее → FAQ',
+    other_about: 'Прочее → О приложении',
+    other_contacts: 'Прочее → Контакты',
+    faq_back: 'FAQ → Назад',
+    contacts_back: 'Контакты → Назад',
   };
 
   function clickLabel(s: any) {
@@ -595,6 +676,7 @@ export default function OwnerPortal() {
     if (tab === "afisha") loadAfishaLists();
     if (tab === "analytics") loadAnalytics();
     if (tab === "rates" && !gFormulasLoaded) loadGFormulas();
+    if (tab === "faq" && !faqLoaded) loadFaq();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, token, gFormulasLoaded]);
 
@@ -1356,6 +1438,7 @@ export default function OwnerPortal() {
           <button className={tab === "clients" ? "on" : ""} onClick={() => setTab("clients")}>Клиенты</button>
           <button className={tab === "requests" ? "on" : ""} onClick={() => setTab("requests")}>Заявки</button>
           <button className={tab === "afisha" ? "on" : ""} onClick={() => setTab("afisha")}>Афиша</button>
+          <button className={tab === "faq" ? "on" : ""} onClick={() => setTab("faq")}>FAQ</button>
           <button className={tab === "cashbox" ? "on" : ""} onClick={() => setTab("cashbox")}>Касса</button>
           <button className={tab === "reports" ? "on" : ""} onClick={() => setTab("reports")}>Отчёты</button>
           <button className={tab === "analytics" ? "on" : ""} onClick={() => setTab("analytics")}>Статистика</button>
@@ -2102,7 +2185,92 @@ export default function OwnerPortal() {
         </>
       ) : null}
 
-      {tab === "cashbox" ? (
+      
+{tab === "faq" ? (
+  <div className="card">
+    <div className="row vx-between vx-center" style={{ gap: 10, flexWrap: "wrap" }}>
+      <div>
+        <div className="h2">FAQ</div>
+        <div className="small" style={{ opacity: 0.85 }}>
+          Клиент видит эти вопросы в разделе «Прочее → FAQ».
+        </div>
+      </div>
+      <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+        <button className="btn vx-btnSm" type="button" onClick={addFaqItem}>
+          Добавить
+        </button>
+        <button className="btn" type="button" onClick={saveFaq} disabled={faqSaving}>
+          {faqSaving ? "Сохранение…" : "Сохранить"}
+        </button>
+      </div>
+    </div>
+
+    <div className="vx-sp12" />
+
+    {faqLoading ? <div className="small">Загрузка…</div> : null}
+
+    {(!faqItems || faqItems.length === 0) && !faqLoading ? (
+      <div className="small" style={{ opacity: 0.8 }}>
+        Пока пусто. Нажми «Добавить».
+      </div>
+    ) : null}
+
+    {(faqItems || []).map((it, i) => (
+      <div key={it.id} className="vx-faqRow">
+        <div className="row vx-between vx-center" style={{ gap: 10 }}>
+          <div className="small" style={{ fontWeight: 900 }}>
+            Вопрос #{i + 1}
+          </div>
+          <div className="row" style={{ gap: 6 }}>
+            <button className="btn vx-btnXs" type="button" onClick={() => moveFaq(it.id, -1)} disabled={i === 0}>
+              ↑
+            </button>
+            <button
+              className="btn vx-btnXs"
+              type="button"
+              onClick={() => moveFaq(it.id, 1)}
+              disabled={i === faqItems.length - 1}
+            >
+              ↓
+            </button>
+            <button
+              className="btn vx-btnXs"
+              type="button"
+              onClick={() => setFaqItems((prev) => (prev || []).filter((x) => x.id !== it.id))}
+            >
+              Удалить
+            </button>
+          </div>
+        </div>
+
+        <div className="vx-sp6" />
+        <input
+          className="input vx-in"
+          value={it.q}
+          onChange={(e) =>
+            setFaqItems((prev) => (prev || []).map((x) => (x.id === it.id ? { ...x, q: e.target.value } : x)))
+          }
+          placeholder="Вопрос…"
+        />
+
+        <div className="vx-sp6" />
+        <textarea
+          className="input vx-in"
+          value={it.a}
+          onChange={(e) =>
+            setFaqItems((prev) => (prev || []).map((x) => (x.id === it.id ? { ...x, a: e.target.value } : x)))
+          }
+          placeholder="Ответ…"
+          rows={3}
+        />
+
+        <div className="vx-sp12" />
+      </div>
+    ))}
+  </div>
+) : null}
+
+{tab === "cashbox" ? (
         <div className="card">
           <div className="small"><b>Калькулятор прибыли (КАССА)</b></div>
           <div className="vx-muted" style={{ marginTop: 6 }}>

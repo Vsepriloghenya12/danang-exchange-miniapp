@@ -20,7 +20,8 @@ import type {
   AfishaResponse,
   AdminAfishaResponse,
   AfishaEvent,
-  WeatherResponse
+  WeatherResponse,
+  FaqResponse
 } from "./types";
 
 // Admin auth helper:
@@ -86,6 +87,28 @@ export async function apiAdminSetGFormulas(token: string, formulas: any) {
     method: "POST",
     headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
     body: JSON.stringify({ formulas })
+  });
+  return readJsonSafe(r);
+}
+
+
+export async function apiGetFaq(): Promise<FaqResponse> {
+  const r = await fetch("/api/faq");
+  return readJsonSafe(r);
+}
+
+export async function apiAdminGetFaq(token: string): Promise<FaqResponse> {
+  const r = await fetch("/api/admin/faq", {
+    headers: { ...adminAuthHeaders(token) }
+  });
+  return readJsonSafe(r);
+}
+
+export async function apiAdminSetFaq(token: string, items: any): Promise<FaqResponse> {
+  const r = await fetch("/api/admin/faq", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
+    body: JSON.stringify({ items })
   });
   return readJsonSafe(r);
 }

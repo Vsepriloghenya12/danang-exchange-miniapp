@@ -856,7 +856,72 @@ export function createApiRouter(opts: {
     }
   });
 
-  // --------------------
+  
+// --------------------
+// FAQ (public + owner editor)
+// --------------------
+function cleanFaqItems(input: any) {
+  const src = Array.isArray(input) ? input : [];
+  const out: any[] = [];
+  for (const x of src) {
+    if (!x || typeof x !== "object") continue;
+    const q = String((x as any).q ?? (x as any).question ?? "").trim();
+    const a = String((x as any).a ?? (x as any).answer ?? "").trim();
+    if (!q || !a) continue;
+    const id = String((x as any).id || "").trim() || `faq_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const created_at = String((x as any).created_at || new Date().toISOString());
+    const updated_at = String((x as any).updated_at || created_at);
+    out.push({ id, q, a, created_at, updated_at });
+    if (out.length >= 200) break;
+  }
+  return out;
+}
+
+// Public: client reads FAQ
+router.get("/faq", async (_req, res) => {
+  const store = await readStore();
+  const items = cleanFaqItems((store as any).faq);
+  // save normalized
+  if (JSON.stringify((store as any).faq ?? null) !== JSON.stringify(items)) {
+    (store as any).faq = items;
+    await writeStore(store);
+  }
+  res.json({ ok: true, items });
+});
+
+// Owner: edit FAQ
+router.get("/admin/faq", async (req, res) => {
+  try {
+    const { isOwner } = await requireAdmin(req);
+    if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+    const store = await readStore();
+    const items = cleanFaqItems((store as any).faq);
+    if (JSON.stringify((store as any).faq ?? null) !== JSON.stringify(items)) {
+      (store as any).faq = items;
+      await writeStore(store);
+    }
+    res.json({ ok: true, items });
+  } catch (e: any) {
+    res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+  }
+});
+
+router.post("/admin/faq", async (req, res) => {
+  try {
+    const { isOwner } = await requireAdmin(req);
+    if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+    const body: any = req.body || {};
+    const next = cleanFaqItems(body.items);
+    const store = await readStore();
+    (store as any).faq = next;
+    await writeStore(store);
+    res.json({ ok: true, items: next });
+  } catch (e: any) {
+    res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+  }
+});
+
+// --------------------
   // Bonuses (надбавки)
   // --------------------
   router.get("/bonuses", async (_req, res) => {

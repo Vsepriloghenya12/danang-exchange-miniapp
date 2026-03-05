@@ -11,7 +11,9 @@ import ReviewsTab from "./tabs/ReviewsTab";
 import StaffTab from "./tabs/StaffTab";
 import HistoryTab from "./tabs/HistoryTab";
 import AboutTab from "./tabs/AboutTab";
-import SupportTab from "./tabs/SupportTab";
+import OtherTab from "./tabs/OtherTab";
+import FaqTab from "./tabs/FaqTab";
+import ContactsTab from "./tabs/ContactsTab";
 import PaymentsTab from "./tabs/PaymentsTab";
 import OwnerPortal from "./admin/OwnerPortal";
 
@@ -27,7 +29,7 @@ type Me = {
   error?: string;
 };
 
-type ScreenKey = "home" | "calc" | "afisha" | "atm" | "reviews" | "staff" | "pay" | "history" | "about" | "support";
+type ScreenKey = "home" | "calc" | "afisha" | "atm" | "reviews" | "staff" | "pay" | "history" | "other" | "faq" | "about" | "contacts";
 
 const UI = {
   title: "Обмен валют — Дананг",
@@ -206,6 +208,46 @@ function HeaderLogo() {
   );
 }
 
+
+function MainLogo() {
+  // Center logo on the home screen (wide). Cache-bust for Telegram WebView.
+  const bust = "v1";
+  const candidates = useMemo(
+    () => [
+      "/brand/main-logo.png",
+      "/brand/main-logo.webp",
+      "/brand/main-logo.svg",
+      "/brand/main-logo.jpg",
+      "/brand/logo.png",
+      "/brand/logo.webp",
+      "/brand/logo.jpg",
+    ],
+    []
+  );
+  const [idx, setIdx] = useState(0);
+  const [ok, setOk] = useState(false);
+  const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
+
+  return (
+    <div className="mx-mainLogoWrap" aria-label="Cash A Lot">
+      {!ok ? <div className="mx-mainLogoFallback" /> : null}
+      <img
+        key={src}
+        className="mx-mainLogoImg"
+        src={src}
+        alt=""
+        loading="eager"
+        decoding="async"
+        onLoad={() => setOk(true)}
+        onError={() => {
+          setOk(false);
+          setIdx((x) => (x < candidates.length - 1 ? x + 1 : x));
+        }}
+      />
+    </div>
+  );
+}
+
 function normalizeStatus(s: any): UserStatus {
   const v = String(s ?? "").toLowerCase().trim();
   if (v === "gold") return "gold";
@@ -247,7 +289,7 @@ export default function App() {
   // Warm up critical images early to avoid a visible "pop-in" in Telegram WebView.
   useEffect(() => {
     const urls = [
-      "/brand/header-logo.png?v42",
+      "/brand/main-logo.png?v1",
       "/brand/status-standard.svg?v48-standard",
       "/brand/status-silver.svg?v48-silver",
       "/brand/status-gold.svg?v48-gold",
@@ -494,7 +536,7 @@ export default function App() {
       <div className="container">
         {screen === "home" ? (
           <>
-            <div className="mx-topRow">
+            <div className="mx-topRow mx-topRowHome">
               <button
                 type="button"
                 className="mx-themeBtn"
@@ -504,16 +546,13 @@ export default function App() {
                 {theme === "dark" ? <IconMoon className="mx-themeI" /> : <IconSun className="mx-themeI" />}
               </button>
 
+              <div className="mx-topCenter">
+                <MainLogo />
+              </div>
+
               <button type="button" className="mx-statusBtn" onClick={showStatusInfo} aria-label="Ваш статус">
                 <StatusIcon status={me.status} />
               </button>
-
-              <div className="mx-brandLine" aria-label="Заголовок">
-                <div className="mx-brandName">Cash A Lot</div>
-                <div className="mx-brandHello">Здравствуйте{displayName ? `, ${displayName}` : ""}</div>
-              </div>
-
-              <HeaderLogo />
             </div>
 
             <div className="mx-card">
@@ -637,6 +676,32 @@ export default function App() {
           </>
         ) : null}
 
+
+{screen === "other" ? (
+  <>
+    <ScreenHeader title="Прочее" onBack={goHome} />
+    <OtherTab
+      onFaq={() => goTo("faq","other_faq")}
+      onAbout={() => goTo("about","other_about")}
+      onContacts={() => goTo("contacts","other_contacts")}
+    />
+  </>
+) : null}
+
+{screen === "faq" ? (
+  <>
+    <ScreenHeader title="FAQ" onBack={() => goTo("other","faq_back")} />
+    <FaqTab />
+  </>
+) : null}
+
+{screen === "contacts" ? (
+  <>
+    <ScreenHeader title="Контакты" onBack={() => goTo("other","contacts_back")} />
+    <ContactsTab />
+  </>
+) : null}
+
         {screen === "about" ? (
           <>
             <ScreenHeader title="О приложении" onBack={goHome} />
@@ -644,13 +709,7 @@ export default function App() {
           </>
         ) : null}
 
-        {screen === "support" ? (
-          <>
-            <ScreenHeader title="Поддержка" onBack={goHome} />
-            <SupportTab />
-          </>
-        ) : null}
-      </div>
+              </div>
 
       {/* Bottom menu */}
       <div className="mx-bottomNav" role="navigation" aria-label="Нижнее меню">
@@ -670,10 +729,10 @@ export default function App() {
         </button>
         <button
           type="button"
-          className={"mx-bottomBtn " + (screen === "support" ? "is-on" : "")}
-          onClick={() => goTo("support","bottom_support")}
+          className={"mx-bottomBtn " + (screen === "other" ? "is-on" : "")}
+          onClick={() => goTo("other","bottom_other")}
         >
-          Поддержка
+          Прочее
         </button>
       </div>
     </div>
