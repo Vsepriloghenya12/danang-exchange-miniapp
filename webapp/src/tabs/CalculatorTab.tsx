@@ -368,7 +368,16 @@ function getGPairRates(
   const f = formulas[key];
   const G = Number(market.g?.[key]);
   if (!f || !Number.isFinite(G) || G <= 0) return null;
-  return { buy: G * f.buyMul, sell: G * f.sellMul };
+
+  // IMPORTANT:
+  // In the UI we show G-pair rates rounded (Rates tab: 2 decimals for non‑VND quotes).
+  // To avoid mismatches (rate shown as 2.72 but calc uses 2.7156),
+  // apply the same rounding here BEFORE calculations.
+  const digits = quote === "VND" ? 0 : 2;
+  const pow = Math.pow(10, digits);
+  const round = (x: number) => Math.round(x * pow) / pow;
+
+  return { buy: round(G * f.buyMul), sell: round(G * f.sellMul) };
 }
 
 function calcBuyAmountG(
