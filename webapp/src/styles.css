@@ -2179,8 +2179,7 @@ label, input, select, textarea{ color: var(--text); }
 }
 
 .mx-mainLogoWrap{
-  /* Home logo should span from theme button to status button */
-  height: 118px;
+  height: 92px;
   width: 100%;
   max-width: none;
   box-sizing: border-box;
@@ -2189,7 +2188,8 @@ label, input, select, textarea{ color: var(--text); }
   align-items:center;
   justify-content:center;
   position: relative;
-  overflow: hidden; /* allow strong horizontal stretch without overlapping side buttons */
+  overflow: visible;
+  background: transparent;
 }
 
 .mx-mainLogoImg{
@@ -2197,10 +2197,11 @@ label, input, select, textarea{ color: var(--text); }
   width: 100%;
   max-width: none;
   object-fit: contain;
-  /* Stretch horizontally (as requested) + remove perceived padding */
-  transform: scaleX(2) scaleY(1.08);
-  filter: drop-shadow(0 2px 0 rgba(0,0,0,.70)) drop-shadow(0 10px 22px rgba(0,0,0,.18));
+  transform: none;
+  filter: none;
+  display: block;
 }
+
 
 .mx-mainLogoFallback{
   width: min(68vw, 320px);

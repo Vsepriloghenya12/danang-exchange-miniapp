@@ -530,7 +530,7 @@ export default function App() {
   };
 
   return (
-    <div className="vx-page theme-client">
+    <div className={`vx-page theme-client ${screen === "home" ? "mx-homePage" : ""}`}>
       <style>{`@import url('${UI.fontImport}');`}</style>
 
       <div className="container">
