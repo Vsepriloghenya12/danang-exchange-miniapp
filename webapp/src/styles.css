@@ -119,6 +119,11 @@ body.vx-body-client #root{
   background: var(--sky);
   overflow-x: hidden;
 }
+
+/* Home header: tighter vertical rhythm (less "air" above/below the logo). */
+.theme-client.vx-page.mx-homePage{
+  padding-top: 6px;
+}
 .vx-page *{ box-sizing: border-box; }
 
 /* iOS/Safari sometimes paints links or form text in system blue. Force our palette. */
@@ -2160,6 +2165,8 @@ label, input, select, textarea{ color: var(--text); }
 .mx-topRowHome{
   /* Center logo with fixed side buttons */
   gap: 10px;
+  /* remove extra space under the logo */
+  margin-bottom: 6px;
 }
 
 .mx-topCenter{
@@ -2173,15 +2180,16 @@ label, input, select, textarea{ color: var(--text); }
 
 .mx-mainLogoWrap{
   /* Home logo should span from theme button to status button */
-  height: 84px;
+  height: 118px;
   width: 100%;
   max-width: none;
   box-sizing: border-box;
-  padding: 0 4px;
+  padding: 0;
   display:flex;
   align-items:center;
   justify-content:center;
   position: relative;
+  overflow: hidden; /* allow strong horizontal stretch without overlapping side buttons */
 }
 
 .mx-mainLogoImg{
@@ -2189,8 +2197,8 @@ label, input, select, textarea{ color: var(--text); }
   width: 100%;
   max-width: none;
   object-fit: contain;
-  /* Many logo files have built-in transparent padding; a tiny scale helps visually */
-  transform: scale(1.05);
+  /* Stretch horizontally (as requested) + remove perceived padding */
+  transform: scaleX(2) scaleY(1.08);
   filter: drop-shadow(0 2px 0 rgba(0,0,0,.70)) drop-shadow(0 10px 22px rgba(0,0,0,.18));
 }
 
