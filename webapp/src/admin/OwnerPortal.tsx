@@ -19,6 +19,7 @@ import {
   apiAdminUpdateAfisha,
   apiAdminEventsSummary,
   apiGetBankIcons,
+  bankIconUrl,
   apiAdminGetRatesRange,
   apiAdminSetRatesForDate,
   apiGetTodayRates,
@@ -399,7 +400,7 @@ function moveFaq(id: string, dir: -1 | 1) {
         setRequests(Array.isArray(r.value.requests) ? r.value.requests : []);
       }
       if (bi.status === "fulfilled" && bi.value?.ok) {
-        setBankIcons(Array.isArray(bi.value.icons) ? bi.value.icons : []);
+        setBankIcons(Array.from(new Set(Array.isArray(bi.value.icons) ? bi.value.icons : [])));
       }
       if (c.status === "fulfilled" && c.value?.ok) {
         setContacts(Array.isArray(c.value.contacts) ? c.value.contacts : []);
@@ -1668,7 +1669,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                       onClick={() => toggleBank(ic)}
                       title={ic}
                     >
-                      <img src={`/banks/${ic}`} alt="" className="vx-bankImg" />
+                      <img src={bankIconUrl(ic)} alt="" className="vx-bankImg" onError={(e) => { const p = (e.currentTarget as HTMLImageElement).parentElement as HTMLElement | null; if (p) p.style.display = "none"; }} />
                     </button>
                   );
                 })}
@@ -1734,7 +1735,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                             {banks.length ? (
                               <div className="vx-bankInline" style={{ marginTop: 6 }}>
                                 {banks.slice(0, 6).map((ic) => (
-                                  <img key={ic} src={`/banks/${ic}`} alt="" className="vx-bankInlineImg" title={ic} />
+                                  <img key={ic} src={bankIconUrl(ic)} alt="" className="vx-bankInlineImg" title={ic} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                                 ))}
                               </div>
                             ) : null}
@@ -1946,7 +1947,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                           onClick={() => toggleReqBank(ic)}
                           title={ic}
                         >
-                          <img src={`/banks/${ic}`} alt="" className="vx-bankImg" />
+                          <img src={bankIconUrl(ic)} alt="" className="vx-bankImg" onError={(e) => { const p = (e.currentTarget as HTMLImageElement).parentElement as HTMLElement | null; if (p) p.style.display = "none"; }} />
                         </button>
                       );
                     })}

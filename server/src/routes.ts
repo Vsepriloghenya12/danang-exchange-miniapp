@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { listCanonicalBankIcons, normalizeBankIcons, normalizeContactBanks } from "./bankIcons.js";
 import {
   readStore,
   writeStore,
@@ -381,10 +382,7 @@ export function createApiRouter(opts: {
     try {
       const dir = banksCandidates.find((d) => fs.existsSync(d));
       if (!dir) return res.json({ ok: true, icons: [] });
-      const icons = fs
-        .readdirSync(dir)
-        .filter((x) => !x.startsWith("."))
-        .filter((x) => /\.(png|jpg|jpeg|webp|svg)$/i.test(x));
+      const icons = listCanonicalBankIcons(banksCandidates);
       return res.json({ ok: true, icons });
     } catch (e: any) {
       return res.status(500).json({ ok: false, error: e?.message || "icons_failed", icons: [] });
@@ -1425,7 +1423,7 @@ router.post("/admin/faq", async (req, res) => {
       const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
       const store = await readStore();
-      return res.json({ ok: true, contacts: Array.isArray(store.contacts) ? store.contacts : [] });
+      return res.json({ ok: true, contacts: (Array.isArray(store.contacts) ? store.contacts : []).map((c) => normalizeContactBanks(c)) });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -1441,7 +1439,7 @@ router.post("/admin/faq", async (req, res) => {
       const username = normUsername(req.body?.username);
       const fullName = String(req.body?.fullName || req.body?.full_name || "").trim();
       const banksInput = (req.body as any)?.banks;
-      const banks = Array.isArray(banksInput) ? (banksInput as any[]).map(String) : undefined;
+      const banks = banksInput !== undefined ? normalizeBankIcons(banksInput) : undefined;
       const status = parseStatusInput(req.body?.status);
 
       if (!tg_id && !username) return res.status(400).json({ ok: false, error: "tg_id_or_username_required" });
@@ -1460,7 +1458,7 @@ router.post("/admin/faq", async (req, res) => {
         const secondary = byU as Contact;
         primary.username = primary.username || secondary.username;
         primary.fullName = primary.fullName || secondary.fullName;
-        primary.banks = (Array.isArray(primary.banks) && primary.banks.length) ? primary.banks : secondary.banks;
+        primary.banks = normalizeBankIcons((Array.isArray(primary.banks) && primary.banks.length) ? primary.banks : secondary.banks);
         primary.status = primary.status || secondary.status;
         primary.created_at = primary.created_at || secondary.created_at;
 
@@ -1485,7 +1483,7 @@ router.post("/admin/faq", async (req, res) => {
       if (tg_id) c.tg_id = tg_id;
       if (username) c.username = username;
       if (fullName || fullName === "") c.fullName = fullName;
-      if (banks !== undefined) c.banks = banks;
+      if (banks !== undefined) c.banks = normalizeBankIcons(banks);
       if (status) c.status = status;
 
       // If the user already exists in users, sync status immediately
@@ -1828,7 +1826,7 @@ router.post("/admin/faq", async (req, res) => {
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
       const contacts: Record<string, any> = {};
       for (const c of store.contacts || []) {
-        if (c?.tg_id) contacts[String(c.tg_id)] = c;
+        if (c?.tg_id) contacts[String(c.tg_id)] = normalizeContactBanks(c);
       }
       return res.json({ ok: true, requests, contacts });
     } catch (e: any) {
@@ -1939,7 +1937,7 @@ router.post("/admin/faq", async (req, res) => {
       const username = normUsername(req.body?.username);
       const fullName = String(req.body?.fullName || req.body?.full_name || "").trim();
       const banksInput = (req.body as any)?.banks;
-      const banks = Array.isArray(banksInput) ? (banksInput as any[]).map(String) : undefined;
+      const banks = banksInput !== undefined ? normalizeBankIcons(banksInput) : undefined;
 
       if (!tg_id && !username) return res.status(400).json({ ok: false, error: "tg_id_or_username_required" });
 
@@ -1956,7 +1954,7 @@ router.post("/admin/faq", async (req, res) => {
         const secondary = byU as Contact;
         primary.username = primary.username || secondary.username;
         primary.fullName = primary.fullName || secondary.fullName;
-        primary.banks = (Array.isArray(primary.banks) && primary.banks.length) ? primary.banks : secondary.banks;
+        primary.banks = normalizeBankIcons((Array.isArray(primary.banks) && primary.banks.length) ? primary.banks : secondary.banks);
         primary.created_at = primary.created_at || secondary.created_at;
 
         const i = list.indexOf(secondary as any);
@@ -1979,7 +1977,7 @@ router.post("/admin/faq", async (req, res) => {
       if (tg_id) c.tg_id = tg_id;
       if (username) c.username = username;
       if (fullName || fullName === "") c.fullName = fullName;
-      if (banks !== undefined) c.banks = banks;
+      if (banks !== undefined) c.banks = normalizeBankIcons(banks);
 
       // note: staff doesn't change status here
       await writeStore(store);

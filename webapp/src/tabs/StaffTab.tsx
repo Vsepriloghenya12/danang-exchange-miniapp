@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   apiGetBankIcons,
+  bankIconUrl,
   apiStaffGetRequests,
   apiStaffSetRequestState,
   apiStaffUpdateRequest,
@@ -168,7 +169,7 @@ export default function StaffTab({ me }: any) {
       }
 
       if (bi.status === "fulfilled" && bi.value?.ok) {
-        setIcons(Array.isArray(bi.value.icons) ? bi.value.icons : []);
+        setIcons(Array.from(new Set(Array.isArray(bi.value.icons) ? bi.value.icons : [])));
       }
     } finally {
       setLoading(false);
@@ -514,7 +515,7 @@ export default function StaffTab({ me }: any) {
                         onClick={() => toggleBank(ic)}
                         title={ic}
                       >
-                        <img src={`/banks/${ic}`} alt="" className="vx-bankImg" />
+                        <img src={bankIconUrl(ic)} alt="" className="vx-bankImg" onError={(e) => { const p = (e.currentTarget as HTMLImageElement).parentElement as HTMLElement | null; if (p) p.style.display = "none"; }} />
                       </button>
                     );
                   })}

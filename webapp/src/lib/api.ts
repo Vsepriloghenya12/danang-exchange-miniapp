@@ -523,3 +523,8 @@ export async function apiSuggestAtm(initData: string, text: string): Promise<any
   });
   return readJsonSafe(r);
 }
+
+export function bankIconUrl(filename: string): string {
+  return `/banks/${encodeURIComponent(String(filename || ""))}`;
+}
+
