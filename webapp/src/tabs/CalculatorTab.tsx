@@ -56,41 +56,38 @@ function fmtGroupedInt(intPart: string): string {
 }
 
 function amountMaxDecimals(cur: Currency): number {
-  if (cur === "USDT") return 4;
+  if (cur === "USDT") return 8;
   if (cur === "VND") return 0;
-  return 2;
+  return 6;
 }
 
-function detectDecimalSeparator(unsigned: string, maxDecimals: number): number {
-  if (maxDecimals <= 0) return -1;
+function countDigits(value: string): number {
+  return String(value ?? "").replace(/\D+/g, "").length;
+}
 
-  const dots = [...unsigned.matchAll(/\./g)].map((m) => m.index ?? -1).filter((n) => n >= 0);
-  const commas = [...unsigned.matchAll(/,/g)].map((m) => m.index ?? -1).filter((n) => n >= 0);
+function detectDecimalSeparator(unsigned: string, maxDecimals: number): { index: number; char: "." | "," | null } {
+  if (maxDecimals <= 0) return { index: -1, char: null };
 
-  const canBeDecimalAt = (idx: number) => {
-    const rightDigits = unsigned.slice(idx + 1).replace(/\D+/g, "");
-    return rightDigits.length <= maxDecimals;
-  };
-
-  if (dots.length > 0 && commas.length > 0) {
-    const idx = Math.max(dots[dots.length - 1], commas[commas.length - 1]);
-    return canBeDecimalAt(idx) ? idx : -1;
+  const dotIndex = unsigned.lastIndexOf(".");
+  if (dotIndex >= 0) {
+    const rightDigits = unsigned.slice(dotIndex + 1).replace(/\D+/g, "");
+    if (rightDigits.length <= maxDecimals) {
+      return { index: dotIndex, char: "." };
+    }
   }
 
-  if (dots.length === 1) return canBeDecimalAt(dots[0]) ? dots[0] : -1;
-  if (dots.length > 1) {
-    const idx = dots[dots.length - 1];
-    return canBeDecimalAt(idx) ? idx : -1;
+  const commaMatches = [...unsigned.matchAll(/,/g)].map((m) => m.index ?? -1).filter((n) => n >= 0);
+  if (commaMatches.length === 1) {
+    const commaIndex = commaMatches[0];
+    const leftDigits = countDigits(unsigned.slice(0, commaIndex));
+    const rightDigits = unsigned.slice(commaIndex + 1).replace(/\D+/g, "");
+    const looksLikeThousands = rightDigits.length === 3 && leftDigits >= 1;
+    if (!looksLikeThousands && rightDigits.length <= maxDecimals) {
+      return { index: commaIndex, char: "," };
+    }
   }
 
-  if (commas.length === 1) return canBeDecimalAt(commas[0]) ? commas[0] : -1;
-
-  if (commas.length > 1) {
-    const idx = commas[commas.length - 1];
-    return canBeDecimalAt(idx) ? idx : -1;
-  }
-
-  return -1;
+  return { index: -1, char: null };
 }
 
 function normalizeTypedNumber(rawInput: string, maxDecimals: number) {
@@ -99,14 +96,14 @@ function normalizeTypedNumber(rawInput: string, maxDecimals: number) {
 
   const sign = raw.startsWith("-") ? "-" : "";
   const unsigned = raw.replace(/-/g, "");
-  const sepIndex = detectDecimalSeparator(unsigned, maxDecimals);
-  const hasSep = sepIndex >= 0;
+  const sepInfo = detectDecimalSeparator(unsigned, maxDecimals);
+  const hasSep = sepInfo.index >= 0;
 
   let intPart = "";
   let decPart = "";
   if (hasSep) {
-    intPart = unsigned.slice(0, sepIndex).replace(/\D+/g, "");
-    decPart = unsigned.slice(sepIndex + 1).replace(/\D+/g, "").slice(0, maxDecimals);
+    intPart = unsigned.slice(0, sepInfo.index).replace(/\D+/g, "");
+    decPart = unsigned.slice(sepInfo.index + 1).replace(/\D+/g, "").slice(0, maxDecimals);
   } else {
     intPart = unsigned.replace(/\D+/g, "");
   }
@@ -130,11 +127,14 @@ function formatExact(cur: Currency, n: number): string {
   const maxDecimals = amountMaxDecimals(cur);
   const sign = n < 0 ? "-" : "";
   const abs = Math.abs(n);
-  const fixed = maxDecimals > 0 ? abs.toFixed(Math.min(8, maxDecimals + 2)) : abs.toFixed(0);
-  let [intPart, decPart = ""] = fixed.split(".");
+  const plain = abs.toLocaleString("en-US", {
+    useGrouping: false,
+    maximumFractionDigits: maxDecimals,
+  });
+  let [intPart, decPart = ""] = plain.split(".");
   intPart = fmtGroupedInt(intPart);
   if (maxDecimals <= 0) return sign + intPart;
-  decPart = decPart.replace(/0+$/, "").slice(0, maxDecimals);
+  decPart = decPart.replace(/0+$/, "");
   return sign + (decPart ? `${intPart}.${decPart}` : intPart);
 }
 
@@ -432,6 +432,11 @@ export default function CalculatorTab({ me }: Props) {
   const [buyText, setBuyText] = useState("");
 
   const lastEdited = useRef<"sell" | "buy">("sell");
+  const skipNextRecalc = useRef(false);
+  const preserveSwappedValuesRef = useRef(false);
+  const skipNextCurrencyNormalizeCount = useRef(0);
+  const sellRawRef = useRef<number | null>(null);
+  const buyRawRef = useRef<number | null>(null);
 
   const [payMethod, setPayMethod] = useState<PayMethod>("transfer");
   const [receiveMethod, setReceiveMethod] = useState<ReceiveMethod>("cash");
@@ -544,15 +549,25 @@ export default function CalculatorTab({ me }: Props) {
 
   // Re-format inputs when currency changes (e.g. USDT may have decimals)
   useEffect(() => {
+    if (skipNextCurrencyNormalizeCount.current > 0) {
+      skipNextCurrencyNormalizeCount.current -= 1;
+      return;
+    }
     setSellText((t) => {
       const next = fmtFromInput(sellCurrency, t);
+      sellRawRef.current = next.trim() ? parseAmount(sellCurrency, next) : null;
       return next === t ? t : next;
     });
   }, [sellCurrency]);
 
   useEffect(() => {
+    if (skipNextCurrencyNormalizeCount.current > 0) {
+      skipNextCurrencyNormalizeCount.current -= 1;
+      return;
+    }
     setBuyText((t) => {
       const next = fmtFromInput(buyCurrency, t);
+      buyRawRef.current = next.trim() ? parseAmount(buyCurrency, next) : null;
       return next === t ? t : next;
     });
   }, [buyCurrency]);
@@ -608,6 +623,12 @@ export default function CalculatorTab({ me }: Props) {
 
   // ======= Recalc =======
   useEffect(() => {
+    if (skipNextRecalc.current) {
+      skipNextRecalc.current = false;
+      return;
+    }
+
+    if (preserveSwappedValuesRef.current) return;
     if (!canCalc) return;
 
     const formatComputed = (cur: Currency, n: number) => {
@@ -624,10 +645,12 @@ export default function CalculatorTab({ me }: Props) {
       if (lastEdited.current === "sell") {
         const outRaw = calcBuyAmountG(market, formulas, sellCurrency, buyCurrency, sellAmount);
         const next = sellText.trim() !== "" && Number.isFinite(outRaw) ? formatComputed(buyCurrency, outRaw) : "";
+        buyRawRef.current = next ? outRaw : null;
         if (next !== buyText) setBuyText(next);
       } else {
         const needRaw = calcSellAmountG(market, formulas, sellCurrency, buyCurrency, buyAmount);
         const next = buyText.trim() !== "" && Number.isFinite(needRaw) ? formatComputedSell(sellCurrency, needRaw) : "";
+        sellRawRef.current = next ? needRaw : null;
         if (next !== sellText) setSellText(next);
       }
       return;
@@ -649,6 +672,7 @@ export default function CalculatorTab({ me }: Props) {
 
       const outRaw = calcBuyAmountVnd(effectiveRates, sellCurrency, buyCurrency, sellAmount);
       const next = sellText.trim() !== "" && Number.isFinite(outRaw) ? formatComputed(buyCurrency, outRaw) : "";
+      buyRawRef.current = next ? outRaw : null;
       if (next !== buyText) setBuyText(next);
     } else {
       // Iteration is needed only because tier bonus depends on sellAmount
@@ -675,6 +699,7 @@ export default function CalculatorTab({ me }: Props) {
       }
 
       const next = buyText.trim() !== "" && Number.isFinite(guess) ? formatComputedSell(sellCurrency, guess) : "";
+      sellRawRef.current = next ? guess : null;
       if (next !== sellText) setSellText(next);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -755,13 +780,21 @@ export default function CalculatorTab({ me }: Props) {
       ? swappedReceiveCandidate
       : nextAllowedReceive[0];
 
+    const currentSellRaw = sellText.trim() !== "" ? (sellRawRef.current ?? sellAmount) : null;
+    const currentBuyRaw = buyText.trim() !== "" ? (buyRawRef.current ?? buyAmount) : null;
+
+    preserveSwappedValuesRef.current = true;
+    skipNextRecalc.current = true;
+    skipNextCurrencyNormalizeCount.current = 2;
     lastEdited.current = "sell";
+    sellRawRef.current = currentBuyRaw;
+    buyRawRef.current = currentSellRaw;
     setSellCurrency(nextSellCurrency);
     setBuyCurrency(nextBuyCurrency);
     setPayMethod(nextPayMethod);
     setReceiveMethod(nextReceiveMethod);
-    setSellText(buyText ? fmtFromInput(nextSellCurrency, buyText) : "");
-    setBuyText("");
+    setSellText(currentBuyRaw != null && Number.isFinite(currentBuyRaw) ? formatExact(nextSellCurrency, currentBuyRaw) : "");
+    setBuyText(currentSellRaw != null && Number.isFinite(currentSellRaw) ? formatExact(nextBuyCurrency, currentSellRaw) : "");
   }
 
   async function sendRequest() {
@@ -834,7 +867,10 @@ export default function CalculatorTab({ me }: Props) {
 
       <div className="vx-calcBox">
         <div className="vx-exRow">
-          <select value={sellCurrency} onChange={(e) => setSellCurrency(e.target.value as Currency)}>
+          <select value={sellCurrency} onChange={(e) => {
+            preserveSwappedValuesRef.current = false;
+            setSellCurrency(e.target.value as Currency);
+          }}>
             {CURRENCY_OPTIONS.map((c) => (
               <option key={"sell-" + c} value={c}>
                 {c}
@@ -848,8 +884,11 @@ export default function CalculatorTab({ me }: Props) {
             value={sellText}
             className={invalidUsdSell || invalidEurSell || invalidThbSell || invalidVndSellCash ? "vx-inputInvalid" : ""}
             onChange={(e) => {
+              preserveSwappedValuesRef.current = false;
               lastEdited.current = "sell";
-              setSellText(fmtFromInput(sellCurrency, e.target.value));
+              const next = fmtFromInput(sellCurrency, e.target.value);
+              sellRawRef.current = next.trim() ? parseAmount(sellCurrency, next) : null;
+              setSellText(next);
             }}
           />
 
@@ -861,7 +900,10 @@ export default function CalculatorTab({ me }: Props) {
         <div className="vx-sp10" />
 
         <div className="vx-exRow">
-          <select value={buyCurrency} onChange={(e) => setBuyCurrency(e.target.value as Currency)}>
+          <select value={buyCurrency} onChange={(e) => {
+            preserveSwappedValuesRef.current = false;
+            setBuyCurrency(e.target.value as Currency);
+          }}>
             {CURRENCY_OPTIONS.map((c) => (
               <option key={"buy-" + c} value={c}>
                 {c}
@@ -875,8 +917,11 @@ export default function CalculatorTab({ me }: Props) {
             value={buyText}
             className={invalidUsdBuy || invalidEurBuy || invalidThbBuy || invalidVndBuyCash || invalidVndBuyAtm ? "vx-inputInvalid" : ""}
             onChange={(e) => {
+              preserveSwappedValuesRef.current = false;
               lastEdited.current = "buy";
-              setBuyText(fmtFromInput(buyCurrency, e.target.value));
+              const next = fmtFromInput(buyCurrency, e.target.value);
+              buyRawRef.current = next.trim() ? parseAmount(buyCurrency, next) : null;
+              setBuyText(next);
             }}
           />
 
@@ -896,7 +941,10 @@ export default function CalculatorTab({ me }: Props) {
                   (disabled ? "vx-pillDisabled" : "")
                 }
                 onClick={() => {
-                  if (!disabled) setPayMethod(m);
+                  if (!disabled) {
+                    preserveSwappedValuesRef.current = false;
+                    setPayMethod(m);
+                  }
                 }}
                 role="button"
                 aria-disabled={disabled}
@@ -920,7 +968,10 @@ export default function CalculatorTab({ me }: Props) {
                   (disabled ? "vx-pillDisabled" : "")
                 }
                 onClick={() => {
-                  if (!disabled) setReceiveMethod(m);
+                  if (!disabled) {
+                    preserveSwappedValuesRef.current = false;
+                    setReceiveMethod(m);
+                  }
                 }}
                 role="button"
                 aria-disabled={disabled}
