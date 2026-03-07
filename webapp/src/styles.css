@@ -920,6 +920,17 @@ html[data-theme="dark"] .theme-client .vx-navPosR .vx-navLabel{ font-size: 8.5px
   margin: 0;
   color: var(--text);
 }
+.vx-bankBrand{ display:inline-block; letter-spacing: .02em; white-space: nowrap; }
+.vx-bankBrandVcb{
+  color: #009b77;
+  font-weight: 950;
+  text-shadow: 0 0 10px rgba(0,155,119,.18);
+}
+.vx-bankBrandBidv{
+  color: #0d4ea6;
+  font-weight: 950;
+  text-shadow: 0 0 10px rgba(13,78,166,.14);
+}
 
 .vx-atmHintBox{
   margin-top: 8px;
@@ -935,6 +946,14 @@ html[data-theme="dark"] .theme-client .vx-atmHint{
   line-height: 1.35;
   margin: 0;
   color: var(--text);
+}
+html[data-theme="dark"] .theme-client .vx-bankBrandVcb{
+  color: #1cc99a;
+  text-shadow: 0 0 14px rgba(28,201,154,.24), 0 0 28px rgba(28,201,154,.12);
+}
+html[data-theme="dark"] .theme-client .vx-bankBrandBidv{
+  color: #5fa8ff;
+  text-shadow: 0 0 14px rgba(95,168,255,.24), 0 0 28px rgba(95,168,255,.12);
 }
 
 /* ATM: highlighted info block (stronger than buttons, so it doesn't merge visually) */
@@ -3022,12 +3041,21 @@ html[data-theme="dark"] .theme-client .mx-afEvCard{
   content:"";
   position:absolute;
   inset:0;
-  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.60) 100%);
+  background: linear-gradient(180deg, rgba(0,0,0,.20) 0%, rgba(0,0,0,.48) 42%, rgba(0,0,0,.76) 100%);
 }
-.mx-afEvBody{ position: relative; z-index: 1; padding: 16px; }
-.mx-afEvCard.has-img .mx-afTitle{ color: rgba(255,255,255,.96); }
-.mx-afEvCard.has-img .mx-afComment{ color: rgba(255,255,255,.88); }
-.mx-afEvCard.has-img .mx-afMeta{ color: rgba(255,255,255,.80); }
+.mx-afEvBody{ position: relative; z-index: 1; padding: 16px; backdrop-filter: saturate(1.02); }
+.mx-afEvCard.has-img .mx-afTitle{
+  color: rgba(255,255,255,.98);
+  text-shadow: 0 2px 10px rgba(0,0,0,.72), 0 10px 24px rgba(0,0,0,.42);
+}
+.mx-afEvCard.has-img .mx-afComment{
+  color: rgba(255,255,255,.94);
+  text-shadow: 0 2px 8px rgba(0,0,0,.72);
+}
+.mx-afEvCard.has-img .mx-afMeta{
+  color: rgba(255,255,255,.86);
+  text-shadow: 0 2px 8px rgba(0,0,0,.68);
+}
 
 /* Rates table inside the home "Курс" card (no extra card wrapper) */
 .mx-rateTable{ display:flex; flex-direction:column; gap: 0; border-top: 1px solid rgba(0,0,0,.06); }
@@ -3402,3 +3430,11 @@ html[data-theme="dark"] .theme-client .mx-faqA{
   text-shadow: 0 1px 0 rgba(0,0,0,.55);
 }
 
+
+
+.vx-contactRow.is-clickable{ cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+.vx-contactRow.is-clickable:hover{ transform: translateY(-1px); }
+.vx-contactRow.is-clickable:active{ transform: translateY(0); }
+
+.vx-cardSel{ border-color: rgba(246,198,0,.34) !important; box-shadow: 0 18px 56px rgba(0,0,0,.12), 0 0 0 1px rgba(246,198,0,.18) inset; }
+html[data-theme="dark"] .theme-client .vx-cardSel{ border-color: rgba(246,198,0,.38) !important; box-shadow: 0 28px 84px rgba(0,0,0,.58), 0 0 0 1px rgba(246,198,0,.22) inset, 0 0 18px rgba(246,198,0,.10); }

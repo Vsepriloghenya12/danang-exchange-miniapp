@@ -3,6 +3,7 @@ import {
   apiGetBankIcons,
   apiStaffGetRequests,
   apiStaffSetRequestState,
+  apiStaffUpdateRequest,
   apiStaffUpsertContact,
 } from "../lib/api";
 import type { Contact } from "../lib/types";
@@ -104,12 +105,37 @@ export default function StaffTab({ me }: any) {
 
   const [fullName, setFullName] = useState<string>("");
   const [banks, setBanks] = useState<string[]>([]);
+  const [editSellCurrency, setEditSellCurrency] = useState<string>("");
+  const [editBuyCurrency, setEditBuyCurrency] = useState<string>("");
+  const [editSellAmount, setEditSellAmount] = useState<string>("");
+  const [editBuyAmount, setEditBuyAmount] = useState<string>("");
+  const [editPayMethod, setEditPayMethod] = useState<string>("transfer");
+  const [editReceiveMethod, setEditReceiveMethod] = useState<string>("cash");
+  const [savingRequest, setSavingRequest] = useState(false);
 
   // sync editor when selection changes
   useEffect(() => {
     setFullName(selectedContact?.fullName || "");
     setBanks(Array.isArray(selectedContact?.banks) ? selectedContact!.banks! : []);
   }, [selectedContact?.id]);
+
+  useEffect(() => {
+    if (!selectedReq) {
+      setEditSellCurrency("");
+      setEditBuyCurrency("");
+      setEditSellAmount("");
+      setEditBuyAmount("");
+      setEditPayMethod("transfer");
+      setEditReceiveMethod("cash");
+      return;
+    }
+    setEditSellCurrency(String(selectedReq.sellCurrency || ""));
+    setEditBuyCurrency(String(selectedReq.buyCurrency || ""));
+    setEditSellAmount(String(selectedReq.sellAmount ?? ""));
+    setEditBuyAmount(String(selectedReq.buyAmount ?? ""));
+    setEditPayMethod(String(selectedReq.payMethod || "transfer"));
+    setEditReceiveMethod(String(selectedReq.receiveMethod || "cash"));
+  }, [selectedReq?.id]);
 
   async function loadAll() {
     if (!initData) return;
@@ -171,6 +197,46 @@ export default function StaffTab({ me }: any) {
       setView("history");
     }
     tg?.HapticFeedback?.notificationOccurred?.("success");
+  }
+
+  async function saveRequestEdit() {
+    if (!selectedReq || savingRequest) return;
+    const state = String(selectedReq.state || "");
+    if (state !== "in_progress" && state !== "new") {
+      tg?.showAlert?.("Редактирование доступно только для заявки в работе.");
+      return;
+    }
+
+    const payload = {
+      sellCurrency: String(editSellCurrency || "").trim().toUpperCase(),
+      buyCurrency: String(editBuyCurrency || "").trim().toUpperCase(),
+      sellAmount: Number(String(editSellAmount || "").replace(",", ".")),
+      buyAmount: Number(String(editBuyAmount || "").replace(",", ".")),
+      payMethod: String(editPayMethod || "").trim().toLowerCase(),
+      receiveMethod: String(editReceiveMethod || "").trim().toLowerCase(),
+    };
+
+    if (!payload.sellCurrency || !payload.buyCurrency || payload.sellCurrency === payload.buyCurrency) {
+      tg?.showAlert?.("Проверь пару валют.");
+      return;
+    }
+    if (!Number.isFinite(payload.sellAmount) || payload.sellAmount <= 0 || !Number.isFinite(payload.buyAmount) || payload.buyAmount <= 0) {
+      tg?.showAlert?.("Проверь суммы заявки.");
+      return;
+    }
+
+    setSavingRequest(true);
+    try {
+      const r = await apiStaffUpdateRequest(initData, String(selectedReq.id), payload);
+      if (!r?.ok) {
+        tg?.showAlert?.(r?.error || "Ошибка");
+        return;
+      }
+      await loadAll();
+      tg?.HapticFeedback?.notificationOccurred?.("success");
+    } finally {
+      setSavingRequest(false);
+    }
   }
 
   async function saveContact() {
@@ -359,6 +425,46 @@ export default function StaffTab({ me }: any) {
               <div>💳 Оплата: <b>{methodLabel(String(selectedReq.payMethod || ""))}</b></div>
               <div>📦 Получение: <b>{methodLabel(String(selectedReq.receiveMethod || ""))}</b></div>
             </div>
+
+            {(String(selectedReq.state) === "in_progress" || String(selectedReq.state) === "new") ? (
+              <>
+                <div className="hr" />
+                <div className="small">Редактирование заявки</div>
+                <div className="vx-muted" style={{ marginTop: 4 }}>Пока заявка в работе, админ может скорректировать пару, суммы и способы.</div>
+                <div className="vx-sp8" />
+
+                <div className="vx-rowWrap" style={{ display: "grid", gap: 8 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <select className="input vx-in" value={editSellCurrency} onChange={(e) => setEditSellCurrency(e.target.value)}>
+                      {["RUB", "USDT", "USD", "EUR", "THB", "VND"].map((c) => <option key={"sell-" + c} value={c}>{c}</option>)}
+                    </select>
+                    <select className="input vx-in" value={editBuyCurrency} onChange={(e) => setEditBuyCurrency(e.target.value)}>
+                      {["RUB", "USDT", "USD", "EUR", "THB", "VND"].map((c) => <option key={"buy-" + c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <input className="input vx-in" inputMode="decimal" value={editSellAmount} onChange={(e) => setEditSellAmount(e.target.value)} placeholder="Сумма, которую отдаёт клиент" />
+                    <input className="input vx-in" inputMode="decimal" value={editBuyAmount} onChange={(e) => setEditBuyAmount(e.target.value)} placeholder="Сумма, которую получает клиент" />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <select className="input vx-in" value={editPayMethod} onChange={(e) => setEditPayMethod(e.target.value)}>
+                      <option value="cash">Наличные</option>
+                      <option value="transfer">Перевод</option>
+                    </select>
+                    <select className="input vx-in" value={editReceiveMethod} onChange={(e) => setEditReceiveMethod(e.target.value)}>
+                      <option value="cash">Наличные</option>
+                      <option value="transfer">Перевод</option>
+                      <option value="atm">Банкомат</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="vx-sp10" />
+                <button type="button" className="btn" onClick={saveRequestEdit} disabled={savingRequest}>
+                  {savingRequest ? "Сохраняю заявку…" : "Сохранить заявку"}
+                </button>
+              </>
+            ) : null}
 
             <div className="hr" />
 

@@ -302,6 +302,15 @@ export async function apiStaffSetRequestState(initData: string, id: string, stat
   return r.json();
 }
 
+export async function apiStaffUpdateRequest(initData: string, id: string, payload: any) {
+  const r = await fetch(`/api/staff/requests/${encodeURIComponent(id)}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-telegram-init-data": initData },
+    body: JSON.stringify(payload)
+  });
+  return readJsonSafe(r);
+}
+
 export async function apiStaffUpsertContact(
   initData: string,
   payload: Partial<Contact> & { tg_id?: number; username?: string }

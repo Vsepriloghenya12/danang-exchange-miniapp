@@ -60,8 +60,6 @@ export type Rates = {
 export type GFormula = {
   buyMul: number;
   sellMul: number;
-  extraBuy?: number;
-  extraSell?: number;
 };
 
 export type StoredUser = {
@@ -250,7 +248,8 @@ export function defaultGFormulas(): Record<string, GFormula> {
     "USD/RUB": { buyMul: 0.98, sellMul: 1.08 },
     "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
     "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
-    "USD/USDT": { buyMul: 0.965, sellMul: 1.035, extraBuy: 0, extraSell: 0 },
+    "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
+    "USDT/USD": { buyMul: 0.965, sellMul: 1.035 },
     "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
     "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
     "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
@@ -355,17 +354,9 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
       const v = (obj as any)[k];
       const buy = Number(String(v?.buyMul ?? def[k].buyMul).replace(",", "."));
       const sell = Number(String(v?.sellMul ?? def[k].sellMul).replace(",", "."));
-      const extraBuy = Number(String(v?.extraBuy ?? (def[k] as any)?.extraBuy ?? 0).replace(",", "."));
-      const extraSell = Number(String(v?.extraSell ?? (def[k] as any)?.extraSell ?? 0).replace(",", "."));
       cleaned[k] = {
         buyMul: Number.isFinite(buy) && buy > 0 ? buy : def[k].buyMul,
-        sellMul: Number.isFinite(sell) && sell > 0 ? sell : def[k].sellMul,
-        ...(k === "USD/USDT"
-          ? {
-              extraBuy: Number.isFinite(extraBuy) ? extraBuy : ((def[k] as any)?.extraBuy ?? 0),
-              extraSell: Number.isFinite(extraSell) ? extraSell : ((def[k] as any)?.extraSell ?? 0)
-            }
-          : {})
+        sellMul: Number.isFinite(sell) && sell > 0 ? sell : def[k].sellMul
       };
     }
     const before = JSON.stringify(obj ?? null);

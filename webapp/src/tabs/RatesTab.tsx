@@ -20,6 +20,7 @@ const PAIRS: Pair[] = [
   { id: "eur-rub", base: "EUR", quote: "RUB", mode: "g" },
   { id: "thb-rub", base: "THB", quote: "RUB", mode: "g" },
   { id: "usd-usdt", base: "USD", quote: "USDT", mode: "g" },
+  { id: "usdt-usd", base: "USDT", quote: "USD", mode: "g" },
   { id: "eur-usd", base: "EUR", quote: "USD", mode: "g" },
   { id: "eur-usdt", base: "EUR", quote: "USDT", mode: "g" },
   { id: "usd-thb", base: "USD", quote: "THB", mode: "g" },
@@ -27,12 +28,13 @@ const PAIRS: Pair[] = [
   { id: "eur-thb", base: "EUR", quote: "THB", mode: "g" }
 ];
 
-const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }> = {
+const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
   "USDT/RUB": { buyMul: 0.98, sellMul: 1.08 },
   "USD/RUB": { buyMul: 0.98, sellMul: 1.08 },
   "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
   "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
-  "USD/USDT": { buyMul: 0.965, sellMul: 1.035, extraBuy: 0, extraSell: 0 },
+  "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
+  "USDT/USD": { buyMul: 0.965, sellMul: 1.035 },
   "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
   "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
   "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
@@ -58,10 +60,10 @@ function fmtDaNang(d: Date) {
   }
 }
 
-// ✅ VND — без копеек, остальные парсинг‑пары — с 1 знаком
-function fmt(quote: Cur, n: number | null) {
+// ✅ VND — без копеек, парсинг‑пары — с 1 знаком, кроме USD → USDT (3 знака)
+function fmt(pairId: string, quote: Cur, n: number | null) {
   if (n == null || !Number.isFinite(n)) return "—";
-  const digits = quote === "VND" ? 0 : 1;
+  const digits = quote === "VND" ? 0 : pairId === "usd-usdt" ? 3 : 1;
   return new Intl.NumberFormat("ru-RU", {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits
@@ -101,7 +103,7 @@ function calcFromVnd(rates: any, base: Cur, quote: Cur): { buy: number | null; s
 
 function calcFromG(
   market: MarketRatesResponse | null,
-  formulas: Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }> | null,
+  formulas: Record<string, { buyMul: number; sellMul: number }> | null,
   base: Cur,
   quote: Cur
 ): { buy: number | null; sell: number | null } {
@@ -110,9 +112,7 @@ function calcFromG(
   const f = (formulas && formulas[key]) || DEFAULT_G_FORMULAS[key];
   const G = Number(market.g?.[key]);
   if (!f || !Number.isFinite(G) || G <= 0) return { buy: null, sell: null };
-  const extraBuy = key === "USD/USDT" && Number.isFinite(Number((f as any)?.extraBuy)) ? Number((f as any).extraBuy) : 0;
-  const extraSell = key === "USD/USDT" && Number.isFinite(Number((f as any)?.extraSell)) ? Number((f as any).extraSell) : 0;
-  return { buy: G * f.buyMul + extraBuy, sell: G * f.sellMul + extraSell };
+  return { buy: G * f.buyMul, sell: G * f.sellMul };
 }
 
 type Props = { embedded?: boolean; limit?: number };
@@ -120,7 +120,7 @@ type Props = { embedded?: boolean; limit?: number };
 export default function RatesTab({ embedded = false, limit }: Props = {}) {
   const [today, setToday] = useState<TodayRatesResponse | null>(null);
   const [market, setMarket] = useState<MarketRatesResponse | null>(null);
-  const [formulas, setFormulas] = useState<Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }>>(DEFAULT_G_FORMULAS);
+  const [formulas, setFormulas] = useState<Record<string, { buyMul: number; sellMul: number }>>(DEFAULT_G_FORMULAS);
 
   useEffect(() => {
     apiGetTodayRates().then(setToday);
@@ -199,10 +199,10 @@ export default function RatesTab({ embedded = false, limit }: Props = {}) {
               {r.base} → {r.quote}
             </div>
             <div className={"mx-rateCell mx-rateBuy " + (r.buy == null ? "vx-dash" : "")} role="cell">
-              {fmt(r.quote, r.buy)}
+              {fmt(r.id, r.quote, r.buy)}
             </div>
             <div className={"mx-rateCell mx-rateSell " + (r.sell == null ? "vx-dash" : "")} role="cell">
-              {fmt(r.quote, r.sell)}
+              {fmt(r.id, r.quote, r.sell)}
             </div>
           </div>
         ))}

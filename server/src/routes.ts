@@ -804,17 +804,9 @@ export function createApiRouter(opts: {
       const v = (src as any)[k];
       const buy = Number(String(v?.buyMul ?? def[k].buyMul).replace(",", "."));
       const sell = Number(String(v?.sellMul ?? def[k].sellMul).replace(",", "."));
-      const extraBuy = Number(String(v?.extraBuy ?? (def[k] as any)?.extraBuy ?? 0).replace(",", "."));
-      const extraSell = Number(String(v?.extraSell ?? (def[k] as any)?.extraSell ?? 0).replace(",", "."));
       out[k] = {
         buyMul: Number.isFinite(buy) && buy > 0 ? buy : def[k].buyMul,
-        sellMul: Number.isFinite(sell) && sell > 0 ? sell : def[k].sellMul,
-        ...(k === "USD/USDT"
-          ? {
-              extraBuy: Number.isFinite(extraBuy) ? extraBuy : ((def[k] as any)?.extraBuy ?? 0),
-              extraSell: Number.isFinite(extraSell) ? extraSell : ((def[k] as any)?.extraSell ?? 0)
-            }
-          : {})
+        sellMul: Number.isFinite(sell) && sell > 0 ? sell : def[k].sellMul
       };
     }
     return out as Record<string, { buyMul: number; sellMul: number }>;
@@ -1880,6 +1872,57 @@ router.post("/admin/faq", async (req, res) => {
         });
       } catch {}
 
+      return res.json({ ok: true, request: r });
+    } catch (e: any) {
+      return res.status(e?.message === "not_admin" ? 403 : 401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  router.post("/staff/requests/:id", async (req, res) => {
+    try {
+      await requireStaff(req);
+      const id = String(req.params.id || "");
+      if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
+
+      const store = await readStore();
+      const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
+      if (!r) return res.status(404).json({ ok: false, error: "not_found" });
+
+      const curState = String(r.state || "");
+      if (curState !== "in_progress" && curState !== "new") {
+        return res.status(400).json({ ok: false, error: "request_not_editable" });
+      }
+
+      const allowedCurrencies = new Set(["RUB", "USDT", "USD", "EUR", "THB", "VND"]);
+      const allowedPayMethods = new Set(["cash", "transfer"]);
+      const allowedReceiveMethods = new Set(["cash", "transfer", "atm"]);
+
+      const sellCurrency = String(req.body?.sellCurrency || r.sellCurrency || "").toUpperCase().trim();
+      const buyCurrency = String(req.body?.buyCurrency || r.buyCurrency || "").toUpperCase().trim();
+      const sellAmount = Number(req.body?.sellAmount);
+      const buyAmount = Number(req.body?.buyAmount);
+      const payMethod = String(req.body?.payMethod || r.payMethod || "").toLowerCase().trim();
+      const receiveMethod = String(req.body?.receiveMethod || r.receiveMethod || "").toLowerCase().trim();
+
+      if (!allowedCurrencies.has(sellCurrency) || !allowedCurrencies.has(buyCurrency) || sellCurrency === buyCurrency) {
+        return res.status(400).json({ ok: false, error: "bad_currency_pair" });
+      }
+      if (!Number.isFinite(sellAmount) || sellAmount <= 0 || !Number.isFinite(buyAmount) || buyAmount <= 0) {
+        return res.status(400).json({ ok: false, error: "bad_amount" });
+      }
+      if (!allowedPayMethods.has(payMethod) || !allowedReceiveMethods.has(receiveMethod)) {
+        return res.status(400).json({ ok: false, error: "bad_method" });
+      }
+
+      r.sellCurrency = sellCurrency;
+      r.buyCurrency = buyCurrency;
+      r.sellAmount = sellAmount;
+      r.buyAmount = buyAmount;
+      r.payMethod = payMethod;
+      r.receiveMethod = receiveMethod;
+      r.state_updated_at = new Date().toISOString();
+
+      await writeStore(store);
       return res.json({ ok: true, request: r });
     } catch (e: any) {
       return res.status(e?.message === "not_admin" ? 403 : 401).json({ ok: false, error: e?.message || "auth_failed" });

@@ -11,7 +11,6 @@ import {
   apiAdminUsers,
   apiAdminGetRequests,
   apiAdminSetRequestState,
-  apiAdminSetUserStatus,
   apiAdminGetContacts,
   apiAdminUpsertContact,
   apiAdminGetReports,
@@ -36,12 +35,13 @@ const LS_CASH_OVERRIDES = "dx_cash_overrides_v1";
 
 // Cross-pair formulas (multipliers) — defaults match the current app logic.
 // BUY = G * buyMul, SELL = G * sellMul
-const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }> = {
+const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
   "USDT/RUB": { buyMul: 0.98, sellMul: 1.08 },
   "USD/RUB": { buyMul: 0.98, sellMul: 1.08 },
   "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
   "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
-  "USD/USDT": { buyMul: 0.965, sellMul: 1.035, extraBuy: 0, extraSell: 0 },
+  "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
+  "USDT/USD": { buyMul: 0.965, sellMul: 1.035 },
   "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
   "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
   "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
@@ -56,6 +56,11 @@ const STATUS_OPTIONS: Array<{ v: UserStatus; l: string }> = [
   { v: "silver", l: "Серебро" },
   { v: "gold", l: "Золото" },
 ];
+
+function statusLabelRu(v: any) {
+  const hit = STATUS_OPTIONS.find((x) => x.v === String(v || "standard"));
+  return hit?.l || "Стандарт";
+}
 
 function normU(u: string) {
   return String(u || "").trim().replace(/^@+/, "");
@@ -148,18 +153,12 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
 
 
   // G-formulas editor (owner)
-  const [gFormulasDraft, setGFormulasDraft] = useState<Record<string, { buyMul: string; sellMul: string; extraBuy?: string; extraSell?: string }>>(() => {
+  const [gFormulasDraft, setGFormulasDraft] = useState<Record<string, { buyMul: string; sellMul: string }>>(() => {
     const d: any = {};
     for (const k of G_FORMULA_KEYS) {
       d[k] = {
         buyMul: String(DEFAULT_G_FORMULAS[k]?.buyMul ?? ""),
-        sellMul: String(DEFAULT_G_FORMULAS[k]?.sellMul ?? ""),
-        ...(k === "USD/USDT"
-          ? {
-              extraBuy: String((DEFAULT_G_FORMULAS[k] as any)?.extraBuy ?? "0"),
-              extraSell: String((DEFAULT_G_FORMULAS[k] as any)?.extraSell ?? "0")
-            }
-          : {})
+        sellMul: String(DEFAULT_G_FORMULAS[k]?.sellMul ?? "")
       };
     }
     return d;
@@ -761,13 +760,7 @@ function moveFaq(id: string, dir: -1 | 1) {
     for (const k of G_FORMULA_KEYS) {
       d[k] = {
         buyMul: String(DEFAULT_G_FORMULAS[k]?.buyMul ?? ""),
-        sellMul: String(DEFAULT_G_FORMULAS[k]?.sellMul ?? ""),
-        ...(k === "USD/USDT"
-          ? {
-              extraBuy: String((DEFAULT_G_FORMULAS[k] as any)?.extraBuy ?? "0"),
-              extraSell: String((DEFAULT_G_FORMULAS[k] as any)?.extraSell ?? "0")
-            }
-          : {})
+        sellMul: String(DEFAULT_G_FORMULAS[k]?.sellMul ?? "")
       };
     }
     setGFormulasDraft(d);
@@ -782,13 +775,7 @@ function moveFaq(id: string, dir: -1 | 1) {
         const v = r.formulas?.[k] || DEFAULT_G_FORMULAS[k];
         next[k] = {
           buyMul: String(v?.buyMul ?? DEFAULT_G_FORMULAS[k].buyMul),
-          sellMul: String(v?.sellMul ?? DEFAULT_G_FORMULAS[k].sellMul),
-          ...(k === "USD/USDT"
-            ? {
-                extraBuy: String((v as any)?.extraBuy ?? (DEFAULT_G_FORMULAS[k] as any)?.extraBuy ?? 0),
-                extraSell: String((v as any)?.extraSell ?? (DEFAULT_G_FORMULAS[k] as any)?.extraSell ?? 0)
-              }
-            : {})
+          sellMul: String(v?.sellMul ?? DEFAULT_G_FORMULAS[k].sellMul)
         };
       }
       setGFormulasDraft(next);
@@ -807,17 +794,9 @@ function moveFaq(id: string, dir: -1 | 1) {
         const v = gFormulasDraft[k] || ({} as any);
         const buy = Number(String(v.buyMul ?? "").replace(",", ".").trim());
         const sell = Number(String(v.sellMul ?? "").replace(",", ".").trim());
-        const extraBuy = Number(String((v as any).extraBuy ?? "").replace(",", ".").trim());
-        const extraSell = Number(String((v as any).extraSell ?? "").replace(",", ".").trim());
         next[k] = {
           buyMul: Number.isFinite(buy) && buy > 0 ? buy : DEFAULT_G_FORMULAS[k].buyMul,
-          sellMul: Number.isFinite(sell) && sell > 0 ? sell : DEFAULT_G_FORMULAS[k].sellMul,
-          ...(k === "USD/USDT"
-            ? {
-                extraBuy: Number.isFinite(extraBuy) ? extraBuy : ((DEFAULT_G_FORMULAS[k] as any)?.extraBuy ?? 0),
-                extraSell: Number.isFinite(extraSell) ? extraSell : ((DEFAULT_G_FORMULAS[k] as any)?.extraSell ?? 0)
-              }
-            : {})
+          sellMul: Number.isFinite(sell) && sell > 0 ? sell : DEFAULT_G_FORMULAS[k].sellMul
         };
       }
 
@@ -835,14 +814,13 @@ function moveFaq(id: string, dir: -1 | 1) {
     }
   }
 
-  async function setClientStatus(tgId: number, status: UserStatus) {
-    const r = await apiAdminSetUserStatus(token, tgId, status);
-    if (!r?.ok) {
-      showErr(r?.error || "Ошибка");
-      return;
-    }
-    await loadClients();
-    showOk("Статус обновлён ✅");
+  function openClientEditor(u: any, c: any, tgId: number) {
+    setCUsername(u.username || "");
+    setCTgId(String(tgId));
+    setCFullName(c?.fullName || "");
+    setCStatus((c?.status as any) || (u.status as any) || "standard");
+    setCBanks(Array.isArray(c?.banks) ? c!.banks! : []);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function toggleBank(name: string) {
@@ -1533,47 +1511,6 @@ function moveFaq(id: string, dir: -1 | 1) {
                     />
                   </div>
                 </div>
-                {k === "USD/USDT" ? (
-                  <>
-                    <div className="vx-sp6" />
-                    <div className="small" style={{ opacity: 0.85 }}>
-                      Дополнительная надбавка только для пары USD/USDT: <b>BUY = G × buyMul + доп.BUY</b>, <b>SELL = G × sellMul + доп.SELL</b>.
-                    </div>
-                    <div className="vx-sp6" />
-                    <div className="vx-fields">
-                      <div className="vx-field">
-                        <div className="small"><b>доп. к BUY</b></div>
-                        <input
-                          className="input vx-in"
-                          inputMode="decimal"
-                          value={gFormulasDraft[k]?.extraBuy ?? ""}
-                          onChange={(e) =>
-                            setGFormulasDraft((prev) => ({
-                              ...(prev || {}),
-                              [k]: { ...(prev?.[k] || {}), extraBuy: e.target.value }
-                            }))
-                          }
-                          placeholder={String((DEFAULT_G_FORMULAS[k] as any)?.extraBuy ?? 0)}
-                        />
-                      </div>
-                      <div className="vx-field">
-                        <div className="small"><b>доп. к SELL</b></div>
-                        <input
-                          className="input vx-in"
-                          inputMode="decimal"
-                          value={gFormulasDraft[k]?.extraSell ?? ""}
-                          onChange={(e) =>
-                            setGFormulasDraft((prev) => ({
-                              ...(prev || {}),
-                              [k]: { ...(prev?.[k] || {}), extraSell: e.target.value }
-                            }))
-                          }
-                          placeholder={String((DEFAULT_G_FORMULAS[k] as any)?.extraSell ?? 0)}
-                        />
-                      </div>
-                    </div>
-                  </>
-                ) : null}
               </div>
             ))}
 
@@ -1746,6 +1683,7 @@ function moveFaq(id: string, dir: -1 | 1) {
 
             <div className="hr" />
             <div className="small"><b>Клиенты</b></div>
+            <div className="vx-muted" style={{ marginTop: 4 }}>Нажмите на клиента, чтобы открыть его карточку для редактирования имени, статуса и банков.</div>
             {users.length === 0 ? (
               <div className="vx-muted">Пока нет клиентов (они появятся после входа в мини‑апп).</div>
             ) : (
@@ -1765,20 +1703,26 @@ function moveFaq(id: string, dir: -1 | 1) {
                     const adminName = c?.fullName ? c.fullName : "—";
                     const banks = Array.isArray(c?.banks) ? c!.banks! : [];
 
-                    const sumText = (() => {
+                    const sumSellText = (() => {
                       const sell: Record<string, number> = (agg as any).sell || {};
-                      const buy: Record<string, number> = (agg as any).buy || {};
-                      if (Number(sell.RUB) > 0) return `${fmtNum(sell.RUB)} RUB`;
-                      if (Number(buy.VND) > 0) return `${fmtNum(buy.VND)} VND`;
-                      const s0 = Object.entries(sell)[0];
-                      if (s0 && Number(s0[1]) > 0) return `${fmtNum(s0[1])} ${s0[0]}`;
-                      const b0 = Object.entries(buy)[0];
-                      if (b0 && Number(b0[1]) > 0) return `${fmtNum(b0[1])} ${b0[0]}`;
-                      return "—";
+                      const items = Object.entries(sell)
+                        .filter(([, v]) => Number(v) > 0)
+                        .sort((a: any, b: any) => String(a[0]).localeCompare(String(b[0])));
+                      return items.length ? items.map(([k, v]: any) => `${k}: ${fmtNum(v)}`).join(' • ') : '—';
                     })();
 
+                    const sumBuyText = (() => {
+                      const buy: Record<string, number> = (agg as any).buy || {};
+                      const items = Object.entries(buy)
+                        .filter(([, v]) => Number(v) > 0)
+                        .sort((a: any, b: any) => String(a[0]).localeCompare(String(b[0])));
+                      return items.length ? items.map(([k, v]: any) => `${k}: ${fmtNum(v)}`).join(' • ') : '—';
+                    })();
+
+                    const isEditing = String(cTgId || "") === String(tgId);
+
                     return (
-                      <div key={String(tgId)} className="vx-contactRow">
+                      <div key={String(tgId)} className={"vx-contactRow is-clickable" + (isEditing ? " vx-cardSel" : "")} onClick={() => openClientEditor(u, c, tgId)}>
                         <div className="row vx-between vx-center" style={{ gap: 8, flexWrap: "wrap" }}>
                           <div>
                             <div>
@@ -1797,52 +1741,20 @@ function moveFaq(id: string, dir: -1 | 1) {
                             ) : null}
                           </div>
 
-                          <div style={{ textAlign: "right" }}>
-                            <div className="vx-muted">Сумма сделок</div>
-                            <div><b>{sumText}</b></div>
-                            <div className="vx-muted" style={{ marginTop: 2 }}>Сделок: <b>{fmtNum(agg.cnt)}</b></div>
+                          <div style={{ textAlign: "right", maxWidth: 420 }}>
+                            <div className="vx-muted">Отдал</div>
+                            <div><b>{sumSellText}</b></div>
+                            <div className="vx-muted" style={{ marginTop: 4 }}>Получил</div>
+                            <div><b>{sumBuyText}</b></div>
+                            <div className="vx-muted" style={{ marginTop: 6 }}>Сделок: <b>{fmtNum(agg.cnt)}</b></div>
                           </div>
                         </div>
 
                         <div className="vx-sp8" />
 
                         <div className="row vx-rowWrap vx-gap6" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                          {STATUS_OPTIONS.map((s) => {
-                            const isOn = String(u.status) === s.v;
-                            const activeStyle = isOn
-                              ? (s.v === "standard"
-                                  ? { background: "rgba(9,23,33,.88)", color: "rgba(255,255,255,.96)", border: 0 }
-                                  : s.v === "silver"
-                                    ? { background: "rgba(190,198,210,.95)", color: "rgba(9,23,33,.92)", border: 0 }
-                                    : { background: "rgba(255,179,87,.96)", color: "rgba(26,18,8,.92)", border: 0 })
-                              : undefined;
-
-                            return (
-                              <button
-                                key={s.v}
-                                className={`btn vx-btnSm vx-statusBtn vx-status-${s.v}${isOn ? " vx-btnOn" : ""}`}
-                                style={activeStyle as any}
-                                onClick={() => setClientStatus(tgId, s.v)}
-                              >
-                                {s.l}
-                              </button>
-                            );
-                          })}
-
-                          <button
-                            type="button"
-                            className="btn vx-btnSm"
-                            onClick={() => {
-                              setCUsername(u.username || "");
-                              setCTgId(String(tgId));
-                              setCFullName(c?.fullName || "");
-                              setCStatus((c?.status as any) || (u.status as any) || "standard");
-                              setCBanks(Array.isArray(c?.banks) ? c!.banks! : []);
-                              window.scrollTo({ top: 0, behavior: "smooth" });
-                            }}
-                          >
-                            Изменить карточку
-                          </button>
+                          <span className="vx-tag">Статус: <b>{statusLabelRu((c?.status as any) || (u.status as any) || "standard")}</b></span>
+                          <span className="vx-tag">Нажмите для редактирования</span>
                         </div>
                       </div>
                     );
@@ -2865,26 +2777,30 @@ function moveFaq(id: string, dir: -1 | 1) {
                 <div className="vx-metricCard">
                   <div className="vx-muted">Действия</div>
                   <div className="vx-metricVal">{fmtNum(anData?.totals?.events)}</div>
+                  <div className="vx-muted" style={{ marginTop: 4, fontSize: 12 }}>Все зафиксированные события приложения за период.</div>
                 </div>
                 <div className="vx-metricCard">
                   <div className="vx-muted">Пользователей всего</div>
                   <div className="vx-metricVal">{fmtNum((anData as any)?.totals?.all_users)}</div>
+                  <div className="vx-muted" style={{ marginTop: 4, fontSize: 12 }}>Все пользователи, которые когда-либо открывали приложение.</div>
                 </div>
                 <div className="vx-metricCard">
                   <div className="vx-muted">Уникальных за период</div>
                   <div className="vx-metricVal">{fmtNum(anData?.totals?.users)}</div>
+                  <div className="vx-muted" style={{ marginTop: 4, fontSize: 12 }}>Сколько разных пользователей было активно в выбранные даты.</div>
                 </div>
                 <div className="vx-metricCard">
                   <div className="vx-muted">Запусков (сессий)</div>
                   <div className="vx-metricVal">{fmtNum(anData?.totals?.sessions)}</div>
                   <div className="vx-muted" style={{ marginTop: 4, fontSize: 12 }}>
-                    Сессия = один запуск приложения (session_id)
+                    Сессия = один запуск приложения (session_id). Один пользователь может запускать приложение много раз.
                   </div>
                 </div>
               </div>
 
               <div className="vx-sp10" />
               <div className="small"><b>Переходы по вкладкам</b></div>
+              <div className="vx-muted" style={{ marginTop: 4 }}>Показывает, какие экраны открывали пользователи чаще всего.</div>
               <div className="vx-chipRow">
                 {Array.isArray(anData?.byScreen) && anData.byScreen.length ? (
                   anData.byScreen.slice(0, 30).map((x: any) => (
@@ -2897,6 +2813,7 @@ function moveFaq(id: string, dir: -1 | 1) {
 
               <div className="vx-sp10" />
               <div className="small"><b>Клики</b></div>
+              <div className="vx-muted" style={{ marginTop: 4 }}>Показывает на какие кнопки и элементы внутри приложения нажимали пользователи.</div>
               <div className="vx-chipRow">
                 {Array.isArray(anData?.byClick) && anData.byClick.length ? (
                   anData.byClick.slice(0, 50).map((x: any) => (
@@ -2909,6 +2826,7 @@ function moveFaq(id: string, dir: -1 | 1) {
 
               <div className="vx-sp10" />
               <div className="small"><b>События</b></div>
+              <div className="vx-muted" style={{ marginTop: 4 }}>Системные события приложения: открытия, возвраты, отправки заявок и другие действия.</div>
               <div className="vx-chipRow">
                 {Array.isArray(anData?.byEvent) && anData.byEvent.length ? (
                   anData.byEvent.slice(0, 50).map((x: any) => (

@@ -80,7 +80,7 @@ export default function AtmTab() {
     <div className="vx-atm">
       <div className="vx-atmHintBox">
         <div className="vx-atmHint">
-          Вы можете получить наличные в банкоматах <b>VIETCOMBANK</b> и <b>BIDV</b> в любом городе Вьетнама.
+          Вы можете получить наличные в банкоматах <span className="vx-bankBrand vx-bankBrandVcb">VIETCOMBANK</span> и <span className="vx-bankBrand vx-bankBrandBidv">BIDV</span> в любом городе Вьетнама.
         </div>
       </div>
 
@@ -92,21 +92,21 @@ export default function AtmTab() {
           className={"btn vx-atmBtn " + (active === "vietcombank" ? "vx-btnOn" : "")}
           onClick={() => setActive((p) => (p === "vietcombank" ? null : "vietcombank"))}
         >
-          Видео VIETCOMBANK
+          Видео <span className="vx-bankBrand vx-bankBrandVcb">Vietcombank</span>
         </button>
         <button
           type="button"
           className={"btn vx-atmBtn " + (active === "bidv" ? "vx-btnOn" : "")}
           onClick={() => setActive((p) => (p === "bidv" ? null : "bidv"))}
         >
-          Видео BIDV
+          Видео <span className="vx-bankBrand vx-bankBrandBidv">BIDV</span>
         </button>
       </div>
 
       {active ? (
         <div className="vx-sp12">
           <div className="small">
-            <b>{active === "vietcombank" ? "Видео инструкция для VIETCOMBANK" : "Видео инструкция для BIDV"}</b>
+            <b>{active === "vietcombank" ? <>Видео инструкция для <span className="vx-bankBrand vx-bankBrandVcb">Vietcombank</span></> : <>Видео инструкция для <span className="vx-bankBrand vx-bankBrandBidv">BIDV</span></>}</b>
           </div>
           <div className="vx-sp8" />
           <video className="vx-atmVideo" controls playsInline preload="metadata" src={src} />
@@ -126,7 +126,7 @@ export default function AtmTab() {
       <div className="vx-sp14" />
 
       <div className="vx-atmNote">
-        Если вы видите рядом с собой банкомат <b>Vietcombank</b> или <b>BIDV</b>, который не отмечен на нашей карте,
+        Если вы видите рядом с собой банкомат <span className="vx-bankBrand vx-bankBrandVcb">Vietcombank</span> или <span className="vx-bankBrand vx-bankBrandBidv">BIDV</span>, который не отмечен на нашей карте,
         пожалуйста, отправьте его локацию нашему менеджеру.
       </div>
 

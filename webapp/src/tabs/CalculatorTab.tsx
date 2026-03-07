@@ -27,12 +27,13 @@ const ALL_PAY: PayMethod[] = ["cash", "transfer"];
 const ALL_RECEIVE: ReceiveMethod[] = ["cash", "transfer", "atm"];
 
 // Формулы с картинки (на эти пары НЕ действуют бонусы/надбавки)
-const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }> = {
+const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
   "USDT/RUB": { buyMul: 0.98, sellMul: 1.08 },
   "USD/RUB": { buyMul: 0.98, sellMul: 1.08 },
   "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
   "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
-  "USD/USDT": { buyMul: 0.965, sellMul: 1.035, extraBuy: 0, extraSell: 0 },
+  "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
+  "USDT/USD": { buyMul: 0.965, sellMul: 1.035 },
   "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
   "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
   "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
@@ -54,108 +55,77 @@ function fmtGroupedInt(intPart: string): string {
   return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-function parseAmount(cur: Currency, input: string): number {
-  const raw = String(input ?? "").replace(/\s+/g, "");
-  if (!raw) return 0;
+function amountMaxDecimals(cur: Currency): number {
+  if (cur === "USDT") return 4;
+  if (cur === "VND") return 0;
+  return 2;
+}
 
-  if (cur === "USDT") {
-    // Accept either 100.1 or 100,1 (we normalize to dot) while keeping commas as grouping.
-    const s0 = raw.replace(/[^\d.,]/g, "");
-    const dotCount = (s0.match(/\./g) || []).length;
-    const commaCount = (s0.match(/,/g) || []).length;
+function normalizeTypedNumber(rawInput: string, maxDecimals: number) {
+  const raw = String(rawInput ?? "").replace(/\s+/g, "").replace(/[^\d.,-]/g, "");
+  if (!raw) return { intPart: "", decPart: "", hasSep: false, text: "" };
 
-    // Choose decimal separator
-    const useDot = dotCount >= 1;
-    const useCommaAsDecimal = !useDot && commaCount === 1 && /^\d+,\d$/.test(s0);
+  const sign = raw.startsWith("-") ? "-" : "";
+  const unsigned = raw.replace(/-/g, "");
+  const lastDot = unsigned.lastIndexOf(".");
+  const lastComma = unsigned.lastIndexOf(",");
+  const sepIndex = Math.max(lastDot, lastComma);
+  const hasSep = maxDecimals > 0 && sepIndex >= 0;
 
-    let s = s0;
-    if (useDot) {
-      // commas are grouping separators
-      s = s.replace(/,/g, "");
-    } else if (useCommaAsDecimal) {
-      s = s.replace(/,/g, ".");
-    } else {
-      // treat commas as grouping
-      s = s.replace(/,/g, "");
-    }
-
-    // keep only digits and a single dot
-    const parts = s.split(".");
-    const intPart = (parts[0] || "").replace(/\D+/g, "");
-    const dec = (parts[1] || "").replace(/\D+/g, "").slice(0, 1);
-    const norm = dec ? `${intPart || "0"}.${dec}` : intPart;
-    const n = Number(norm);
-    return Number.isFinite(n) ? n : 0;
+  let intPart = "";
+  let decPart = "";
+  if (hasSep) {
+    intPart = unsigned.slice(0, sepIndex).replace(/\D+/g, "");
+    decPart = unsigned.slice(sepIndex + 1).replace(/\D+/g, "").slice(0, maxDecimals);
+  } else {
+    intPart = unsigned.replace(/\D+/g, "");
   }
 
-  // integers only
-  const digits = raw.replace(/[^\d]/g, "");
-  const n = Number(digits);
+  const grouped = fmtGroupedInt(intPart);
+  const text = sign + (hasSep ? `${grouped || "0"}.${decPart}` : grouped);
+  return { intPart, decPart, hasSep, text };
+}
+
+function parseAmount(cur: Currency, input: string): number {
+  const maxDecimals = amountMaxDecimals(cur);
+  const norm = normalizeTypedNumber(input, maxDecimals);
+  if (!norm.intPart && !norm.decPart) return 0;
+  const numText = norm.decPart ? `${norm.intPart || "0"}.${norm.decPart}` : norm.intPart || "0";
+  const n = Number(numText);
   return Number.isFinite(n) ? n : 0;
 }
 
-function fmtAmount(cur: Currency, n: number): string {
+function formatExact(cur: Currency, n: number): string {
   if (!Number.isFinite(n)) return "";
+  const maxDecimals = amountMaxDecimals(cur);
+  const sign = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+  const fixed = maxDecimals > 0 ? abs.toFixed(Math.min(8, maxDecimals + 2)) : abs.toFixed(0);
+  let [intPart, decPart = ""] = fixed.split(".");
+  intPart = fmtGroupedInt(intPart);
+  if (maxDecimals <= 0) return sign + intPart;
+  decPart = decPart.replace(/0+$/, "").slice(0, maxDecimals);
+  return sign + (decPart ? `${intPart}.${decPart}` : intPart);
+}
 
-  if (cur === "USDT") {
-    const v = Math.round(n * 10) / 10;
-    const sign = v < 0 ? "-" : "";
-    const abs = Math.abs(v);
-    const intPart = Math.trunc(abs);
-    const dec = Math.round((abs - intPart) * 10);
-    const grouped = String(intPart).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    return dec ? `${sign}${grouped}.${dec}` : `${sign}${grouped}`;
-  }
-
-  return String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+function fmtAmount(cur: Currency, n: number): string {
+  return formatExact(cur, n);
 }
 
 function fmtFromInput(cur: Currency, v: string): string {
+  const maxDecimals = amountMaxDecimals(cur);
   const raw = String(v ?? "").replace(/\s+/g, "");
   if (!raw) return "";
-
-  if (cur === "USDT") {
-    // Keep digits + optional decimal separator, 1 digit after it.
-    let s = raw.replace(/[^\d.,]/g, "");
-
-    // If user typed comma as decimal (single comma, one digit after), normalize to dot.
-    const dotCount = (s.match(/\./g) || []).length;
-    const commaCount = (s.match(/,/g) || []).length;
-    if (dotCount === 0 && commaCount === 1) {
-      const [a, b] = s.split(",");
-      if (a && b && b.replace(/\D+/g, "").length === 1) s = `${a}.${b}`;
-    }
-
-    // Remove grouping commas
-    s = s.replace(/,/g, "");
-
-    const [a0, b0] = s.split(".");
-    const a = (a0 || "").replace(/\D+/g, "");
-    const b = (b0 || "").replace(/\D+/g, "").slice(0, 1);
-    const grouped = fmtGroupedInt(a);
-    return b ? `${grouped}.${b}` : grouped;
-  }
-
-  const digits = raw.replace(/\D+/g, "");
-  return fmtGroupedInt(digits);
+  const norm = normalizeTypedNumber(raw, maxDecimals);
+  if (!norm.intPart && !norm.decPart) return "";
+  if (norm.hasSep) return norm.text;
+  return norm.text.replace(/\.$/, "");
 }
 
 function isMultiple(n: number, step: number) {
   if (!Number.isFinite(n) || step <= 0) return false;
-  return n % step === 0;
-}
-
-function roundDown(n: number, step: number) {
-  if (!Number.isFinite(n) || step <= 0) return 0;
-  // handle the only fractional step we use (USDT 0.1)
-  if (step === 0.1) return Math.floor((n + 1e-9) * 10) / 10;
-  return Math.floor(n / step) * step;
-}
-
-function roundUp(n: number, step: number) {
-  if (!Number.isFinite(n) || step <= 0) return 0;
-  if (step === 0.1) return Math.ceil((n - 1e-9) * 10) / 10;
-  return Math.ceil(n / step) * step;
+  const q = n / step;
+  return Math.abs(q - Math.round(q)) < 1e-9;
 }
 
 function normalizeStatus(s: any): ClientStatus {
@@ -191,7 +161,7 @@ function getRate(rates: Rates | null, c: Currency): RateEntry | null {
 // ======= Способы оплаты (что клиент ОТДАЁТ) =======
 // RUB / USDT -> только перевод
 // USD / EUR / THB -> только наличные
-// VND -> любые
+// VND -> наличные или перевод
 function allowedPayMethods(sellCurrency: Currency): PayMethod[] {
   if (sellCurrency === "RUB" || sellCurrency === "USDT") return ["transfer"];
   if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return ["cash"];
@@ -352,14 +322,14 @@ function calcSellAmountVnd(rates: Rates, sellCurrency: Currency, buyCurrency: Cu
 }
 
 // ---------- G-конвертация ----------
-function isGModePair(formulas: Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }>, a: Currency, b: Currency): boolean {
+function isGModePair(formulas: Record<string, { buyMul: number; sellMul: number }>, a: Currency, b: Currency): boolean {
   if (a === "VND" || b === "VND") return false;
   return !!formulas[`${a}/${b}`] || !!formulas[`${b}/${a}`];
 }
 
 function getGPairRates(
   market: MarketRatesResponse | null,
-  formulas: Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }>,
+  formulas: Record<string, { buyMul: number; sellMul: number }>,
   base: Currency,
   quote: Currency
 ): { buy: number; sell: number } | null {
@@ -369,23 +339,12 @@ function getGPairRates(
   const G = Number(market.g?.[key]);
   if (!f || !Number.isFinite(G) || G <= 0) return null;
 
-  // IMPORTANT:
-  // In the UI we show parsed G-pair rates with 1 decimal for non‑VND quotes.
-  // To avoid mismatches between the shown rate and the calculation,
-  // apply the same rounding here BEFORE calculations.
-  const digits = quote === "VND" ? 0 : 1;
-  const pow = Math.pow(10, digits);
-  const round = (x: number) => Math.round(x * pow) / pow;
-
-  const extraBuy = key === "USD/USDT" && Number.isFinite(Number((f as any)?.extraBuy)) ? Number((f as any).extraBuy) : 0;
-  const extraSell = key === "USD/USDT" && Number.isFinite(Number((f as any)?.extraSell)) ? Number((f as any).extraSell) : 0;
-
-  return { buy: round(G * f.buyMul + extraBuy), sell: round(G * f.sellMul + extraSell) };
+  return { buy: G * f.buyMul, sell: G * f.sellMul };
 }
 
 function calcBuyAmountG(
   market: MarketRatesResponse | null,
-  formulas: Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }>,
+  formulas: Record<string, { buyMul: number; sellMul: number }>,
   sellCur: Currency,
   buyCur: Currency,
   sellAmount: number
@@ -404,7 +363,7 @@ function calcBuyAmountG(
 
 function calcSellAmountG(
   market: MarketRatesResponse | null,
-  formulas: Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }>,
+  formulas: Record<string, { buyMul: number; sellMul: number }>,
   sellCur: Currency,
   buyCur: Currency,
   buyAmount: number
@@ -421,15 +380,11 @@ function calcSellAmountG(
   return Number.NaN;
 }
 
-function amountStep(cur: Currency): number {
-  if (cur === "USD") return 100;
-  if (cur === "EUR") return 10;
-  if (cur === "THB") return 100;
-  if (cur === "USDT") return 0.1;
-  return 1;
-}
-
 const ATM_VND_STEP = 100000;
+const CASH_VND_STEP = 10000;
+const USD_STEP = 100;
+const EUR_STEP = 50;
+const THB_STEP = 100;
 
 export default function CalculatorTab({ me }: Props) {
   const tg = getTg();
@@ -438,7 +393,7 @@ export default function CalculatorTab({ me }: Props) {
   const [rates, setRates] = useState<Rates | null>(null);
   const [market, setMarket] = useState<MarketRatesResponse | null>(null);
   const [bonuses, setBonuses] = useState<BonusesConfig | null>(null);
-  const [formulas, setFormulas] = useState<Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }>>(DEFAULT_G_FORMULAS);
+  const [formulas, setFormulas] = useState<Record<string, { buyMul: number; sellMul: number }>>(DEFAULT_G_FORMULAS);
 
   const [sellCurrency, setSellCurrency] = useState<Currency>("RUB");
   const [buyCurrency, setBuyCurrency] = useState<Currency>("VND");
@@ -597,15 +552,29 @@ export default function CalculatorTab({ me }: Props) {
   const canCalc = missingRates.length === 0;
 
   // ======= Validations =======
-  const invalidUsd = sellCurrency === "USD" && sellText.trim() !== "" && !isMultiple(sellAmount, 100);
-  const invalidEur = sellCurrency === "EUR" && sellText.trim() !== "" && !isMultiple(sellAmount, 10);
-  const invalidThbSell = sellCurrency === "THB" && sellText.trim() !== "" && !isMultiple(sellAmount, 100);
-  const invalidThbBuy = buyCurrency === "THB" && buyText.trim() !== "" && !isMultiple(buyAmount, 100);
-
-  const invalidVndBuy =
+  const invalidUsdSell = sellCurrency === "USD" && sellText.trim() !== "" && !isMultiple(sellAmount, USD_STEP);
+  const invalidUsdBuy = buyCurrency === "USD" && buyText.trim() !== "" && !isMultiple(buyAmount, USD_STEP);
+  const invalidEurSell = sellCurrency === "EUR" && sellText.trim() !== "" && !isMultiple(sellAmount, EUR_STEP);
+  const invalidEurBuy = buyCurrency === "EUR" && buyText.trim() !== "" && !isMultiple(buyAmount, EUR_STEP);
+  const invalidThbSell = sellCurrency === "THB" && sellText.trim() !== "" && !isMultiple(sellAmount, THB_STEP);
+  const invalidThbBuy = buyCurrency === "THB" && buyText.trim() !== "" && !isMultiple(buyAmount, THB_STEP);
+  const invalidVndSellCash =
+    sellCurrency === "VND" && payMethod === "cash" && sellText.trim() !== "" && !isMultiple(sellAmount, CASH_VND_STEP);
+  const invalidVndBuyCash =
+    buyCurrency === "VND" && receiveMethod === "cash" && buyText.trim() !== "" && !isMultiple(buyAmount, CASH_VND_STEP);
+  const invalidVndBuyAtm =
     buyCurrency === "VND" && receiveMethod === "atm" && buyText.trim() !== "" && !isMultiple(buyAmount, ATM_VND_STEP);
 
-  const hasInvalid = invalidUsd || invalidEur || invalidThbSell || invalidThbBuy || invalidVndBuy;
+  const hasInvalid =
+    invalidUsdSell ||
+    invalidUsdBuy ||
+    invalidEurSell ||
+    invalidEurBuy ||
+    invalidThbSell ||
+    invalidThbBuy ||
+    invalidVndSellCash ||
+    invalidVndBuyCash ||
+    invalidVndBuyAtm;
 
   // ======= Recalc =======
   useEffect(() => {
@@ -613,21 +582,12 @@ export default function CalculatorTab({ me }: Props) {
 
     const formatComputed = (cur: Currency, n: number) => {
       if (!Number.isFinite(n)) return "";
-      let v = n;
-      if (cur === "VND") {
-        v = receiveMethod === "atm" ? roundDown(v, ATM_VND_STEP) : Math.floor(v);
-      } else {
-        v = roundDown(v, amountStep(cur));
-      }
-      return fmtAmount(cur, v);
+      return fmtAmount(cur, n);
     };
 
     const formatComputedSell = (cur: Currency, n: number) => {
       if (!Number.isFinite(n)) return "";
-      let v = n;
-      // For computed sell, round UP to required step (so it's feasible)
-      v = roundUp(v, amountStep(cur));
-      return fmtAmount(cur, v);
+      return fmtAmount(cur, n);
     };
 
     if (gMode) {
@@ -725,15 +685,27 @@ export default function CalculatorTab({ me }: Props) {
   const canSend = canSendBase && !hasInvalid;
 
   const usdNote =
-    sellCurrency === "USD"
-      ? "На обмен принимаются только доллары номиналом 100$ нового образца (синие), без надписей и дефектов."
+    sellCurrency === "USD" || buyCurrency === "USD"
+      ? "USD: клиент может передать и получить только наличные доллары номиналом 100$ нового образца, без надписей и дефектов."
       : null;
 
   const eurNote =
-    sellCurrency === "EUR" ? "На обмен принимаются только банкноты EURO без надписей и дефектов." : null;
+    sellCurrency === "EUR" || buyCurrency === "EUR"
+      ? "EUR: клиент может передать и получить только наличные купюры по 50€ нового образца, без надписей и дефектов."
+      : null;
+
+  const vndNote =
+    sellCurrency === "VND" || buyCurrency === "VND"
+      ? "VND: банкомат — только выдача кратно 100,000; наличные — передача и получение кратно 10,000; перевод — любая сумма."
+      : null;
+
+  const thbNote =
+    sellCurrency === "THB" || buyCurrency === "THB"
+      ? "THB: передать и получить баты можно только наличными, кратно 100 бат."
+      : null;
 
   const atmVndNoteText =
-    "сумма получения в банкомате должна быть кратной 100,000 VND. Вы можете ввести сумму получения и калькулятор посчитает сумму к оплате.";
+    "Сумма получения в банкомате должна быть кратной 100,000 VND. Вы можете ввести сумму получения, а калькулятор посчитает сумму к оплате без округления.";
 
   function swapCurrencies() {
     setSellCurrency(buyCurrency);
@@ -823,10 +795,10 @@ export default function CalculatorTab({ me }: Props) {
           </select>
 
           <input
-            inputMode={sellCurrency === "USDT" ? "decimal" : "numeric"}
+            inputMode={sellCurrency === "VND" ? "numeric" : "decimal"}
             placeholder="Отдаю"
             value={sellText}
-            className={invalidUsd || invalidEur || invalidThbSell ? "vx-inputInvalid" : ""}
+            className={invalidUsdSell || invalidEurSell || invalidThbSell || invalidVndSellCash ? "vx-inputInvalid" : ""}
             onChange={(e) => {
               lastEdited.current = "sell";
               setSellText(fmtFromInput(sellCurrency, e.target.value));
@@ -850,10 +822,10 @@ export default function CalculatorTab({ me }: Props) {
           </select>
 
           <input
-            inputMode={buyCurrency === "USDT" ? "decimal" : "numeric"}
+            inputMode={buyCurrency === "VND" ? "numeric" : "decimal"}
             placeholder="Получаю"
             value={buyText}
-            className={invalidVndBuy ? "vx-inputInvalid" : ""}
+            className={invalidUsdBuy || invalidEurBuy || invalidThbBuy || invalidVndBuyCash || invalidVndBuyAtm ? "vx-inputInvalid" : ""}
             onChange={(e) => {
               lastEdited.current = "buy";
               setBuyText(fmtFromInput(buyCurrency, e.target.value));
@@ -913,9 +885,11 @@ export default function CalculatorTab({ me }: Props) {
 
         {usdNote ? <div className="vx-note">{usdNote}</div> : null}
         {eurNote ? <div className="vx-note">{eurNote}</div> : null}
+        {vndNote ? <div className="vx-note">{vndNote}</div> : null}
+        {thbNote ? <div className="vx-note">{thbNote}</div> : null}
 
         {buyCurrency === "VND" && receiveMethod === "atm" ? (
-          <div className={"vx-note " + (invalidVndBuy ? "vx-noteWarn" : "")}>{atmVndNoteText}</div>
+          <div className={"vx-note " + (invalidVndBuyAtm ? "vx-noteWarn" : "")}>{atmVndNoteText}</div>
         ) : null}
 
         {rateInfo ? (
@@ -931,9 +905,11 @@ export default function CalculatorTab({ me }: Props) {
 
         {!canCalc ? <div className="vx-warn">Не хватает данных для расчёта: {missingRates.join(", ")}</div> : null}
 
-        {invalidUsd ? <div className="vx-warn">USD: сумма должна быть кратна 100.</div> : null}
-        {invalidEur ? <div className="vx-warn">EUR: сумма должна быть кратна 10.</div> : null}
-        {invalidThbSell || invalidThbBuy ? <div className="vx-warn">THB: сумма должна быть кратна 100.</div> : null}
+        {invalidUsdSell || invalidUsdBuy ? <div className="vx-warn">USD: передать и получить можно только наличными, кратно 100.</div> : null}
+        {invalidEurSell || invalidEurBuy ? <div className="vx-warn">EUR: передать и получить можно только наличными, кратно 50.</div> : null}
+        {invalidThbSell || invalidThbBuy ? <div className="vx-warn">THB: передать и получить можно только наличными, кратно 100.</div> : null}
+        {invalidVndSellCash || invalidVndBuyCash ? <div className="vx-warn">VND наличными: сумма должна быть кратна 10,000.</div> : null}
+        {invalidVndBuyAtm ? <div className="vx-warn">VND в банкомате: сумма должна быть кратна 100,000.</div> : null}
 
         <div className="vx-sp12" />
 
