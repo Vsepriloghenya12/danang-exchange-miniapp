@@ -654,10 +654,10 @@ html[data-theme="dark"] .theme-client .vx-calc .vx-rateLine{
 /* Calculator: smaller input/select boxes (as requested) */
 html[data-theme="dark"] .theme-client .vx-exRow{
   /* widen currency selector so codes like USDT/EUR are fully visible */
-  grid-template-columns: 92px 1fr 44px;
+  grid-template-columns: 104px 1fr 44px;
   gap: 8px;
 }
-html[data-theme="dark"] .theme-client .vx-exRow select{ width: 92px; padding-right: 26px; }
+html[data-theme="dark"] .theme-client .vx-exRow select{ width: 104px; padding-right: 22px; font-size: 13px; }
 html[data-theme="dark"] .theme-client .vx-exRow select,
 html[data-theme="dark"] .theme-client .vx-exRow input{
   height: 40px;
@@ -668,8 +668,8 @@ html[data-theme="dark"] .theme-client .vx-iconBtn{ height: 40px; min-width: 44px
 html[data-theme="dark"] .theme-client .vx-blankBtn{ width: 44px; height: 40px; }
 
 @media (max-width: 360px){
-  html[data-theme="dark"] .theme-client .vx-exRow{ grid-template-columns: 84px 1fr 42px; }
-  html[data-theme="dark"] .theme-client .vx-exRow select{ width: 84px; }
+  html[data-theme="dark"] .theme-client .vx-exRow{ grid-template-columns: 94px 1fr 42px; }
+  html[data-theme="dark"] .theme-client .vx-exRow select{ width: 94px; font-size: 12.5px; }
   html[data-theme="dark"] .theme-client .vx-iconBtn{ min-width: 42px; }
   html[data-theme="dark"] .theme-client .vx-blankBtn{ width: 42px; }
 }
@@ -1599,16 +1599,16 @@ label, input, select, textarea{ color: var(--text); }
 
 .vx-exRow{
   display: grid;
-  grid-template-columns: 92px 1fr 52px;
-  gap: 10px;
+  grid-template-columns: 104px 1fr 52px;
+  gap: 8px;
   align-items: center;
 }
-.vx-exRow select{ width: 92px; padding-right: 28px; }
+.vx-exRow select{ width: 104px; padding-right: 24px; font-size: 13px; }
 .vx-exRow input{ width: 100%; min-width: 0; }
 
 @media (max-width: 360px){
-  .vx-exRow{ grid-template-columns: 84px 1fr 44px; }
-  .vx-exRow select{ width: 84px; }
+  .vx-exRow{ grid-template-columns: 94px 1fr 44px; }
+  .vx-exRow select{ width: 94px; font-size: 12.5px; }
   .vx-iconBtn{ min-width: 44px; }
   .vx-blankBtn{ width: 44px; }
 }

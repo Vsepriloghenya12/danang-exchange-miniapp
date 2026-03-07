@@ -20,6 +20,7 @@ const PAIRS: Pair[] = [
   { id: "eur-rub", base: "EUR", quote: "RUB", mode: "g" },
   { id: "thb-rub", base: "THB", quote: "RUB", mode: "g" },
   { id: "usd-usdt", base: "USD", quote: "USDT", mode: "g" },
+  { id: "usdt-usd", base: "USDT", quote: "USD", mode: "g" },
   { id: "eur-usd", base: "EUR", quote: "USD", mode: "g" },
   { id: "eur-usdt", base: "EUR", quote: "USDT", mode: "g" },
   { id: "usd-thb", base: "USD", quote: "THB", mode: "g" },
@@ -33,6 +34,7 @@ const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = 
   "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
   "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
   "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
+  "USDT/USD": { buyMul: 0.965, sellMul: 1.035 },
   "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
   "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
   "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
@@ -58,10 +60,10 @@ function fmtDaNang(d: Date) {
   }
 }
 
-// ✅ VND — без копеек, остальные — 2 знака
+// ✅ VND — без копеек, остальные парсинг‑пары — с 1 знаком
 function fmt(quote: Cur, n: number | null) {
   if (n == null || !Number.isFinite(n)) return "—";
-  const digits = quote === "VND" ? 0 : 2;
+  const digits = quote === "VND" ? 0 : 1;
   return new Intl.NumberFormat("ru-RU", {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits

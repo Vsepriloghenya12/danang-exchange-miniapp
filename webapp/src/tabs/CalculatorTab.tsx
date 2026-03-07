@@ -33,6 +33,7 @@ const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = 
   "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
   "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
   "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
+  "USDT/USD": { buyMul: 0.965, sellMul: 1.035 },
   "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
   "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
   "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
@@ -370,10 +371,10 @@ function getGPairRates(
   if (!f || !Number.isFinite(G) || G <= 0) return null;
 
   // IMPORTANT:
-  // In the UI we show G-pair rates rounded (Rates tab: 2 decimals for non‑VND quotes).
-  // To avoid mismatches (rate shown as 2.72 but calc uses 2.7156),
+  // In the UI we show parsed G-pair rates with 1 decimal for non‑VND quotes.
+  // To avoid mismatches between the shown rate and the calculation,
   // apply the same rounding here BEFORE calculations.
-  const digits = quote === "VND" ? 0 : 2;
+  const digits = quote === "VND" ? 0 : 1;
   const pow = Math.pow(10, digits);
   const round = (x: number) => Math.round(x * pow) / pow;
 
@@ -418,10 +419,10 @@ function calcSellAmountG(
   return Number.NaN;
 }
 
-function sellStep(cur: Currency): number {
+function amountStep(cur: Currency): number {
   if (cur === "USD") return 100;
   if (cur === "EUR") return 10;
-  if (cur === "VND") return 100000;
+  if (cur === "THB") return 100;
   if (cur === "USDT") return 0.1;
   return 1;
 }
@@ -596,12 +597,13 @@ export default function CalculatorTab({ me }: Props) {
   // ======= Validations =======
   const invalidUsd = sellCurrency === "USD" && sellText.trim() !== "" && !isMultiple(sellAmount, 100);
   const invalidEur = sellCurrency === "EUR" && sellText.trim() !== "" && !isMultiple(sellAmount, 10);
+  const invalidThbSell = sellCurrency === "THB" && sellText.trim() !== "" && !isMultiple(sellAmount, 100);
+  const invalidThbBuy = buyCurrency === "THB" && buyText.trim() !== "" && !isMultiple(buyAmount, 100);
 
-  const invalidVndSell = sellCurrency === "VND" && sellText.trim() !== "" && !isMultiple(sellAmount, 100000);
   const invalidVndBuy =
     buyCurrency === "VND" && receiveMethod === "atm" && buyText.trim() !== "" && !isMultiple(buyAmount, ATM_VND_STEP);
 
-  const hasInvalid = invalidUsd || invalidEur || invalidVndSell || invalidVndBuy;
+  const hasInvalid = invalidUsd || invalidEur || invalidThbSell || invalidThbBuy || invalidVndBuy;
 
   // ======= Recalc =======
   useEffect(() => {
@@ -610,9 +612,11 @@ export default function CalculatorTab({ me }: Props) {
     const formatComputed = (cur: Currency, n: number) => {
       if (!Number.isFinite(n)) return "";
       let v = n;
-      // VND — integer, USDT — 1 decimal, others — integer
-      if (cur === "USDT") v = roundDown(v, 0.1);
-      else v = Math.floor(v);
+      if (cur === "VND") {
+        v = receiveMethod === "atm" ? roundDown(v, ATM_VND_STEP) : Math.floor(v);
+      } else {
+        v = roundDown(v, amountStep(cur));
+      }
       return fmtAmount(cur, v);
     };
 
@@ -620,8 +624,7 @@ export default function CalculatorTab({ me }: Props) {
       if (!Number.isFinite(n)) return "";
       let v = n;
       // For computed sell, round UP to required step (so it's feasible)
-      const step = sellStep(cur);
-      v = roundUp(v, step);
+      v = roundUp(v, amountStep(cur));
       return fmtAmount(cur, v);
     };
 
@@ -821,7 +824,7 @@ export default function CalculatorTab({ me }: Props) {
             inputMode={sellCurrency === "USDT" ? "decimal" : "numeric"}
             placeholder="Отдаю"
             value={sellText}
-            className={invalidUsd || invalidEur || invalidVndSell ? "vx-inputInvalid" : ""}
+            className={invalidUsd || invalidEur || invalidThbSell ? "vx-inputInvalid" : ""}
             onChange={(e) => {
               lastEdited.current = "sell";
               setSellText(fmtFromInput(sellCurrency, e.target.value));
@@ -928,7 +931,7 @@ export default function CalculatorTab({ me }: Props) {
 
         {invalidUsd ? <div className="vx-warn">USD: сумма должна быть кратна 100.</div> : null}
         {invalidEur ? <div className="vx-warn">EUR: сумма должна быть кратна 10.</div> : null}
-        {invalidVndSell ? <div className="vx-warn">VND: сумма должна быть кратной 100 000.</div> : null}
+        {invalidThbSell || invalidThbBuy ? <div className="vx-warn">THB: сумма должна быть кратна 100.</div> : null}
 
         <div className="vx-sp12" />
 

@@ -115,25 +115,13 @@ function NavCard({
 
 function StatusIcon({ status }: { status?: UserStatus }) {
   // Telegram WebView can be slow to paint images after navigation.
-  // We avoid showing a "dot" placeholder: keep a stable tile and fade the icon in when loaded.
+  // Use real existing files first, otherwise Telegram spends time trying missing assets.
   const bust = `v48-${String(status || "").toLowerCase() || "x"}`;
   const candidates = useMemo(() => {
     const s = String(status || "").toLowerCase();
     const list: string[] = [];
-    if (s) {
-      list.push(`/brand/status-${s}.png`);
-      list.push(`/brand/status-${s}.webp`);
-      list.push(`/brand/status-${s}.svg`);
-      list.push(`/brand/status-${s}.jpg`);
-      list.push(`/brand/status-${s}.jpeg`);
-    }
-    list.push(
-      "/brand/status.png",
-      "/brand/status.webp",
-      "/brand/status.svg",
-      "/brand/status.jpg",
-      "/brand/status.jpeg"
-    );
+    if (s) list.push(`/brand/status-${s}.svg`);
+    list.push("/brand/status.svg");
     return list;
   }, [status]);
 
@@ -290,9 +278,14 @@ export default function App() {
   useEffect(() => {
     const urls = [
       "/brand/main-logo.png?v1",
+      "/brand/header-logo.png?v42",
       "/brand/status-standard.svg?v48-standard",
       "/brand/status-silver.svg?v48-silver",
       "/brand/status-gold.svg?v48-gold",
+      "/brand/icons/tab-afisha-256.png?v=1",
+      "/brand/icons/tab-atm-256.png?v=1",
+      "/brand/icons/tab-rates-256.png?v=1",
+      "/brand/icons/tab-reviews-256.png?v=1",
     ];
     try {
       urls.forEach((u) => {
@@ -531,8 +524,6 @@ export default function App() {
 
   return (
     <div className={`vx-page theme-client ${screen === "home" ? "mx-homePage" : ""}`}>
-      <style>{`@import url('${UI.fontImport}');`}</style>
-
       <div className="container">
         {screen === "home" ? (
           <>

@@ -10,7 +10,11 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#000000" />
 
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
     <!-- Preload key images so they appear instantly in Telegram WebView -->
+    <link rel="preload" as="image" href="/brand/main-logo.png?v1" fetchpriority="high" />
     <link rel="preload" as="image" href="/brand/header-logo.png?v42" fetchpriority="high" />
     <link rel="preload" as="image" href="/brand/status-standard.svg?v48-standard" fetchpriority="high" />
     <link rel="preload" as="image" href="/brand/status-silver.svg?v48-silver" fetchpriority="high" />
