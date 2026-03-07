@@ -61,16 +61,46 @@ function amountMaxDecimals(cur: Currency): number {
   return 2;
 }
 
+function detectDecimalSeparator(unsigned: string, maxDecimals: number): number {
+  if (maxDecimals <= 0) return -1;
+
+  const dots = [...unsigned.matchAll(/\./g)].map((m) => m.index ?? -1).filter((n) => n >= 0);
+  const commas = [...unsigned.matchAll(/,/g)].map((m) => m.index ?? -1).filter((n) => n >= 0);
+
+  const canBeDecimalAt = (idx: number) => {
+    const rightDigits = unsigned.slice(idx + 1).replace(/\D+/g, "");
+    return rightDigits.length <= maxDecimals;
+  };
+
+  if (dots.length > 0 && commas.length > 0) {
+    const idx = Math.max(dots[dots.length - 1], commas[commas.length - 1]);
+    return canBeDecimalAt(idx) ? idx : -1;
+  }
+
+  if (dots.length === 1) return canBeDecimalAt(dots[0]) ? dots[0] : -1;
+  if (dots.length > 1) {
+    const idx = dots[dots.length - 1];
+    return canBeDecimalAt(idx) ? idx : -1;
+  }
+
+  if (commas.length === 1) return canBeDecimalAt(commas[0]) ? commas[0] : -1;
+
+  if (commas.length > 1) {
+    const idx = commas[commas.length - 1];
+    return canBeDecimalAt(idx) ? idx : -1;
+  }
+
+  return -1;
+}
+
 function normalizeTypedNumber(rawInput: string, maxDecimals: number) {
   const raw = String(rawInput ?? "").replace(/\s+/g, "").replace(/[^\d.,-]/g, "");
   if (!raw) return { intPart: "", decPart: "", hasSep: false, text: "" };
 
   const sign = raw.startsWith("-") ? "-" : "";
   const unsigned = raw.replace(/-/g, "");
-  const lastDot = unsigned.lastIndexOf(".");
-  const lastComma = unsigned.lastIndexOf(",");
-  const sepIndex = Math.max(lastDot, lastComma);
-  const hasSep = maxDecimals > 0 && sepIndex >= 0;
+  const sepIndex = detectDecimalSeparator(unsigned, maxDecimals);
+  const hasSep = sepIndex >= 0;
 
   let intPart = "";
   let decPart = "";
@@ -708,12 +738,30 @@ export default function CalculatorTab({ me }: Props) {
     "Сумма получения в банкомате должна быть кратной 100,000 VND. Вы можете ввести сумму получения, а калькулятор посчитает сумму к оплате без округления.";
 
   function swapCurrencies() {
-    setSellCurrency(buyCurrency);
-    setBuyCurrency(sellCurrency);
-    const a = sellText;
-    const b = buyText;
-    setSellText(b);
-    setBuyText(a);
+    const nextSellCurrency = buyCurrency;
+    const nextBuyCurrency = sellCurrency;
+
+    const swappedPayCandidate: PayMethod | null = receiveMethod === "cash" || receiveMethod === "transfer" ? receiveMethod : null;
+    const swappedReceiveCandidate: ReceiveMethod | null = payMethod === "cash" || payMethod === "transfer" ? payMethod : null;
+
+    const nextAllowedPay = allowedPayMethods(nextSellCurrency);
+    const nextAllowedReceive = allowedReceiveMethods(nextBuyCurrency);
+
+    const nextPayMethod = swappedPayCandidate && nextAllowedPay.includes(swappedPayCandidate)
+      ? swappedPayCandidate
+      : nextAllowedPay[0];
+
+    const nextReceiveMethod = swappedReceiveCandidate && nextAllowedReceive.includes(swappedReceiveCandidate)
+      ? swappedReceiveCandidate
+      : nextAllowedReceive[0];
+
+    lastEdited.current = "sell";
+    setSellCurrency(nextSellCurrency);
+    setBuyCurrency(nextBuyCurrency);
+    setPayMethod(nextPayMethod);
+    setReceiveMethod(nextReceiveMethod);
+    setSellText(buyText ? fmtFromInput(nextSellCurrency, buyText) : "");
+    setBuyText("");
   }
 
   async function sendRequest() {
