@@ -1,85 +1,89 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { apiAddReview, apiGetReviewEligible, apiGetReviews } from "../lib/api";
 
 function getTg() {
   return (window as any).Telegram?.WebApp;
 }
 
-function StarPicker(props: { value: number; onChange: (v: number) => void }) {
-  const { value, onChange } = props;
-  return (
-    <div className="vx-stars">
-      {Array.from({ length: 5 }).map((_, i) => {
-        const v = i + 1;
-        const active = v <= value;
-        return (
-          <button
-            key={v}
-            onClick={() => onChange(v)}
-            className={"vx-starBtn " + (active ? "is-active" : "")}
-            aria-label={`Поставить ${v} звёзд`}
-          >
-            ★
-          </button>
-        );
-      })}
-      <div className="vx-starScore">{value}/5</div>
-    </div>
-  );
+function fmtDate(iso: string) {
+  try {
+    const d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return "";
+    return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch {
+    return "";
+  }
 }
 
 export default function ReviewsTab() {
   const tg = getTg();
+  const initData = tg?.initData || "";
 
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<any[]>([]);
 
-  const [rating, setRating] = useState<number>(5); // сразу 5
+  const [eligibleLoading, setEligibleLoading] = useState(false);
+  const [eligible, setEligible] = useState<any[]>([]);
+  const [selectedRequestId, setSelectedRequestId] = useState<string>("");
+
+  const [anonymous, setAnonymous] = useState(false);
   const [text, setText] = useState<string>("");
+
+  async function loadPublic() {
+    setLoading(true);
+    try {
+      const json = await apiGetReviews();
+      setReviews(Array.isArray(json?.reviews) ? json.reviews : []);
+    } catch {
+      setReviews([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadEligible() {
+    if (!initData) return;
+    setEligibleLoading(true);
+    try {
+      const json = await apiGetReviewEligible(initData);
+      const list = Array.isArray(json?.eligible) ? json.eligible : [];
+      setEligible(list);
+      if (!selectedRequestId && list.length > 0) setSelectedRequestId(String(list[0].id));
+    } catch {
+      setEligible([]);
+    } finally {
+      setEligibleLoading(false);
+    }
+  }
 
   useEffect(() => {
     tg?.expand?.();
-    (async () => {
-      try {
-        const res = await fetch("/api/reviews");
-        const json = await res.json();
-        setReviews(Array.isArray(json?.reviews) ? json.reviews : []);
-      } catch {
-        setReviews([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadPublic();
+    loadEligible();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const canSend = useMemo(() => rating >= 1 && rating <= 5 && text.trim().length >= 3, [rating, text]);
+  const canSend = useMemo(() => {
+    return initData && selectedRequestId && text.trim().length >= 3;
+  }, [initData, selectedRequestId, text]);
 
   async function sendReview() {
     if (!canSend) return;
-
-    const initData = tg?.initData || "";
     try {
-      const res = await fetch("/api/reviews", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `tma ${initData}`
-        },
-        body: JSON.stringify({ rating, text: text.trim() })
+      const r = await apiAddReview(initData, {
+        requestId: selectedRequestId,
+        text: text.trim(),
+        anonymous
       });
-
-      const json = await res.json();
-      if (!json?.ok) throw new Error(json?.error || "fail");
+      if (!r?.ok) throw new Error(r?.error || "fail");
 
       setText("");
-      setRating(5);
-
-      // перезагрузим список
-      const r2 = await fetch("/api/reviews");
-      const j2 = await r2.json();
-      setReviews(Array.isArray(j2?.reviews) ? j2.reviews : []);
+      setAnonymous(false);
+      await loadEligible();
+      await loadPublic();
 
       tg?.HapticFeedback?.notificationOccurred?.("success");
-    } catch (e) {
+    } catch {
       tg?.HapticFeedback?.notificationOccurred?.("error");
     }
   }
@@ -90,26 +94,63 @@ export default function ReviewsTab() {
 
       <div className="vx-revCompose">
         <div className="vx-revH">Оставить отзыв</div>
-        <StarPicker value={rating} onChange={setRating} />
 
-        <textarea
-          placeholder="Напиши отзыв (минимум 3 символа)"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={3}
-          className="vx-revText"
-        />
+        {!initData && (
+          <div className="vx-muted">
+            Чтобы оставить отзыв, откройте приложение внутри Telegram.
+          </div>
+        )}
 
-        <button
-          onClick={sendReview}
-          disabled={!canSend}
-          className="vx-primary"
-        >
-          Отправить
-        </button>
+        {initData && eligibleLoading && <div className="vx-muted">Проверяем сделки…</div>}
+
+        {initData && !eligibleLoading && eligible.length === 0 && (
+          <div className="vx-muted">
+            Отзыв можно оставить только после совершения сделки.
+          </div>
+        )}
+
+        {initData && !eligibleLoading && eligible.length > 0 && (
+          <>
+            <div className="vx-gap8 vx-center" style={{ display: "flex", flexWrap: "wrap" }}>
+              <select
+                className="input vx-in"
+                value={selectedRequestId}
+                onChange={(e) => setSelectedRequestId(e.target.value)}
+                style={{ flex: "1 1 220px" }}
+              >
+                {eligible.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.sellCurrency}→{r.buyCurrency} • {fmtDate(r.created_at)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <label className="vx-checkRow">
+              <input
+                type="checkbox"
+                checked={anonymous}
+                onChange={(e) => setAnonymous(e.target.checked)}
+              />
+              <span>Оставить анонимно</span>
+            </label>
+
+            <textarea
+              placeholder="Напиши отзыв (минимум 3 символа)"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={3}
+              className="vx-revText"
+            />
+
+            <button onClick={sendReview} disabled={!canSend} className="vx-primary">
+              Отправить на модерацию
+            </button>
+          </>
+        )}
       </div>
 
-      <div className="vx-revH">Последние отзывы</div>
+      <div className="vx-revH">Опубликованные отзывы</div>
       {loading && <div>Загрузка…</div>}
       {!loading && reviews.length === 0 && <div className="vx-muted">Пока нет отзывов.</div>}
 
@@ -117,12 +158,17 @@ export default function ReviewsTab() {
         {reviews.map((r) => (
           <div key={r.id} className="vx-revCard">
             <div className="vx-revTop">
-              <div className="vx-revName">
-                {r.username ? `@${r.username}` : `ID ${r.tg_id}`}
-              </div>
-              <div className="vx-revRating">{Number(r.rating)}/5</div>
+              <div className="vx-revName">{r.displayName || ""}</div>
+              <div className="vx-muted">{fmtDate(r.created_at)}</div>
             </div>
             <div className="vx-revTextOut">{r.text}</div>
+
+            {r.company_reply?.text && (
+              <div className="vx-revReply">
+                <div className="vx-revReplyH">Ответ компании</div>
+                <div className="vx-revTextOut">{r.company_reply.text}</div>
+              </div>
+            )}
           </div>
         ))}
       </div>

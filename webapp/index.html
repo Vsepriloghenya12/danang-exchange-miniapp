@@ -3,10 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- App icon (easy to replace): webapp/public/brand/app-icon.png -->
+    <link rel="icon" type="image/png" href="/brand/app-icon.png" />
+    <link rel="apple-touch-icon" href="/brand/app-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#000000" />
+
+    <!-- Preload key images so they appear instantly in Telegram WebView -->
+    <link rel="preload" as="image" href="/brand/header-logo.png?v42" fetchpriority="high" />
+    <link rel="preload" as="image" href="/brand/status-standard.svg?v48-standard" fetchpriority="high" />
+    <link rel="preload" as="image" href="/brand/status-silver.svg?v48-silver" fetchpriority="high" />
+    <link rel="preload" as="image" href="/brand/status-gold.svg?v48-gold" fetchpriority="high" />
+
     <title>Обмен валют — Дананг</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
-  <body>
+  <body style="background:#000;">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

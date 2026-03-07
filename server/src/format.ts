@@ -1,6 +1,6 @@
 import type { UserStatus } from "./store.js";
 
-type Currency = "RUB" | "USD" | "USDT" | "EUR" | "THB" | "VND";
+type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB";
 type ReceiveMethod = "cash" | "transfer" | "atm";
 
 export function formatRequestMessage(args: {
@@ -20,7 +20,12 @@ export function formatRequestMessage(args: {
   createdAtISO?: string;
 }) {
   const who = formatUser(args.user);
-  const statusText = statusLabel(args.status);
+  // For THB↔RUB we intentionally ignore status markups (treat as standard)
+  const effStatus: UserStatus =
+    (args.sellCurrency === "THB" && args.buyCurrency === "RUB") || (args.sellCurrency === "RUB" && args.buyCurrency === "THB")
+      ? "standard"
+      : args.status;
+  const statusText = statusLabel(effStatus);
   const methodText = methodLabel(args.receiveMethod);
 
   const sell = formatAmount(args.sellCurrency, args.sellAmount);
@@ -88,8 +93,17 @@ function formatUser(u: { id: number; username?: string; first_name?: string; las
 
 function formatAmount(cur: Currency, n: number): string {
   if (!Number.isFinite(n)) return "0";
-  if (cur === "VND") return Math.round(n).toString();
-  return (Math.round(n * 100) / 100).toString();
+  if (cur === "USDT") {
+    const v = Math.round(n * 10) / 10;
+    const sign = v < 0 ? "-" : "";
+    const abs = Math.abs(v);
+    const intPart = Math.trunc(abs);
+    const dec = Math.round((abs - intPart) * 10);
+    const grouped = String(intPart).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return dec ? `${sign}${grouped}.${dec}` : `${sign}${grouped}`;
+  }
+  const v = cur === "VND" ? Math.round(n) : Math.round(n);
+  return String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
 function escapeHtml(s: string) {
