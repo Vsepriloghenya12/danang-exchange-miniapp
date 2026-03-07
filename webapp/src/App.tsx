@@ -1,21 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { getTg } from "./lib/telegram";
-import { apiAuth, apiEvent } from "./lib/api";
+import { apiAuth } from "./lib/api";
 import type { UserStatus } from "./lib/types";
 
 import RatesTab from "./tabs/RatesTab";
 import CalculatorTab from "./tabs/CalculatorTab";
-import AfishaTab from "./tabs/AfishaTab";
 import AtmTab from "./tabs/AtmTab";
+import GuideTab from "./tabs/GuideTab";
 import ReviewsTab from "./tabs/ReviewsTab";
-import StaffTab from "./tabs/StaffTab";
-import HistoryTab from "./tabs/HistoryTab";
-import AboutTab from "./tabs/AboutTab";
-import OtherTab from "./tabs/OtherTab";
-import FaqTab from "./tabs/FaqTab";
-import ContactsTab from "./tabs/ContactsTab";
-import PaymentsTab from "./tabs/PaymentsTab";
-import OwnerPortal from "./admin/OwnerPortal";
+import AdminTab from "./tabs/AdminTab";
 
 type Me = {
   ok: boolean;
@@ -23,388 +16,122 @@ type Me = {
   user?: { id: number; username?: string; first_name?: string; last_name?: string };
   status?: UserStatus;
   isOwner?: boolean;
-  isAdmin?: boolean;
-  adminChat?: { tgId: number | null; username?: string; deepLink?: string };
-  blocked?: boolean;
   error?: string;
 };
 
-type ScreenKey = "home" | "calc" | "afisha" | "atm" | "reviews" | "staff" | "pay" | "history" | "other" | "faq" | "about" | "contacts";
+type TabKey = "rates" | "calc" | "atm" | "guide" | "reviews" | "admin";
 
 const UI = {
   title: "Обмен валют — Дананг",
-  fontImport:
-    "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800;900&family=Inter:wght@500;600;700;800;900&family=DM+Sans:wght@700;800;900&display=swap",
+  accent: "#22c55e",
+  accent2: "#06b6d4",
 };
 
-function IconSun({ className = "" }: { className?: string }) {
+function IconSwap({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" />
-      <path d="M12 2v2" />
-      <path d="M12 20v2" />
-      <path d="M4.93 4.93l1.41 1.41" />
-      <path d="M17.66 17.66l1.41 1.41" />
-      <path d="M2 12h2" />
-      <path d="M20 12h2" />
-      <path d="M4.93 19.07l1.41-1.41" />
-      <path d="M17.66 6.34l1.41-1.41" />
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M16 3l4 4-4 4" />
+      <path d="M20 7H7a4 4 0 0 0-4 4v0" />
+      <path d="M8 21l-4-4 4-4" />
+      <path d="M4 17h13a4 4 0 0 0 4-4v0" />
+    </svg>
+  );
+}
+function IconCalc({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M8 7h8" />
+      <path d="M8 11h2" />
+      <path d="M12 11h2" />
+      <path d="M16 11h0" />
+      <path d="M8 15h2" />
+      <path d="M12 15h2" />
+      <path d="M8 19h8" />
     </svg>
   );
 }
 
-function IconMoon({ className = "" }: { className?: string }) {
+function IconAtm({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      {/* More centered moon icon (Telegram WebView sometimes shows the old path off-center) */}
-      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M3 10h18" />
+      <path d="M5 10V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3" />
+      <path d="M7 10v10" />
+      <path d="M12 10v10" />
+      <path d="M17 10v10" />
+      <path d="M5 20h14" />
+    </svg>
+  );
+}
+function IconGuide({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M3 6h7a2 2 0 0 1 2 2v13H5a2 2 0 0 1-2-2V6z" />
+      <path d="M21 6h-7a2 2 0 0 0-2 2" />
+      <path d="M21 6v13a2 2 0 0 1-2 2h-7" />
+    </svg>
+  );
+}
+function IconStar({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 2l3 7 7 .6-5.3 4.6 1.7 6.8L12 18l-6.4 3 1.7-6.8L2 9.6 9 9l3-7z" />
+    </svg>
+  );
+}
+function IconSettings({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
+      <path d="M19.4 15a7.8 7.8 0 0 0 .1-6l2-1.2-2-3.4-2.3.8a8 8 0 0 0-5.2-3L11 0H13l-.9 2.2a8 8 0 0 0-5.2 3l-2.3-.8-2 3.4 2 1.2a7.8 7.8 0 0 0 .1 6l-2 1.2 2 3.4 2.3-.8a8 8 0 0 0 5.2 3L11 24h2l.9-2.2a8 8 0 0 0 5.2-3l2.3.8 2-3.4-2-1.2z" />
     </svg>
   );
 }
 
-function IconArrowLeft({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
-
-function IconChevron({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 18l6-6-6-6" />
-    </svg>
-  );
-}
-
-function ScreenHeader({ title, onBack }: { title: string; onBack: () => void }) {
-  return (
-    <div className="mx-header">
-      <button type="button" className="mx-backBtn" onClick={onBack} aria-label="Назад">
-        <IconArrowLeft className="mx-i" />
-      </button>
-      <div className="mx-hTitle">{title}</div>
-      <div style={{ width: 40 }} />
-    </div>
-  );
-}
-
-function NavCard({
-  title,
-  subtitle,
-  iconSrc,
-  onClick,
+function BottomBar({
+  active,
+  onChange,
+  items,
 }: {
-  title: string;
-  subtitle?: string;
-  iconSrc: string;
-  onClick: () => void;
+  active: TabKey;
+  onChange: (k: TabKey) => void;
+  items: Array<{ key: TabKey; label: string; show: boolean; icon: React.ReactNode }>;
 }) {
+  const visible = items.filter((i) => i.show);
   return (
-    <button type="button" className="mx-navCard" onClick={onClick}>
-      <img className="mx-navIcon" src={iconSrc} alt="" />
-      <div className="mx-navText">
-        <div className="mx-navTitle">{title}</div>
-        {subtitle ? <div className="mx-navSub">{subtitle}</div> : null}
+    <div className="vx-bottomWrap" style={{ ["--cols" as any]: String(visible.length) }}>
+      <div className="vx-bottomBar">
+        {visible.map((t) => {
+          const isActive = active === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => onChange(t.key)}
+              className={"vx-navBtn " + (isActive ? "vx-navBtnActive" : "")}
+            >
+              {isActive ? <div className="vx-navPill" /> : null}
+              <span className="vx-navIcon">{t.icon}</span>
+              <span className="vx-navLabel">{t.label}</span>
+            </button>
+          );
+        })}
       </div>
-      <IconChevron className="mx-i mx-chev" />
-    </button>
-  );
-}
-
-function StatusIcon({ status }: { status?: UserStatus }) {
-  // Telegram WebView can be slow to paint images after navigation.
-  // We avoid showing a "dot" placeholder: keep a stable tile and fade the icon in when loaded.
-  const bust = `v48-${String(status || "").toLowerCase() || "x"}`;
-  const candidates = useMemo(() => {
-    const s = String(status || "").toLowerCase();
-    const list: string[] = [];
-    if (s) {
-      list.push(`/brand/status-${s}.png`);
-      list.push(`/brand/status-${s}.webp`);
-      list.push(`/brand/status-${s}.svg`);
-      list.push(`/brand/status-${s}.jpg`);
-      list.push(`/brand/status-${s}.jpeg`);
-    }
-    list.push(
-      "/brand/status.png",
-      "/brand/status.webp",
-      "/brand/status.svg",
-      "/brand/status.jpg",
-      "/brand/status.jpeg"
-    );
-    return list;
-  }, [status]);
-
-  const [idx, setIdx] = useState(0);
-  const [ok, setOk] = useState(false);
-
-  useEffect(() => {
-    setIdx(0);
-    setOk(false);
-  }, [status]);
-
-  const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
-
-  return (
-    <div className="mx-statusWrap" aria-label="Статус">
-      {!ok ? <div className="mx-statusSkeleton" aria-hidden="true" /> : null}
-      <img
-        key={src}
-        className="mx-statusImg"
-        src={src}
-        alt=""
-        loading="eager"
-        decoding="async"
-        style={{ opacity: ok ? 1 : 0 }}
-        onLoad={() => setOk(true)}
-        onError={() => {
-          setOk(false);
-          setIdx((x) => (x < candidates.length - 1 ? x + 1 : x));
-        }}
-      />
     </div>
   );
-}
-
-
-function HeaderLogo() {
-  // cache-bust for Telegram WebView
-  const bust = "v42";
-  const candidates = useMemo(
-    () => [
-      "/brand/header-logo.png",
-      "/brand/header-logo.webp",
-      "/brand/header-logo.svg",
-      "/brand/header-logo.jpg",
-      "/brand/logo.png",
-      "/brand/logo.jpg",
-      "/brand/logo.webp",
-    ],
-    []
-  );
-  const [idx, setIdx] = useState(0);
-  const [ok, setOk] = useState(false);
-  const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
-
-  return (
-    <div className="mx-headerLogoWrap" aria-label="Логотип">
-      {!ok ? <div className="mx-headerLogoFallback" /> : null}
-      <img
-        key={src}
-        className="mx-headerLogoImg"
-        src={src}
-        alt=""
-        loading="eager"
-        decoding="async"
-        onLoad={() => setOk(true)}
-        onError={() => {
-          setOk(false);
-          setIdx((x) => (x < candidates.length - 1 ? x + 1 : x));
-        }}
-      />
-    </div>
-  );
-}
-
-
-function MainLogo() {
-  // Center logo on the home screen (wide). Cache-bust for Telegram WebView.
-  const bust = "v1";
-  const candidates = useMemo(
-    () => [
-      "/brand/main-logo.png",
-      "/brand/main-logo.webp",
-      "/brand/main-logo.svg",
-      "/brand/main-logo.jpg",
-      "/brand/logo.png",
-      "/brand/logo.webp",
-      "/brand/logo.jpg",
-    ],
-    []
-  );
-  const [idx, setIdx] = useState(0);
-  const [ok, setOk] = useState(false);
-  const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
-
-  return (
-    <div className="mx-mainLogoWrap" aria-label="Cash A Lot">
-      {!ok ? <div className="mx-mainLogoFallback" /> : null}
-      <img
-        key={src}
-        className="mx-mainLogoImg"
-        src={src}
-        alt=""
-        loading="eager"
-        decoding="async"
-        onLoad={() => setOk(true)}
-        onError={() => {
-          setOk(false);
-          setIdx((x) => (x < candidates.length - 1 ? x + 1 : x));
-        }}
-      />
-    </div>
-  );
-}
-
-function normalizeStatus(s: any): UserStatus {
-  const v = String(s ?? "").toLowerCase().trim();
-  if (v === "gold") return "gold";
-  if (v === "silver") return "silver";
-  return "standard";
-}
-
-function statusTitle(s: UserStatus) {
-  if (s === "gold") return "Золото";
-  if (s === "silver") return "Серебро";
-  return "Стандарт";
 }
 
 export default function App() {
-  // Owner portal is a separate browser page (/admin), not inside the miniapp UI.
-  if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) {
-    return <OwnerPortal />;
-  }
-
-  // Light/Dark toggle for the client miniapp.
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    try {
-      const v = String(localStorage.getItem("mx_theme") || "").toLowerCase();
-      return v === "dark" ? "dark" : "light";
-    } catch {
-      return "light";
-    }
-  });
-
-  useEffect(() => {
-    try {
-      document.documentElement.setAttribute("data-theme", theme);
-      localStorage.setItem("mx_theme", theme);
-    } catch {
-      // ignore
-    }
-  }, [theme]);
-
-  // Warm up critical images early to avoid a visible "pop-in" in Telegram WebView.
-  useEffect(() => {
-    const urls = [
-      "/brand/main-logo.png?v1",
-      "/brand/status-standard.svg?v48-standard",
-      "/brand/status-silver.svg?v48-silver",
-      "/brand/status-gold.svg?v48-gold",
-    ];
-    try {
-      urls.forEach((u) => {
-        const img = new Image();
-        img.decoding = "async";
-        img.src = u;
-      });
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
-
-  // Allow Afisha screen to override the back button (e.g. return from list -> categories).
-  const afishaBackRef = useRef<null | (() => boolean)>(null);
-
-  useEffect(() => {
-    try {
-      document.body.classList.add("vx-body-client");
-      return () => document.body.classList.remove("vx-body-client");
-    } catch {
-      return;
-    }
-  }, []);
-
-
-  // Preload status icons to avoid a visible "loading" placeholder when returning to the home screen.
-  useEffect(() => {
-    try {
-      const sts = ["standard", "silver", "gold"];
-      const exts = [".svg", ".png", ".webp"];
-      for (const s of sts) {
-        for (const ext of exts) {
-          const img = new Image();
-          img.src = `/brand/status-${s}${ext}`;
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
   const tg = getTg();
-
-  // Haptic feedback for buttons only (no vibration while typing/entering data).
-  useEffect(() => {
-    const handler = (e: any) => {
-      const t = (e?.target as HTMLElement | null) ?? null;
-      if (!t) return;
-      const btn = t.closest?.("button") as HTMLButtonElement | null;
-      if (!btn) return;
-      if (btn.disabled) return;
-      if (btn.getAttribute("data-nohaptic") === "1") return;
-      try {
-        const w = (window as any).Telegram?.WebApp;
-        w?.HapticFeedback?.impactOccurred?.("light");
-      } catch {
-        // ignore
-      }
-    };
-    document.addEventListener("click", handler, true);
-    return () => document.removeEventListener("click", handler, true);
-  }, []);
-
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
-  const [screen, setScreen] = useState<ScreenKey>("home");
-  const [courseExpanded, setCourseExpanded] = useState(false);
+  const [tab, setTab] = useState<TabKey>("rates");
 
-  // Demo mode for opening the webapp in a normal browser without Telegram initData.
-  // IMPORTANT: must be declared before any hooks that reference it (avoid TDZ runtime crash).
-  const isDemo = useMemo(() => new URLSearchParams(window.location.search).get("demo") === "1", []);
-
-  const sessionId = useMemo(() => {
-    try {
-      // session per app open
-      return (crypto as any).randomUUID ? (crypto as any).randomUUID() : `s_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    } catch {
-      return `s_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    }
-  }, []);
-
-  const didTrackOpen = useRef(false);
-  useEffect(() => {
-    if (!me.ok || !me.initData || isDemo) return;
-    if (didTrackOpen.current) return;
-    didTrackOpen.current = true;
-
-    const platform = (window as any).Telegram?.WebApp?.platform || "";
-    void apiEvent(me.initData, {
-      name: "app_open",
-      sessionId,
-      platform,
-      path: window.location.pathname + window.location.search,
-    });
-  }, [me.ok, me.initData, isDemo, sessionId]);
+  const isDemo = useMemo(() => new URLSearchParams(location.search).get("demo") === "1", []);
 
   useEffect(() => {
-    if (!me.ok || !me.initData || isDemo) return;
-    const platform = (window as any).Telegram?.WebApp?.platform || "";
-    void apiEvent(me.initData, {
-      name: "screen_open",
-      sessionId,
-      platform,
-      path: window.location.pathname + window.location.search,
-      props: { screen },
-    });
-  }, [screen, me.ok, me.initData, isDemo, sessionId]);
-
-  useEffect(() => {
-    tg?.ready?.();
-    tg?.expand?.();
+    tg?.ready();
+    tg?.expand();
 
     const initData = tg?.initData || "";
     if (!initData && !isDemo) {
@@ -423,318 +150,311 @@ export default function App() {
           user: { id: 123456, username: "demo_user", first_name: "Demo" },
           status: "gold",
           isOwner: true,
-          isAdmin: true,
-          adminChat: { tgId: 123456, username: "demo_admin" },
-          blocked: false,
         });
         return;
       }
 
       const r = await apiAuth(useInit);
-      if (r.ok)
-        setMe({
-          ok: true,
-          initData: useInit,
-          user: r.user,
-          status: r.status,
-          isOwner: r.isOwner,
-          isAdmin: !!(r as any).isAdmin,
-          adminChat: (r as any).adminChat,
-          blocked: !!(r as any).blocked,
-        });
+      if (r.ok) setMe({ ok: true, initData: useInit, user: r.user, status: r.status, isOwner: r.isOwner });
       else setMe({ ok: false, initData: useInit, error: r.error });
     })();
   }, [tg, isDemo]);
 
-  // Blacklist screen: show only an owner-provided image from /brand/blocked.(png|jpg|webp)
-  const blockedCandidates = useMemo(
-    () => ["/brand/blocked.webp", "/brand/blocked.png", "/brand/blocked.jpg", "/brand/blocked.jpeg"],
-    []
-  );
-  const [blockedIdx, setBlockedIdx] = useState(0);
-  const [blockedOk, setBlockedOk] = useState(false);
-  const blockedSrc = blockedCandidates[Math.min(blockedIdx, blockedCandidates.length - 1)];
+  useEffect(() => {
+    if (tab === "admin" && !me.isOwner) setTab("rates");
+  }, [tab, me.isOwner]);
 
-  if (me.ok && me.blocked) {
-    return (
-      <div className="vx-blockedOnly">
-        <img
-          className="vx-blockedImg"
-          src={blockedSrc}
-          alt=""
-          onLoad={() => setBlockedOk(true)}
-          onError={() => {
-            setBlockedOk(false);
-            setBlockedIdx((x) => (x < blockedCandidates.length - 1 ? x + 1 : x));
-          }}
-        />
-        {!blockedOk && blockedIdx >= blockedCandidates.length - 1 ? (
-          <div className="vx-blockedFallback">Доступ ограничен</div>
-        ) : null}
-      </div>
-    );
-  }
-
-  const goHome = () => {
-    setScreen("home");
-  };
-
-  const trackClick = (target: string, props: any = {}) => {
-    try {
-      if (!me.ok || !me.initData || isDemo) return;
-      const platform = (window as any).Telegram?.WebApp?.platform || "";
-      void apiEvent(me.initData, {
-        name: "click",
-        sessionId,
-        platform,
-        path: window.location.pathname + window.location.search,
-        props: { target, ...props },
-      });
-    } catch {
-      // ignore
-    }
-  };
-
-  const goTo = (next: ScreenKey, target: string) => {
-    trackClick(target, { to: next });
-    setScreen(next);
-  };
-
-  const displayName = useMemo(() => {
-    const u = me.user;
-    const n = String(u?.first_name || u?.username || "").trim();
-    return n || "";
-  }, [me.user?.first_name, me.user?.username]);
-
-  const showStatusInfo = () => {
-    const st = normalizeStatus(me.status);
-    const title = `Ваш статус: ${statusTitle(st)}`;
-    const msg =
-      st === "gold"
-        ? "Курс стал ещё лучше."
-        : st === "silver"
-          ? "Повышенный курс."
-          : "• Базовые условия\n• Все функции приложения доступны";
-
-    if (tg?.showPopup) {
-      tg.showPopup({
-        title,
-        message: msg,
-        buttons: [{ type: "close", text: "Ок" }],
-      });
-    } else if (tg?.showAlert) {
-      tg.showAlert(`${title}\n\n${msg}`);
-    } else {
-      alert(`${title}\n\n${msg}`);
-    }
-  };
+  const bottomTabs: Array<{ key: TabKey; label: string; show: boolean; icon: React.ReactNode }> = [
+    { key: "rates", label: "Курс", show: true, icon: <IconSwap className="vx-i" /> },
+    { key: "calc", label: "Калькулятор", show: true, icon: <IconCalc className="vx-i" /> },
+    { key: "atm", label: "Банкоматы", show: true, icon: <IconAtm className="vx-i" /> },
+    { key: "guide", label: "Гид", show: true, icon: <IconGuide className="vx-i" /> },
+    { key: "reviews", label: "Отзывы", show: true, icon: <IconStar className="vx-i" /> },
+    { key: "admin", label: "Упр.", show: !!me.isOwner, icon: <IconSettings className="vx-i" /> },
+  ];
 
   return (
-    <div className={`vx-page theme-client ${screen === "home" ? "mx-homePage" : ""}`}>
-      <style>{`@import url('${UI.fontImport}');`}</style>
+    <div className="vx-page">
+      <style>{`
+        .vx-page{
+          min-height: 100vh;
+          padding: 14px 12px;
+          box-sizing: border-box;
+          color: #0f172a;
+          font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+          -webkit-font-smoothing: antialiased;
+          text-rendering: optimizeLegibility;
+          background:
+            radial-gradient(1200px 600px at 20% -10%, rgba(34,197,94,0.18), transparent 55%),
+            radial-gradient(900px 600px at 90% 0%, rgba(6,182,212,0.14), transparent 55%),
+            linear-gradient(180deg, rgba(247,251,255,1), rgba(244,255,248,1));
+        }
+
+        /* Базовая типографика */
+        .vx-page *{ box-sizing: border-box; }
+        .vx-page .h1{ font-size: 22px; font-weight: 900; letter-spacing: -0.02em; }
+        .vx-page .small{ font-size: 13px; opacity: 0.85; }
+
+        /* Заголовки внутри вкладок (часто используются классы .h2/.h3) */
+        .vx-page .h2{ font-size: 18px; font-weight: 900; letter-spacing: -0.015em; margin: 0 0 10px 0; }
+        .vx-page .h3{ font-size: 15px; font-weight: 900; margin: 0 0 8px 0; }
+        .vx-page h2{ font-size: 18px; font-weight: 900; margin: 0 0 10px 0; }
+        .vx-page h3{ font-size: 15px; font-weight: 900; margin: 0 0 8px 0; }
+
+        /* Приводим карточки к единому премиум-стилю (и для твоих табов тоже) */
+        .vx-page .container{ max-width: 420px; margin: 0 auto; }
+        .vx-page .card{
+          border-radius: 24px;
+          border: 1px solid rgba(15,23,42,0.10);
+          background: rgba(255,255,255,0.80);
+          box-shadow: 0 10px 30px rgba(2,6,23,0.08);
+          backdrop-filter: blur(10px);
+          padding: 14px;
+        }
+
+        /* На всякий случай: если где-то оставалась старая верхняя панель вкладок */
+        .vx-page .tabs{ display: none !important; }
+
+        /* Не ломаем твой layout: гарантируем, что в карточках/формах текст не белый */
+        .vx-page .card,
+        .vx-page .h1,
+        .vx-page .small,
+        .vx-page label,
+        .vx-page input,
+        .vx-page select,
+        .vx-page textarea{ color: #0f172a !important; }
+        .vx-page input::placeholder,
+        .vx-page textarea::placeholder{
+          color: rgba(15,23,42,0.45) !important;
+        }
+        .vx-page input,
+        .vx-page select,
+        .vx-page textarea{
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+
+        /* Формы — делаем одинаковые высоты и аккуратные радиусы */
+        .vx-page input,
+        .vx-page select{
+          height: 48px;
+          border-radius: 18px;
+          border: 1px solid rgba(15,23,42,0.16);
+          background: rgba(255,255,255,0.92);
+          padding: 0 14px;
+          font-weight: 800;
+          font-size: 15px;
+          outline: none;
+        }
+        .vx-page textarea{
+          border-radius: 18px;
+          border: 1px solid rgba(15,23,42,0.16);
+          background: rgba(255,255,255,0.92);
+          padding: 12px 14px;
+          font-weight: 700;
+        }
+        .vx-page button{ border-radius: 18px; }
+
+        .vx-body{
+          /* много места под плавающий бар, чтобы ничего не перекрывалось */
+          padding-bottom: calc(170px + env(safe-area-inset-bottom));
+        }
+
+        /* Обёртка-карточка для секций (чтобы курс/калькулятор выглядели как бар) */
+        .vx-card2{
+          border-radius: 26px;
+          border: 1px solid rgba(15,23,42,0.10);
+          background: rgba(255,255,255,0.82);
+          box-shadow: 0 12px 34px rgba(2,6,23,0.10);
+          backdrop-filter: blur(12px);
+          padding: 14px;
+        }
+        /* Если внутри табов уже есть .card — убираем двойные рамки */
+        .vx-card2 .card{
+          background: transparent !important;
+          border: 0 !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+        }
+        /* Фикс белого текста внутри секций, но НЕ трогаем кнопки */
+        .vx-card2 :where(h1,h2,h3,h4,p,div,span,small,label,li){
+          color: #0f172a;
+        }
+        .vx-card2 button,
+        .vx-card2 button *{
+          color: inherit;
+        }
+
+        .vx-stack{
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .vx-stack > *{
+          width: 100%;
+          min-width: 0;
+        }
+
+        /* Bottom bar (плавающий) */
+        .vx-bottomWrap{
+          position: fixed;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 999;
+          padding: 0 12px;
+          padding-bottom: calc(12px + env(safe-area-inset-bottom));
+          box-sizing: border-box;
+          pointer-events: none;
+        }
+        .vx-bottomBar{
+          pointer-events: auto;
+          max-width: 420px;
+          margin: 0 auto;
+          border-radius: 28px;
+          border: 1px solid rgba(15,23,42,0.10);
+          background: rgba(255,255,255,0.88);
+          box-shadow: 0 12px 30px rgba(2,6,23,0.14);
+          backdrop-filter: blur(12px);
+          padding: 4px;
+          display: grid;
+          grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+        }
+        .vx-navBtn{
+          position: relative;
+          border: 0;
+          background: transparent;
+          border-radius: 22px;
+          padding: 10px 6px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          color: rgba(15,23,42,0.55);
+          font-weight: 800;
+          font-size: 10px;
+          letter-spacing: -0.01em;
+          cursor: pointer;
+          user-select: none;
+        }
+        .vx-navBtnActive{ color: #0f172a; }
+        .vx-navPill{
+          position: absolute;
+          inset: 0;
+          border-radius: 22px;
+          background: linear-gradient(135deg, rgba(34,197,94,0.20), rgba(6,182,212,0.16));
+          border: 1px solid rgba(15,23,42,0.08);
+        }
+        .vx-navIcon{
+          position: relative;
+          width: 36px;
+          height: 36px;
+          display: grid;
+          place-items: center;
+        }
+        .vx-i{ width: 20px; height: 20px; }
+        .vx-navLabel{
+          position: relative;
+          max-width: 80px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          line-height: 1;
+        }
+
+        /* Telegram WebView иногда даёт странные стили кнопкам */
+        .vx-bottomBar button{ -webkit-tap-highlight-color: transparent; }
+
+        /* --- Починка раскладки калькулятора (без доступа к внутренним файлам) ---
+           Подхватываем самые типичные классы/структуры: row/calcRow и т.п.
+           Если у тебя внутри другие классы — всё равно подействует на select+input в строках.
+        */
+        .vx-body .row,
+        .vx-body .calcRow,
+        .vx-body .calc-row,
+        .vx-body .exchangeRow,
+        .vx-body .exchange-row{
+          display: grid !important;
+          grid-template-columns: 92px 1fr auto;
+          gap: 10px;
+          align-items: center;
+        }
+        .vx-body .row select,
+        .vx-body .calcRow select,
+        .vx-body .calc-row select,
+        .vx-body .exchangeRow select,
+        .vx-body .exchange-row select{
+          width: 92px;
+          padding-right: 28px;
+        }
+        .vx-body .row input,
+        .vx-body .calcRow input,
+        .vx-body .calc-row input,
+        .vx-body .exchangeRow input,
+        .vx-body .exchange-row input{
+          width: 100%;
+          min-width: 0;
+        }
+        .vx-body .row button,
+        .vx-body .calcRow button,
+        .vx-body .calc-row button,
+        .vx-body .exchangeRow button,
+        .vx-body .exchange-row button{
+          height: 48px;
+          min-width: 48px;
+          padding: 0;
+          border: 1px solid rgba(15,23,42,0.16);
+          background: rgba(255,255,255,0.92);
+          box-shadow: 0 6px 16px rgba(2,6,23,0.06);
+        }
+      `}</style>
 
       <div className="container">
-        {screen === "home" ? (
-          <>
-            <div className="mx-topRow mx-topRowHome">
-              <button
-                type="button"
-                className="mx-themeBtn"
-                onClick={toggleTheme}
-                aria-label={theme === "dark" ? "Тёмная тема" : "Светлая тема"}
-              >
-                {theme === "dark" ? <IconMoon className="mx-themeI" /> : <IconSun className="mx-themeI" />}
-              </button>
+        <div className="card">
+          <div className="h1">{UI.title}</div>
+          <div className="small">
+            {me.ok && me.user
+              ? `Вы: ${me.user.first_name ?? ""} ${me.user.username ? "(@" + me.user.username + ")" : ""} • статус: ${me.status}`
+              : me.error ?? "Авторизация..."}
+          </div>
+        </div>
 
-              <div className="mx-topCenter">
-                <MainLogo />
-              </div>
-
-              <button type="button" className="mx-statusBtn" onClick={showStatusInfo} aria-label="Ваш статус">
-                <StatusIcon status={me.status} />
-              </button>
+        <div className="vx-body">
+          {tab === "rates" && (
+            <div className="vx-card2">
+              <RatesTab me={me} />
             </div>
-
-            <div className="mx-card">
-              <div className="mx-cardHead">
-                <div>
-                  <div className="mx-cardTitle">Курс</div>
-                  <div className="mx-cardSub">{me.ok ? UI.title : me.error ?? "Авторизация…"}</div>
-                </div>
-              </div>
-
-              <div className="mx-courseBody">
-                <RatesTab embedded limit={courseExpanded ? undefined : 3} />
-              </div>
-
-              <div className="mx-btnRow">
-                <button type="button" className="mx-btn" onClick={() => setCourseExpanded((v) => !v)}>
-                  {courseExpanded ? "Свернуть" : "Все курсы"}
-                </button>
-                <button
-                  type="button"
-                  className="mx-btn mx-btnPrimary"
-                  onClick={() => goTo("calc","home_calc_btn")}
-                >
-                  Оставить заявку
-                </button>
-              </div>
+          )}
+          {tab === "calc" && (
+            <div className="vx-card2">
+              <CalculatorTab me={me} />
             </div>
-
-            {/* Extra gap so the "Курс" card shadow doesn't visually "dirty" the first nav card */}
-            <div className="mx-sp18" />
-
-            <NavCard
-              title="Афиша"
-              subtitle="События, спорт, вечеринки"
-              iconSrc="/brand/icons/tab-afisha-256.png?v=1"
-              onClick={() => goTo("afisha","nav_afisha")}
-            />
-            <div className="mx-sp10" />
-            <NavCard
-              title="Банкоматы"
-              subtitle="VIETCOMBANK и BIDV"
-              iconSrc="/brand/icons/tab-atm-256.png?v=1"
-              onClick={() => goTo("atm","nav_atm")}
-            />
-            <div className="mx-sp10" />
-            <NavCard
-              title="Отзывы"
-              subtitle="Отзывы клиентов"
-              iconSrc="/brand/icons/tab-reviews-256.png?v=1"
-              onClick={() => goTo("reviews","nav_reviews")}
-            />
-
-            {me.isAdmin ? (
-              <>
-                <div className="mx-sp10" />
-                <NavCard
-                  title="Админ"
-                  subtitle="Заявки"
-                  iconSrc="/brand/icons/tab-rates-256.png?v=1"
-                  onClick={() => goTo("staff","nav_staff")}
-                />
-              </>
-            ) : null}
-
-            <div className="mx-sp24" />
-          </>
-        ) : null}
-
-        {screen === "calc" ? (
-          <>
-            <ScreenHeader title="Оставить заявку" onBack={goHome} />
-            <CalculatorTab me={me} />
-          </>
-        ) : null}
-
-        {screen === "pay" ? (
-          <>
-            <ScreenHeader title="Оплата и брони" onBack={goHome} />
-            <PaymentsTab />
-          </>
-        ) : null}
-
-        {screen === "afisha" ? (
-          <>
-            <ScreenHeader
-              title="Афиша"
-              onBack={() => {
-                const handled = afishaBackRef.current?.() ?? false;
-                if (!handled) goHome();
-              }}
-            />
-            <AfishaTab registerBack={(fn) => (afishaBackRef.current = fn)} />
-          </>
-        ) : null}
-
-        {screen === "atm" ? (
-          <>
-            <ScreenHeader title="Банкоматы" onBack={goHome} />
-            <AtmTab />
-          </>
-        ) : null}
-
-        {screen === "reviews" ? (
-          <>
-            <ScreenHeader title="Отзывы" onBack={goHome} />
-            <ReviewsTab />
-          </>
-        ) : null}
-
-        {screen === "staff" ? (
-          <>
-            <ScreenHeader title="Админ" onBack={goHome} />
-            <StaffTab me={me} />
-          </>
-        ) : null}
-
-        {screen === "history" ? (
-          <>
-            <ScreenHeader title="Моя история" onBack={goHome} />
-            <HistoryTab me={me} />
-          </>
-        ) : null}
-
-
-{screen === "other" ? (
-  <>
-    <ScreenHeader title="Прочее" onBack={goHome} />
-    <OtherTab
-      onFaq={() => goTo("faq","other_faq")}
-      onAbout={() => goTo("about","other_about")}
-      onContacts={() => goTo("contacts","other_contacts")}
-    />
-  </>
-) : null}
-
-{screen === "faq" ? (
-  <>
-    <ScreenHeader title="FAQ" onBack={() => goTo("other","faq_back")} />
-    <FaqTab />
-  </>
-) : null}
-
-{screen === "contacts" ? (
-  <>
-    <ScreenHeader title="Контакты" onBack={() => goTo("other","contacts_back")} />
-    <ContactsTab />
-  </>
-) : null}
-
-        {screen === "about" ? (
-          <>
-            <ScreenHeader title="О приложении" onBack={goHome} />
-            <AboutTab />
-          </>
-        ) : null}
-
-              </div>
-
-      {/* Bottom menu */}
-      <div className="mx-bottomNav" role="navigation" aria-label="Нижнее меню">
-        <button
-          type="button"
-          className={"mx-bottomBtn " + (screen === "pay" ? "is-on" : "")}
-          onClick={() => goTo("pay","bottom_pay")}
-        >
-          Оплата и брони
-        </button>
-        <button
-          type="button"
-          className={"mx-bottomBtn " + (screen === "history" ? "is-on" : "")}
-          onClick={() => goTo("history","bottom_history")}
-        >
-          Моя история
-        </button>
-        <button
-          type="button"
-          className={"mx-bottomBtn " + (screen === "other" ? "is-on" : "")}
-          onClick={() => goTo("other","bottom_other")}
-        >
-          Прочее
-        </button>
+          )}
+          {tab === "atm" && (
+            <div className="vx-card2">
+              <AtmTab />
+            </div>
+          )}
+          {tab === "guide" && (
+            <div className="vx-card2">
+              <GuideTab />
+            </div>
+          )}
+          {tab === "reviews" && (
+            <div className="vx-card2">
+              <ReviewsTab me={me} />
+            </div>
+          )}
+          {tab === "admin" && me.isOwner && (
+            <div className="vx-card2">
+              <AdminTab me={me} />
+            </div>
+          )}
+        </div>
       </div>
+
+      <BottomBar active={tab} onChange={setTab} items={bottomTabs} />
     </div>
   );
 }

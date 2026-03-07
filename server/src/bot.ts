@@ -1,11 +1,9 @@
 import { Telegraf, Markup } from "telegraf";
-import { randomUUID } from "node:crypto";
 import {
   readStore,
   writeStore,
   upsertUserFromTelegram,
   type UserStatus,
-  type StoredRequest,
   normalizeStatus,
   parseStatusInput
 } from "./store.js";
@@ -17,30 +15,6 @@ const statusLabel: Record<UserStatus, string> = {
   silver: "серебро",
   gold: "золото"
 };
-
-// Thousands separator must be a comma (1,000 / 10,000) — same as in the calculator UI
-function fmtGroupedInt(n: number): string {
-  const s = String(Math.trunc(Math.abs(n)));
-  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
-
-function fmtReqAmount(cur: string, n: number): string {
-  if (!Number.isFinite(n)) return String(n);
-  if (String(cur) === "USDT") {
-    const v = Math.round(n * 10) / 10;
-    const sign = v < 0 ? "-" : "";
-    const abs = Math.abs(v);
-    const intPart = Math.trunc(abs);
-    const dec = Math.round((abs - intPart) * 10);
-    const grouped = fmtGroupedInt(intPart);
-    return dec ? `${sign}${grouped}.${dec}` : `${sign}${grouped}`;
-  }
-  return fmtGroupedInt(Math.round(n));
-}
-
-function ignoreStatusForPair(a: string, b: string) {
-  return (a === "THB" && b === "RUB") || (a === "RUB" && b === "THB");
-}
 
 export function createBot(opts: {
   token: string;
@@ -63,7 +37,7 @@ export function createBot(opts: {
   };
 
   bot.start(async (ctx) => {
-    if (ctx.from) await upsertUserFromTelegram(ctx.from);
+    if (ctx.from) upsertUserFromTelegram(ctx.from);
 
     let webappUrl = opts.webappUrl || "";
     if (webappUrl && !/^https?:\/\//i.test(webappUrl)) webappUrl = "https://" + webappUrl;
@@ -78,7 +52,7 @@ export function createBot(opts: {
 
   bot.command("whoami", async (ctx) => {
     if (ctx.from) {
-      const u = await upsertUserFromTelegram(ctx.from);
+      const u = upsertUserFromTelegram(ctx.from);
       await ctx.reply(
         `Твой tg_id: ${u.tg_id}\n` +
           `username: ${u.username ? "@" + u.username : "(нет)"}\n` +
@@ -97,42 +71,27 @@ export function createBot(opts: {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setgroup");
     if (!ctx.chat || ctx.chat.type === "private") return ctx.reply("Используй /setgroup в группе.");
 
-    const store = await readStore();
+    const store = readStore();
     store.config.groupChatId = ctx.chat.id;
-    await writeStore(store);
+    writeStore(store);
 
     await ctx.reply(`Группа сохранена ✅ groupChatId=${ctx.chat.id}`);
   });
 
-  // Save a separate group where client requests should be posted
-  bot.command("setrequestsgroup", async (ctx) => {
-    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setrequestsgroup");
-    if (!ctx.chat || ctx.chat.type === "private") return ctx.reply("Используй /setrequestsgroup в группе.");
-
-    const store = await readStore();
-    (store.config as any).requestsGroupChatId = ctx.chat.id;
-    await writeStore(store);
-
-    await ctx.reply(`Группа для заявок сохранена ✅ requestsGroupChatId=${ctx.chat.id}`);
-  });
-
   bot.command("showgroup", async (ctx) => {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /showgroup");
-    const store = await readStore();
+    const store = readStore();
     const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
-    const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;
     await ctx.reply(
       `store.groupChatId: ${store.config.groupChatId ?? "(не задан)"}\n` +
-        `store.requestsGroupChatId: ${(store.config as any).requestsGroupChatId ?? "(не задан)"}\n` +
         `env.GROUP_CHAT_ID: ${envGroup ?? "(не задан)"}\n` +
-        `env.REQUESTS_GROUP_CHAT_ID: ${envReqGroup ?? "(не задан)"}\n` +
         `requests: ${store.requests.length}`
     );
   });
 
   bot.command("pinggroup", async (ctx) => {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /pinggroup");
-    const store = await readStore();
+    const store = readStore();
     const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
     const groupChatId = store.config.groupChatId || envGroup;
 
@@ -143,23 +102,6 @@ export function createBot(opts: {
       await ctx.reply("Ок ✅ отправил тест в группу");
     } catch (e: any) {
       console.error("PINGGROUP ERROR:", e);
-      await ctx.reply(`Не смог отправить в группу. Ошибка: ${e?.message || e}`);
-    }
-  });
-
-  bot.command("pingrequestsgroup", async (ctx) => {
-    if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /pingrequestsgroup");
-    const store = await readStore();
-    const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;
-    const reqGroupChatId = (store.config as any).requestsGroupChatId || envReqGroup || store.config.groupChatId || (process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined);
-
-    if (!reqGroupChatId) return ctx.reply("Группа для заявок не задана. Сделай /setrequestsgroup в нужной группе (или задай REQUESTS_GROUP_CHAT_ID).\nМожно временно использовать /setgroup.");
-
-    try {
-      await ctx.telegram.sendMessage(reqGroupChatId, "✅ Тест: бот может писать в группу заявок");
-      await ctx.reply("Ок ✅ отправил тест в группу заявок");
-    } catch (e: any) {
-      console.error("PINGREQUESTSGROUP ERROR:", e);
       await ctx.reply(`Не смог отправить в группу. Ошибка: ${e?.message || e}`);
     }
   });
@@ -187,7 +129,7 @@ export function createBot(opts: {
       return ctx.reply("Статус только: standard | silver | gold (можно: стандарт/серебро/золото)");
     }
 
-    const store = await readStore();
+    const store = readStore();
     const key = String(tgId);
     const now = new Date().toISOString();
 
@@ -206,7 +148,7 @@ export function createBot(opts: {
       store.users[key].last_seen_at = now;
     }
 
-    await writeStore(store);
+    writeStore(store);
     return ctx.reply(`Готово ✅ tg_id=${tgId} → статус ${statusLabel[next]}`);
   });
 
@@ -218,7 +160,7 @@ export function createBot(opts: {
 
     console.log("✅ web_app_data received len=", String(wad).length);
 
-    if (ctx.from) await upsertUserFromTelegram(ctx.from);
+    if (ctx.from) upsertUserFromTelegram(ctx.from);
 
     let payload: any;
     try {
@@ -228,13 +170,19 @@ export function createBot(opts: {
       return;
     }
 
-    const store = await readStore();
+    const store = readStore();
+    const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
+    const groupChatId = store.config.groupChatId || envGroup;
+
+    if (!groupChatId) {
+      await ctx.reply("Группа не задана. Сделай /setgroup в группе (или задай GROUP_CHAT_ID).");
+      return;
+    }
 
     const userKey = String(ctx.from?.id ?? "");
     const status: UserStatus = store.users[userKey]?.status ?? "standard";
 
     const methodMap: Record<string, string> = { cash: "наличные", transfer: "перевод", atm: "банкомат" };
-    const payMap: Record<string, string> = { cash: "наличные", transfer: "перевод", other: "другое" };
     const dtDaNang = new Intl.DateTimeFormat("ru-RU", {
       timeZone: "Asia/Ho_Chi_Minh",
       year: "numeric",
@@ -247,79 +195,28 @@ export function createBot(opts: {
       .format(new Date())
       .replace(",", "");
 
-	    const sellCur = String(payload.sellCurrency || "");
-	    const buyCur = String(payload.buyCurrency || "");
-	    const effStatus: UserStatus = ignoreStatusForPair(sellCur, buyCur) ? "standard" : normalizeStatus(status);
-
-	    const who =
+    const who =
       (ctx.from?.username
         ? `@${ctx.from.username}`
         : `${ctx.from?.first_name || ""} ${ctx.from?.last_name || ""}`.trim() || `id ${ctx.from?.id}`) +
-	      ` • статус: ${statusLabel[effStatus]}`;
+      ` • статус: ${statusLabel[normalizeStatus(status)]}`;
 
-    // Create a request in the store (so it appears in the miniapp admin tab instantly)
-    store.requests = store.requests || [];
-    const id = randomUUID();
-    const reqObj: StoredRequest = {
-      id,
-      state: "in_progress",
-	      sellCurrency: sellCur as any,
-	      buyCurrency: buyCur as any,
-      sellAmount: Number(payload.sellAmount),
-      buyAmount: Number(payload.buyAmount),
-      payMethod: String(payload.payMethod || ""),
-      receiveMethod: String(payload.receiveMethod || "") as any,
-      from: ctx.from as any,
-	      status: effStatus,
-      created_at: new Date().toISOString()
-    };
-    store.requests.push(reqObj);
-    await writeStore(store);
-
-    const shortId = id.slice(-6);
     const text =
-      `💱 Новая заявка (в работе)\n` +
-      `🆔 #${shortId}\n` +
+      `💱 Заявка\n` +
       `👤 ${who}\n` +
-	      `🔁 ${sellCur} → ${buyCur}\n` +
-	      `💸 Отдаёт: ${fmtReqAmount(sellCur, Number(payload.sellAmount))}\n` +
-	      `🎯 Получит: ${fmtReqAmount(buyCur, Number(payload.buyAmount))}\n` +
-      `💳 Оплата: ${payMap[String(payload.payMethod)] || String(payload.payMethod || "—")}\n` +
-      `📦 Получение: ${methodMap[payload.receiveMethod as ReceiveMethod] || payload.receiveMethod}\n` +
+      `🔁 ${payload.sellCurrency} → ${payload.buyCurrency}\n` +
+      `💸 Отдаёт: ${payload.sellAmount}\n` +
+      `🎯 Получит: ${payload.buyAmount}\n` +
+      `📦 Способ: ${methodMap[payload.receiveMethod as ReceiveMethod] || payload.receiveMethod}\n` +
       `🕒 ${dtDaNang}`;
 
-    // Send request to a dedicated group (preferred) so managers can pick it up.
-    // Priority: store.config.requestsGroupChatId -> env REQUESTS_GROUP_CHAT_ID -> store.config.groupChatId -> env GROUP_CHAT_ID
-    const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;
-    const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
-    const reqGroupChatId =
-      (store.config as any).requestsGroupChatId || envReqGroup || store.config.groupChatId || envGroup;
-
     try {
-      if (reqGroupChatId) {
-        await ctx.telegram.sendMessage(reqGroupChatId, text, ({ disable_web_page_preview: true } as any));
-      } else {
-        // If no group is set, fall back to private notifications (best-effort)
-        const recipients = ownerIds.length
-          ? ownerIds
-          : Array.isArray((store.config as any)?.adminTgIds)
-          ? ((store.config as any).adminTgIds as number[])
-          : [];
-        let wa = opts.webappUrl || "";
-        if (wa && !/^https?:\/\//i.test(wa)) wa = "https://" + wa;
-        const kb = wa ? Markup.inlineKeyboard([Markup.button.webApp("Открыть админку", wa)]) : undefined;
-        for (const rid of recipients) {
-          await ctx.telegram.sendMessage(rid, text, kb ? kb : undefined);
-        }
-      }
+      await ctx.telegram.sendMessage(groupChatId, text);
+      await ctx.reply("Заявка отправлена ✅");
     } catch (e: any) {
-      console.error("REQUEST GROUP NOTIFY FAIL:", e);
+      console.error("SEND FAIL:", e);
+      await ctx.reply(`Не смог отправить в группу: ${e?.message || e}`);
     }
-
-    // Acknowledge to the user
-    try {
-      await ctx.reply("✅ Ваша заявка принята в работу, в ближайшее время с вами свяжется менеджер 🙌");
-    } catch {}
   });
 
   return bot;
