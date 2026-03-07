@@ -55,9 +55,9 @@ function fmtGroupedInt(intPart: string): string {
 }
 
 function amountMaxDecimals(cur: Currency): number {
+  // In calculator only USDT may have fractional part. All other currencies are shown and entered as whole numbers.
   if (cur === "USDT") return 8;
-  if (cur === "VND") return 0;
-  return 6;
+  return 0;
 }
 
 function countDigits(value: string): number {
@@ -878,7 +878,7 @@ export default function CalculatorTab({ me }: Props) {
           </select>
 
           <input
-            inputMode={sellCurrency === "VND" ? "numeric" : "decimal"}
+            inputMode={sellCurrency === "USDT" ? "decimal" : "numeric"}
             placeholder="Отдаю"
             value={sellText}
             className={invalidUsdSell || invalidEurSell || invalidThbSell || invalidVndSellCash ? "vx-inputInvalid" : ""}
@@ -911,7 +911,7 @@ export default function CalculatorTab({ me }: Props) {
           </select>
 
           <input
-            inputMode={buyCurrency === "VND" ? "numeric" : "decimal"}
+            inputMode={buyCurrency === "USDT" ? "decimal" : "numeric"}
             placeholder="Получаю"
             value={buyText}
             className={invalidUsdBuy || invalidEurBuy || invalidThbBuy || invalidVndBuyCash || invalidVndBuyAtm ? "vx-inputInvalid" : ""}
