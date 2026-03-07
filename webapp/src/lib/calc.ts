@@ -3,7 +3,7 @@ import type { Currency, Rates } from "./types";
 export function formatAmount(currency: Currency, value: number) {
   if (!Number.isFinite(value)) return "—";
   if (currency === "VND") return Math.round(value).toLocaleString("ru-RU");
-  if (currency === "USDT") return value.toLocaleString("ru-RU", { maximumFractionDigits: 4 });
+  if (currency === "USDT") return value.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
   return value.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
 }
 

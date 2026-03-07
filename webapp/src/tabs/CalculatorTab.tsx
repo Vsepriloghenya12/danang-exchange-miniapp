@@ -56,7 +56,7 @@ function fmtGroupedInt(intPart: string): string {
 
 function amountMaxDecimals(cur: Currency): number {
   // In calculator only USDT may have fractional part. All other currencies are shown and entered as whole numbers.
-  if (cur === "USDT") return 8;
+  if (cur === "USDT") return 1;
   return 0;
 }
 
