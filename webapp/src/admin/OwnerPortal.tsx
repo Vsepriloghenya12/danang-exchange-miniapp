@@ -41,7 +41,6 @@ const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = 
   "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
   "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
   "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
-  "USDT/USD": { buyMul: 0.965, sellMul: 1.035 },
   "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
   "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
   "USD/THB": { buyMul: 0.95, sellMul: 1.07 },

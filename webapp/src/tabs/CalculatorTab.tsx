@@ -33,7 +33,6 @@ const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = 
   "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
   "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
   "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
-  "USDT/USD": { buyMul: 0.965, sellMul: 1.035 },
   "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
   "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
   "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
@@ -81,7 +80,7 @@ function detectDecimalSeparator(unsigned: string, maxDecimals: number): { index:
     const commaIndex = commaMatches[0];
     const leftDigits = countDigits(unsigned.slice(0, commaIndex));
     const rightDigits = unsigned.slice(commaIndex + 1).replace(/\D+/g, "");
-    const looksLikeThousands = rightDigits.length === 3 && leftDigits >= 1;
+    const looksLikeThousands = leftDigits >= 1 && rightDigits.length >= 3;
     if (!looksLikeThousands && rightDigits.length <= maxDecimals) {
       return { index: commaIndex, char: "," };
     }
@@ -741,12 +740,12 @@ export default function CalculatorTab({ me }: Props) {
 
   const usdNote =
     sellCurrency === "USD" || buyCurrency === "USD"
-      ? "USD: клиент может передать и получить только наличные доллары номиналом 100$ нового образца, без надписей и дефектов."
+      ? "USD: вы можете передать и получить только наличные доллары номиналом 100$ нового образца, без надписей и дефектов."
       : null;
 
   const eurNote =
     sellCurrency === "EUR" || buyCurrency === "EUR"
-      ? "EUR: клиент может передать и получить только наличные купюры по 50€ нового образца, без надписей и дефектов."
+      ? "EUR: вы можете передать и получить только наличные купюры по 50€ нового образца, без надписей и дефектов."
       : null;
 
   const vndNote =
@@ -995,10 +994,6 @@ export default function CalculatorTab({ me }: Props) {
           <div className="vx-rateLine">
             Курс: <b>{fmtAmount("VND", rateInfo.base)}</b> + статус <b>{fmtAmount("VND", rateInfo.tier)}</b> + способ{" "}
             <b>{fmtAmount("VND", rateInfo.m)}</b> = <b>{fmtAmount("VND", rateInfo.eff)}</b>
-          </div>
-        ) : gMode ? (
-          <div className="vx-rateLine">
-            Для этой пары используется <b>G</b>-курс по формуле (без бонусов/банкомата).
           </div>
         ) : null}
 
