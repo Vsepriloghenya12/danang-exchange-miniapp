@@ -804,9 +804,17 @@ export function createApiRouter(opts: {
       const v = (src as any)[k];
       const buy = Number(String(v?.buyMul ?? def[k].buyMul).replace(",", "."));
       const sell = Number(String(v?.sellMul ?? def[k].sellMul).replace(",", "."));
+      const extraBuy = Number(String(v?.extraBuy ?? (def[k] as any)?.extraBuy ?? 0).replace(",", "."));
+      const extraSell = Number(String(v?.extraSell ?? (def[k] as any)?.extraSell ?? 0).replace(",", "."));
       out[k] = {
         buyMul: Number.isFinite(buy) && buy > 0 ? buy : def[k].buyMul,
-        sellMul: Number.isFinite(sell) && sell > 0 ? sell : def[k].sellMul
+        sellMul: Number.isFinite(sell) && sell > 0 ? sell : def[k].sellMul,
+        ...(k === "USD/USDT"
+          ? {
+              extraBuy: Number.isFinite(extraBuy) ? extraBuy : ((def[k] as any)?.extraBuy ?? 0),
+              extraSell: Number.isFinite(extraSell) ? extraSell : ((def[k] as any)?.extraSell ?? 0)
+            }
+          : {})
       };
     }
     return out as Record<string, { buyMul: number; sellMul: number }>;

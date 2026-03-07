@@ -36,13 +36,12 @@ const LS_CASH_OVERRIDES = "dx_cash_overrides_v1";
 
 // Cross-pair formulas (multipliers) — defaults match the current app logic.
 // BUY = G * buyMul, SELL = G * sellMul
-const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
+const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }> = {
   "USDT/RUB": { buyMul: 0.98, sellMul: 1.08 },
   "USD/RUB": { buyMul: 0.98, sellMul: 1.08 },
   "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
   "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
-  "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
-  "USDT/USD": { buyMul: 0.965, sellMul: 1.035 },
+  "USD/USDT": { buyMul: 0.965, sellMul: 1.035, extraBuy: 0, extraSell: 0 },
   "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
   "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
   "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
@@ -149,12 +148,18 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
 
 
   // G-formulas editor (owner)
-  const [gFormulasDraft, setGFormulasDraft] = useState<Record<string, { buyMul: string; sellMul: string }>>(() => {
+  const [gFormulasDraft, setGFormulasDraft] = useState<Record<string, { buyMul: string; sellMul: string; extraBuy?: string; extraSell?: string }>>(() => {
     const d: any = {};
     for (const k of G_FORMULA_KEYS) {
       d[k] = {
         buyMul: String(DEFAULT_G_FORMULAS[k]?.buyMul ?? ""),
-        sellMul: String(DEFAULT_G_FORMULAS[k]?.sellMul ?? "")
+        sellMul: String(DEFAULT_G_FORMULAS[k]?.sellMul ?? ""),
+        ...(k === "USD/USDT"
+          ? {
+              extraBuy: String((DEFAULT_G_FORMULAS[k] as any)?.extraBuy ?? "0"),
+              extraSell: String((DEFAULT_G_FORMULAS[k] as any)?.extraSell ?? "0")
+            }
+          : {})
       };
     }
     return d;
@@ -756,7 +761,13 @@ function moveFaq(id: string, dir: -1 | 1) {
     for (const k of G_FORMULA_KEYS) {
       d[k] = {
         buyMul: String(DEFAULT_G_FORMULAS[k]?.buyMul ?? ""),
-        sellMul: String(DEFAULT_G_FORMULAS[k]?.sellMul ?? "")
+        sellMul: String(DEFAULT_G_FORMULAS[k]?.sellMul ?? ""),
+        ...(k === "USD/USDT"
+          ? {
+              extraBuy: String((DEFAULT_G_FORMULAS[k] as any)?.extraBuy ?? "0"),
+              extraSell: String((DEFAULT_G_FORMULAS[k] as any)?.extraSell ?? "0")
+            }
+          : {})
       };
     }
     setGFormulasDraft(d);
@@ -771,7 +782,13 @@ function moveFaq(id: string, dir: -1 | 1) {
         const v = r.formulas?.[k] || DEFAULT_G_FORMULAS[k];
         next[k] = {
           buyMul: String(v?.buyMul ?? DEFAULT_G_FORMULAS[k].buyMul),
-          sellMul: String(v?.sellMul ?? DEFAULT_G_FORMULAS[k].sellMul)
+          sellMul: String(v?.sellMul ?? DEFAULT_G_FORMULAS[k].sellMul),
+          ...(k === "USD/USDT"
+            ? {
+                extraBuy: String((v as any)?.extraBuy ?? (DEFAULT_G_FORMULAS[k] as any)?.extraBuy ?? 0),
+                extraSell: String((v as any)?.extraSell ?? (DEFAULT_G_FORMULAS[k] as any)?.extraSell ?? 0)
+              }
+            : {})
         };
       }
       setGFormulasDraft(next);
@@ -790,9 +807,17 @@ function moveFaq(id: string, dir: -1 | 1) {
         const v = gFormulasDraft[k] || ({} as any);
         const buy = Number(String(v.buyMul ?? "").replace(",", ".").trim());
         const sell = Number(String(v.sellMul ?? "").replace(",", ".").trim());
+        const extraBuy = Number(String((v as any).extraBuy ?? "").replace(",", ".").trim());
+        const extraSell = Number(String((v as any).extraSell ?? "").replace(",", ".").trim());
         next[k] = {
           buyMul: Number.isFinite(buy) && buy > 0 ? buy : DEFAULT_G_FORMULAS[k].buyMul,
-          sellMul: Number.isFinite(sell) && sell > 0 ? sell : DEFAULT_G_FORMULAS[k].sellMul
+          sellMul: Number.isFinite(sell) && sell > 0 ? sell : DEFAULT_G_FORMULAS[k].sellMul,
+          ...(k === "USD/USDT"
+            ? {
+                extraBuy: Number.isFinite(extraBuy) ? extraBuy : ((DEFAULT_G_FORMULAS[k] as any)?.extraBuy ?? 0),
+                extraSell: Number.isFinite(extraSell) ? extraSell : ((DEFAULT_G_FORMULAS[k] as any)?.extraSell ?? 0)
+              }
+            : {})
         };
       }
 
@@ -1508,6 +1533,47 @@ function moveFaq(id: string, dir: -1 | 1) {
                     />
                   </div>
                 </div>
+                {k === "USD/USDT" ? (
+                  <>
+                    <div className="vx-sp6" />
+                    <div className="small" style={{ opacity: 0.85 }}>
+                      Дополнительная надбавка только для пары USD/USDT: <b>BUY = G × buyMul + доп.BUY</b>, <b>SELL = G × sellMul + доп.SELL</b>.
+                    </div>
+                    <div className="vx-sp6" />
+                    <div className="vx-fields">
+                      <div className="vx-field">
+                        <div className="small"><b>доп. к BUY</b></div>
+                        <input
+                          className="input vx-in"
+                          inputMode="decimal"
+                          value={gFormulasDraft[k]?.extraBuy ?? ""}
+                          onChange={(e) =>
+                            setGFormulasDraft((prev) => ({
+                              ...(prev || {}),
+                              [k]: { ...(prev?.[k] || {}), extraBuy: e.target.value }
+                            }))
+                          }
+                          placeholder={String((DEFAULT_G_FORMULAS[k] as any)?.extraBuy ?? 0)}
+                        />
+                      </div>
+                      <div className="vx-field">
+                        <div className="small"><b>доп. к SELL</b></div>
+                        <input
+                          className="input vx-in"
+                          inputMode="decimal"
+                          value={gFormulasDraft[k]?.extraSell ?? ""}
+                          onChange={(e) =>
+                            setGFormulasDraft((prev) => ({
+                              ...(prev || {}),
+                              [k]: { ...(prev?.[k] || {}), extraSell: e.target.value }
+                            }))
+                          }
+                          placeholder={String((DEFAULT_G_FORMULAS[k] as any)?.extraSell ?? 0)}
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : null}
               </div>
             ))}
 

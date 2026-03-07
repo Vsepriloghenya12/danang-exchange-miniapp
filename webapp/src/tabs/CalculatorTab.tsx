@@ -27,13 +27,12 @@ const ALL_PAY: PayMethod[] = ["cash", "transfer"];
 const ALL_RECEIVE: ReceiveMethod[] = ["cash", "transfer", "atm"];
 
 // Формулы с картинки (на эти пары НЕ действуют бонусы/надбавки)
-const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
+const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }> = {
   "USDT/RUB": { buyMul: 0.98, sellMul: 1.08 },
   "USD/RUB": { buyMul: 0.98, sellMul: 1.08 },
   "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
   "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
-  "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
-  "USDT/USD": { buyMul: 0.965, sellMul: 1.035 },
+  "USD/USDT": { buyMul: 0.965, sellMul: 1.035, extraBuy: 0, extraSell: 0 },
   "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
   "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
   "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
@@ -353,14 +352,14 @@ function calcSellAmountVnd(rates: Rates, sellCurrency: Currency, buyCurrency: Cu
 }
 
 // ---------- G-конвертация ----------
-function isGModePair(formulas: Record<string, { buyMul: number; sellMul: number }>, a: Currency, b: Currency): boolean {
+function isGModePair(formulas: Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }>, a: Currency, b: Currency): boolean {
   if (a === "VND" || b === "VND") return false;
   return !!formulas[`${a}/${b}`] || !!formulas[`${b}/${a}`];
 }
 
 function getGPairRates(
   market: MarketRatesResponse | null,
-  formulas: Record<string, { buyMul: number; sellMul: number }>,
+  formulas: Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }>,
   base: Currency,
   quote: Currency
 ): { buy: number; sell: number } | null {
@@ -378,12 +377,15 @@ function getGPairRates(
   const pow = Math.pow(10, digits);
   const round = (x: number) => Math.round(x * pow) / pow;
 
-  return { buy: round(G * f.buyMul), sell: round(G * f.sellMul) };
+  const extraBuy = key === "USD/USDT" && Number.isFinite(Number((f as any)?.extraBuy)) ? Number((f as any).extraBuy) : 0;
+  const extraSell = key === "USD/USDT" && Number.isFinite(Number((f as any)?.extraSell)) ? Number((f as any).extraSell) : 0;
+
+  return { buy: round(G * f.buyMul + extraBuy), sell: round(G * f.sellMul + extraSell) };
 }
 
 function calcBuyAmountG(
   market: MarketRatesResponse | null,
-  formulas: Record<string, { buyMul: number; sellMul: number }>,
+  formulas: Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }>,
   sellCur: Currency,
   buyCur: Currency,
   sellAmount: number
@@ -402,7 +404,7 @@ function calcBuyAmountG(
 
 function calcSellAmountG(
   market: MarketRatesResponse | null,
-  formulas: Record<string, { buyMul: number; sellMul: number }>,
+  formulas: Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }>,
   sellCur: Currency,
   buyCur: Currency,
   buyAmount: number
@@ -436,7 +438,7 @@ export default function CalculatorTab({ me }: Props) {
   const [rates, setRates] = useState<Rates | null>(null);
   const [market, setMarket] = useState<MarketRatesResponse | null>(null);
   const [bonuses, setBonuses] = useState<BonusesConfig | null>(null);
-  const [formulas, setFormulas] = useState<Record<string, { buyMul: number; sellMul: number }>>(DEFAULT_G_FORMULAS);
+  const [formulas, setFormulas] = useState<Record<string, { buyMul: number; sellMul: number; extraBuy?: number; extraSell?: number }>>(DEFAULT_G_FORMULAS);
 
   const [sellCurrency, setSellCurrency] = useState<Currency>("RUB");
   const [buyCurrency, setBuyCurrency] = useState<Currency>("VND");
