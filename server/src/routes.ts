@@ -1648,6 +1648,9 @@ router.post("/admin/faq", async (req, res) => {
       // 2) generated t.me deep link from getMe
       // 3) WEBAPP_URL (will open in browser, but at least it's something)
       const openLink = tmaLink || webappUrl || "https://t.me";
+      const markupUrl = {
+        inline_keyboard: [[{ text: "Открыть приложение", url: openLink }]]
+      };
       const escapeHtml = (s: string) =>
         String(s)
           .replace(/&/g, "&amp;")
@@ -1661,9 +1664,7 @@ router.post("/admin/faq", async (req, res) => {
           (_m, label, url) => `<a href="${escapeHtml(url)}">${label}</a>`
         );
       };
-      const textHtml = `${formatTextWithLinks(text)}
-
-<a href="${escapeHtml(openLink)}">Открыть приложение</a>`;
+      const textHtml = formatTextWithLinks(text);
 
       const imageDataUrl = typeof req.body?.imageDataUrl === "string" ? String(req.body.imageDataUrl) : "";
 
@@ -1675,7 +1676,8 @@ router.post("/admin/faq", async (req, res) => {
             chat_id: groupChatId,
             text: textHtml,
             parse_mode: "HTML",
-            disable_web_page_preview: true
+            disable_web_page_preview: true,
+            reply_markup: markupUrl
           })
         });
         const tgJson: any = await tgRes.json();
@@ -1698,6 +1700,7 @@ router.post("/admin/faq", async (req, res) => {
         // Caption limits are smaller (1024). If too long, we'll fall back to a text message.
         form.append("caption", textHtml);
         form.append("parse_mode", "HTML");
+        form.append("reply_markup", JSON.stringify(markupUrl));
 
         const ext = mime.includes("png") ? ".png" : mime.includes("jpeg") || mime.includes("jpg") ? ".jpg" : ".bin";
         const field = isPhoto ? "photo" : "document";
