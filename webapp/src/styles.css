@@ -239,12 +239,12 @@ html[data-theme="dark"] .theme-client .container{ max-width: 420px; }
    The ripple stays in the background, while UI elements look like "dark gadget" tiles. */
 html[data-theme="dark"] .theme-client .card,
 html[data-theme="dark"] .theme-client .vx-card2{
-  background: #000 !important;
-  border: 1px solid rgba(246,198,0,.36) !important;
+  background: var(--panel) !important;
+  border: 1px solid rgba(246,198,0,.28) !important;
   box-shadow:
-    0 26px 78px rgba(0,0,0,.86),
-    0 0 34px rgba(246,198,0,.12),
-    0 0 0 1px rgba(246,198,0,.08) inset !important;
+    0 22px 58px rgba(0,0,0,.56),
+    0 0 22px rgba(246,198,0,.08),
+    0 0 0 1px rgba(246,198,0,.06) inset !important;
   backdrop-filter: none !important;
 }
 html[data-theme="dark"] .theme-client .card{ padding: 14px; }
@@ -279,8 +279,8 @@ html[data-theme="dark"] .theme-client .vx-topSub{
 html[data-theme="dark"] .theme-client.vx-page input,
 html[data-theme="dark"] .theme-client.vx-page select,
 html[data-theme="dark"] .theme-client.vx-page textarea{
-  background: rgba(8,8,8,.96);
-  border-color: var(--stroke2);
+  background: rgba(31,43,56,.96);
+  border-color: rgba(246,198,0,.26);
   color: var(--text);
   border-radius: 22px;
   box-shadow:
@@ -316,18 +316,18 @@ html[data-theme="dark"] .theme-client .vx-blankBtn{
   overflow: visible;
   -webkit-tap-highlight-color: transparent;
 
-  background: rgba(6,6,6,.98) !important;
-  border: 1px solid rgba(246,198,0,.38) !important;
+  background: rgba(29,40,53,.98) !important;
+  border: 1px solid rgba(246,198,0,.24) !important;
   color: var(--text) !important;
 
   transform: translateY(-1px);
   box-shadow:
-    0 26px 70px rgba(0,0,0,.78),
-    0 12px 28px rgba(0,0,0,.62),
-    0 0 0 1px rgba(246,198,0,.08) inset,
-    0 1px 0 rgba(246,198,0,.10) inset,
-    0 -18px 30px rgba(0,0,0,.58) inset,
-    0 -1px 0 rgba(0,0,0,.55) inset;
+    0 18px 44px rgba(0,0,0,.48),
+    0 8px 18px rgba(0,0,0,.36),
+    0 0 0 1px rgba(246,198,0,.06) inset,
+    0 1px 0 rgba(255,255,255,.02) inset,
+    0 -10px 18px rgba(0,0,0,.32) inset,
+    0 -1px 0 rgba(0,0,0,.28) inset;
   border-radius: 999px;
   transition: transform 0.10s ease, filter 0.16s ease, box-shadow 0.20s ease;
 }
@@ -791,9 +791,9 @@ html[data-theme="dark"] .theme-client .vx-bottomWrap{ perspective: 1200px; }
 html[data-theme="dark"] .theme-client .vx-bottomBar{
   perspective: 1200px;
   perspective-origin: center 70%;
-  background: #000;
-  border-color: rgba(246,198,0,.22);
-  box-shadow: 0 22px 66px rgba(0,0,0,.86), 0 0 48px rgba(246,198,0,.10);
+  background: rgba(24,34,45,.98);
+  border-color: rgba(246,198,0,.18);
+  box-shadow: 0 18px 46px rgba(0,0,0,.50), 0 0 24px rgba(246,198,0,.06);
   backdrop-filter: none;
   /* more room so the center item can be larger WITHOUT popping out of the bar */
   padding: 10px;
@@ -831,9 +831,9 @@ html[data-theme="dark"] .theme-client .vx-navBtn{
   padding: 8px 8px !important;
   border-radius: 18px !important;
   font-size: 9px !important;
-  color: rgba(248,250,255,.74) !important;
-  background: rgba(10,10,10,.96) !important;
-  border-color: rgba(255,255,255,.10) !important;
+  color: rgba(246,198,0,.92) !important;
+  background: rgba(31,43,56,.98) !important;
+  border-color: rgba(246,198,0,.16) !important;
   height: 60px;
   transform: translateY(0);
   transition: transform 0.14s ease, filter 0.18s ease;
@@ -850,7 +850,7 @@ html[data-theme="dark"] .theme-client .vx-navBtn .vx-navLabel{
   backface-visibility: hidden;
 }
 html[data-theme="dark"] .theme-client .vx-navBtn:active{ filter: brightness(1.04); transform: translateY(4px) scale(0.99); }
-html[data-theme="dark"] .theme-client .vx-navBtnActive{ color: rgba(248,250,255,.96) !important; }
+html[data-theme="dark"] .theme-client .vx-navBtnActive{ color: rgba(255,227,122,.98) !important; }
 
 /* Bottom bar buttons: keep the "LED" bloom INSIDE the bar bounds
    (Telegram webview makes the glow look like it's escaping otherwise). */
@@ -1003,7 +1003,7 @@ html[data-theme="dark"] .theme-client .vx-adminSeg button{
   border-radius: 18px;
   background: rgba(12,12,12,.78) !important;
   border: 1px solid rgba(255,255,255,.10) !important;
-  color: rgba(248,250,255,.74) !important;
+  color: rgba(246,198,0,.92) !important;
   font-weight: 800;
   letter-spacing: -0.01em;
   overflow: visible;
@@ -1050,7 +1050,7 @@ html[data-theme="dark"] .theme-client .vx-adminSeg .on::before{
     0 0 220px rgba(246,198,0,.10);
 }
 html[data-theme="dark"] .theme-client .vx-admin .vx-code{ color: var(--text) !important; }
-html[data-theme="dark"] .theme-client .vx-admin input.vx-in{ background: #000 !important; border-color: rgba(246,198,0,.22) !important; }
+html[data-theme="dark"] .theme-client .vx-admin input.vx-in{ background: rgba(31,43,56,.98) !important; border-color: rgba(246,198,0,.22) !important; }
 
 /* Remove big light cards in owner/admin layouts when shown inside the dark theme */
 html[data-theme="dark"] .theme-client .vx-adminCard{
@@ -2258,9 +2258,9 @@ html[data-theme="dark"] .theme-client .mx-mainLogoFallback{
 
 
 html[data-theme="dark"] .theme-client .mx-themeBtn{
-  background: rgba(6,6,6,.98);
-  border-color: rgba(246,198,0,.44);
-  box-shadow: 0 0 0 1px rgba(246,198,0,.12) inset, 0 0 22px rgba(246,198,0,.12), 0 16px 40px rgba(0,0,0,.72);
+  background: rgba(31,43,56,.98);
+  border-color: rgba(246,198,0,.22);
+  box-shadow: 0 0 0 1px rgba(246,198,0,.08) inset, 0 0 14px rgba(246,198,0,.06), 0 12px 28px rgba(0,0,0,.44);
   color: rgba(246,198,0,.98);
 }
 
@@ -2468,12 +2468,12 @@ html[data-theme="dark"] .theme-client .mx-bottomNav{
 html[data-theme="dark"] .theme-client .mx-card,
 html[data-theme="dark"] .theme-client .mx-navCard,
 html[data-theme="dark"] .theme-client .mx-afEvCard{
-  background: #000 !important;
-  border: 1px solid rgba(246,198,0,.36) !important;
+  background: var(--panel) !important;
+  border: 1px solid rgba(246,198,0,.28) !important;
   box-shadow:
-    0 26px 78px rgba(0,0,0,.86),
-    0 0 34px rgba(246,198,0,.12),
-    0 0 0 1px rgba(246,198,0,.08) inset !important;
+    0 22px 58px rgba(0,0,0,.56),
+    0 0 22px rgba(246,198,0,.08),
+    0 0 0 1px rgba(246,198,0,.06) inset !important;
 }
 html[data-theme="dark"] .theme-client .mx-card::before{ display:none !important; }
 
@@ -2489,8 +2489,8 @@ html[data-theme="dark"] .theme-client .mx-navTitle{
   -webkit-text-fill-color: #f6c600 !important;
   opacity: 1 !important;
   font-weight: 950 !important;
-  filter: brightness(1.22) saturate(1.12);
-  text-shadow: 0 0 32px rgba(246,198,0,.28), 0 2px 0 rgba(0,0,0,.70);
+  filter: brightness(1.10) saturate(1.04);
+  text-shadow: 0 0 18px rgba(246,198,0,.14), 0 2px 0 rgba(0,0,0,.42);
 }
 
 /* Extra specificity: some Telegram/Android WebViews apply an unexpected alpha to the first line
@@ -2500,13 +2500,13 @@ html[data-theme="dark"] .theme-client .mx-navCard .mx-navTitle{
   color: #f6c600 !important;
   -webkit-text-fill-color: #f6c600 !important;
   opacity: 1 !important;
-  filter: brightness(1.34) saturate(1.18);
-  text-shadow: 0 0 40px rgba(246,198,0,.34), 0 2px 0 rgba(0,0,0,.78);
+  filter: brightness(1.12) saturate(1.06);
+  text-shadow: 0 0 20px rgba(246,198,0,.16), 0 2px 0 rgba(0,0,0,.44);
 }
 /* Afisha is the first nav card on the home screen — make it slightly stronger to match perception */
 html[data-theme="dark"] .theme-client .mx-navCard:first-of-type .mx-navTitle{
-  filter: brightness(1.44) saturate(1.22);
-  text-shadow: 0 0 46px rgba(246,198,0,.36), 0 2px 0 rgba(0,0,0,.82);
+  filter: brightness(1.14) saturate(1.08);
+  text-shadow: 0 0 20px rgba(246,198,0,.18), 0 2px 0 rgba(0,0,0,.46);
 }
 html[data-theme="dark"] .theme-client .mx-navSub{
   color: #f6c600 !important;
@@ -2514,28 +2514,28 @@ html[data-theme="dark"] .theme-client .mx-navSub{
   font-weight: 950 !important;
   font-size: 14px !important;
   letter-spacing: 0.01em;
-  text-shadow: 0 0 32px rgba(246,198,0,.28), 0 2px 0 rgba(0,0,0,.70);
-  filter: brightness(1.12) saturate(1.15);
+  text-shadow: 0 0 16px rgba(246,198,0,.14), 0 2px 0 rgba(0,0,0,.40);
+  filter: brightness(1.04) saturate(1.06);
 }
 
 html[data-theme="dark"] .theme-client .mx-btn,
 html[data-theme="dark"] .theme-client .mx-sheetBtn,
 html[data-theme="dark"] .theme-client .mx-afBack{
-  background: #000 !important;
-  border: 1px solid rgba(246,198,0,.44) !important;
+  background: rgba(31,43,56,.98) !important;
+  border: 1px solid rgba(246,198,0,.22) !important;
   color: var(--text) !important;
-  box-shadow: 0 22px 66px rgba(0,0,0,.86), 0 0 26px rgba(246,198,0,.18) !important;
+  box-shadow: 0 16px 38px rgba(0,0,0,.42), 0 0 14px rgba(246,198,0,.08) !important;
 }
 html[data-theme="dark"] .theme-client .mx-btnPrimary{
-  background: #000 !important;
-  border-color: rgba(246,198,0,.62) !important;
-  box-shadow: 0 26px 70px rgba(0,0,0,.86), 0 0 34px rgba(246,198,0,.22) !important;
+  background: rgba(34,46,60,.99) !important;
+  border-color: rgba(246,198,0,.28) !important;
+  box-shadow: 0 18px 42px rgba(0,0,0,.46), 0 0 16px rgba(246,198,0,.10) !important;
 }
 
 html[data-theme="dark"] .theme-client .mx-headerLogoWrap{
-  background: #000 !important;
-  border: 1px solid rgba(246,198,0,.36) !important;
-  box-shadow: 0 18px 56px rgba(0,0,0,.84), 0 0 26px rgba(246,198,0,.14) !important;
+  background: rgba(31,43,56,.98) !important;
+  border: 1px solid rgba(246,198,0,.22) !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,.42), 0 0 14px rgba(246,198,0,.08) !important;
 }
 html[data-theme="dark"] .theme-client .mx-headerLogoFallback{
   background: rgba(246,198,0,.06);
@@ -2543,9 +2543,9 @@ html[data-theme="dark"] .theme-client .mx-headerLogoFallback{
 }
 
 html[data-theme="dark"] .theme-client .mx-statusWrap{
-  background: #000 !important;
-  border: 1px solid rgba(246,198,0,.36) !important;
-  box-shadow: 0 18px 56px rgba(0,0,0,.84), 0 0 26px rgba(246,198,0,.14) !important;
+  background: rgba(31,43,56,.98) !important;
+  border: 1px solid rgba(246,198,0,.22) !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,.42), 0 0 14px rgba(246,198,0,.08) !important;
 }
 
 html[data-theme="dark"] .theme-client .mx-statusWrap::before{
@@ -2893,12 +2893,12 @@ html[data-theme="dark"] .theme-client .mx-muted{ color: var(--muted) !important;
 
 html[data-theme="dark"] .theme-client .mx-afCatBtn{
   /* keep category images in dark theme too */
-  background-color: #000 !important;
-  border: 1px solid rgba(246,198,0,.36) !important;
+  background-color: rgba(25,36,47,.96) !important;
+  border: 1px solid rgba(246,198,0,.24) !important;
   box-shadow:
-    0 26px 78px rgba(0,0,0,.86),
-    0 0 34px rgba(246,198,0,.14),
-    0 0 0 1px rgba(246,198,0,.10) inset !important;
+    0 18px 44px rgba(0,0,0,.46),
+    0 0 16px rgba(246,198,0,.08),
+    0 0 0 1px rgba(246,198,0,.08) inset !important;
 }
 html[data-theme="dark"] .theme-client .mx-afCatBtn::before{
   /* darker overlay for readability on photos */
@@ -2995,17 +2995,17 @@ html[data-theme="dark"] .theme-client .mx-afCats--sheet .mx-afCatBtn.is-on{
 html[data-theme="dark"] .theme-client .mx-afMeta{ color: var(--muted) !important; }
 html[data-theme="dark"] .theme-client .mx-afComment{ color: var(--muted) !important; }
 html[data-theme="dark"] .theme-client .mx-afBack{
-  background: rgba(6,6,6,.98);
-  border-color: rgba(246,198,0,.34);
+  background: rgba(31,43,56,.98);
+  border-color: rgba(246,198,0,.22);
   color: var(--text);
-  box-shadow: 0 18px 56px rgba(0,0,0,.72), 0 0 18px rgba(246,198,0,.10);
+  box-shadow: 0 14px 32px rgba(0,0,0,.40), 0 0 12px rgba(246,198,0,.06);
 }
 html[data-theme="dark"] .theme-client .mx-afTopTitle{ color: var(--text); }
 
 html[data-theme="dark"] .theme-client .mx-afEvCard{
   border-color: rgba(246,198,0,.22);
-  background: rgba(0,0,0,.98);
-  box-shadow: 0 30px 96px rgba(0,0,0,.86), 0 0 34px rgba(246,198,0,.08);
+  background: rgba(24,34,45,.98);
+  box-shadow: 0 20px 48px rgba(0,0,0,.50), 0 0 18px rgba(246,198,0,.06);
 }
 
 /* Event card with optional background image */
@@ -3230,15 +3230,15 @@ html[data-theme="dark"] .theme-client .vx-btnGhost,
 html[data-theme="dark"] .theme-client .vx-navBtn,
 html[data-theme="dark"] .theme-client .vx-bankBtn,
 html[data-theme="dark"] .theme-client .vx-blankBtn{
-  background: #000 !important;
+  background: rgba(29,40,53,.98) !important;
   transform: translateY(0) !important;
   box-shadow:
-    0 16px 44px rgba(0,0,0,.78),
-    0 8px 18px rgba(0,0,0,.62),
-    0 0 0 1px rgba(246,198,0,.08) inset,
-    0 1px 0 rgba(246,198,0,.10) inset,
-    0 -10px 18px rgba(0,0,0,.58) inset,
-    0 -1px 0 rgba(0,0,0,.55) inset;
+    0 14px 34px rgba(0,0,0,.42),
+    0 6px 14px rgba(0,0,0,.28),
+    0 0 0 1px rgba(246,198,0,.06) inset,
+    0 1px 0 rgba(255,255,255,.02) inset,
+    0 -8px 14px rgba(0,0,0,.28) inset,
+    0 -1px 0 rgba(0,0,0,.22) inset;
 }
 
 html[data-theme="dark"] .theme-client .btn::before,
@@ -3324,9 +3324,9 @@ html[data-theme="dark"] .theme-client .vx-atmSuggestBtn{
   color: var(--text);
 }
 html[data-theme="dark"] .theme-client .vx-atmNote{
-  background: #000;
-  border-color: rgba(246,198,0,.26);
-  box-shadow: 0 18px 60px rgba(0,0,0,.84), 0 0 46px rgba(246,198,0,.08);
+  background: rgba(24,34,45,.98);
+  border-color: rgba(246,198,0,.20);
+  box-shadow: 0 14px 34px rgba(0,0,0,.44), 0 0 18px rgba(246,198,0,.06);
 }
 
 .vx-modalOverlay{
@@ -3351,9 +3351,9 @@ html[data-theme="dark"] .theme-client .vx-atmNote{
   box-shadow: var(--shadow);
 }
 html[data-theme="dark"] .theme-client .vx-modalCard{
-  background: #000;
-  border: 1px solid rgba(246,198,0,.36);
-  box-shadow: 0 26px 78px rgba(0,0,0,.86), 0 0 34px rgba(246,198,0,.12);
+  background: rgba(24,34,45,.98);
+  border: 1px solid rgba(246,198,0,.24);
+  box-shadow: 0 20px 48px rgba(0,0,0,.50), 0 0 18px rgba(246,198,0,.06);
 }
 
 .vx-modalTitle{ font-size: 15px; font-weight: 950; }

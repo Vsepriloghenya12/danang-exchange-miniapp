@@ -930,7 +930,7 @@ export default function CalculatorTab({ me }: Props) {
 
       {managerOffline ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
-          Спасибо за обращение. Сейчас в Дананге {danangTime.label}. Менеджер свяжется с вами в рабочее время.
+          Спасибо за обращение. Сейчас в Дананге {danangTime.label}. Оставить заявку Вы можете в рабочее время.
         </div>
       ) : deliveryClosed ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
