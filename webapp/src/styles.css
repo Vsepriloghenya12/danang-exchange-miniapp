@@ -46,19 +46,19 @@
 html{ height: 100%; }
 
 /* prevent Telegram/WebView background bleed */
-html, body{ background: #000; }
+html, body{ background: #17212b; }
 
 body{
   margin: 0;
   min-height: 100%;
-  /* Default to true black to avoid any "blue" webview bleed before React/CSS finishes applying */
-  background: #000;
+  /* Default graphite background to match Telegram dark theme before React/CSS finishes applying */
+  background: #17212b;
 }
 
 /* Miniapp (client) forces true black under everything (fixes "blue bleed")
    AND makes #root the only scroll container (prevents Telegram rubber-band "gap"). */
 body.vx-body-client{
-  background: #000;
+  background: #17212b;
   position: fixed;
   inset: 0;
   width: 100%;
@@ -70,7 +70,7 @@ body.vx-body-client{
 }
 
 body.vx-body-client #root{
-  background: #000;
+  background: #17212b;
   height: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -178,17 +178,17 @@ html[data-theme="dark"] .theme-client{
   /* Premium tech: Cyrillic-friendly */
   --font: "Manrope", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
 
-  /* base */
-  --sky: #000;
+  /* base: dark graphite, closer to Telegram dark theme */
+  --sky: linear-gradient(180deg, #17212b 0%, #111923 100%);
   /* text is yellow (as requested) */
   --text: rgba(246,198,0,.98);
   --muted: rgba(246,198,0,.72);
   --muted2: rgba(246,198,0,.54);
   --ph: rgba(246,198,0,.44);
 
-  /* surfaces: true black (blocks/buttons stay black, edges do the separation) */
-  --panel: rgba(0,0,0,1);
-  --panel2: rgba(0,0,0,1);
+  /* surfaces: deep graphite instead of pure black */
+  --panel: rgba(22,31,41,.94);
+  --panel2: rgba(18,27,36,.92);
 
   --stroke: rgba(246,198,0,.34);
   --stroke2: rgba(246,198,0,.52);
@@ -210,13 +210,13 @@ html[data-theme="dark"] .theme-client{
   --aBlue: #3ba3ff;
 
   /* depth */
-  --shadow: 0 30px 96px rgba(0,0,0,.86), 0 0 40px rgba(246,198,0,.10);
-  --shadow2: 0 18px 54px rgba(0,0,0,.70), 0 0 24px rgba(246,198,0,.14);
+  --shadow: 0 30px 96px rgba(0,0,0,.62), 0 0 40px rgba(246,198,0,.10);
+  --shadow2: 0 18px 54px rgba(0,0,0,.48), 0 0 24px rgba(246,198,0,.14);
   --ring: 0 0 0 4px rgba(246,198,0,.14);
 }
 
 html[data-theme="dark"] .theme-client.vx-page{
-  background: #000;
+  background: var(--sky);
   color: var(--text);
 }
 

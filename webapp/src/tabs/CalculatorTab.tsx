@@ -498,7 +498,7 @@ export default function CalculatorTab({ me }: Props) {
   }, []);
 
   const danangTime = useMemo(() => getDanangTimeInfo(danangNowMs), [danangNowMs]);
-  const managerOffline = danangTime.hour >= 22;
+  const managerOffline = danangTime.hour >= 22 || danangTime.hour < 10;
   const deliveryClosed = danangTime.hour >= 20 && danangTime.hour < 22;
 
   const gMode = useMemo(() => isGModePair(formulas, sellCurrency, buyCurrency), [formulas, sellCurrency, buyCurrency]);
@@ -510,12 +510,13 @@ export default function CalculatorTab({ me }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sellCurrency]);
 
-  // Enforce receive-method restrictions based on BUY currency
+  // Enforce receive-method restrictions based on BUY currency and service hours
   useEffect(() => {
-    const allowed = allowedReceiveMethods(buyCurrency);
-    if (!allowed.includes(receiveMethod)) setReceiveMethod(allowed[0]);
+    const baseAllowed = allowedReceiveMethods(buyCurrency);
+    const allowed = deliveryClosed ? baseAllowed.filter((m) => m === "transfer" || m === "atm") : baseAllowed;
+    if (allowed.length > 0 && !allowed.includes(receiveMethod)) setReceiveMethod(allowed[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buyCurrency]);
+  }, [buyCurrency, deliveryClosed]);
 
   // Load rates (VND) + market (G)
   useEffect(() => {
@@ -624,7 +625,11 @@ export default function CalculatorTab({ me }: Props) {
   }, [buyCurrency]);
 
   const allowedPay = useMemo(() => allowedPayMethods(sellCurrency), [sellCurrency]);
-  const allowedRecv = useMemo(() => allowedReceiveMethods(buyCurrency), [buyCurrency]);
+  const allowedRecv = useMemo(() => {
+    const baseAllowed = allowedReceiveMethods(buyCurrency);
+    return deliveryClosed ? baseAllowed.filter((m) => m === "transfer" || m === "atm") : baseAllowed;
+  }, [buyCurrency, deliveryClosed]);
+  const receiveMethodUnavailableByHours = deliveryClosed && allowedRecv.length === 0;
 
   // Missing data check
   const missingRates = useMemo(() => {
@@ -788,7 +793,7 @@ export default function CalculatorTab({ me }: Props) {
   const canSendBase =
     canCalc && sellCurrency !== buyCurrency && sellText.trim() !== "" && buyText.trim() !== "" && sellAmount > 0 && buyAmount > 0;
 
-  const canSend = canSendBase && !hasInvalid;
+  const canSend = canSendBase && !hasInvalid && !managerOffline && !receiveMethodUnavailableByHours && allowedRecv.includes(receiveMethod);
 
   const usdNote =
     sellCurrency === "USD" || buyCurrency === "USD"
@@ -801,8 +806,8 @@ export default function CalculatorTab({ me }: Props) {
       : null;
 
   const vndNote =
-    sellCurrency === "VND" || buyCurrency === "VND"
-      ? "VND: банкомат — только выдача кратно 100,000; наличные — передача и получение кратно 10,000; перевод — любая сумма."
+    (sellCurrency === "VND" || buyCurrency === "VND") && !(buyCurrency === "VND" && receiveMethod === "atm")
+      ? "VND: наличные — передача и получение кратно 10,000; перевод — любая сумма."
       : null;
 
   const thbNote =
@@ -811,7 +816,7 @@ export default function CalculatorTab({ me }: Props) {
       : null;
 
   const atmVndNoteText =
-    "Сумма получения в банкомате должна быть кратной 100,000 VND. Вы можете ввести сумму получения, а калькулятор посчитает сумму к оплате без округления.";
+    "VND в банкомате: сумма получения должна быть кратна 100,000. Вы можете ввести сумму получения, а калькулятор посчитает сумму к оплате без округления.";
 
   function swapCurrencies() {
     const nextSellCurrency = buyCurrency;
@@ -821,15 +826,20 @@ export default function CalculatorTab({ me }: Props) {
     const swappedReceiveCandidate: ReceiveMethod | null = payMethod === "cash" || payMethod === "transfer" ? payMethod : null;
 
     const nextAllowedPay = allowedPayMethods(nextSellCurrency);
-    const nextAllowedReceive = allowedReceiveMethods(nextBuyCurrency);
+    const nextAllowedReceiveBase = allowedReceiveMethods(nextBuyCurrency);
+    const nextAllowedReceive = deliveryClosed
+      ? nextAllowedReceiveBase.filter((m) => m === "transfer" || m === "atm")
+      : nextAllowedReceiveBase;
 
     const nextPayMethod = swappedPayCandidate && nextAllowedPay.includes(swappedPayCandidate)
       ? swappedPayCandidate
       : nextAllowedPay[0];
 
-    const nextReceiveMethod = swappedReceiveCandidate && nextAllowedReceive.includes(swappedReceiveCandidate)
-      ? swappedReceiveCandidate
-      : nextAllowedReceive[0];
+    const nextReceiveMethod = nextAllowedReceive.length === 0
+      ? receiveMethod
+      : swappedReceiveCandidate && nextAllowedReceive.includes(swappedReceiveCandidate)
+        ? swappedReceiveCandidate
+        : nextAllowedReceive[0];
 
     const currentSellRaw = sellText.trim() !== "" ? (sellRawRef.current ?? sellAmount) : null;
     const currentBuyRaw = buyText.trim() !== "" ? (buyRawRef.current ?? buyAmount) : null;
@@ -914,6 +924,10 @@ export default function CalculatorTab({ me }: Props) {
       {loading && <div className="vx-help">Загрузка курсов…</div>}
       {!loading && (!rates || (!market && gMode)) && <div className="vx-help">Курсы не загружены.</div>}
 
+      <div className="vx-note" style={{ marginBottom: 10 }}>
+        <b>Время работы сервиса:</b> ежедневно с 10:00 до 22:00. С 20:00 до 22:00 возможен только дистанционный обмен.
+      </div>
+
       {managerOffline ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
           Спасибо за обращение. Сейчас в Дананге {danangTime.label}. Менеджер свяжется с вами в рабочее время.
@@ -921,6 +935,12 @@ export default function CalculatorTab({ me }: Props) {
       ) : deliveryClosed ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
           После 20:00 по Данангу доставка уже не работает. Сейчас в Дананге {danangTime.label}. Доступен только дистанционный обмен.
+        </div>
+      ) : null}
+
+      {receiveMethodUnavailableByHours ? (
+        <div className="vx-warn" style={{ marginBottom: 10 }}>
+          После 20:00 доступны только способы получения «Перевод» или «Банкомат». Для выбранной валюты выдача сейчас недоступна.
         </div>
       ) : null}
 
@@ -1063,7 +1083,6 @@ export default function CalculatorTab({ me }: Props) {
         {invalidEurSell || invalidEurBuy ? <div className="vx-warn">EUR: передать и получить можно только наличными, кратно 50.</div> : null}
         {invalidThbSell || invalidThbBuy ? <div className="vx-warn">THB: передать и получить можно только наличными, кратно 100.</div> : null}
         {invalidVndSellCash || invalidVndBuyCash ? <div className="vx-warn">VND наличными: сумма должна быть кратна 10,000.</div> : null}
-        {invalidVndBuyAtm ? <div className="vx-warn">VND в банкомате: сумма должна быть кратна 100,000.</div> : null}
 
         <div className="vx-sp12" />
 
