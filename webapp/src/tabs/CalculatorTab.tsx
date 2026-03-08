@@ -498,7 +498,8 @@ export default function CalculatorTab({ me }: Props) {
   }, []);
 
   const danangTime = useMemo(() => getDanangTimeInfo(danangNowMs), [danangNowMs]);
-  const deliveryClosed = danangTime.hour >= 20;
+  const managerOffline = danangTime.hour >= 22;
+  const deliveryClosed = danangTime.hour >= 20 && danangTime.hour < 22;
 
   const gMode = useMemo(() => isGModePair(formulas, sellCurrency, buyCurrency), [formulas, sellCurrency, buyCurrency]);
 
@@ -866,7 +867,6 @@ export default function CalculatorTab({ me }: Props) {
     };
 
     // 1) Always create the request on the server (so it appears in admin panel instantly)
-    let requestId: string | null = null;
     try {
       const res = await fetch("/api/requests", {
         method: "POST",
@@ -882,7 +882,6 @@ export default function CalculatorTab({ me }: Props) {
         tg?.showAlert?.(`Ошибка: ${json?.error || "fail"}`);
         return;
       }
-      requestId = String(json?.id || "");
       tg?.HapticFeedback?.notificationOccurred?.("success");
     } catch (e: any) {
       tg?.HapticFeedback?.notificationOccurred?.("error");
@@ -915,7 +914,11 @@ export default function CalculatorTab({ me }: Props) {
       {loading && <div className="vx-help">Загрузка курсов…</div>}
       {!loading && (!rates || (!market && gMode)) && <div className="vx-help">Курсы не загружены.</div>}
 
-      {deliveryClosed ? (
+      {managerOffline ? (
+        <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
+          Спасибо за обращение. Сейчас в Дананге {danangTime.label}. Менеджер свяжется с вами в рабочее время.
+        </div>
+      ) : deliveryClosed ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
           После 20:00 по Данангу доставка уже не работает. Сейчас в Дананге {danangTime.label}. Доступен только дистанционный обмен.
         </div>

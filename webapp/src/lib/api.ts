@@ -19,8 +19,6 @@ import type {
   Contact,
   AfishaResponse,
   AdminAfishaResponse,
-  AfishaEvent,
-  WeatherResponse,
   FaqResponse
 } from "./types";
 
@@ -59,10 +57,6 @@ export async function apiGetTodayRates(): Promise<TodayRatesResponse> {
   return r.json();
 }
 
-export async function apiGetWeather(): Promise<WeatherResponse> {
-  const r = await fetch("/api/weather");
-  return readJsonSafe(r);
-}
 
 export async function apiGetMarketRates(): Promise<MarketRatesResponse> {
   const r = await fetch("/api/market");

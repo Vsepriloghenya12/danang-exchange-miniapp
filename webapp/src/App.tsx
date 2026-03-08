@@ -164,45 +164,6 @@ function StatusIcon({ status }: { status?: UserStatus }) {
 }
 
 
-function HeaderLogo() {
-  // cache-bust for Telegram WebView
-  const bust = "v42";
-  const candidates = useMemo(
-    () => [
-      "/brand/header-logo.png",
-      "/brand/header-logo.webp",
-      "/brand/header-logo.svg",
-      "/brand/header-logo.jpg",
-      "/brand/logo.png",
-      "/brand/logo.jpg",
-      "/brand/logo.webp",
-    ],
-    []
-  );
-  const [idx, setIdx] = useState(0);
-  const [ok, setOk] = useState(false);
-  const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
-
-  return (
-    <div className="mx-headerLogoWrap" aria-label="Логотип">
-      {!ok ? <div className="mx-headerLogoFallback" /> : null}
-      <img
-        key={src}
-        className="mx-headerLogoImg"
-        src={src}
-        alt=""
-        loading="eager"
-        decoding="async"
-        onLoad={() => setOk(true)}
-        onError={() => {
-          setOk(false);
-          setIdx((x) => (x < candidates.length - 1 ? x + 1 : x));
-        }}
-      />
-    </div>
-  );
-}
-
 
 function MainLogo() {
   // Center logo on the home screen (wide). Cache-bust for Telegram WebView.
@@ -500,11 +461,6 @@ export default function App() {
     setScreen(next);
   };
 
-  const displayName = useMemo(() => {
-    const u = me.user;
-    const n = String(u?.first_name || u?.username || "").trim();
-    return n || "";
-  }, [me.user?.first_name, me.user?.username]);
 
   const showStatusInfo = () => {
     const st = normalizeStatus(me.status);
@@ -703,7 +659,7 @@ export default function App() {
 
         {screen === "about" ? (
           <>
-            <ScreenHeader title="О приложении" onBack={goHome} />
+            <ScreenHeader title="О приложении" onBack={() => goTo("other","about_back")} />
             <AboutTab />
           </>
         ) : null}
