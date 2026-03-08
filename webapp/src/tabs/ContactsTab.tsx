@@ -36,10 +36,7 @@ function ContactCard({ role, handle }: { role: string; handle: string }) {
 export default function ContactsTab() {
   return (
     <div className="card" style={{ padding: 14 }}>
-      <div className="h3" style={{ marginBottom: 6 }}>
-        Контакты
-      </div>
-      <div className="small" style={{ marginBottom: 12, lineHeight: 1.5 }}>
+        <div className="small" style={{ marginBottom: 12, lineHeight: 1.5 }}>
         По вопросам обмена, афиши и работы приложения вы можете написать нам напрямую.
       </div>
 
