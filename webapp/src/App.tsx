@@ -37,6 +37,13 @@ const UI = {
     "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800;900&family=Inter:wght@500;600;700;800;900&family=DM+Sans:wght@700;800;900&display=swap",
 };
 
+function openExternal(url: string) {
+  const tg = getTg();
+  if (tg?.openTelegramLink && /^https:\/\/t\.me\//i.test(url)) tg.openTelegramLink(url);
+  else if (tg?.openLink) tg.openLink(url);
+  else window.open(url, "_blank", "noopener,noreferrer");
+}
+
 function IconSun({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -621,7 +628,7 @@ export default function App() {
 
         {screen === "pay" ? (
           <>
-            <ScreenHeader title="Оплата и брони" onBack={goHome} />
+            <ScreenHeader title="Оплаты и бронирование" onBack={goHome} />
             <PaymentsTab />
           </>
         ) : null}
@@ -675,6 +682,7 @@ export default function App() {
       onFaq={() => goTo("faq","other_faq")}
       onAbout={() => goTo("about","other_about")}
       onContacts={() => goTo("contacts","other_contacts")}
+      onOrderApp={() => openExternal("https://t.me/Tutenhaman")}
     />
   </>
 ) : null}
@@ -709,7 +717,7 @@ export default function App() {
           className={"mx-bottomBtn " + (screen === "pay" ? "is-on" : "")}
           onClick={() => goTo("pay","bottom_pay")}
         >
-          Оплата и брони
+          Оплаты и бронирование
         </button>
         <button
           type="button"

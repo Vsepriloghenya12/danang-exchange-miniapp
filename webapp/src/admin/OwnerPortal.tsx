@@ -469,7 +469,7 @@ function moveFaq(id: string, dir: -1 | 1) {
     atm: 'Банкоматы',
     reviews: 'Отзывы',
     staff: 'Админ',
-		pay: 'Оплата и брони',
+		pay: 'Оплаты и бронирование',
     history: 'Моя история',
     about: 'О приложении',
     support: 'Поддержка',
@@ -501,7 +501,7 @@ function moveFaq(id: string, dir: -1 | 1) {
     nav_atm: 'Главная → Банкоматы',
     nav_reviews: 'Главная → Отзывы',
     // Bottom menu
-		bottom_pay: 'Нижнее меню → Оплата и брони',
+		bottom_pay: 'Нижнее меню → Оплаты и бронирование',
     bottom_history: 'Нижнее меню → Моя история',
     bottom_about: 'Нижнее меню → О приложении',
     bottom_other: 'Нижнее меню → Прочее',

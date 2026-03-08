@@ -170,6 +170,35 @@ function statusLabel(s: ClientStatus) {
   return "Стандарт";
 }
 
+function getDanangTimeInfo(nowMs: number) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date(nowMs));
+    const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+    const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+    const hh = String(Number.isFinite(hour) ? hour : 0).padStart(2, "0");
+    const mm = String(Number.isFinite(minute) ? minute : 0).padStart(2, "0");
+    return {
+      hour: Number.isFinite(hour) ? hour : 0,
+      minute: Number.isFinite(minute) ? minute : 0,
+      label: `${hh}:${mm}`,
+    };
+  } catch {
+    const d = new Date(nowMs);
+    const hour = d.getHours();
+    const minute = d.getMinutes();
+    return {
+      hour,
+      minute,
+      label: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+    };
+  }
+}
+
 function methodLabel(m: ReceiveMethod | PayMethod) {
   if (m === "cash") return "Наличные";
   if (m === "transfer") return "Перевод";
@@ -456,11 +485,20 @@ export default function CalculatorTab({ me }: Props) {
   const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeStatus(me?.status));
 
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [danangNowMs, setDanangNowMs] = useState(() => Date.now());
   useEffect(() => {
     if (!banner) return;
     const t = window.setTimeout(() => setBanner(null), 6000);
     return () => window.clearTimeout(t);
   }, [banner]);
+
+  useEffect(() => {
+    const t = window.setInterval(() => setDanangNowMs(Date.now()), 60000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  const danangTime = useMemo(() => getDanangTimeInfo(danangNowMs), [danangNowMs]);
+  const deliveryClosed = danangTime.hour >= 20;
 
   const gMode = useMemo(() => isGModePair(formulas, sellCurrency, buyCurrency), [formulas, sellCurrency, buyCurrency]);
 
@@ -876,6 +914,12 @@ export default function CalculatorTab({ me }: Props) {
 
       {loading && <div className="vx-help">Загрузка курсов…</div>}
       {!loading && (!rates || (!market && gMode)) && <div className="vx-help">Курсы не загружены.</div>}
+
+      {deliveryClosed ? (
+        <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
+          После 20:00 по Данангу доставка уже не работает. Сейчас в Дананге {danangTime.label}. Доступен только дистанционный обмен.
+        </div>
+      ) : null}
 
       <div className="vx-calcBox">
         <div className="vx-exRow">

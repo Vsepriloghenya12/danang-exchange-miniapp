@@ -1,30 +1,53 @@
 import React from "react";
 
+function openLink(url: string) {
+  const tg = (window as any).Telegram?.WebApp;
+  if (tg?.openTelegramLink) tg.openTelegramLink(url);
+  else if (tg?.openLink) tg.openLink(url);
+  else window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function ContactCard({ role, handle }: { role: string; handle: string }) {
+  const username = handle.replace(/^@+/, "");
+  const url = `https://t.me/${username}`;
+
+  return (
+    <button
+      type="button"
+      className="card"
+      onClick={() => openLink(url)}
+      style={{
+        width: "100%",
+        padding: 12,
+        textAlign: "left",
+        background: "rgba(255,255,255,.7)",
+        border: "1px solid rgba(0,0,0,.08)",
+        cursor: "pointer",
+      }}
+    >
+      <div className="small" style={{ fontWeight: 900, marginBottom: 4 }}>
+        {role}
+      </div>
+      <div className="small" style={{ opacity: 0.88 }}>{handle}</div>
+    </button>
+  );
+}
+
 export default function ContactsTab() {
   return (
     <div className="card" style={{ padding: 14 }}>
       <div className="h3" style={{ marginBottom: 6 }}>
         Контакты
       </div>
-      <div className="small" style={{ marginBottom: 12 }}>
-        Остались вопросы? Напишите менеджеру. Хотите разместить анонс или объявление — пишите администратору.
+      <div className="small" style={{ marginBottom: 12, lineHeight: 1.5 }}>
+        По вопросам обмена, афиши и работы приложения вы можете написать нам напрямую.
       </div>
 
-      <div className="card" style={{ padding: 12, background: "rgba(255,255,255,.7)", border: "1px solid rgba(0,0,0,.08)" }}>
-        <div className="small" style={{ fontWeight: 900, marginBottom: 4 }}>
-          Менеджер
-        </div>
-        <div className="small" style={{ opacity: 0.8 }}>Контакт добавим позже.</div>
-      </div>
+      <ContactCard role="Админ" handle="@exchange_vn" />
 
       <div style={{ height: 10 }} />
 
-      <div className="card" style={{ padding: 12, background: "rgba(255,255,255,.7)", border: "1px solid rgba(0,0,0,.08)" }}>
-        <div className="small" style={{ fontWeight: 900, marginBottom: 4 }}>
-          Администратор
-        </div>
-        <div className="small" style={{ opacity: 0.8 }}>Контакт добавим позже.</div>
-      </div>
+      <ContactCard role="Менеджер" handle="@manager_exchange_vn" />
     </div>
   );
 }
