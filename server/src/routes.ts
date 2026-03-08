@@ -1648,28 +1648,41 @@ router.post("/admin/faq", async (req, res) => {
       // 2) generated t.me deep link from getMe
       // 3) WEBAPP_URL (will open in browser, but at least it's something)
       const openLink = tmaLink || webappUrl || "https://t.me";
-      const markupUrl = {
-        inline_keyboard: [[{ text: "Открыть приложение", url: openLink }]]
+      const escapeHtml = (s: string) =>
+        String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      const formatTextWithLinks = (raw: string) => {
+        const escaped = escapeHtml(raw);
+        return escaped.replace(
+          /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+          (_m, label, url) => `<a href="${escapeHtml(url)}">${label}</a>`
+        );
       };
+      const textHtml = `${formatTextWithLinks(text)}
+
+<a href="${escapeHtml(openLink)}">Открыть приложение</a>`;
 
       const imageDataUrl = typeof req.body?.imageDataUrl === "string" ? String(req.body.imageDataUrl) : "";
 
-      async function tgSendMessage(markup?: any) {
+      async function tgSendMessage() {
         const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             chat_id: groupChatId,
-            text,
-            disable_web_page_preview: true,
-            ...(markup ? { reply_markup: markup } : {})
+            text: textHtml,
+            parse_mode: "HTML",
+            disable_web_page_preview: true
           })
         });
         const tgJson: any = await tgRes.json();
         return tgJson;
       }
 
-      async function tgSendPhotoOrDoc(markup?: any) {
+      async function tgSendPhotoOrDoc() {
         const m = imageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
         if (!m) return { ok: false, description: "bad_image" };
         const mime = m[1];
@@ -1683,8 +1696,8 @@ router.post("/admin/faq", async (req, res) => {
         const form = new FormData();
         form.append("chat_id", String(groupChatId));
         // Caption limits are smaller (1024). If too long, we'll fall back to a text message.
-        form.append(isPhoto ? "caption" : "caption", text);
-        if (markup) form.append("reply_markup", JSON.stringify(markup));
+        form.append("caption", textHtml);
+        form.append("parse_mode", "HTML");
 
         const ext = mime.includes("png") ? ".png" : mime.includes("jpeg") || mime.includes("jpg") ? ".jpg" : ".bin";
         const field = isPhoto ? "photo" : "document";
@@ -1698,18 +1711,13 @@ router.post("/admin/faq", async (req, res) => {
         return tgJson;
       }
 
-      // For group posts we use URL button only.
-      // We try (1) url button, (2) no buttons.
+      // Group posts are published with a hyperlink inside the text/caption.
       async function sendMessageWithFallbacks() {
-        let tgJson = await tgSendMessage(markupUrl);
-        if (!tgJson?.ok) tgJson = await tgSendMessage(undefined);
-        return tgJson;
+        return await tgSendMessage();
       }
 
       async function sendPhotoWithFallbacks() {
-        let tgJson = await tgSendPhotoOrDoc(markupUrl);
-        if (!tgJson?.ok) tgJson = await tgSendPhotoOrDoc(undefined);
-        return tgJson;
+        return await tgSendPhotoOrDoc();
       }
 
       // --- Send with image if provided
