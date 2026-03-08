@@ -12,9 +12,6 @@ const CONTACT_URL = "https://t.me/love_2604";
 export default function PaymentsTab() {
   return (
     <div className="card" style={{ padding: 14 }}>
-      <div className="h3" style={{ marginBottom: 10 }}>
-        ОПЛАТА И БРОНИРОВАНИЕ
-      </div>
       <div className="small" style={{ lineHeight: 1.55 }}>
         Если вы хотите оформить или оплатить визу во Вьетнам, а также получить помощь с бронированием отелей и авиабилетов по всему миру, просто оставьте заявку ниже. Менеджер с радостью поможет вам!
       </div>
