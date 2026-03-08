@@ -356,6 +356,15 @@ function isGModePair(formulas: Record<string, { buyMul: number; sellMul: number 
   return !!formulas[`${a}/${b}`] || !!formulas[`${b}/${a}`];
 }
 
+function gRateDecimals(base: Currency, quote: Currency): number {
+  return base === "USD" && quote === "USDT" ? 3 : 1;
+}
+
+function roundRate(value: number, decimals: number): number {
+  const factor = 10 ** decimals;
+  return Math.round((value + Number.EPSILON) * factor) / factor;
+}
+
 function getGPairRates(
   market: MarketRatesResponse | null,
   formulas: Record<string, { buyMul: number; sellMul: number }>,
@@ -368,7 +377,11 @@ function getGPairRates(
   const G = Number(market.g?.[key]);
   if (!f || !Number.isFinite(G) || G <= 0) return null;
 
-  return { buy: G * f.buyMul, sell: G * f.sellMul };
+  const decimals = gRateDecimals(base, quote);
+  return {
+    buy: roundRate(G * f.buyMul, decimals),
+    sell: roundRate(G * f.sellMul, decimals),
+  };
 }
 
 function calcBuyAmountG(

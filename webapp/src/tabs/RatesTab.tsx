@@ -99,6 +99,15 @@ function calcFromVnd(rates: any, base: Cur, quote: Cur): { buy: number | null; s
   };
 }
 
+function gRateDecimals(base: Cur, quote: Cur): number {
+  return base === "USD" && quote === "USDT" ? 3 : 1;
+}
+
+function roundRate(value: number, decimals: number): number {
+  const factor = 10 ** decimals;
+  return Math.round((value + Number.EPSILON) * factor) / factor;
+}
+
 function calcFromG(
   market: MarketRatesResponse | null,
   formulas: Record<string, { buyMul: number; sellMul: number }> | null,
@@ -110,7 +119,11 @@ function calcFromG(
   const f = (formulas && formulas[key]) || DEFAULT_G_FORMULAS[key];
   const G = Number(market.g?.[key]);
   if (!f || !Number.isFinite(G) || G <= 0) return { buy: null, sell: null };
-  return { buy: G * f.buyMul, sell: G * f.sellMul };
+  const decimals = gRateDecimals(base, quote);
+  return {
+    buy: roundRate(G * f.buyMul, decimals),
+    sell: roundRate(G * f.sellMul, decimals),
+  };
 }
 
 type Props = { embedded?: boolean; limit?: number };
