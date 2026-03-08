@@ -90,7 +90,7 @@ export default function ReviewsTab() {
 
   return (
     <div className="vx-reviews">
-      <div className="vx-reviewsTitle">Отзывы</div>
+      <div className="vx-reviewsTitle">Отзивы</div>
 
       <div className="vx-revCompose">
         <div className="vx-revH">Оставить отзыв</div>
