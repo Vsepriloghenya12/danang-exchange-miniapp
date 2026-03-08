@@ -2421,9 +2421,9 @@ html[data-theme="dark"] .theme-client .mx-statusSkeleton{
 
 /* Dark theme bottom menu: black bar + yellow neon edge */
 html[data-theme="dark"] .theme-client .mx-bottomNav{
-  background: rgba(0,0,0,.96);
-  border-top: 1px solid rgba(246,198,0,.34);
-  box-shadow: 0 -22px 54px rgba(0,0,0,.78), 0 0 28px rgba(246,198,0,.10);
+  background: rgba(23,33,43,.96);
+  border-top: 1px solid rgba(246,198,0,.24);
+  box-shadow: 0 -22px 54px rgba(5,10,18,.44), 0 0 18px rgba(246,198,0,.06);
 }
 
 .mx-bottomBtn{
@@ -2629,10 +2629,10 @@ html[data-theme="dark"] .theme-client .mx-statusWrap::before{
 }
 
 html[data-theme="dark"] .theme-client .mx-backBtn{
-  background: #000 !important;
-  border: 1px solid rgba(246,198,0,.44) !important;
+  background: rgba(23,33,43,.98) !important;
+  border: 1px solid rgba(246,198,0,.24) !important;
   color: var(--text) !important;
-  box-shadow: 0 18px 56px rgba(0,0,0,.84), 0 0 26px rgba(246,198,0,.14) !important;
+  box-shadow: 0 16px 34px rgba(5,10,18,.32), 0 0 14px rgba(246,198,0,.05) !important;
 }
 
 .mx-hTitle{
