@@ -207,7 +207,6 @@ function MainLogo({ theme }: { theme: "light" | "dark" }) {
 
   return (
     <div className="mx-mainLogoWrap" aria-label="Cash A Lot">
-      {!ok ? <div className="mx-mainLogoFallback" /> : null}
       <img
         key={src}
         className="mx-mainLogoImg"

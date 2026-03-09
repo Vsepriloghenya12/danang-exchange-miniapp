@@ -456,6 +456,20 @@ const CASH_VND_STEP = 10000;
 const USD_STEP = 100;
 const EUR_STEP = 50;
 const THB_STEP = 100;
+const MIN_SELL_AMOUNTS: Record<Currency, number> = {
+  RUB: 20_000,
+  USDT: 200,
+  USD: 200,
+  EUR: 200,
+  THB: 10_000,
+  VND: 6_500_000,
+};
+
+function minSellAmountLabel(cur: Currency): string {
+  const value = MIN_SELL_AMOUNTS[cur];
+  if (cur === "RUB") return `${fmtAmount(cur, value)} ₽`;
+  return `${fmtAmount(cur, value)} ${cur}`;
+}
 
 export default function CalculatorTab({ me }: Props) {
   const tg = getTg();
@@ -665,6 +679,10 @@ export default function CalculatorTab({ me }: Props) {
     buyCurrency === "VND" && receiveMethod === "cash" && buyText.trim() !== "" && !isMultiple(buyAmount, CASH_VND_STEP);
   const invalidVndBuyAtm =
     buyCurrency === "VND" && receiveMethod === "atm" && buyText.trim() !== "" && !isMultiple(buyAmount, ATM_VND_STEP);
+  const invalidMinSell =
+    sellText.trim() !== "" &&
+    sellAmount > 0 &&
+    sellAmount < MIN_SELL_AMOUNTS[sellCurrency];
 
   const hasInvalid =
     invalidUsdSell ||
@@ -675,7 +693,8 @@ export default function CalculatorTab({ me }: Props) {
     invalidThbBuy ||
     invalidVndSellCash ||
     invalidVndBuyCash ||
-    invalidVndBuyAtm;
+    invalidVndBuyAtm ||
+    invalidMinSell;
 
   // ======= Recalc =======
   useEffect(() => {
@@ -817,6 +836,9 @@ export default function CalculatorTab({ me }: Props) {
 
   const atmVndNoteText =
     "VND в банкомате: сумма получения должна быть кратна 100,000. Вы можете ввести сумму получения, а калькулятор посчитает сумму к оплате без округления.";
+  const minSellNote = invalidMinSell
+    ? `Минимальная сумма ${sellCurrency} для обмена — ${minSellAmountLabel(sellCurrency)}.`
+    : null;
 
   function swapCurrencies() {
     const nextSellCurrency = buyCurrency;
@@ -961,7 +983,7 @@ export default function CalculatorTab({ me }: Props) {
             inputMode={sellCurrency === "USDT" ? "decimal" : "numeric"}
             placeholder="Отдаю"
             value={sellText}
-            className={invalidUsdSell || invalidEurSell || invalidThbSell || invalidVndSellCash ? "vx-inputInvalid" : ""}
+            className={invalidUsdSell || invalidEurSell || invalidThbSell || invalidVndSellCash || invalidMinSell ? "vx-inputInvalid" : ""}
             onChange={(e) => {
               preserveSwappedValuesRef.current = false;
               lastEdited.current = "sell";
@@ -1083,6 +1105,7 @@ export default function CalculatorTab({ me }: Props) {
         {invalidEurSell || invalidEurBuy ? <div className="vx-warn">EUR: передать и получить можно только наличными, кратно 50.</div> : null}
         {invalidThbSell || invalidThbBuy ? <div className="vx-warn">THB: передать и получить можно только наличными, кратно 100.</div> : null}
         {invalidVndSellCash || invalidVndBuyCash ? <div className="vx-warn">VND наличными: сумма должна быть кратна 10,000.</div> : null}
+        {minSellNote ? <div className="vx-warn">{minSellNote}</div> : null}
 
         <div className="vx-sp12" />
 
