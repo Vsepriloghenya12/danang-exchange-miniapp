@@ -174,7 +174,30 @@ type HomeSummaryRow = {
   id: string;
   amountText: string;
   resultText: string;
+  fromCode: Cur;
+  toCode: Cur;
+  fromIcon: string;
+  toIcon: string;
 };
+
+function currencyBadge(cur: Cur): string {
+  switch (cur) {
+    case "RUB":
+      return "₽";
+    case "USDT":
+      return "₮";
+    case "USD":
+      return "$";
+    case "EUR":
+      return "€";
+    case "THB":
+      return "฿";
+    case "VND":
+      return "₫";
+    default:
+      return cur;
+  }
+}
 
 export default function RatesTab({ embedded = false, limit }: Props = {}) {
   const [today, setToday] = useState<TodayRatesResponse | null>(null);
@@ -252,6 +275,10 @@ export default function RatesTab({ embedded = false, limit }: Props = {}) {
         id,
         amountText: fmtSourceAmount(cur, amount),
         resultText: `${fmtInt(result)} vnd`,
+        fromCode: cur,
+        toCode: "VND",
+        fromIcon: currencyBadge(cur),
+        toIcon: currencyBadge("VND"),
       };
     });
   }, [rates]);
@@ -266,8 +293,17 @@ export default function RatesTab({ embedded = false, limit }: Props = {}) {
       <div className="mx-rateHeroList">
         {homeSummaryRows.map((row) => (
           <div key={row.id} className="mx-rateHeroRow">
-            <div className="mx-rateHeroGive">{row.amountText}</div>
-            <div className="mx-rateHeroGet">{row.resultText}</div>
+            <div className="mx-rateHeroSide">
+              <span className={`mx-rateHeroBadge is-${row.fromCode.toLowerCase()}`} aria-hidden="true">{row.fromIcon}</span>
+              <div className="mx-rateHeroGive">{row.amountText}</div>
+            </div>
+
+            <div className="mx-rateHeroArrow" aria-hidden="true">→</div>
+
+            <div className="mx-rateHeroSide is-result">
+              <div className="mx-rateHeroGet">{row.resultText}</div>
+              <span className={`mx-rateHeroBadge is-${row.toCode.toLowerCase()}`} aria-hidden="true">{row.toIcon}</span>
+            </div>
           </div>
         ))}
       </div>

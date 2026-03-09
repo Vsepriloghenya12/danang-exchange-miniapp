@@ -2556,25 +2556,129 @@ html[data-theme="dark"] .theme-client .mx-statusWrap::before{
 .mx-cardInner{ padding: 14px; }
 
 .mx-cardHead{ display:flex; align-items:flex-start; justify-content:space-between; gap: 10px; margin-bottom: 10px; position: relative; z-index: 1; }
-.mx-cardTitle{ font-size: 18px; font-weight: 950; letter-spacing: -0.01em; }
-.mx-cardSub{ font-size: 12.5px; font-weight: 800; color: rgba(0,0,0,.52); margin-top: 2px; }
+.mx-cardTitle{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: -0.01em;
+  font-family: var(--fontTitle);
+}
+.mx-cardTitle::after{
+  content:"";
+  width: 30px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255,179,87,.95), rgba(255,179,87,0));
+}
+.mx-cardSub{ font-size: 12.5px; font-weight: 850; color: rgba(0,0,0,.58); margin-top: 4px; letter-spacing: 0.01em; }
 
 .mx-courseBody{ position: relative; z-index: 1; }
 
 .mx-rateHero{ padding-top: 4px; }
-.mx-rateHeroHead{ font-size: 13px; font-weight: 950; color: rgba(0,0,0,.60); margin-bottom: 10px; }
-.mx-rateHeroList{ display:flex; flex-direction:column; gap: 8px; }
+.mx-rateHeroHead{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 950;
+  color: rgba(0,0,0,.60);
+  margin-bottom: 12px;
+  letter-spacing: 0.01em;
+}
+.mx-rateHeroHead::before{
+  content:"";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255,179,87,1), rgba(255,210,140,.92));
+  box-shadow: 0 0 0 4px rgba(255,179,87,.14);
+}
+.mx-rateHeroList{ display:flex; flex-direction:column; gap: 10px; }
 .mx-rateHeroRow{
   display:grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
-  padding: 10px 0;
-  border-top: 1px solid rgba(0,0,0,.06);
+  padding: 12px 14px;
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.88), rgba(255,255,255,.64)),
+    linear-gradient(135deg, rgba(255,179,87,.05), rgba(255,255,255,0));
+  box-shadow: 0 10px 22px rgba(9,23,33,.06);
   font-variant-numeric: tabular-nums;
 }
-.mx-rateHeroGive{ font-size: 15px; font-weight: 950; color: rgba(0,0,0,.88); }
-.mx-rateHeroGet{ font-size: 15px; font-weight: 950; color: rgba(0,0,0,.88); text-align: right; }
+.mx-rateHeroSide{
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mx-rateHeroSide.is-result{ justify-content: flex-end; }
+.mx-rateHeroBadge{
+  position: relative;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 950;
+  line-height: 1;
+  border: 1px solid rgba(0,0,0,.08);
+  background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(245,247,250,.92));
+  box-shadow: 0 8px 18px rgba(9,23,33,.10);
+}
+.mx-rateHeroBadge.is-rub{ color: #b45309; }
+.mx-rateHeroBadge.is-usdt{ color: #138a52; }
+.mx-rateHeroBadge.is-usd{ color: #1d4ed8; }
+.mx-rateHeroBadge.is-eur{ color: #7c3aed; }
+.mx-rateHeroBadge.is-thb{ color: #c2410c; }
+.mx-rateHeroBadge.is-vnd{ color: #a16207; }
+.mx-rateHeroGive,
+.mx-rateHeroGet{
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+}
+.mx-rateHeroGive{ color: rgba(9,23,33,.90); }
+.mx-rateHeroGet{
+  color: rgba(9,23,33,.94);
+  text-align: right;
+  font-family: var(--fontTitle);
+}
+.mx-rateHeroArrow{
+  flex: 0 0 auto;
+  min-width: 32px;
+  height: 28px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 950;
+  color: rgba(0,0,0,.54);
+  border: 1px solid rgba(0,0,0,.08);
+  background: rgba(255,255,255,.72);
+}
+
+@keyframes mx-currencyPulse{
+  0%, 100%{ transform: translateY(0); box-shadow: 0 10px 20px rgba(9,23,33,.14); }
+  50%{ transform: translateY(-1px); box-shadow: 0 12px 24px rgba(9,23,33,.18); }
+}
+
+@media (prefers-reduced-motion: no-preference){
+  .mx-rateHeroBadge{ animation: mx-currencyPulse 4.8s ease-in-out infinite; }
+  .mx-rateHeroBadge.is-usdt{ animation-delay: .4s; }
+  .mx-rateHeroBadge.is-vnd{ animation-delay: .8s; }
+}
 
 
 .mx-btnRow{ display:flex; gap: 10px; margin-top: 12px; position: relative; z-index: 1; }
@@ -2619,8 +2723,8 @@ html[data-theme="dark"] .theme-client .mx-statusWrap::before{
 
 .mx-navText{ flex: 1 1 auto; }
 
-.mx-navTitle{ font-size: 16px; font-weight: 950; font-family: var(--fontTitle); letter-spacing: 0.02em; }
-.mx-navSub{ font-size: 12.5px; font-weight: 800; color: rgba(0,0,0,.52); margin-top: 2px; }
+.mx-navTitle{ font-size: 16px; font-weight: 950; font-family: var(--fontTitle); letter-spacing: 0.02em; color: rgba(9,23,33,.92); }
+.mx-navSub{ font-size: 12.5px; font-weight: 850; color: rgba(9,23,33,.58); margin-top: 3px; }
 
 .mx-i{ width: 20px; height: 20px; }
 .mx-chev{ opacity: .6; }
@@ -3092,9 +3196,44 @@ html[data-theme="dark"] .theme-client .mx-rateRow + .mx-rateRow{ border-top-colo
 html[data-theme="dark"] .theme-client .mx-rateHead{ color: var(--muted); }
 html[data-theme="dark"] .theme-client .mx-ratePair{ color: var(--text); }
 html[data-theme="dark"] .theme-client .mx-rateHeroHead{ color: var(--muted); }
-html[data-theme="dark"] .theme-client .mx-rateHeroRow{ border-top-color: rgba(246,198,0,.12); }
+html[data-theme="dark"] .theme-client .mx-rateHeroHead::before{
+  background: linear-gradient(180deg, rgba(246,198,0,1), rgba(255,227,122,.92));
+  box-shadow: 0 0 0 4px rgba(246,198,0,.12), 0 0 16px rgba(246,198,0,.16);
+}
+html[data-theme="dark"] .theme-client .mx-rateHeroRow{
+  border-color: rgba(246,198,0,.14);
+  background:
+    linear-gradient(180deg, rgba(25,36,47,.98), rgba(21,31,41,.98)),
+    linear-gradient(135deg, rgba(246,198,0,.06), rgba(246,198,0,0));
+  box-shadow: 0 14px 34px rgba(5,10,18,.28), 0 0 0 1px rgba(246,198,0,.05) inset;
+}
 html[data-theme="dark"] .theme-client .mx-rateHeroGive,
 html[data-theme="dark"] .theme-client .mx-rateHeroGet{ color: var(--text); }
+html[data-theme="dark"] .theme-client .mx-rateHeroArrow{
+  color: rgba(246,198,0,.76);
+  border-color: rgba(246,198,0,.16);
+  background: rgba(246,198,0,.06);
+}
+html[data-theme="dark"] .theme-client .mx-rateHeroBadge{
+  border-color: rgba(246,198,0,.18);
+  background: linear-gradient(180deg, rgba(39,52,66,.98), rgba(27,38,49,.98));
+  box-shadow: 0 10px 22px rgba(5,10,18,.36), 0 0 12px rgba(246,198,0,.08);
+}
+html[data-theme="dark"] .theme-client .mx-rateHeroBadge.is-rub,
+html[data-theme="dark"] .theme-client .mx-rateHeroBadge.is-usdt,
+html[data-theme="dark"] .theme-client .mx-rateHeroBadge.is-usd,
+html[data-theme="dark"] .theme-client .mx-rateHeroBadge.is-eur,
+html[data-theme="dark"] .theme-client .mx-rateHeroBadge.is-thb,
+html[data-theme="dark"] .theme-client .mx-rateHeroBadge.is-vnd{
+  color: #f6c600;
+}
+html[data-theme="dark"] .theme-client .mx-cardTitle,
+html[data-theme="dark"] .theme-client .mx-navTitle{
+  text-shadow: 0 0 14px rgba(246,198,0,.10), 0 2px 0 rgba(0,0,0,.36);
+}
+html[data-theme="dark"] .theme-client .mx-cardTitle::after{
+  background: linear-gradient(90deg, rgba(246,198,0,.95), rgba(246,198,0,0));
+}
 
 
 /* Rates embedded tweaks */
