@@ -1026,8 +1026,7 @@ export default function CalculatorTab({ me }: Props) {
             }}
           />
 
-          <div className="vx-blankBtn" />
-        </div>
+          </div>
 
         <div className="vx-sectionTitle">Оплата</div>
         <div className="vx-methods">
