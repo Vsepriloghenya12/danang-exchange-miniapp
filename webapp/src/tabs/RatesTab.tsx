@@ -293,16 +293,15 @@ export default function RatesTab({ embedded = false, limit }: Props = {}) {
       <div className="mx-rateHeroList">
         {homeSummaryRows.map((row) => (
           <div key={row.id} className="mx-rateHeroRow">
-            <div className="mx-rateHeroSide">
-              <span className={`mx-rateHeroBadge is-${row.fromCode.toLowerCase()}`} aria-hidden="true">{row.fromIcon}</span>
-              <div className="mx-rateHeroGive">{row.amountText}</div>
+            <div className="mx-rateHeroFrom">
+              <span className={`mx-rateHeroMark is-${row.fromCode.toLowerCase()}`} aria-hidden="true">{row.fromIcon}</span>
+              <span className="mx-rateHeroGive">{row.amountText}</span>
             </div>
 
-            <div className="mx-rateHeroArrow" aria-hidden="true">→</div>
+            <span className="mx-rateHeroArrow" aria-hidden="true">→</span>
 
-            <div className="mx-rateHeroSide is-result">
+            <div className="mx-rateHeroResult">
               <div className="mx-rateHeroGet">{row.resultText}</div>
-              <span className={`mx-rateHeroBadge is-${row.toCode.toLowerCase()}`} aria-hidden="true">{row.toIcon}</span>
             </div>
           </div>
         ))}
