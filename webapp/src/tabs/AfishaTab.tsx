@@ -501,8 +501,8 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
           <div
             key={ev.id}
             className={"mx-afEvCard" + (ev.imageUrl ? " has-img" : "")}
-            style={ev.imageUrl ? ({ backgroundImage: `url(${ev.imageUrl})` } as any) : undefined}
           >
+            {ev.imageUrl ? <div className="mx-afEvBg" style={{ backgroundImage: `url(${ev.imageUrl})` } as any} aria-hidden="true" /> : null}
             <div className="mx-afEvBody">
               <div className="mx-afTitle">{ev.title}</div>
               {ev.comment ? <div className="mx-afComment">{ev.comment}</div> : null}

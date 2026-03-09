@@ -3034,6 +3034,15 @@ html[data-theme="dark"] .theme-client .mx-afEvCard{
   background-position: center;
   background-repeat: no-repeat;
 }
+.mx-afEvBg{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  background-size:cover;
+  background-position:center center;
+  background-repeat:no-repeat;
+  pointer-events:none;
+}
 .mx-afEvCard.has-img::before{
   content:"";
   position:absolute;
@@ -3575,4 +3584,47 @@ html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afComment{
 }
 html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afMeta{
   color: rgba(255,255,255,.88) !important;
+}
+
+
+/* Patch 33: keep Afisha dark photo visibility without changing card size */
+html[data-theme="dark"] .theme-client .mx-afEvCard.has-img{
+  min-height: 0 !important;
+  display: block !important;
+  align-items: initial !important;
+  background-color: transparent !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+html[data-theme="dark"] .theme-client .mx-afEvCard.has-img::before{
+  background: linear-gradient(180deg, rgba(7,12,18,0) 0%, rgba(7,12,18,.04) 38%, rgba(7,12,18,.10) 58%, rgba(7,12,18,.44) 100%) !important;
+  opacity: 1 !important;
+}
+html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afEvBody{
+  width: auto !important;
+  min-height: 0 !important;
+  display: block !important;
+  background: linear-gradient(180deg, rgba(8,14,22,0) 0%, rgba(8,14,22,.02) 100%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+
+/* Patch 34: Afisha dark cards — photo must sit above card background */
+html[data-theme="dark"] .theme-client .mx-afEvCard.has-img{
+  background: rgba(24,34,45,.98) !important;
+}
+html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afEvBg{
+  opacity: 1 !important;
+  filter: none !important;
+}
+html[data-theme="dark"] .theme-client .mx-afEvCard.has-img::before{
+  z-index: 0 !important;
+  background: linear-gradient(180deg, rgba(7,12,18,0) 0%, rgba(7,12,18,.05) 50%, rgba(7,12,18,.34) 100%) !important;
+}
+html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afEvBody{
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
 }
