@@ -3543,3 +3543,36 @@ html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afComment{
 html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afMeta{
   color: rgba(255,255,255,.84) !important;
 }
+
+
+/* Patch 32: dark theme Afisha cards — make event photos clearly visible */
+html[data-theme="dark"] .theme-client .mx-afEvCard.has-img{
+  min-height: 240px;
+  display: flex;
+  align-items: flex-end;
+  background-color: #101821 !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+html[data-theme="dark"] .theme-client .mx-afEvCard.has-img::before{
+  background: linear-gradient(180deg, rgba(7,12,18,0) 0%, rgba(7,12,18,.06) 34%, rgba(7,12,18,.16) 56%, rgba(7,12,18,.72) 100%) !important;
+}
+html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afEvBody{
+  width: 100%;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: linear-gradient(180deg, rgba(8,14,22,0) 0%, rgba(8,14,22,.04) 40%, rgba(8,14,22,.18) 70%, rgba(8,14,22,.28) 100%) !important;
+}
+html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afTitle{
+  color: rgba(255,255,255,.99) !important;
+  text-shadow: 0 3px 12px rgba(0,0,0,.76), 0 10px 26px rgba(0,0,0,.38) !important;
+}
+html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afComment{
+  color: rgba(255,255,255,.95) !important;
+}
+html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afMeta{
+  color: rgba(255,255,255,.88) !important;
+}
