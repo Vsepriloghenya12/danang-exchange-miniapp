@@ -2222,15 +2222,23 @@ label, input, select, textarea{ color: var(--text); }
   transform: none;
   filter: none;
   display: block;
+  position: relative;
+  z-index: 1;
 }
 
 
 .mx-mainLogoFallback{
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   width: min(68vw, 320px);
   height: 38px;
   border-radius: 16px;
   background: rgba(0,0,0,.06);
   border: 1px solid rgba(0,0,0,.08);
+  pointer-events: none;
+  z-index: 0;
 }
 
 html[data-theme="dark"] .theme-client .mx-mainLogoFallback{
