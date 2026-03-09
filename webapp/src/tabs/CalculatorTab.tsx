@@ -1098,8 +1098,7 @@ export default function CalculatorTab({ me }: Props) {
           </div>
         ) : null}
 
-        {!canCalc ? <div className="vx-warn">Не хватает данных для расчёта: {missingRates.join(", ")}</div> : null}
-
+       
         {invalidUsdSell || invalidUsdBuy ? <div className="vx-warn">USD: передать и получить можно только наличными, кратно 100.</div> : null}
         {invalidEurSell || invalidEurBuy ? <div className="vx-warn">EUR: передать и получить можно только наличными, кратно 50.</div> : null}
         {invalidThbSell || invalidThbBuy ? <div className="vx-warn">THB: передать и получить можно только наличными, кратно 100.</div> : null}
