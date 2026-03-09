@@ -68,6 +68,48 @@ function fmt(pairId: string, quote: Cur, n: number | null) {
   }).format(n);
 }
 
+function fmtInt(n: number | null) {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return new Intl.NumberFormat("ru-RU", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(Math.trunc(n));
+}
+
+function fmtSourceAmount(cur: Cur, amount: number) {
+  const value = fmtInt(amount);
+  if (cur === "RUB") return `${value} ₽`;
+  return `${value} ${cur}`;
+}
+
+function fmtHumanRuDate(dateStr?: string | null) {
+  if (!dateStr) return "сегодня";
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr));
+  if (!m) return dateStr;
+
+  const months = [
+    "января",
+    "февраля",
+    "марта",
+    "апреля",
+    "мая",
+    "июня",
+    "июля",
+    "августа",
+    "сентября",
+    "октября",
+    "ноября",
+    "декабря"
+  ];
+
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const monthName = months[month - 1];
+  if (!monthName) return dateStr;
+  return `${day} ${monthName} ${year}`;
+}
+
 // Покупка/Продажа ПЕРВОЙ валюты пары через курсы к VND (как было)
 function calcFromVnd(rates: any, base: Cur, quote: Cur): { buy: number | null; sell: number | null } {
   if (!rates) return { buy: null, sell: null };
@@ -128,6 +170,12 @@ function calcFromG(
 
 type Props = { embedded?: boolean; limit?: number };
 
+type HomeSummaryRow = {
+  id: string;
+  amountText: string;
+  resultText: string;
+};
+
 export default function RatesTab({ embedded = false, limit }: Props = {}) {
   const [today, setToday] = useState<TodayRatesResponse | null>(null);
   const [market, setMarket] = useState<MarketRatesResponse | null>(null);
@@ -170,6 +218,7 @@ export default function RatesTab({ embedded = false, limit }: Props = {}) {
   const rates: any = (today as any)?.data?.rates ?? null;
   const updatedAt = (today as any)?.data?.updated_at ? fmtDaNang(new Date((today as any).data.updated_at)) : null;
   const marketUpdatedAt = market?.ok && market.updated_at ? fmtDaNang(new Date(market.updated_at)) : null;
+  const isHomePreview = embedded && limit === 3;
 
   const rows = useMemo(() => {
     return PAIRS.map((p) => {
@@ -189,10 +238,40 @@ export default function RatesTab({ embedded = false, limit }: Props = {}) {
 
   const shown = rows.slice(0, limit ?? rows.length);
 
+  const homeSummaryRows = useMemo<HomeSummaryRow[]>(() => {
+    const items: Array<{ id: string; cur: Cur; amount: number }> = [
+      { id: "rub-vnd-short", cur: "RUB", amount: 10_000 },
+      { id: "usdt-vnd-short", cur: "USDT", amount: 100 },
+      { id: "usd-vnd-short", cur: "USD", amount: 100 },
+    ];
+
+    return items.map(({ id, cur, amount }) => {
+      const buyVnd = Number(rates?.[cur]?.buy_vnd);
+      const result = Number.isFinite(buyVnd) ? amount * buyVnd : null;
+      return {
+        id,
+        amountText: fmtSourceAmount(cur, amount),
+        resultText: `${fmtInt(result)} vnd`,
+      };
+    });
+  }, [rates]);
+
   const content = !today ? (
     <div className="vx-meta">Загрузка…</div>
   ) : !rates ? (
     <div className="vx-meta">Курс ещё не задан владельцем.</div>
+  ) : isHomePreview ? (
+    <div className="mx-rateHero" role="group" aria-label="Краткий курс">
+      <div className="mx-rateHeroHead">Курс на {fmtHumanRuDate(today?.date)}:</div>
+      <div className="mx-rateHeroList">
+        {homeSummaryRows.map((row) => (
+          <div key={row.id} className="mx-rateHeroRow">
+            <div className="mx-rateHeroGive">{row.amountText}</div>
+            <div className="mx-rateHeroGet">{row.resultText}</div>
+          </div>
+        ))}
+      </div>
+    </div>
   ) : (
     <>
       <div className={"mx-rateTable" + (embedded ? " mx-rateTableEmbedded" : "")}

@@ -2561,6 +2561,22 @@ html[data-theme="dark"] .theme-client .mx-statusWrap::before{
 
 .mx-courseBody{ position: relative; z-index: 1; }
 
+.mx-rateHero{ padding-top: 4px; }
+.mx-rateHeroHead{ font-size: 13px; font-weight: 950; color: rgba(0,0,0,.60); margin-bottom: 10px; }
+.mx-rateHeroList{ display:flex; flex-direction:column; gap: 8px; }
+.mx-rateHeroRow{
+  display:grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid rgba(0,0,0,.06);
+  font-variant-numeric: tabular-nums;
+}
+.mx-rateHeroGive{ font-size: 15px; font-weight: 950; color: rgba(0,0,0,.88); }
+.mx-rateHeroGet{ font-size: 15px; font-weight: 950; color: rgba(0,0,0,.88); text-align: right; }
+
+
 .mx-btnRow{ display:flex; gap: 10px; margin-top: 12px; position: relative; z-index: 1; }
 
 .mx-btn{
@@ -3075,6 +3091,10 @@ html[data-theme="dark"] .theme-client .mx-rateTable{ border-top-color: rgba(246,
 html[data-theme="dark"] .theme-client .mx-rateRow + .mx-rateRow{ border-top-color: rgba(246,198,0,.12); }
 html[data-theme="dark"] .theme-client .mx-rateHead{ color: var(--muted); }
 html[data-theme="dark"] .theme-client .mx-ratePair{ color: var(--text); }
+html[data-theme="dark"] .theme-client .mx-rateHeroHead{ color: var(--muted); }
+html[data-theme="dark"] .theme-client .mx-rateHeroRow{ border-top-color: rgba(246,198,0,.12); }
+html[data-theme="dark"] .theme-client .mx-rateHeroGive,
+html[data-theme="dark"] .theme-client .mx-rateHeroGet{ color: var(--text); }
 
 
 /* Rates embedded tweaks */
