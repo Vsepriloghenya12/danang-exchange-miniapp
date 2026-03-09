@@ -169,23 +169,40 @@ function StatusIcon({ status }: { status?: UserStatus }) {
 
 
 
-function MainLogo() {
-  // Center logo on the home screen (wide). Cache-bust for Telegram WebView.
-  const bust = "v1";
+function MainLogo({ theme }: { theme: "light" | "dark" }) {
+  // Separate logo files for light/dark themes. Easy to replace later.
+  const bust = theme === "dark" ? "v31-dark" : "v31-light";
   const candidates = useMemo(
-    () => [
-      "/brand/main-logo.png",
-      "/brand/main-logo.webp",
-      "/brand/main-logo.svg",
-      "/brand/main-logo.jpg",
-      "/brand/logo.png",
-      "/brand/logo.webp",
-      "/brand/logo.jpg",
-    ],
-    []
+    () =>
+      theme === "dark"
+        ? [
+            "/brand/main-logo-dark.png",
+            "/brand/main-logo.png",
+            "/brand/main-logo.webp",
+            "/brand/main-logo.jpg",
+            "/brand/logo.png",
+            "/brand/logo.webp",
+            "/brand/logo.jpg",
+          ]
+        : [
+            "/brand/main-logo-light.png",
+            "/brand/main-logo.png",
+            "/brand/main-logo.webp",
+            "/brand/main-logo.jpg",
+            "/brand/logo.png",
+            "/brand/logo.webp",
+            "/brand/logo.jpg",
+          ],
+    [theme]
   );
   const [idx, setIdx] = useState(0);
   const [ok, setOk] = useState(false);
+
+  useEffect(() => {
+    setIdx(0);
+    setOk(false);
+  }, [theme]);
+
   const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
 
   return (
@@ -249,8 +266,10 @@ export default function App() {
   // Warm up critical images early to avoid a visible "pop-in" in Telegram WebView.
   useEffect(() => {
     const urls = [
-      "/brand/main-logo.png?v1",
-      "/brand/header-logo.png?v42",
+      "/brand/main-logo-light.png?v31-light",
+      "/brand/main-logo-dark.png?v31-dark",
+      "/brand/header-logo-light.png?v31-light",
+      "/brand/header-logo-dark.png?v31-dark",
       "/brand/status-standard.svg?v48-standard",
       "/brand/status-silver.svg?v48-silver",
       "/brand/status-gold.svg?v48-gold",
@@ -541,7 +560,7 @@ ${msg}`);
               </button>
 
               <div className="mx-topCenter">
-                <MainLogo />
+                <MainLogo theme={theme} />
               </div>
 
               <button type="button" className="mx-statusBtn" onClick={showStatusInfo} aria-label="Ваш статус">
