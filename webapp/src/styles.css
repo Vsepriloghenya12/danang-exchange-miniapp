@@ -2343,7 +2343,7 @@ html[data-theme="dark"] .theme-client .mx-themeBtn{
 .mx-headerLogoFallback{
   width: 34px;
   height: 34px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(0,0,0,.06);
   border: 1px solid rgba(0,0,0,.10);
 }
@@ -2595,38 +2595,47 @@ html[data-theme="dark"] .theme-client .mx-statusWrap::before{
   background: linear-gradient(180deg, rgba(255,179,87,1), rgba(255,210,140,.92));
   box-shadow: 0 0 0 4px rgba(255,179,87,.14);
 }
-.mx-rateHeroList{ display:flex; flex-direction:column; gap: 10px; }
+.mx-rateHeroList{
+  display:flex;
+  flex-direction:column;
+  gap: 0;
+  width: 100%;
+  border-top: 1px solid rgba(0,0,0,.08);
+}
 .mx-rateHeroRow{
   display:grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  gap: 10px;
+  gap: 8px;
   align-items: center;
-  padding: 12px 14px;
-  border: 1px solid rgba(0,0,0,.06);
-  border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.88), rgba(255,255,255,.64)),
-    linear-gradient(135deg, rgba(255,179,87,.05), rgba(255,255,255,0));
-  box-shadow: 0 10px 22px rgba(9,23,33,.06);
+  width: 100%;
+  padding: 12px 0;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  border-radius: 0;
   font-variant-numeric: tabular-nums;
+}
+.mx-rateHeroRow + .mx-rateHeroRow{
+  border-top: 1px solid rgba(0,0,0,.08);
 }
 .mx-rateHeroSide{
   min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: nowrap;
 }
 .mx-rateHeroSide.is-result{ justify-content: flex-end; }
 .mx-rateHeroBadge{
   position: relative;
-  flex: 0 0 34px;
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 950;
   line-height: 1;
   border: 1px solid rgba(0,0,0,.08);
@@ -2642,10 +2651,11 @@ html[data-theme="dark"] .theme-client .mx-statusWrap::before{
 .mx-rateHeroGive,
 .mx-rateHeroGet{
   min-width: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 950;
   line-height: 1.08;
   letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 .mx-rateHeroGive{ color: rgba(9,23,33,.90); }
 .mx-rateHeroGet{
@@ -2655,18 +2665,18 @@ html[data-theme="dark"] .theme-client .mx-statusWrap::before{
 }
 .mx-rateHeroArrow{
   flex: 0 0 auto;
-  min-width: 32px;
-  height: 28px;
-  padding: 0 8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  font-size: 14px;
+  border-radius: 0;
+  font-size: 13px;
   font-weight: 950;
-  color: rgba(0,0,0,.54);
-  border: 1px solid rgba(0,0,0,.08);
-  background: rgba(255,255,255,.72);
+  color: rgba(0,0,0,.42);
+  border: 0;
+  background: transparent;
 }
 
 @keyframes mx-currencyPulse{
@@ -2718,7 +2728,7 @@ html[data-theme="dark"] .theme-client .mx-statusWrap::before{
   width: 36px;
   height: 36px;
   flex: 0 0 36px;
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 .mx-navText{ flex: 1 1 auto; }
@@ -3200,19 +3210,20 @@ html[data-theme="dark"] .theme-client .mx-rateHeroHead::before{
   background: linear-gradient(180deg, rgba(246,198,0,1), rgba(255,227,122,.92));
   box-shadow: 0 0 0 4px rgba(246,198,0,.12), 0 0 16px rgba(246,198,0,.16);
 }
+html[data-theme="dark"] .theme-client .mx-rateHeroList{ border-top-color: rgba(246,198,0,.16); }
 html[data-theme="dark"] .theme-client .mx-rateHeroRow{
-  border-color: rgba(246,198,0,.14);
-  background:
-    linear-gradient(180deg, rgba(25,36,47,.98), rgba(21,31,41,.98)),
-    linear-gradient(135deg, rgba(246,198,0,.06), rgba(246,198,0,0));
-  box-shadow: 0 14px 34px rgba(5,10,18,.28), 0 0 0 1px rgba(246,198,0,.05) inset;
+  background: transparent;
+  box-shadow: none;
+}
+html[data-theme="dark"] .theme-client .mx-rateHeroRow + .mx-rateHeroRow{
+  border-top-color: rgba(246,198,0,.14);
 }
 html[data-theme="dark"] .theme-client .mx-rateHeroGive,
 html[data-theme="dark"] .theme-client .mx-rateHeroGet{ color: var(--text); }
 html[data-theme="dark"] .theme-client .mx-rateHeroArrow{
-  color: rgba(246,198,0,.76);
-  border-color: rgba(246,198,0,.16);
-  background: rgba(246,198,0,.06);
+  color: rgba(246,198,0,.62);
+  border: 0;
+  background: transparent;
 }
 html[data-theme="dark"] .theme-client .mx-rateHeroBadge{
   border-color: rgba(246,198,0,.18);
@@ -3783,4 +3794,18 @@ html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afEvBody{
   position: relative;
   z-index: 1;
   background: transparent !important;
+}
+
+@media (max-width: 380px){
+  .mx-rateHeroRow{ gap: 6px; }
+  .mx-rateHeroSide{ gap: 8px; }
+  .mx-rateHeroBadge{
+    flex-basis: 28px;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+  .mx-rateHeroGive,
+  .mx-rateHeroGet{ font-size: 13px; }
+  .mx-rateHeroArrow{ min-width: 16px; font-size: 12px; }
 }
