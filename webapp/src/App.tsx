@@ -665,7 +665,7 @@ ${msg}`);
           <ScreenPane active={screen === "atm"}>
             <>
               <ScreenHeader title="Банкоматы" onBack={goHome} />
-              <AtmTab />
+              <AtmTab isActive={screen === "atm"} />
             </>
           </ScreenPane>
         ) : null}

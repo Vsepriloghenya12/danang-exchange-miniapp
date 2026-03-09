@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { apiSuggestAtm } from "../lib/api";
 
 const FIND_ATM_URL = "https://www.google.com/maps/search/ATM+Vietcombank+near+me/";
@@ -11,7 +11,7 @@ function openLink(url: string) {
 
 type BankKey = "vietcombank" | "bidv";
 
-export default function AtmTab() {
+export default function AtmTab({ isActive = true }: { isActive?: boolean }) {
   const [active, setActive] = useState<BankKey | null>(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestText, setSuggestText] = useState("");
@@ -26,6 +26,29 @@ export default function AtmTab() {
     if (active === "bidv") return "/videos/bidv.mp4";
     return "";
   }, [active]);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    if (isActive) return;
+    const v = videoRef.current;
+    if (!v) return;
+    try {
+      v.pause();
+      v.currentTime = 0;
+    } catch {}
+  }, [isActive]);
+
+  useEffect(() => {
+    return () => {
+      const v = videoRef.current;
+      if (!v) return;
+      try {
+        v.pause();
+        v.currentTime = 0;
+      } catch {}
+    };
+  }, []);
 
   // When the modal is open, freeze page overscroll and hide the fixed bottom menu.
   // We reuse the same global switch that the Afisha bottom-sheet uses.
@@ -109,7 +132,7 @@ export default function AtmTab() {
             <b>{active === "vietcombank" ? <>Видео инструкция для <span className="vx-bankBrand vx-bankBrandVcb">Vietcombank</span></> : <>Видео инструкция для <span className="vx-bankBrand vx-bankBrandBidv">BIDV</span></>}</b>
           </div>
           <div className="vx-sp8" />
-          <video className="vx-atmVideo" controls playsInline preload="metadata" src={src} />
+          <video ref={videoRef} className="vx-atmVideo" controls playsInline preload="metadata" src={src} />
           <div className="vx-sp8" />
           <button className="btn vx-btnSm" type="button" onClick={() => setActive(null)}>
             Закрыть видео
