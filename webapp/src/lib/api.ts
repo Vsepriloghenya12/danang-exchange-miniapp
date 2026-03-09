@@ -43,6 +43,58 @@ async function readJsonSafe(r: Response): Promise<any> {
   }
 }
 
+
+
+type CacheEntry = { exp: number; data?: any; promise?: Promise<any> };
+const __mxGetCache = new Map<string, CacheEntry>();
+
+function cacheKey(url: string, init?: RequestInit) {
+  const method = String(init?.method || "GET").toUpperCase();
+  const headers = init?.headers ? JSON.stringify(init.headers) : "";
+  return `${method} ${url} ${headers}`;
+}
+
+async function getJsonCached<T = any>(url: string, ttlMs = 45_000, init?: RequestInit, safe = false): Promise<T> {
+  const key = cacheKey(url, init);
+  const now = Date.now();
+  const hit = __mxGetCache.get(key);
+  if (hit && hit.data !== undefined && hit.exp > now) return hit.data as T;
+  if (hit?.promise) return hit.promise as Promise<T>;
+
+  const prom = (async () => {
+    const r = await fetch(url, init);
+    const data = safe ? await readJsonSafe(r) : await r.json();
+    __mxGetCache.set(key, { exp: Date.now() + ttlMs, data });
+    return data as T;
+  })().catch((e) => {
+    __mxGetCache.delete(key);
+    throw e;
+  });
+
+  __mxGetCache.set(key, { exp: now + ttlMs, promise: prom });
+  return prom;
+}
+
+export function apiWarmup() {
+  return {
+    todayRates: () => getJsonCached<TodayRatesResponse>("/api/rates/today", 60_000),
+    marketRates: () => getJsonCached<MarketRatesResponse>("/api/market", 60_000),
+    gFormulas: () => getJsonCached("/api/g-formulas", 60_000, undefined, true),
+    faq: () => getJsonCached<FaqResponse>("/api/faq", 5 * 60_000, undefined, true),
+    reviews: () => getJsonCached("/api/reviews", 60_000),
+    atms: () => getJsonCached<AtmsResponse>("/api/atms", 5 * 60_000),
+    bonuses: () => getJsonCached<BonusesResponse>("/api/bonuses", 60_000),
+    bankIcons: () => getJsonCached<BankIconsResponse>("/api/banks/icons", 5 * 60_000),
+    afisha: (params: { category?: string; from?: string; to?: string } = {}) => {
+      const q = new URLSearchParams();
+      if (params.category) q.set('category', params.category);
+      if (params.from) q.set('from', params.from);
+      if (params.to) q.set('to', params.to);
+      return getJsonCached<AfishaResponse>(`/api/afisha?${q.toString()}`, 60_000, undefined, true);
+    },
+    myRequests: (initData: string) => getJsonCached<MyRequestsResponse>("/api/requests/mine", 20_000, { headers: { "x-telegram-init-data": initData } }, true),
+  };
+}
 export async function apiAuth(initData: string): Promise<AuthResponse> {
   const r = await fetch("/api/auth", {
     method: "POST",
@@ -53,20 +105,17 @@ export async function apiAuth(initData: string): Promise<AuthResponse> {
 }
 
 export async function apiGetTodayRates(): Promise<TodayRatesResponse> {
-  const r = await fetch("/api/rates/today");
-  return r.json();
+  return getJsonCached<TodayRatesResponse>("/api/rates/today", 60_000);
 }
 
 
 export async function apiGetMarketRates(): Promise<MarketRatesResponse> {
-  const r = await fetch("/api/market");
-  return r.json();
+  return getJsonCached<MarketRatesResponse>("/api/market", 60_000);
 }
 
 // Cross-pair formulas (multipliers)
 export async function apiGetGFormulas() {
-  const r = await fetch("/api/g-formulas");
-  return readJsonSafe(r);
+  return getJsonCached("/api/g-formulas", 60_000, undefined, true);
 }
 
 export async function apiAdminGetGFormulas(token: string) {
@@ -87,8 +136,7 @@ export async function apiAdminSetGFormulas(token: string, formulas: any) {
 
 
 export async function apiGetFaq(): Promise<FaqResponse> {
-  const r = await fetch("/api/faq");
-  return readJsonSafe(r);
+  return getJsonCached<FaqResponse>("/api/faq", 5 * 60_000, undefined, true);
 }
 
 export async function apiAdminGetFaq(token: string): Promise<FaqResponse> {
@@ -158,8 +206,7 @@ export async function apiAdminSetRequestState(initData: string, id: string, stat
 }
 
 export async function apiGetReviews() {
-  const r = await fetch("/api/reviews");
-  return r.json();
+  return getJsonCached("/api/reviews", 60_000);
 }
 
 export async function apiGetReviewEligible(initData: string) {
@@ -182,10 +229,9 @@ export async function apiAddReview(initData: string, params: { requestId: string
 // Client: my requests (history)
 // --------------------
 export async function apiGetMyRequests(initData: string): Promise<MyRequestsResponse> {
-  const r = await fetch("/api/requests/mine", {
+  return getJsonCached<MyRequestsResponse>("/api/requests/mine", 20_000, {
     headers: { "x-telegram-init-data": initData }
-  });
-  return readJsonSafe(r);
+  }, true);
 }
 
 // Admin reviews moderation
@@ -225,8 +271,7 @@ export async function apiAdminReplyReview(token: string, id: string, text: strin
 // ATMs
 // --------------------
 export async function apiGetAtms(): Promise<AtmsResponse> {
-  const r = await fetch("/api/atms");
-  return r.json();
+  return getJsonCached<AtmsResponse>("/api/atms", 5 * 60_000);
 }
 
 export async function apiAdminGetAtms(token: string): Promise<AtmsResponse> {
@@ -249,8 +294,7 @@ export async function apiAdminSetAtms(token: string, atms: AtmItem[]) {
 // Bonuses
 // --------------------
 export async function apiGetBonuses(): Promise<BonusesResponse> {
-  const r = await fetch("/api/bonuses");
-  return r.json();
+  return getJsonCached<BonusesResponse>("/api/bonuses", 60_000);
 }
 
 export async function apiAdminGetBonuses(token: string): Promise<BonusesResponse> {
@@ -273,8 +317,7 @@ export async function apiAdminSetBonuses(token: string, bonuses: BonusesConfig):
 // Bank icons
 // --------------------
 export async function apiGetBankIcons(): Promise<BankIconsResponse> {
-  const r = await fetch("/api/banks/icons");
-  return r.json();
+  return getJsonCached<BankIconsResponse>("/api/banks/icons", 5 * 60_000);
 }
 
 // --------------------
@@ -425,8 +468,7 @@ export async function apiGetAfisha(params: { category?: string; from?: string; t
   if (params.category) q.set('category', params.category);
   if (params.from) q.set('from', params.from);
   if (params.to) q.set('to', params.to);
-  const r = await fetch(`/api/afisha?${q.toString()}`);
-  return readJsonSafe(r);
+  return getJsonCached<AfishaResponse>(`/api/afisha?${q.toString()}`, 60_000, undefined, true);
 }
 
 export async function apiAfishaClick(initData: string, id: string, kind: 'details' | 'location') {

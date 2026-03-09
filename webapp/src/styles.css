@@ -2173,6 +2173,9 @@ label, input, select, textarea{ color: var(--text); }
 .mx-sp18{ height: 18px; }
 .mx-sp24{ height: 24px; }
 
+.mx-screenPane.is-hidden{ display:none; }
+.mx-screenPane.is-active{ display:block; }
+
 .mx-topRow{
   display:flex;
   align-items:center;
@@ -2766,34 +2769,43 @@ html.mx-sheet-open body.vx-body-client #root{
 
 /* Dark theme: black surfaces + yellow neon */
 html[data-theme="dark"] .theme-client .mx-filterBtn{
-  background: rgba(6,6,6,.98);
-  border-color: rgba(246,198,0,.34);
-  box-shadow: 0 18px 54px rgba(0,0,0,.72), 0 0 20px rgba(246,198,0,.10);
+  background: rgba(23,33,43,.98);
+  border-color: rgba(246,198,0,.24);
+  box-shadow: 0 16px 42px rgba(5,10,18,.34), 0 0 14px rgba(246,198,0,.06);
 }
 html[data-theme="dark"] .theme-client .mx-filterBtnHint{ color: var(--text); opacity: .94; }
 html[data-theme="dark"] .theme-client .mx-filterBtnVal{ color: var(--text); }
 html[data-theme="dark"] .theme-client .mx-filterBtnChev{ color: var(--text); opacity: .85; }
 
+html[data-theme="dark"] .theme-client .mx-filterItem{
+  background: rgba(23,33,43,.98);
+  border-color: rgba(246,198,0,.24);
+  color: var(--text);
+  box-shadow: 0 16px 42px rgba(5,10,18,.34), 0 0 14px rgba(246,198,0,.06);
+}
+html[data-theme="dark"] .theme-client .mx-date{ color: var(--text) !important; }
+html[data-theme="dark"] .theme-client .mx-sheetOverlay{ background: rgba(11,17,24,.58); }
+
 html[data-theme="dark"] .theme-client .mx-sheet{
-  background: rgba(0,0,0,.98);
-  border-color: rgba(246,198,0,.32);
-  box-shadow: 0 -30px 96px rgba(0,0,0,.86), 0 0 28px rgba(246,198,0,.10);
+  background: rgba(23,33,43,.99);
+  border-color: rgba(246,198,0,.24);
+  box-shadow: 0 -24px 58px rgba(5,10,18,.42), 0 0 18px rgba(246,198,0,.06);
 }
 
 html[data-theme="dark"] .theme-client .mx-sheetHandle{ background: rgba(246,198,0,.26); }
 html[data-theme="dark"] .theme-client .mx-sheetTitle{ color: var(--text); }
 html[data-theme="dark"] .theme-client .mx-sheetItem{
-  background: #000;
-  border: 1px solid rgba(246,198,0,.26);
+  background: rgba(29,40,52,.98);
+  border: 1px solid rgba(246,198,0,.18);
   color: var(--text);
-  box-shadow: 0 16px 48px rgba(0,0,0,.72), 0 0 18px rgba(246,198,0,.10);
+  box-shadow: 0 12px 28px rgba(5,10,18,.28), 0 0 12px rgba(246,198,0,.04);
 }
 html[data-theme="dark"] .theme-client .mx-sheetCheck{ color: var(--text); }
 html[data-theme="dark"] .theme-client .mx-sheetHandle{ background: rgba(246,198,0,.26); }
 html[data-theme="dark"] .theme-client .mx-sheetTitle{ color: var(--text); }
 html[data-theme="dark"] .theme-client .mx-sheetItem{
   border-color: rgba(246,198,0,.18);
-  background: rgba(246,198,0,.06);
+  background: rgba(29,40,52,.98);
   color: var(--text);
 }
 html[data-theme="dark"] .theme-client .mx-sheetItem.on{
@@ -2821,8 +2833,8 @@ html[data-theme="dark"] .theme-client .mx-sheetCheck{ color: var(--text); }
 html[data-theme="dark"] .theme-client .mx-sheetCustom{ background: rgba(246,198,0,.05); border-color: rgba(246,198,0,.18); }
 html[data-theme="dark"] .theme-client .mx-customLbl{ color: var(--muted); }
 html[data-theme="dark"] .theme-client .mx-dateInput{
-  background: rgba(6,6,6,.98);
-  border-color: rgba(246,198,0,.34);
+  background: rgba(29,40,52,.98);
+  border-color: rgba(246,198,0,.22);
   color: var(--text);
   -webkit-text-fill-color: rgba(246,198,0,.98);
 }
@@ -2839,9 +2851,9 @@ html[data-theme="dark"] .theme-client .mx-dateInput{
 }
 
 html[data-theme="dark"] .theme-client .mx-sheetBtn{
-  background: rgba(0,0,0,.98);
+  background: rgba(29,40,52,.99);
   color: var(--text);
-  box-shadow: 0 22px 70px rgba(0,0,0,.78), 0 0 44px rgba(246,198,0,.18);
+  box-shadow: 0 16px 38px rgba(5,10,18,.34), 0 0 14px rgba(246,198,0,.08);
 }
 
 .mx-muted{ color: rgba(0,0,0,.56); font-weight: 700; }

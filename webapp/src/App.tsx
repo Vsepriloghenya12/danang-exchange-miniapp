@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getTg } from "./lib/telegram";
-import { apiAuth, apiEvent } from "./lib/api";
+import { apiAuth, apiEvent, apiWarmup } from "./lib/api";
 import type { UserStatus } from "./lib/types";
 
 import RatesTab from "./tabs/RatesTab";
@@ -95,6 +95,10 @@ function ScreenHeader({ title, onBack }: { title: string; onBack: () => void }) 
       <div style={{ width: 40 }} />
     </div>
   );
+}
+
+function ScreenPane({ active, children }: { active: boolean; children: React.ReactNode }) {
+  return <div className={"mx-screenPane " + (active ? "is-active" : "is-hidden")}>{children}</div>;
 }
 
 function NavCard({
@@ -280,7 +284,6 @@ export default function App() {
     }
   }, []);
 
-
   // Preload status icons to avoid a visible "loading" placeholder when returning to the home screen.
   useEffect(() => {
     try {
@@ -322,6 +325,11 @@ export default function App() {
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
   const [screen, setScreen] = useState<ScreenKey>("home");
   const [courseExpanded, setCourseExpanded] = useState(false);
+  const [visited, setVisited] = useState<Record<string, boolean>>({ home: true });
+
+  useEffect(() => {
+    setVisited((prev) => (prev[screen] ? prev : { ...prev, [screen]: true }));
+  }, [screen]);
 
   // Demo mode for opening the webapp in a normal browser without Telegram initData.
   // IMPORTANT: must be declared before any hooks that reference it (avoid TDZ runtime crash).
@@ -436,6 +444,35 @@ export default function App() {
     );
   }
 
+  useEffect(() => {
+    if (!me.ok) return;
+    const warm = apiWarmup();
+    const run = () => {
+      void warm.todayRates().catch(() => {});
+      void warm.marketRates().catch(() => {});
+      void warm.gFormulas().catch(() => {});
+      void warm.bonuses().catch(() => {});
+      void warm.afisha().catch(() => {});
+      void warm.atms().catch(() => {});
+      void warm.faq().catch(() => {});
+      void warm.reviews().catch(() => {});
+      if (me.initData && me.initData !== "demo") void warm.myRequests(me.initData).catch(() => {});
+    };
+
+    const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void, opts?: any) => number);
+    if (typeof ric === "function") {
+      const id = ric(run, { timeout: 1200 });
+      return () => {
+        try {
+          (window as any).cancelIdleCallback?.(id);
+        } catch {}
+      };
+    }
+
+    const t = window.setTimeout(run, 180);
+    return () => window.clearTimeout(t);
+  }, [me.ok, me.initData]);
+
   const goHome = () => {
     setScreen("home");
   };
@@ -461,7 +498,6 @@ export default function App() {
     setScreen(next);
   };
 
-
   const showStatusInfo = () => {
     const st = normalizeStatus(me.status);
     const title = `Ваш статус: ${statusTitle(st)}`;
@@ -479,16 +515,20 @@ export default function App() {
         buttons: [{ type: "close", text: "Ок" }],
       });
     } else if (tg?.showAlert) {
-      tg.showAlert(`${title}\n\n${msg}`);
+      tg.showAlert(`${title}
+
+${msg}`);
     } else {
-      alert(`${title}\n\n${msg}`);
+      alert(`${title}
+
+${msg}`);
     }
   };
 
   return (
     <div className={`vx-page theme-client ${screen === "home" ? "mx-homePage" : ""}`}>
       <div className="container">
-        {screen === "home" ? (
+        <ScreenPane active={screen === "home"}>
           <>
             <div className="mx-topRow mx-topRowHome">
               <button
@@ -525,38 +565,33 @@ export default function App() {
                 <button type="button" className="mx-btn" onClick={() => setCourseExpanded((v) => !v)}>
                   {courseExpanded ? "Свернуть" : "Все курсы"}
                 </button>
-                <button
-                  type="button"
-                  className="mx-btn mx-btnPrimary"
-                  onClick={() => goTo("calc","home_calc_btn")}
-                >
+                <button type="button" className="mx-btn mx-btnPrimary" onClick={() => goTo("calc", "home_calc_btn")}>
                   Оставить заявку
                 </button>
               </div>
             </div>
 
-            {/* Extra gap so the "Курс" card shadow doesn't visually "dirty" the first nav card */}
             <div className="mx-sp18" />
 
             <NavCard
               title="Афиша"
               subtitle="События, спорт, вечеринки"
               iconSrc="/brand/icons/tab-afisha-256.png?v=1"
-              onClick={() => goTo("afisha","nav_afisha")}
+              onClick={() => goTo("afisha", "nav_afisha")}
             />
             <div className="mx-sp10" />
             <NavCard
               title="Банкоматы"
               subtitle="VIETCOMBANK и BIDV"
               iconSrc="/brand/icons/tab-atm-256.png?v=1"
-              onClick={() => goTo("atm","nav_atm")}
+              onClick={() => goTo("atm", "nav_atm")}
             />
             <div className="mx-sp10" />
             <NavCard
               title="Отзывы"
               subtitle="Отзывы клиентов"
               iconSrc="/brand/icons/tab-reviews-256.png?v=1"
-              onClick={() => goTo("reviews","nav_reviews")}
+              onClick={() => goTo("reviews", "nav_reviews")}
             />
 
             {me.isAdmin ? (
@@ -566,126 +601,145 @@ export default function App() {
                   title="Админ"
                   subtitle="Заявки"
                   iconSrc="/brand/icons/tab-rates-256.png?v=1"
-                  onClick={() => goTo("staff","nav_staff")}
+                  onClick={() => goTo("staff", "nav_staff")}
                 />
               </>
             ) : null}
 
             <div className="mx-sp24" />
           </>
+        </ScreenPane>
+
+        {visited.calc ? (
+          <ScreenPane active={screen === "calc"}>
+            <>
+              <ScreenHeader title="Оставить заявку" onBack={goHome} />
+              <CalculatorTab me={me} />
+            </>
+          </ScreenPane>
         ) : null}
 
-        {screen === "calc" ? (
-          <>
-            <ScreenHeader title="Оставить заявку" onBack={goHome} />
-            <CalculatorTab me={me} />
-          </>
+        {visited.pay ? (
+          <ScreenPane active={screen === "pay"}>
+            <>
+              <ScreenHeader title="Оплаты и бронирование" onBack={goHome} />
+              <PaymentsTab />
+            </>
+          </ScreenPane>
         ) : null}
 
-        {screen === "pay" ? (
-          <>
-            <ScreenHeader title="Оплаты и бронирование" onBack={goHome} />
-            <PaymentsTab />
-          </>
+        {visited.afisha ? (
+          <ScreenPane active={screen === "afisha"}>
+            <>
+              <ScreenHeader
+                title="Афиша"
+                onBack={() => {
+                  const handled = afishaBackRef.current?.() ?? false;
+                  if (!handled) goHome();
+                }}
+              />
+              <AfishaTab registerBack={(fn) => (afishaBackRef.current = fn)} />
+            </>
+          </ScreenPane>
         ) : null}
 
-        {screen === "afisha" ? (
-          <>
-            <ScreenHeader
-              title="Афиша"
-              onBack={() => {
-                const handled = afishaBackRef.current?.() ?? false;
-                if (!handled) goHome();
-              }}
-            />
-            <AfishaTab registerBack={(fn) => (afishaBackRef.current = fn)} />
-          </>
+        {visited.atm ? (
+          <ScreenPane active={screen === "atm"}>
+            <>
+              <ScreenHeader title="Банкоматы" onBack={goHome} />
+              <AtmTab />
+            </>
+          </ScreenPane>
         ) : null}
 
-        {screen === "atm" ? (
-          <>
-            <ScreenHeader title="Банкоматы" onBack={goHome} />
-            <AtmTab />
-          </>
+        {visited.reviews ? (
+          <ScreenPane active={screen === "reviews"}>
+            <>
+              <ScreenHeader title="Отзывы" onBack={goHome} />
+              <ReviewsTab />
+            </>
+          </ScreenPane>
         ) : null}
 
-        {screen === "reviews" ? (
-          <>
-            <ScreenHeader title="Отзывы" onBack={goHome} />
-            <ReviewsTab />
-          </>
+        {visited.staff ? (
+          <ScreenPane active={screen === "staff"}>
+            <>
+              <ScreenHeader title="Админ" onBack={goHome} />
+              <StaffTab me={me} />
+            </>
+          </ScreenPane>
         ) : null}
 
-        {screen === "staff" ? (
-          <>
-            <ScreenHeader title="Админ" onBack={goHome} />
-            <StaffTab me={me} />
-          </>
+        {visited.history ? (
+          <ScreenPane active={screen === "history"}>
+            <>
+              <ScreenHeader title="Моя история" onBack={goHome} />
+              <HistoryTab me={me} />
+            </>
+          </ScreenPane>
         ) : null}
 
-        {screen === "history" ? (
-          <>
-            <ScreenHeader title="Моя история" onBack={goHome} />
-            <HistoryTab me={me} />
-          </>
+        {visited.other ? (
+          <ScreenPane active={screen === "other"}>
+            <>
+              <ScreenHeader title="Прочее" onBack={goHome} />
+              <OtherTab
+                onFaq={() => goTo("faq", "other_faq")}
+                onAbout={() => goTo("about", "other_about")}
+                onContacts={() => goTo("contacts", "other_contacts")}
+                onOrderApp={() => openExternal("https://t.me/Tutenhaman")}
+              />
+            </>
+          </ScreenPane>
         ) : null}
 
-
-{screen === "other" ? (
-  <>
-    <ScreenHeader title="Прочее" onBack={goHome} />
-    <OtherTab
-      onFaq={() => goTo("faq","other_faq")}
-      onAbout={() => goTo("about","other_about")}
-      onContacts={() => goTo("contacts","other_contacts")}
-      onOrderApp={() => openExternal("https://t.me/Tutenhaman")}
-    />
-  </>
-) : null}
-
-{screen === "faq" ? (
-  <>
-    <ScreenHeader title="FAQ" onBack={() => goTo("other","faq_back")} />
-    <FaqTab />
-  </>
-) : null}
-
-{screen === "contacts" ? (
-  <>
-    <ScreenHeader title="Контакты" onBack={() => goTo("other","contacts_back")} />
-    <ContactsTab />
-  </>
-) : null}
-
-        {screen === "about" ? (
-          <>
-            <ScreenHeader title="О приложении" onBack={() => goTo("other","about_back")} />
-            <AboutTab />
-          </>
+        {visited.faq ? (
+          <ScreenPane active={screen === "faq"}>
+            <>
+              <ScreenHeader title="FAQ" onBack={() => goTo("other", "faq_back")} />
+              <FaqTab />
+            </>
+          </ScreenPane>
         ) : null}
 
-              </div>
+        {visited.contacts ? (
+          <ScreenPane active={screen === "contacts"}>
+            <>
+              <ScreenHeader title="Контакты" onBack={() => goTo("other", "contacts_back")} />
+              <ContactsTab />
+            </>
+          </ScreenPane>
+        ) : null}
 
-      {/* Bottom menu */}
+        {visited.about ? (
+          <ScreenPane active={screen === "about"}>
+            <>
+              <ScreenHeader title="О приложении" onBack={() => goTo("other", "about_back")} />
+              <AboutTab />
+            </>
+          </ScreenPane>
+        ) : null}
+      </div>
+
       <div className="mx-bottomNav" role="navigation" aria-label="Нижнее меню">
         <button
           type="button"
           className={"mx-bottomBtn " + (screen === "pay" ? "is-on" : "")}
-          onClick={() => goTo("pay","bottom_pay")}
+          onClick={() => goTo("pay", "bottom_pay")}
         >
           Оплаты и бронирование
         </button>
         <button
           type="button"
           className={"mx-bottomBtn " + (screen === "history" ? "is-on" : "")}
-          onClick={() => goTo("history","bottom_history")}
+          onClick={() => goTo("history", "bottom_history")}
         >
           Моя история
         </button>
         <button
           type="button"
           className={"mx-bottomBtn " + (screen === "other" ? "is-on" : "")}
-          onClick={() => goTo("other","bottom_other")}
+          onClick={() => goTo("other", "bottom_other")}
         >
           Прочее
         </button>
