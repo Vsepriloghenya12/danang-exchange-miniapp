@@ -824,11 +824,6 @@ export default function CalculatorTab({ me }: Props) {
       ? "EUR: вы можете передать и получить только наличные купюры по 50€ нового образца, без надписей и дефектов."
       : null;
 
-  const vndNote =
-    (sellCurrency === "VND" || buyCurrency === "VND") && !(buyCurrency === "VND" && receiveMethod === "atm")
-      ? "VND: наличные — передача и получение кратно 10,000; перевод — любая сумма."
-      : null;
-
   const thbNote =
     sellCurrency === "THB" || buyCurrency === "THB"
       ? "THB: передать и получить баты можно только наличными, кратно 100 бат."
@@ -947,12 +942,16 @@ export default function CalculatorTab({ me }: Props) {
       {!loading && (!rates || (!market && gMode)) && <div className="vx-help">Курсы не загружены.</div>}
 
       <div className="vx-note" style={{ marginBottom: 10 }}>
-        <b>Время работы сервиса:</b> ежедневно с 10:00 до 22:00. С 20:00 до 22:00 возможен только дистанционный обмен.
+        Время работы сервиса: ежедневно с 10:00 до 22:00.
+        <br />
+        С 20:00 до 22:00 возможен только дистанционный обмен.
       </div>
 
       {managerOffline ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
-          Спасибо за обращение. Сейчас в Дананге {danangTime.label}. Оставить заявку Вы можете в рабочее время.
+          Спасибо за обращение.Сейчас в Дананге {danangTime.label}.
+          <br />
+          Оставить заявку Вы можете в рабочее время.
         </div>
       ) : deliveryClosed ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
@@ -1084,7 +1083,6 @@ export default function CalculatorTab({ me }: Props) {
 
         {usdNote ? <div className="vx-note">{usdNote}</div> : null}
         {eurNote ? <div className="vx-note">{eurNote}</div> : null}
-        {vndNote ? <div className="vx-note">{vndNote}</div> : null}
         {thbNote ? <div className="vx-note">{thbNote}</div> : null}
 
         {buyCurrency === "VND" && receiveMethod === "atm" ? (

@@ -3028,7 +3028,15 @@ html[data-theme="dark"] .theme-client .mx-muted{ color: var(--muted) !important;
   font-weight: 800;
   font-size: 12px;
 }
-.mx-afCatBtn.is-on{ outline: 3px solid rgba(0,0,0,.18); }
+.mx-afCatBtn.is-on{
+  outline: none;
+  border-color: rgba(246,198,0,.78);
+  box-shadow:
+    0 22px 64px rgba(0,0,0,.24),
+    0 0 0 3px rgba(246,198,0,.96) inset,
+    0 0 26px rgba(246,198,0,.38),
+    0 12px 34px rgba(246,198,0,.22);
+}
 
 html[data-theme="dark"] .theme-client .mx-afCatBtn{
   /* keep category images in dark theme too */
@@ -3112,11 +3120,12 @@ html[data-theme="dark"] .theme-client .mx-afCat--all{
     0 0 0 2px rgba(246,198,0,.86) inset;
 }
 html[data-theme="dark"] .theme-client .mx-afCats--sheet .mx-afCatBtn.is-on{
-  border-color: rgba(246,198,0,.64) !important;
+  border-color: rgba(246,198,0,.84) !important;
   box-shadow:
     0 30px 86px rgba(0,0,0,.86),
-    0 0 28px rgba(246,198,0,.26),
-    0 0 0 2px rgba(246,198,0,.82) inset !important;
+    0 0 34px rgba(246,198,0,.38),
+    0 0 0 3px rgba(246,198,0,.96) inset,
+    0 12px 28px rgba(246,198,0,.22) !important;
 }
 
 .mx-list{ display:flex; flex-direction:column; gap: 12px; }

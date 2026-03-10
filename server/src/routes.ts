@@ -510,6 +510,61 @@ export function createApiRouter(opts: {
     return d.toISOString().slice(0, 10);
   }
 
+  function shiftISODate(iso: string, deltaDays: number) {
+    const base = new Date(`${String(iso || '').slice(0, 10)}T00:00:00Z`);
+    if (!Number.isFinite(base.getTime())) return '';
+    base.setUTCDate(base.getUTCDate() + deltaDays);
+    return base.toISOString().slice(0, 10);
+  }
+
+  function buildAfishaImageUrl(id: string, updatedAt?: string) {
+    const q = updatedAt ? `?v=${encodeURIComponent(String(updatedAt))}` : '';
+    return `/api/afisha/image/${encodeURIComponent(id)}${q}`;
+  }
+
+  function parseImageDataUrl(dataUrl: string): { mime: string; buf: Buffer } | null {
+    const m = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/i);
+    if (!m) return null;
+    const mime = String(m[1] || '').toLowerCase();
+    const b64 = String(m[2] || '');
+    if (!/image\/(jpeg|jpg|png|webp)/i.test(mime)) return null;
+    const buf = Buffer.from(b64, 'base64');
+    if (!buf || buf.length < 10 || buf.length > 5 * 1024 * 1024) return null;
+    return { mime, buf };
+  }
+
+  function afishaImageFilePathFromUrl(imageUrl: string): string | null {
+    const clean = String(imageUrl || '').split('?')[0];
+    if (!clean.startsWith('/afisha/')) return null;
+    const filename = path.basename(clean);
+    if (!filename) return null;
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const runtimePublic = path.resolve(__dirname, '../public');
+    return path.join(runtimePublic, 'afisha', filename);
+  }
+
+  function resolveAfishaImage(ev: any): { mime: string; buf: Buffer } | null {
+    const inline = typeof ev?.imageDataUrl === 'string' ? parseImageDataUrl(ev.imageDataUrl) : null;
+    if (inline) return inline;
+    const filePath = typeof ev?.imageUrl === 'string' ? afishaImageFilePathFromUrl(ev.imageUrl) : null;
+    if (!filePath || !fs.existsSync(filePath)) return null;
+    const ext = path.extname(filePath).toLowerCase();
+    const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+    const buf = fs.readFileSync(filePath);
+    if (!buf || buf.length < 10) return null;
+    return { mime, buf };
+  }
+
+  function withAfishaImageUrl(ev: any) {
+    if (!ev || typeof ev !== 'object') return ev;
+    const { imageDataUrl, ...rest } = ev as any;
+    if (typeof imageDataUrl === 'string' && imageDataUrl.startsWith('data:')) {
+      return { ...rest, imageUrl: buildAfishaImageUrl(String(ev.id || ''), ev.updated_at) };
+    }
+    return rest;
+  }
+
   function normUrl(u: any): string {
     const s = String(u || '').trim();
     return s;
@@ -527,30 +582,6 @@ export function createApiRouter(opts: {
     if (['food', 'еда'].includes(v)) return 'food';
     if (['music', 'музыка'].includes(v)) return 'music';
     return null;
-  }
-
-  // Save a base64 data URL image into server/public/afisha and return a public URL like /afisha/<id>.jpg
-  function saveAfishaImage(id: string, dataUrl: string): string {
-    const m = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/i);
-    if (!m) throw new Error('bad_image');
-    const mime = String(m[1] || '').toLowerCase();
-    const b64 = String(m[2] || '');
-    const isOk = /image\/(jpeg|jpg|png|webp)/i.test(mime);
-    if (!isOk) throw new Error('bad_image');
-
-    const ext = mime.includes('png') ? '.png' : mime.includes('webp') ? '.webp' : '.jpg';
-    const buf = Buffer.from(b64, 'base64');
-    if (!buf || buf.length < 10) throw new Error('bad_image');
-    if (buf.length > 5 * 1024 * 1024) throw new Error('bad_image');
-
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    const runtimePublic = path.resolve(__dirname, '../public');
-    const dir = path.join(runtimePublic, 'afisha');
-    fs.mkdirSync(dir, { recursive: true });
-    const filename = `${id}${ext}`;
-    fs.writeFileSync(path.join(dir, filename), buf);
-    return `/afisha/${filename}`;
   }
 
   // Public list (only future+today)
@@ -583,9 +614,30 @@ export function createApiRouter(opts: {
 
       // sort by date ASC
       out.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
-      return res.json({ ok: true, today, events: out });
+      return res.json({ ok: true, today, events: out.map(withAfishaImageUrl) });
     } catch (e: any) {
       return res.status(500).json({ ok: false, error: e?.message || 'afisha_failed' });
+    }
+  });
+
+  router.get('/afisha/image/:id', async (req, res) => {
+    try {
+      const id = String((req.params as any)?.id || '').trim();
+      if (!id) return res.status(400).json({ ok: false, error: 'bad_id' });
+
+      const store = await readStore();
+      const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
+      const ev = items.find((x) => String(x?.id || '') === id);
+      if (!ev) return res.status(404).json({ ok: false, error: 'not_found' });
+
+      const image = resolveAfishaImage(ev);
+      if (!image) return res.status(404).json({ ok: false, error: 'image_not_found' });
+
+      res.setHeader('Content-Type', image.mime);
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
+      return res.end(image.buf);
+    } catch (e: any) {
+      return res.status(500).json({ ok: false, error: e?.message || 'afisha_image_failed' });
     }
   });
 
@@ -638,7 +690,7 @@ export function createApiRouter(opts: {
       if (scope === 'active') items.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
       else items.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
 
-      return res.json({ ok: true, today, events: items });
+      return res.json({ ok: true, today, events: items.map(withAfishaImageUrl) });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
     }
@@ -670,7 +722,8 @@ export function createApiRouter(opts: {
 
       const now = new Date().toISOString();
       const id = randomUUID();
-      const imageUrl = imageDataUrl && imageDataUrl.startsWith('data:') ? saveAfishaImage(id, imageDataUrl) : undefined;
+      const parsedImage = imageDataUrl ? parseImageDataUrl(imageDataUrl) : null;
+      if (imageDataUrl && !parsedImage) return res.status(400).json({ ok: false, error: 'bad_image' });
 
       const ev: any = {
         id,
@@ -681,7 +734,7 @@ export function createApiRouter(opts: {
         ...(comment ? { comment } : {}),
         detailsUrl,
         locationUrl,
-        ...(imageUrl ? { imageUrl } : {}),
+        ...(parsedImage ? { imageDataUrl, imageUrl: buildAfishaImageUrl(id, now) } : {}),
         created_at: now,
         updated_at: now,
         clicks: { details: 0, location: 0 },
@@ -732,10 +785,11 @@ export function createApiRouter(opts: {
       const ev = items.find((x) => String(x?.id || '') === id);
       if (!ev) return res.status(404).json({ ok: false, error: 'not_found' });
 
-      if (categoryRaw != null) {
+      if (categoriesRaw != null || categoryRaw != null) {
         if (!category) return res.status(400).json({ ok: false, error: 'bad_category' });
-      if (catsNorm.length < 1 || catsNorm.length > 3) return res.status(400).json({ ok: false, error: 'bad_categories' });
+        if (catsNorm.length < 1 || catsNorm.length > 3) return res.status(400).json({ ok: false, error: 'bad_categories' });
         ev.category = category;
+        ev.categories = catsNorm;
       }
       if (dateRaw != null) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) return res.status(400).json({ ok: false, error: 'bad_date' });
@@ -759,13 +813,17 @@ export function createApiRouter(opts: {
         ev.locationUrl = locationUrl;
       }
 
+      const nextUpdatedAt = new Date().toISOString();
       if (imageDataUrl != null) {
         if (imageDataUrl && imageDataUrl.startsWith('data:')) {
-          ev.imageUrl = saveAfishaImage(id, imageDataUrl);
+          const parsedImage = parseImageDataUrl(imageDataUrl);
+          if (!parsedImage) return res.status(400).json({ ok: false, error: 'bad_image' });
+          ev.imageDataUrl = imageDataUrl;
+          ev.imageUrl = buildAfishaImageUrl(id, nextUpdatedAt);
         }
       }
 
-      ev.updated_at = new Date().toISOString();
+      ev.updated_at = nextUpdatedAt;
       (store as any).afisha = items;
       await writeStore(store);
       return res.json({ ok: true, event: ev });
@@ -1177,6 +1235,21 @@ router.post("/admin/faq", async (req, res) => {
       const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
       const data = store.ratesByDate?.[today] || null;
       res.json({ ok: true, date: today, data });
+    } catch (e: any) {
+      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  router.get("/admin/rates/yesterday", async (req, res) => {
+    try {
+      const { isOwner } = await requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+
+      const store = await readStore();
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+      const yesterday = shiftISODate(today, -1);
+      const data = store.ratesByDate?.[yesterday] || null;
+      res.json({ ok: true, date: yesterday, data });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
