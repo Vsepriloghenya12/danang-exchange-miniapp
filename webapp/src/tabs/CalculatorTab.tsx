@@ -693,7 +693,8 @@ export default function CalculatorTab({ me }: Props) {
     invalidThbBuy ||
     invalidVndSellCash ||
     invalidVndBuyCash ||
-    invalidVndBuyAtm;
+    invalidVndBuyAtm ||
+    invalidMinSell;
 
   // ======= Recalc =======
   useEffect(() => {
@@ -945,37 +946,23 @@ export default function CalculatorTab({ me }: Props) {
       {loading && <div className="vx-help">Загрузка курсов…</div>}
       {!loading && (!rates || (!market && gMode)) && <div className="vx-help">Курсы не загружены.</div>}
 
-      <div className="vx-note vx-workMessage" style={{ marginBottom: 10 }}>
-        <b>Время работы сервиса:</b>
-        <br />
-        ежедневно с 10:00 до 22:00.
-        <br />
-        С 20:00 до 22:00 возможен только дистанционный обмен.
+      <div className="vx-note" style={{ marginBottom: 10 }}>
+        <b>Время работы сервиса:ежедневно с 10:00 до 22:00.</b>  С 20:00 до 22:00 возможен только дистанционный обмен.
       </div>
 
       {managerOffline ? (
-        <div className="vx-note vx-noteWarn vx-workMessage" style={{ marginBottom: 10 }}>
-          Спасибо за обращение.
-          <br />
-          Сейчас в Дананге {danangTime.label}.
-          <br />
-          Оставить заявку Вы можете в рабочее время.
+        <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
+          Спасибо за обращение.Сейчас в Дананге {danangTime.label}.Оставить заявку Вы можете в рабочее время.
         </div>
       ) : deliveryClosed ? (
-        <div className="vx-note vx-noteWarn vx-workMessage" style={{ marginBottom: 10 }}>
-          После 20:00 по Данангу доставка уже не работает.
-          <br />
-          Сейчас в Дананге {danangTime.label}.
-          <br />
-          Доступен только дистанционный обмен.
+        <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
+          После 20:00 по Данангу доставка уже не работает. Сейчас в Дананге {danangTime.label}. Доступен только дистанционный обмен.
         </div>
       ) : null}
 
       {receiveMethodUnavailableByHours ? (
-        <div className="vx-warn vx-workMessage" style={{ marginBottom: 10 }}>
-          После 20:00 доступны только способы получения «Перевод» или «Банкомат».
-          <br />
-          Для выбранной валюты выдача сейчас недоступна.
+        <div className="vx-warn" style={{ marginBottom: 10 }}>
+          После 20:00 доступны только способы получения «Перевод» или «Банкомат». Для выбранной валюты выдача сейчас недоступна.
         </div>
       ) : null}
 
@@ -1111,8 +1098,7 @@ export default function CalculatorTab({ me }: Props) {
           </div>
         ) : null}
 
-        {!canCalc ? <div className="vx-warn">Не хватает данных для расчёта: {missingRates.join(", ")}</div> : null}
-
+       
         {invalidUsdSell || invalidUsdBuy ? <div className="vx-warn">USD: передать и получить можно только наличными, кратно 100.</div> : null}
         {invalidEurSell || invalidEurBuy ? <div className="vx-warn">EUR: передать и получить можно только наличными, кратно 50.</div> : null}
         {invalidThbSell || invalidThbBuy ? <div className="vx-warn">THB: передать и получить можно только наличными, кратно 100.</div> : null}
