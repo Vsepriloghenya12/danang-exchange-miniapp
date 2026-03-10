@@ -3802,11 +3802,13 @@ html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afEvBody{
 }
 
 
-/* iPhone / Telegram WebView: prevent auto-zoom on calculator inputs */
+/* iPhone / Telegram WebView: prevent auto-zoom on client inputs in both themes */
 @supports (-webkit-touch-callout: none) {
-  html[data-theme="dark"] .theme-client .vx-exRow select,
-  html[data-theme="dark"] .theme-client .vx-exRow input,
-  html[data-theme="dark"] .theme-client .vx-page textarea {
+  .theme-client .vx-page input,
+  .theme-client .vx-page select,
+  .theme-client .vx-page textarea,
+  .theme-client .vx-exRow select,
+  .theme-client .vx-exRow input {
     font-size: 16px !important;
   }
 }
