@@ -947,12 +947,12 @@ export default function CalculatorTab({ me }: Props) {
       {!loading && (!rates || (!market && gMode)) && <div className="vx-help">Курсы не загружены.</div>}
 
       <div className="vx-note" style={{ marginBottom: 10 }}>
-        <b>Время работы сервиса:ежедневно с 10:00 до 22:00.</b>  С 20:00 до 22:00 возможен только дистанционный обмен.
+        <b>Время работы сервиса:</b> ежедневно с 10:00 до 22:00. С 20:00 до 22:00 возможен только дистанционный обмен.
       </div>
 
       {managerOffline ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
-          Спасибо за обращение.Сейчас в Дананге {danangTime.label}.Оставить заявку Вы можете в рабочее время.
+          Спасибо за обращение. Сейчас в Дананге {danangTime.label}. Оставить заявку Вы можете в рабочее время.
         </div>
       ) : deliveryClosed ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
