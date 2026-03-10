@@ -3800,3 +3800,24 @@ html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afEvBody{
   .mx-rateHeroGet{ font-size: 13px; }
   .mx-rateHeroArrow{ min-width: 14px; font-size: 12px; }
 }
+
+
+/* iPhone / Telegram WebView: prevent auto-zoom on calculator inputs */
+@supports (-webkit-touch-callout: none) {
+  html[data-theme="dark"] .theme-client .vx-exRow select,
+  html[data-theme="dark"] .theme-client .vx-exRow input,
+  html[data-theme="dark"] .theme-client .vx-page textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Work hours messages: cleaner wraps */
+.vx-workMessage{
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.45;
+}
+.vx-workMessage br{
+  content: "";
+}
