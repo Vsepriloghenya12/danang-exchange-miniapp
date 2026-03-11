@@ -494,7 +494,11 @@ export default function Dashboard({ token }: { token: string }) {
 
                   <div className="vx-clientBtns">
                     {STATUS_OPTIONS.map((s) => (
-                      <button key={s.value} className="vx-mini" onClick={() => setUserStatus(selectedClient.tg_id, s.value)}>
+                      <button
+                        key={s.value}
+                        className={"vx-mini" + (selectedClient.status === s.value ? " vx-miniOn" : "")}
+                        onClick={() => setUserStatus(selectedClient.tg_id, s.value)}
+                      >
                         {s.label}
                       </button>
                     ))}
@@ -589,12 +593,16 @@ export default function Dashboard({ token }: { token: string }) {
                 <div className="vx-clientCard">
                   <div className="vx-clientName">{displayName(selectedClient)}</div>
                   <div className="vx-clientMeta">
-                    id: <b>{selectedClient.tg_id}</b> • сделок: <b>{selectedClient.deals}</b>
+                    id: <b>{selectedClient.tg_id}</b> • сделок: <b>{selectedClient.deals}</b> • статус: <b>{statusRu(selectedClient.status)}</b>
                   </div>
 
                   <div className="vx-clientBtns">
                     {STATUS_OPTIONS.map((s) => (
-                      <button key={s.value} className="vx-mini" onClick={() => setUserStatus(selectedClient.tg_id, s.value)}>
+                      <button
+                        key={s.value}
+                        className={"vx-mini" + (selectedClient.status === s.value ? " vx-miniOn" : "")}
+                        onClick={() => setUserStatus(selectedClient.tg_id, s.value)}
+                      >
                         {s.label}
                       </button>
                     ))}

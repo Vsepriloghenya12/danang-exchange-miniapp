@@ -164,13 +164,6 @@ export async function apiAdminSetTodayRates(initData: string, rates: any) {
   return r.json();
 }
 
-export async function apiAdminGetYesterdayRates(initData: string) {
-  const r = await fetch("/api/admin/rates/yesterday", {
-    headers: { ...adminAuthHeaders(initData) }
-  });
-  return readJsonSafe(r);
-}
-
 export async function apiAdminSetRatesForDate(initData: string, date: string, rates: any) {
   const r = await fetch("/api/admin/rates/date", {
     method: "POST",

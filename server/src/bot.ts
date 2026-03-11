@@ -62,6 +62,29 @@ export function createBot(opts: {
     return !!id && ownerIds.includes(id);
   };
 
+
+  const normalizeCmdText = (s: any) => String(s || "").trim();
+  const isCmd = (text: string, name: string, me?: string) => {
+    if (!text) return false;
+    const cmd = text.split(/\s+/)[0]?.trim() || "";
+    if (!cmd.startsWith("/")) return false;
+    if (cmd === `/${name}`) return true;
+    return !!me && cmd.toLowerCase() === `/${name}@${String(me).toLowerCase()}`;
+  };
+  const replyToChat = async (chatId: number, text: string) => {
+    await bot.telegram.sendMessage(chatId, text);
+  };
+  const saveGroupChatId = async (chatId: number) => {
+    const store = await readStore();
+    store.config.groupChatId = chatId;
+    await writeStore(store);
+  };
+  const saveRequestsGroupChatId = async (chatId: number) => {
+    const store = await readStore();
+    (store.config as any).requestsGroupChatId = chatId;
+    await writeStore(store);
+  };
+
   bot.start(async (ctx) => {
     if (ctx.from) await upsertUserFromTelegram(ctx.from);
 
@@ -97,10 +120,7 @@ export function createBot(opts: {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setgroup");
     if (!ctx.chat || ctx.chat.type === "private") return ctx.reply("Используй /setgroup в группе.");
 
-    const store = await readStore();
-    store.config.groupChatId = ctx.chat.id;
-    await writeStore(store);
-
+    await saveGroupChatId(ctx.chat.id);
     await ctx.reply(`Группа сохранена ✅ groupChatId=${ctx.chat.id}`);
   });
 
@@ -109,10 +129,7 @@ export function createBot(opts: {
     if (!isOwner(ctx.from?.id)) return ctx.reply("Только владелец может делать /setrequestsgroup");
     if (!ctx.chat || ctx.chat.type === "private") return ctx.reply("Используй /setrequestsgroup в группе.");
 
-    const store = await readStore();
-    (store.config as any).requestsGroupChatId = ctx.chat.id;
-    await writeStore(store);
-
+    await saveRequestsGroupChatId(ctx.chat.id);
     await ctx.reply(`Группа для заявок сохранена ✅ requestsGroupChatId=${ctx.chat.id}`);
   });
 
@@ -208,6 +225,31 @@ export function createBot(opts: {
 
     await writeStore(store);
     return ctx.reply(`Готово ✅ tg_id=${tgId} → статус ${statusLabel[next]}`);
+  });
+
+
+
+  bot.on("channel_post", async (ctx) => {
+    const chat = ctx.channelPost?.chat;
+    const chatId = chat?.id;
+    const text = normalizeCmdText(ctx.channelPost?.text);
+    if (!chatId || !text) return;
+
+    if (isCmd(text, "chatid", ctx.me)) {
+      await replyToChat(chatId, `chat_id: ${chatId}`);
+      return;
+    }
+
+    if (isCmd(text, "setgroup", ctx.me)) {
+      await saveGroupChatId(chatId);
+      await replyToChat(chatId, `Канал сохранён ✅ groupChatId=${chatId}`);
+      return;
+    }
+
+    if (isCmd(text, "setrequestsgroup", ctx.me)) {
+      await saveRequestsGroupChatId(chatId);
+      await replyToChat(chatId, `Канал для заявок сохранён ✅ requestsGroupChatId=${chatId}`);
+    }
   });
 
   // если вдруг кто-то всё ещё шлёт sendData() — не ломаем

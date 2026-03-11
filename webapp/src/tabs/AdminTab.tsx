@@ -11,8 +11,7 @@ import {
   apiAdminGetReviews,
   apiAdminApproveReview,
   apiAdminRejectReview,
-  apiAdminReplyReview,
-  apiAdminGetYesterdayRates
+  apiAdminReplyReview
 } from "../lib/api";
 import type { BonusesConfig, BonusesTier } from "../lib/types";
 
@@ -198,30 +197,16 @@ export default function AdminTab({
     if (r.ok) setRequests(r.requests || []);
   };
 
-  const applyRatesToForm = (rates: any) => {
+  const loadRates = async () => {
+    const r = await apiGetTodayRates();
+    const rates = (r as any)?.data?.rates;
     if (!rates) return;
+
     if (rates.USD) { setUsdBuy(nStr(rates.USD.buy_vnd)); setUsdSell(nStr(rates.USD.sell_vnd)); }
     if (rates.RUB) { setRubBuy(nStr(rates.RUB.buy_vnd)); setRubSell(nStr(rates.RUB.sell_vnd)); }
     if (rates.USDT) { setUsdtBuy(nStr(rates.USDT.buy_vnd)); setUsdtSell(nStr(rates.USDT.sell_vnd)); }
     if (rates.EUR) { setEurBuy(nStr(rates.EUR.buy_vnd)); setEurSell(nStr(rates.EUR.sell_vnd)); }
     if (rates.THB) { setThbBuy(nStr(rates.THB.buy_vnd)); setThbSell(nStr(rates.THB.sell_vnd)); }
-  };
-
-  const loadRates = async () => {
-    const r = await apiGetTodayRates();
-    const rates = (r as any)?.data?.rates;
-    if (!rates) return;
-    applyRatesToForm(rates);
-  };
-
-  const loadYesterdayRates = async () => {
-    const r = await apiAdminGetYesterdayRates(me.initData);
-    const rates = (r as any)?.data?.rates;
-    if (!rates) {
-      alert("Вчерашний курс не найден");
-      return;
-    }
-    applyRatesToForm(rates);
   };
 
   useEffect(() => {
@@ -494,7 +479,6 @@ export default function AdminTab({
               <button className="btn" onClick={saveRates}>Сохранить</button>
               <button className="btn" onClick={clearRates}>Очистить</button>
               <button className="btn" onClick={loadRates}>Загрузить</button>
-              <button className="btn" onClick={loadYesterdayRates}>Загрузить вчерашний курс</button>
             </div>
           </div>
         </div>
