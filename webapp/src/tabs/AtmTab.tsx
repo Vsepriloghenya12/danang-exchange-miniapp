@@ -54,10 +54,10 @@ export default function AtmTab({ isActive = true }: { isActive?: boolean }) {
   // We reuse the same global switch that the Afisha bottom-sheet uses.
   useEffect(() => {
     const html = document.documentElement;
-    if (suggestOpen) html.classList.add("mx-sheet-open");
+    if (suggestOpen || !!active) html.classList.add("mx-sheet-open");
     else html.classList.remove("mx-sheet-open");
     return () => html.classList.remove("mx-sheet-open");
-  }, [suggestOpen]);
+  }, [suggestOpen, active]);
 
   async function submitSuggest() {
     const text = String(suggestText || "").trim();
@@ -126,20 +126,6 @@ export default function AtmTab({ isActive = true }: { isActive?: boolean }) {
         </button>
       </div>
 
-      {active ? (
-        <div className="vx-sp12">
-          <div className="small">
-            <b>{active === "vietcombank" ? <>Видео инструкция для <span className="vx-bankBrand vx-bankBrandVcb">Vietcombank</span></> : <>Видео инструкция для <span className="vx-bankBrand vx-bankBrandBidv">BIDV</span></>}</b>
-          </div>
-          <div className="vx-sp8" />
-          <video ref={videoRef} className="vx-atmVideo" controls playsInline preload="metadata" src={src} />
-          <div className="vx-sp8" />
-          <button className="btn vx-btnSm" type="button" onClick={() => setActive(null)}>
-            Закрыть видео
-          </button>
-        </div>
-      ) : null}
-
       <div className="vx-sp14" />
 
       <button className="btn vx-atmFindBtn" type="button" onClick={() => openLink(FIND_ATM_URL)}>
@@ -158,6 +144,23 @@ export default function AtmTab({ isActive = true }: { isActive?: boolean }) {
       <button className="btn vx-atmSuggestBtn" type="button" onClick={() => setSuggestOpen(true)}>
         Добавить локацию
       </button>
+
+
+      {active ? (
+        <div className="vx-modalOverlay" role="dialog" aria-modal="true" onClick={() => setActive(null)}>
+          <div className="vx-modalCard" onClick={(e) => e.stopPropagation()}>
+            <div className="vx-modalTitle">
+              {active === "vietcombank" ? <>Видео инструкция для <span className="vx-bankBrand vx-bankBrandVcb">Vietcombank</span></> : <>Видео инструкция для <span className="vx-bankBrand vx-bankBrandBidv">BIDV</span></>}
+            </div>
+            <div className="vx-sp12" />
+            <video ref={videoRef} className="vx-atmVideo" controls playsInline preload="metadata" src={src} />
+            <div className="vx-sp12" />
+            <button className="btn vx-btnSm" type="button" onClick={() => setActive(null)}>
+              Закрыть видео
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {suggestOpen ? (
         <div className="vx-modalOverlay" role="dialog" aria-modal="true">
