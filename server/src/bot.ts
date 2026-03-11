@@ -230,9 +230,12 @@ export function createBot(opts: {
 
 
   bot.on("channel_post", async (ctx) => {
-    const chat = ctx.channelPost?.chat;
-    const chatId = chat?.id;
-    const text = normalizeCmdText(ctx.channelPost?.text);
+    const post = ctx.channelPost;
+    if (!post) return;
+
+    const chatId = post.chat.id;
+    const rawText = "text" in post ? post.text : "caption" in post ? post.caption : "";
+    const text = normalizeCmdText(rawText);
     if (!chatId || !text) return;
 
     if (isCmd(text, "chatid", ctx.me)) {
