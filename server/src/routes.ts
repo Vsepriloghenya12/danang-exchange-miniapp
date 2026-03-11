@@ -1812,9 +1812,45 @@ router.post("/admin/faq", async (req, res) => {
 
       const store = await readStore();
       const key = String(tgId);
-      if (!store.users?.[key]) return res.status(404).json({ ok: false, error: "user_not_found" });
+      const now = new Date().toISOString();
+      const existingUser = store.users?.[key];
 
-      store.users[key].status = next;
+      // Пробуем найти связанные данные, чтобы статус можно было менять даже для
+      // старых/частично мигрированных клиентов, у которых ещё нет записи в users.
+      const relatedContact = (store.contacts || []).find((c) => Number(c?.tg_id) === tgId);
+      const relatedRequest = [...(store.requests || [])]
+        .slice()
+        .reverse()
+        .find((r) => Number((r as any)?.from?.id) === tgId);
+
+      if (!existingUser) {
+        store.users[key] = {
+          tg_id: tgId,
+          username: relatedContact?.username || relatedRequest?.from?.username,
+          first_name: relatedRequest?.from?.first_name,
+          last_name: relatedRequest?.from?.last_name,
+          status: next,
+          created_at: now,
+          last_seen_at: now,
+        };
+      } else {
+        existingUser.status = next;
+        existingUser.last_seen_at = now;
+      }
+
+      // Держим contacts синхронизированным с users, иначе старый contact.status
+      // потом может визуально или логически откатывать новый статус.
+      const knownUsername = String(store.users[key]?.username || "").trim().toLowerCase();
+      for (const c of store.contacts || []) {
+        const sameTg = Number(c?.tg_id) === tgId;
+        const sameUsername = !!knownUsername && String(c?.username || "").trim().toLowerCase() === knownUsername;
+        if (sameTg || sameUsername) {
+          c.status = next;
+          c.updated_at = now;
+          if (!c.tg_id) c.tg_id = tgId;
+        }
+      }
+
       await writeStore(store);
 
       res.json({ ok: true, status: next, statusLabel: statusLabel[next] });

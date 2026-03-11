@@ -653,7 +653,10 @@ export async function upsertUserFromTelegram(u: {
       existing.username = u.username ?? existing.username;
       existing.first_name = u.first_name ?? existing.first_name;
       existing.last_name = u.last_name ?? existing.last_name;
-      existing.status = normalizeStatus(contact?.status ?? existing.status);
+      // Не перетираем статус клиента из users устаревшим статусом из contacts.
+      // contact.status нужен только как начальное значение при первом создании user.
+      // Иначе после ручной смены статуса админом он может неожиданно откатываться.
+      existing.status = normalizeStatus(existing.status ?? contact?.status);
       existing.last_seen_at = now;
     }
 
