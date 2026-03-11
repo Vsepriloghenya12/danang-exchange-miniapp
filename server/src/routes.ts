@@ -1839,7 +1839,12 @@ router.post("/admin/faq", async (req, res) => {
       for (const c of store.contacts || []) {
         if (c?.tg_id) contacts[String(c.tg_id)] = normalizeContactBanks(c);
       }
-      return res.json({ ok: true, requests, contacts });
+      const users: Record<string, any> = {};
+      for (const u of Object.values(store.users || {})) {
+        const tgId = Number((u as any)?.tg_id);
+        if (Number.isFinite(tgId) && tgId > 0) users[String(tgId)] = u;
+      }
+      return res.json({ ok: true, requests, contacts, users });
     } catch (e: any) {
       return res.status(e?.message === "not_admin" ? 403 : 401).json({ ok: false, error: e?.message || "auth_failed" });
     }

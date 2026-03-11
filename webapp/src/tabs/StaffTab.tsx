@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   apiGetBankIcons,
   bankIconUrl,
+  apiAdminSetUserStatus,
   apiStaffGetRequests,
   apiStaffSetRequestState,
   apiStaffUpdateRequest,
   apiStaffUpsertContact,
 } from "../lib/api";
-import type { Contact } from "../lib/types";
+import type { Contact, UserStatus } from "../lib/types";
 
 function getTg() {
   return (window as any).Telegram?.WebApp;
@@ -26,6 +27,18 @@ const stateLabel: Record<string, string> = {
   canceled: "Отклонена",
   new: "В работе",
 };
+
+
+const STATUS_OPTIONS = [
+  { v: "standard", l: "Стандарт" },
+  { v: "silver", l: "Серебро" },
+  { v: "gold", l: "Золото" },
+] as const;
+
+function userStatusLabel(v: string) {
+  const hit = STATUS_OPTIONS.find((x) => x.v === String(v || "standard"));
+  return hit?.l || "Стандарт";
+}
 
 function shortId(id: string) {
   const s = String(id || "");
@@ -59,6 +72,7 @@ export default function StaffTab({ me }: any) {
   const [icons, setIcons] = useState<string[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [contactsMap, setContactsMap] = useState<Record<string, Contact>>({});
+  const [usersMap, setUsersMap] = useState<Record<string, { tg_id: number; username?: string; first_name?: string; last_name?: string; status?: UserStatus }>>({});
 
   const [selectedId, setSelectedId] = useState<string>("");
 
@@ -103,6 +117,20 @@ export default function StaffTab({ me }: any) {
     if (!selectedTgId) return null;
     return contactsMap[String(selectedTgId)] || null;
   }, [contactsMap, selectedTgId]);
+
+  const selectedUser = useMemo(() => {
+    if (!selectedTgId) return null;
+    return usersMap[String(selectedTgId)] || null;
+  }, [usersMap, selectedTgId]);
+
+  const selectedClientStatus: UserStatus = useMemo(() => {
+    const raw =
+      selectedUser?.status ||
+      selectedContact?.status ||
+      (selectedReq?.status as UserStatus | undefined) ||
+      "standard";
+    return raw === "gold" || raw === "silver" ? raw : "standard";
+  }, [selectedUser?.status, selectedContact?.status, selectedReq?.status]);
 
   const [fullName, setFullName] = useState<string>("");
   const [banks, setBanks] = useState<string[]>([]);
@@ -150,6 +178,7 @@ export default function StaffTab({ me }: any) {
       if (ri.status === "fulfilled" && ri.value?.ok) {
         setRequests(Array.isArray(ri.value.requests) ? ri.value.requests : []);
         setContactsMap((ri.value.contacts as any) || {});
+        setUsersMap((ri.value.users as any) || {});
         // Prefer the newest active request as the default selection
         const list = Array.isArray(ri.value.requests) ? ri.value.requests : [];
         const active = list.filter((r: any) => String(r?.state) !== "done" && String(r?.state) !== "canceled");
@@ -238,6 +267,37 @@ export default function StaffTab({ me }: any) {
     } finally {
       setSavingRequest(false);
     }
+  }
+
+  async function changeClientStatus(next: UserStatus) {
+    if (!selectedTgId) return;
+    const r = await apiAdminSetUserStatus(initData, selectedTgId, next);
+    if (!r?.ok) {
+      tg?.showAlert?.(r?.error || "Ошибка");
+      return;
+    }
+
+    setUsersMap((prev) => ({
+      ...prev,
+      [String(selectedTgId)]: {
+        ...(prev[String(selectedTgId)] || { tg_id: selectedTgId }),
+        status: next,
+      },
+    }));
+    setContactsMap((prev) => {
+      const cur = prev[String(selectedTgId)];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        [String(selectedTgId)]: {
+          ...cur,
+          status: next,
+        },
+      };
+    });
+
+    await loadAll();
+    tg?.HapticFeedback?.notificationOccurred?.("success");
   }
 
   async function saveContact() {
@@ -478,6 +538,26 @@ export default function StaffTab({ me }: any) {
                   type="button"
                   className={"btn vx-btnSm " + (String(selectedReq.state) === s.v ? "vx-btnOn" : "")}
                   onClick={() => changeState(s.v)}
+                >
+                  {s.l}
+                </button>
+              ))}
+            </div>
+
+            <div className="hr" />
+
+            <div className="small">Статус клиента</div>
+            <div className="vx-muted" style={{ marginTop: 4 }}>
+              Текущий статус: <b>{userStatusLabel(selectedClientStatus)}</b>
+            </div>
+            <div className="vx-sp8" />
+            <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {STATUS_OPTIONS.map((s) => (
+                <button
+                  key={s.v}
+                  type="button"
+                  className={"btn vx-btnSm " + (selectedClientStatus === s.v ? "vx-btnOn" : "")}
+                  onClick={() => changeClientStatus(s.v)}
                 >
                   {s.l}
                 </button>

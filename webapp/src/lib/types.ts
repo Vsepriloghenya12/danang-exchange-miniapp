@@ -79,6 +79,7 @@ export type StaffRequestsResponse = {
   ok: boolean;
   requests: any[];
   contacts?: Record<string, Contact>; // keyed by tg_id
+  users?: Record<string, { tg_id: number; username?: string; first_name?: string; last_name?: string; status?: UserStatus }>;
   error?: string;
 };
 
