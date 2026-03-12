@@ -541,7 +541,7 @@ export default function CalculatorTab({ me }: Props) {
 
     const loadRates = async () => {
       try {
-        const res = await fetch("/api/rates/today");
+        const res = await fetch(`/api/rates/today?_=${Date.now()}`, { cache: "no-store" });
         const json = await res.json();
         const r: Rates | null = json?.data?.rates ?? null;
         if (alive) setRates(r);
@@ -579,16 +579,33 @@ export default function CalculatorTab({ me }: Props) {
       }
     };
 
+    const refreshRatesIfVisible = () => {
+      if (document.visibilityState === "visible") {
+        void loadRates();
+      }
+    };
+
     (async () => {
       setLoading(true);
       await Promise.allSettled([loadRates(), loadMarket(), loadBonuses(), loadFormulas()]);
       if (alive) setLoading(false);
     })();
 
-    const mid = window.setInterval(loadMarket, 15 * 60 * 1000);
+    const rid = window.setInterval(() => {
+      void loadRates();
+    }, 30_000);
+    const mid = window.setInterval(() => {
+      void loadMarket();
+    }, 15 * 60 * 1000);
+    document.addEventListener("visibilitychange", refreshRatesIfVisible);
+    window.addEventListener("focus", refreshRatesIfVisible);
+
     return () => {
       alive = false;
+      window.clearInterval(rid);
       window.clearInterval(mid);
+      document.removeEventListener("visibilitychange", refreshRatesIfVisible);
+      window.removeEventListener("focus", refreshRatesIfVisible);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

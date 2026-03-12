@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { apiGetGFormulas, apiGetMarketRates, apiGetTodayRates } from "../lib/api";
+import { apiGetGFormulas, apiGetMarketRates } from "../lib/api";
 import type { MarketRatesResponse, TodayRatesResponse } from "../lib/types";
 
 type Cur = "RUB" | "USD" | "USDT" | "EUR" | "THB" | "VND";
@@ -205,7 +205,37 @@ export default function RatesTab({ embedded = false, limit }: Props = {}) {
   const [formulas, setFormulas] = useState<Record<string, { buyMul: number; sellMul: number }>>(DEFAULT_G_FORMULAS);
 
   useEffect(() => {
-    apiGetTodayRates().then(setToday);
+    let alive = true;
+
+    const loadToday = async () => {
+      try {
+        const res = await fetch(`/api/rates/today?_=${Date.now()}`, { cache: "no-store" });
+        const json = await res.json();
+        if (alive) setToday(json);
+      } catch {
+        if (alive) setToday(null);
+      }
+    };
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") {
+        void loadToday();
+      }
+    };
+
+    void loadToday();
+    const id = window.setInterval(() => {
+      void loadToday();
+    }, 30_000);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+    window.addEventListener("focus", refreshIfVisible);
+
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+      window.removeEventListener("focus", refreshIfVisible);
+    };
   }, []);
 
   useEffect(() => {
