@@ -984,148 +984,154 @@ export default function CalculatorTab({ me }: Props) {
       ) : null}
 
       <div className="vx-calcBox">
-        <div className="vx-exRow">
-          <select value={sellCurrency} onChange={(e) => {
-            preserveSwappedValuesRef.current = false;
-            setSellCurrency(e.target.value as Currency);
-          }}>
-            {CURRENCY_OPTIONS.map((c) => (
-              <option key={"sell-" + c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+        <div className="vx-calcGrid">
+          <div className="vx-calcMain">
+            <div className="vx-exRow">
+              <select value={sellCurrency} onChange={(e) => {
+                preserveSwappedValuesRef.current = false;
+                setSellCurrency(e.target.value as Currency);
+              }}>
+                {CURRENCY_OPTIONS.map((c) => (
+                  <option key={"sell-" + c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
 
-          <input
-            inputMode={sellCurrency === "USDT" ? "decimal" : "numeric"}
-            placeholder="Отдаю"
-            value={sellText}
-            className={invalidUsdSell || invalidEurSell || invalidThbSell || invalidVndSellCash || invalidMinSell ? "vx-inputInvalid" : ""}
-            onChange={(e) => {
-              preserveSwappedValuesRef.current = false;
-              lastEdited.current = "sell";
-              const next = fmtFromInput(sellCurrency, e.target.value);
-              sellRawRef.current = next.trim() ? parseAmount(sellCurrency, next) : null;
-              setSellText(next);
-            }}
-          />
+              <input
+                inputMode={sellCurrency === "USDT" ? "decimal" : "numeric"}
+                placeholder="Отдаю"
+                value={sellText}
+                className={invalidUsdSell || invalidEurSell || invalidThbSell || invalidVndSellCash || invalidMinSell ? "vx-inputInvalid" : ""}
+                onChange={(e) => {
+                  preserveSwappedValuesRef.current = false;
+                  lastEdited.current = "sell";
+                  const next = fmtFromInput(sellCurrency, e.target.value);
+                  sellRawRef.current = next.trim() ? parseAmount(sellCurrency, next) : null;
+                  setSellText(next);
+                }}
+              />
 
-          <button type="button" onClick={swapCurrencies} className="vx-iconBtn" title="Поменять местами">
-            ⇄
-          </button>
-        </div>
+              <button type="button" onClick={swapCurrencies} className="vx-iconBtn" title="Поменять местами">
+                ⇄
+              </button>
+            </div>
 
-        <div className="vx-sp10" />
+            <div className="vx-sp10" />
 
-        <div className="vx-exRow">
-          <select value={buyCurrency} onChange={(e) => {
-            preserveSwappedValuesRef.current = false;
-            setBuyCurrency(e.target.value as Currency);
-          }}>
-            {CURRENCY_OPTIONS.map((c) => (
-              <option key={"buy-" + c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+            <div className="vx-exRow">
+              <select value={buyCurrency} onChange={(e) => {
+                preserveSwappedValuesRef.current = false;
+                setBuyCurrency(e.target.value as Currency);
+              }}>
+                {CURRENCY_OPTIONS.map((c) => (
+                  <option key={"buy-" + c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
 
-          <input
-            inputMode={buyCurrency === "USDT" ? "decimal" : "numeric"}
-            placeholder="Получаю"
-            value={buyText}
-            className={invalidUsdBuy || invalidEurBuy || invalidThbBuy || invalidVndBuyCash || invalidVndBuyAtm ? "vx-inputInvalid" : ""}
-            onChange={(e) => {
-              preserveSwappedValuesRef.current = false;
-              lastEdited.current = "buy";
-              const next = fmtFromInput(buyCurrency, e.target.value);
-              buyRawRef.current = next.trim() ? parseAmount(buyCurrency, next) : null;
-              setBuyText(next);
-            }}
-          />
+              <input
+                inputMode={buyCurrency === "USDT" ? "decimal" : "numeric"}
+                placeholder="Получаю"
+                value={buyText}
+                className={invalidUsdBuy || invalidEurBuy || invalidThbBuy || invalidVndBuyCash || invalidVndBuyAtm ? "vx-inputInvalid" : ""}
+                onChange={(e) => {
+                  preserveSwappedValuesRef.current = false;
+                  lastEdited.current = "buy";
+                  const next = fmtFromInput(buyCurrency, e.target.value);
+                  buyRawRef.current = next.trim() ? parseAmount(buyCurrency, next) : null;
+                  setBuyText(next);
+                }}
+              />
 
+              <div className="vx-iconBtnGhost" aria-hidden="true" />
+            </div>
           </div>
 
-        <div className="vx-sectionTitle">Оплата</div>
-        <div className="vx-methods">
-          {ALL_PAY.map((m) => {
-            const disabled = !allowedPay.includes(m);
-            return (
-              <div
-                key={m}
-                className={
-                  "vx-pill " +
-                  (payMethod === m ? "vx-pillActive " : "") +
-                  (disabled ? "vx-pillDisabled" : "")
-                }
-                onClick={() => {
-                  if (!disabled) {
-                    preserveSwappedValuesRef.current = false;
-                    setPayMethod(m);
-                  }
-                }}
-                role="button"
-                aria-disabled={disabled}
-              >
-                {methodLabel(m)}
+          <div className="vx-calcSide">
+            <div className="vx-sectionTitle">Оплата</div>
+            <div className="vx-methods">
+              {ALL_PAY.map((m) => {
+                const disabled = !allowedPay.includes(m);
+                return (
+                  <div
+                    key={m}
+                    className={
+                      "vx-pill " +
+                      (payMethod === m ? "vx-pillActive " : "") +
+                      (disabled ? "vx-pillDisabled" : "")
+                    }
+                    onClick={() => {
+                      if (!disabled) {
+                        preserveSwappedValuesRef.current = false;
+                        setPayMethod(m);
+                      }
+                    }}
+                    role="button"
+                    aria-disabled={disabled}
+                  >
+                    {methodLabel(m)}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="vx-sectionTitle">Получение</div>
+            <div className="vx-methods">
+              {ALL_RECEIVE.map((m) => {
+                const disabled = !allowedRecv.includes(m);
+                return (
+                  <div
+                    key={m}
+                    className={
+                      "vx-pill " +
+                      (receiveMethod === m ? "vx-pillActive " : "") +
+                      (disabled ? "vx-pillDisabled" : "")
+                    }
+                    onClick={() => {
+                      if (!disabled) {
+                        preserveSwappedValuesRef.current = false;
+                        setReceiveMethod(m);
+                      }
+                    }}
+                    role="button"
+                    aria-disabled={disabled}
+                  >
+                    {methodLabel(m)}
+                  </div>
+                );
+              })}
+            </div>
+
+            {usdNote ? <div className="vx-note">{usdNote}</div> : null}
+            {eurNote ? <div className="vx-note">{eurNote}</div> : null}
+            {vndNote ? <div className="vx-note">{vndNote}</div> : null}
+            {thbNote ? <div className="vx-note">{thbNote}</div> : null}
+
+            {buyCurrency === "VND" && receiveMethod === "atm" ? (
+              <div className={"vx-note " + (invalidVndBuyAtm ? "vx-noteWarn" : "")}>{atmVndNoteText}</div>
+            ) : null}
+
+            {rateInfo ? (
+              <div className="vx-rateLine">
+                Курс: <b>{fmtAmount("VND", rateInfo.base)}</b> + статус <b>{fmtAmount("VND", rateInfo.tier)}</b> + способ{" "}
+                <b>{fmtAmount("VND", rateInfo.m)}</b> = <b>{fmtAmount("VND", rateInfo.eff)}</b>
               </div>
-            );
-          })}
-        </div>
+            ) : null}
 
-        <div className="vx-sectionTitle">Получение</div>
-        <div className="vx-methods">
-          {ALL_RECEIVE.map((m) => {
-            const disabled = !allowedRecv.includes(m);
-            return (
-              <div
-                key={m}
-                className={
-                  "vx-pill " +
-                  (receiveMethod === m ? "vx-pillActive " : "") +
-                  (disabled ? "vx-pillDisabled" : "")
-                }
-                onClick={() => {
-                  if (!disabled) {
-                    preserveSwappedValuesRef.current = false;
-                    setReceiveMethod(m);
-                  }
-                }}
-                role="button"
-                aria-disabled={disabled}
-              >
-                {methodLabel(m)}
-              </div>
-            );
-          })}
-        </div>
+            {invalidUsdSell || invalidUsdBuy ? <div className="vx-warn">USD: передать и получить можно только наличными, кратно 100.</div> : null}
+            {invalidEurSell || invalidEurBuy ? <div className="vx-warn">EUR: передать и получить можно только наличными, кратно 50.</div> : null}
+            {invalidThbSell || invalidThbBuy ? <div className="vx-warn">THB: передать и получить можно только наличными, кратно 100.</div> : null}
+            {minSellNote ? <div className="vx-warn">{minSellNote}</div> : null}
 
-        {usdNote ? <div className="vx-note">{usdNote}</div> : null}
-        {eurNote ? <div className="vx-note">{eurNote}</div> : null}
-        {vndNote ? <div className="vx-note">{vndNote}</div> : null}
-        {thbNote ? <div className="vx-note">{thbNote}</div> : null}
+            <div className="vx-sp12" />
 
-        {buyCurrency === "VND" && receiveMethod === "atm" ? (
-          <div className={"vx-note " + (invalidVndBuyAtm ? "vx-noteWarn" : "")}>{atmVndNoteText}</div>
-        ) : null}
-
-        {rateInfo ? (
-          <div className="vx-rateLine">
-            Курс: <b>{fmtAmount("VND", rateInfo.base)}</b> + статус <b>{fmtAmount("VND", rateInfo.tier)}</b> + способ{" "}
-            <b>{fmtAmount("VND", rateInfo.m)}</b> = <b>{fmtAmount("VND", rateInfo.eff)}</b>
+            <button className="vx-primary" disabled={!canSend} onClick={sendRequest}>
+              Отправить заявку
+            </button>
           </div>
-        ) : null}
-
-       
-        {invalidUsdSell || invalidUsdBuy ? <div className="vx-warn">USD: передать и получить можно только наличными, кратно 100.</div> : null}
-        {invalidEurSell || invalidEurBuy ? <div className="vx-warn">EUR: передать и получить можно только наличными, кратно 50.</div> : null}
-        {invalidThbSell || invalidThbBuy ? <div className="vx-warn">THB: передать и получить можно только наличными, кратно 100.</div> : null}
-        {minSellNote ? <div className="vx-warn">{minSellNote}</div> : null}
-
-        <div className="vx-sp12" />
-
-        <button className="vx-primary" disabled={!canSend} onClick={sendRequest}>
-          Отправить заявку
-        </button>
+        </div>
       </div>
     </div>
   );

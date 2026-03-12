@@ -547,85 +547,80 @@ ${msg}`);
     <div className={`vx-page theme-client ${screen === "home" ? "mx-homePage" : ""}`}>
       <div className="container">
         <ScreenPane active={screen === "home"}>
-          <>
-            <div className="mx-topRow mx-topRowHome">
-              <button
-                type="button"
-                className="mx-themeBtn"
-                onClick={toggleTheme}
-                aria-label={theme === "dark" ? "Тёмная тема" : "Светлая тема"}
-              >
-                {theme === "dark" ? <IconMoon className="mx-themeI" /> : <IconSun className="mx-themeI" />}
-              </button>
+          <div className="mx-homeLayout">
+            <div className="mx-homeLead">
+              <div className="mx-topRow mx-topRowHome">
+                <button
+                  type="button"
+                  className="mx-themeBtn"
+                  onClick={toggleTheme}
+                  aria-label={theme === "dark" ? "Тёмная тема" : "Светлая тема"}
+                >
+                  {theme === "dark" ? <IconMoon className="mx-themeI" /> : <IconSun className="mx-themeI" />}
+                </button>
 
-              <div className="mx-topCenter">
-                <MainLogo theme={theme} />
+                <div className="mx-topCenter">
+                  <MainLogo theme={theme} />
+                </div>
+
+                <button type="button" className="mx-statusBtn" onClick={showStatusInfo} aria-label="Ваш статус">
+                  <StatusIcon status={me.status} />
+                </button>
               </div>
 
-              <button type="button" className="mx-statusBtn" onClick={showStatusInfo} aria-label="Ваш статус">
-                <StatusIcon status={me.status} />
-              </button>
-            </div>
+              <div className="mx-card">
+                <div className="mx-cardHead">
+                  <div>
+                    <div className="mx-cardTitle">Курс</div>
+                    <div className="mx-cardSub">{me.ok ? UI.title : me.error ?? "Авторизация…"}</div>
+                  </div>
+                </div>
 
-            <div className="mx-card">
-              <div className="mx-cardHead">
-                <div>
-                  <div className="mx-cardTitle">Курс</div>
-                  <div className="mx-cardSub">{me.ok ? UI.title : me.error ?? "Авторизация…"}</div>
+                <div className="mx-courseBody">
+                  <RatesTab embedded limit={courseExpanded ? undefined : 3} />
+                </div>
+
+                <div className="mx-btnRow">
+                  <button type="button" className="mx-btn" onClick={() => setCourseExpanded((v) => !v)}>
+                    {courseExpanded ? "Свернуть" : "Все курсы"}
+                  </button>
+                  <button type="button" className="mx-btn mx-btnPrimary" onClick={() => goTo("calc", "home_calc_btn")}>
+                    Оставить заявку
+                  </button>
                 </div>
               </div>
-
-              <div className="mx-courseBody">
-                <RatesTab embedded limit={courseExpanded ? undefined : 3} />
-              </div>
-
-              <div className="mx-btnRow">
-                <button type="button" className="mx-btn" onClick={() => setCourseExpanded((v) => !v)}>
-                  {courseExpanded ? "Свернуть" : "Все курсы"}
-                </button>
-                <button type="button" className="mx-btn mx-btnPrimary" onClick={() => goTo("calc", "home_calc_btn")}>
-                  Оставить заявку
-                </button>
-              </div>
             </div>
 
-            <div className="mx-sp18" />
+            <div className="mx-homeNavGrid">
+              <NavCard
+                title="Афиша"
+                subtitle="События, спорт, вечеринки"
+                iconSrc="/brand/icons/tab-afisha-256.png?v=1"
+                onClick={() => goTo("afisha", "nav_afisha")}
+              />
+              <NavCard
+                title="Банкоматы"
+                subtitle="VIETCOMBANK и BIDV"
+                iconSrc="/brand/icons/tab-atm-256.png?v=1"
+                onClick={() => goTo("atm", "nav_atm")}
+              />
+              <NavCard
+                title="Отзывы"
+                subtitle="Отзывы клиентов"
+                iconSrc="/brand/icons/tab-reviews-256.png?v=1"
+                onClick={() => goTo("reviews", "nav_reviews")}
+              />
 
-            <NavCard
-              title="Афиша"
-              subtitle="События, спорт, вечеринки"
-              iconSrc="/brand/icons/tab-afisha-256.png?v=1"
-              onClick={() => goTo("afisha", "nav_afisha")}
-            />
-            <div className="mx-sp10" />
-            <NavCard
-              title="Банкоматы"
-              subtitle="VIETCOMBANK и BIDV"
-              iconSrc="/brand/icons/tab-atm-256.png?v=1"
-              onClick={() => goTo("atm", "nav_atm")}
-            />
-            <div className="mx-sp10" />
-            <NavCard
-              title="Отзывы"
-              subtitle="Отзывы клиентов"
-              iconSrc="/brand/icons/tab-reviews-256.png?v=1"
-              onClick={() => goTo("reviews", "nav_reviews")}
-            />
-
-            {me.isAdmin ? (
-              <>
-                <div className="mx-sp10" />
+              {me.isAdmin ? (
                 <NavCard
                   title="Админ"
                   subtitle="Заявки"
                   iconSrc="/brand/icons/tab-rates-256.png?v=1"
                   onClick={() => goTo("staff", "nav_staff")}
                 />
-              </>
-            ) : null}
-
-            <div className="mx-sp24" />
-          </>
+              ) : null}
+            </div>
+          </div>
         </ScreenPane>
 
         {visited.calc ? (
