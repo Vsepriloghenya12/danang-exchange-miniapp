@@ -49,7 +49,21 @@ async function fetchJson(url: string): Promise<any> {
 }
 
 async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; source: string }> {
-  // 1) exchangerate.host
+  // 1) moneyconvert.net (официальный endpoint, base всегда USD)
+  try {
+    const j = await fetchJson("https://cdn.moneyconvert.net/api/latest.json");
+    const base = String(j?.base || "").toUpperCase();
+    const RUB = Number(j?.rates?.RUB);
+    const THB = Number(j?.rates?.THB);
+    const EUR = Number(j?.rates?.EUR);
+    if (base === "USD" && [RUB, THB, EUR].every((n) => Number.isFinite(n) && n > 0)) {
+      return { RUB, THB, EUR, source: "moneyconvert.net" };
+    }
+  } catch {
+    // ignore
+  }
+
+  // 2) exchangerate.host fallback
   try {
     const j = await fetchJson("https://api.exchangerate.host/latest?base=USD&symbols=RUB,THB,EUR");
     const RUB = Number(j?.rates?.RUB);
@@ -62,7 +76,7 @@ async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; 
     // ignore
   }
 
-  // 2) open.er-api.com
+  // 3) open.er-api.com fallback
   try {
     const j = await fetchJson("https://open.er-api.com/v6/latest/USD");
     const RUB = Number(j?.rates?.RUB);
@@ -75,7 +89,7 @@ async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; 
     // ignore
   }
 
-  // 3) exchangerate-api.com
+  // 4) exchangerate-api.com fallback
   try {
     const j = await fetchJson("https://api.exchangerate-api.com/v4/latest/USD");
     const RUB = Number(j?.rates?.RUB);
