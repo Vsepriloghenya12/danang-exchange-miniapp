@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 
 import express from "express";
 import cors from "cors";
@@ -52,7 +53,10 @@ const BASE_URL =
   (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : "");
 
 // Secret webhook path (override via WEBHOOK_PATH if needed)
-const WEBHOOK_PATH = process.env.WEBHOOK_PATH || `/tg-webhook-${BOT_TOKEN.slice(0, 16)}`;
+// Important: avoid characters like ":" from bot tokens in URL paths, because
+// proxies / webhook clients may percent-encode them and Telegraf can answer 404.
+const WEBHOOK_SECRET = createHash("sha256").update(BOT_TOKEN).digest("hex").slice(0, 24);
+const WEBHOOK_PATH = process.env.WEBHOOK_PATH || `/tg-webhook-${WEBHOOK_SECRET}`;
 
 function httpLogger(app: express.Express) {
   // Basic HTTP request logging (visible in Railway logs)
