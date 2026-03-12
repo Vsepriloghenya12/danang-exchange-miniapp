@@ -3881,23 +3881,27 @@ html[data-theme="dark"] .vx-miniOn{
 
 @media (orientation: landscape) and (max-height: 560px) {
   .theme-client.vx-page{
-    padding: 10px 12px;
+    padding: 10px 12px 90px;
   }
 
-  .theme-client .container{
-    max-width: min(1100px, calc(100vw - 118px));
-    padding-bottom: 20px;
+  .theme-client .container,
+  html[data-theme="dark"] .theme-client .container{
+    width: min(100%, 1100px);
+    max-width: none;
+    margin: 0 auto;
+    padding-bottom: 12px;
   }
 
   .theme-client .mx-homeLayout{
     display: grid;
-    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
     gap: 14px;
     align-items: start;
   }
 
   .theme-client .mx-homeLead{
     gap: 10px;
+    min-width: 0;
   }
 
   .theme-client .mx-homeNavGrid{
@@ -3905,10 +3909,16 @@ html[data-theme="dark"] .vx-miniOn{
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
     align-content: start;
+    min-width: 0;
   }
 
   .theme-client .mx-topRowHome{
     margin-bottom: 2px;
+  }
+
+  .theme-client .mx-topCenter,
+  .theme-client .mx-navText{
+    min-width: 0;
   }
 
   .theme-client .mx-mainLogoWrap{
@@ -3920,12 +3930,13 @@ html[data-theme="dark"] .vx-miniOn{
   }
 
   .theme-client .mx-btnRow{
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
 
   .theme-client .mx-navCard{
-    min-height: 92px;
+    min-height: 96px;
     align-items: flex-start;
     padding: 14px;
   }
@@ -3937,50 +3948,52 @@ html[data-theme="dark"] .vx-miniOn{
   }
 
   .theme-client .mx-bottomNav{
-    top: 12px;
+    left: 12px;
     right: 12px;
-    bottom: 12px;
-    left: auto;
-    width: 86px;
-    flex-direction: column;
-    gap: 10px;
-    padding: 12px 10px;
-    border-top: 0;
-    border-left: 1px solid var(--stroke);
-    border-radius: 24px;
-    box-shadow: 0 16px 40px rgba(0,0,0,.12);
+    bottom: 10px;
+    top: auto;
+    width: auto;
+    flex-direction: row;
+    gap: 8px;
+    padding: 8px 10px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    border-left: 0;
+    border-top: 1px solid var(--stroke);
+    border-radius: 18px;
+    box-shadow: 0 -12px 28px rgba(0,0,0,.10);
   }
 
   html[data-theme="dark"] .theme-client .mx-bottomNav{
-    border-left-color: rgba(246,198,0,.24);
-    box-shadow: 0 18px 46px rgba(5,10,18,.42), 0 0 18px rgba(246,198,0,.06);
+    border-top-color: rgba(246,198,0,.24);
+    border-left-color: transparent;
+    box-shadow: 0 -16px 34px rgba(5,10,18,.42), 0 0 18px rgba(246,198,0,.06);
   }
 
   .mx-sheet-open .mx-bottomNav{
-    --mxNavHide: 0px;
-    transform: translateX(120px);
+    --mxNavHide: 120px;
+    transform: translateY(var(--mxNavHide));
     opacity: 0;
     pointer-events: none;
   }
 
   .theme-client .mx-bottomBtn{
     flex: 1 1 0;
-    min-height: 0;
+    min-height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
     line-height: 1.15;
-    font-size: 11px;
+    font-size: 11.5px;
     padding: 8px 6px;
   }
 
   .theme-client .mx-header{
-    margin-right: 4px;
+    margin-right: 0;
   }
 
   .theme-client .vx-calcGrid{
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+    grid-template-columns: minmax(0, 1.2fr) minmax(280px, .95fr);
     gap: 14px;
     align-items: start;
   }
@@ -3988,6 +4001,7 @@ html[data-theme="dark"] .vx-miniOn{
   .theme-client .vx-calcMain,
   .theme-client .vx-calcSide{
     gap: 12px;
+    min-width: 0;
   }
 
   .theme-client .vx-calcSide .vx-sectionTitle:first-child{
@@ -3998,11 +4012,44 @@ html[data-theme="dark"] .vx-miniOn{
     margin-top: auto;
   }
 
+  .theme-client .vx-methods{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .theme-client .vx-pill{
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 8px 10px;
+  }
+
   .theme-client .vx-atmBtnGrid{
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
   .theme-client .vx-modalCard{
-    width: min(720px, calc(100vw - 140px));
+    width: min(720px, calc(100vw - 40px));
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) and (max-width: 780px) {
+  .theme-client .mx-homeLayout{
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .theme-client .vx-calcGrid{
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) and (max-width: 620px) {
+  .theme-client .mx-homeNavGrid,
+  .theme-client .mx-btnRow{
+    grid-template-columns: 1fr;
   }
 }
