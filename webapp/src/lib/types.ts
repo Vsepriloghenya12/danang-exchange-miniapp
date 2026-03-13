@@ -229,7 +229,7 @@ export type BonusesResponse = {
 // --------------------
 // Afisha (events)
 // --------------------
-export type AfishaCategory = "sport" | "party" | "culture" | "food" | "music" | "games" | "market";
+export type AfishaCategory = "sport" | "party" | "culture" | "food" | "music" | "games" | "market" | "learning" | "misc";
 export type AfishaFilterCategory = "all" | AfishaCategory;
 
 export type AfishaEvent = {

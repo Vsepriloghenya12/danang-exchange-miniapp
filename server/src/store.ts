@@ -21,8 +21,12 @@ export type AfishaCategory =
   | "party"
   | "culture"
   | "city"
+  | "games"
+  | "market"
   | "food"
-  | "music";
+  | "music"
+  | "learning"
+  | "misc";
 
 export type AfishaEvent = {
   id: string;
@@ -435,6 +439,27 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
     }
     if (ev.comment != null && typeof ev.comment !== "string") {
       ev.comment = String(ev.comment || "");
+      dirty = true;
+    }
+    const cats = Array.isArray(ev.categories)
+      ? ev.categories
+      : ev.category
+      ? [ev.category]
+      : [];
+    const normCats = Array.from(
+      new Set(
+        cats
+          .map((x: any) => String(x || "").trim().toLowerCase())
+          .map((x: string) => (x === "город" || x === "city" ? "culture" : x))
+          .filter(Boolean)
+      )
+    ).slice(0, 3);
+    if (!Array.isArray(ev.categories) || JSON.stringify(ev.categories) !== JSON.stringify(normCats)) {
+      ev.categories = normCats;
+      dirty = true;
+    }
+    if (normCats[0] && ev.category !== normCats[0]) {
+      ev.category = normCats[0];
       dirty = true;
     }
   }

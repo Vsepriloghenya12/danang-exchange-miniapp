@@ -526,6 +526,8 @@ export function createApiRouter(opts: {
     if (['market', 'fair', 'ярмарки', 'ярмарка', 'marketplace'].includes(v)) return 'market';
     if (['food', 'еда'].includes(v)) return 'food';
     if (['music', 'музыка'].includes(v)) return 'music';
+    if (['learning', 'learn', 'study', 'education', 'обучение', 'учеба', 'учёба', 'мастер-класс', 'мастеркласс'].includes(v)) return 'learning';
+    if (['misc', 'other', 'разное', 'прочее', 'другое'].includes(v)) return 'misc';
     return null;
   }
 
@@ -732,10 +734,11 @@ export function createApiRouter(opts: {
       const ev = items.find((x) => String(x?.id || '') === id);
       if (!ev) return res.status(404).json({ ok: false, error: 'not_found' });
 
-      if (categoryRaw != null) {
+      if (categoriesRaw != null || categoryRaw != null) {
         if (!category) return res.status(400).json({ ok: false, error: 'bad_category' });
-      if (catsNorm.length < 1 || catsNorm.length > 3) return res.status(400).json({ ok: false, error: 'bad_categories' });
+        if (catsNorm.length < 1 || catsNorm.length > 3) return res.status(400).json({ ok: false, error: 'bad_categories' });
         ev.category = category;
+        ev.categories = catsNorm;
       }
       if (dateRaw != null) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) return res.status(400).json({ ok: false, error: 'bad_date' });

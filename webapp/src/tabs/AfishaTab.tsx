@@ -20,6 +20,8 @@ const CATS: Array<{ key: AfishaCategory; label: string }> = [
   { key: "market", label: "Ярмарки" },
   { key: "food", label: "Еда" },
   { key: "music", label: "Музыка" },
+  { key: "learning", label: "Обучение" },
+  { key: "misc", label: "Разное" },
 ];
 
 function iso(d: Date) {

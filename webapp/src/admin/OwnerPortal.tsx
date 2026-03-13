@@ -418,6 +418,8 @@ function moveFaq(id: string, dir: -1 | 1) {
     { k: 'market', l: 'Ярмарки' },
     { k: 'food', l: 'Еда' },
     { k: 'music', l: 'Музыка' },
+    { k: 'learning', l: 'Обучение' },
+    { k: 'misc', l: 'Разное' },
   ];
 
   function afCatLabel(k: string) {

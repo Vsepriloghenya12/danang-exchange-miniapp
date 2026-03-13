@@ -3093,6 +3093,8 @@ html[data-theme="dark"] .theme-client .mx-afComment{ color: var(--muted) !import
 .mx-afCat--music{ background-image: url('/brand/afisha-music.jpg'); }
 .mx-afCat--games{ background-image: url('/brand/afisha-games.jpg'); }
 .mx-afCat--market{ background-image: url('/brand/afisha-market.jpg'); }
+.mx-afCat--learning{ background-image: url('/brand/afisha-learning.jpg'); }
+.mx-afCat--misc{ background-image: url('/brand/afisha-misc.jpg'); }
 
 /* Special category tile for "All" */
 .mx-afCat--all{
