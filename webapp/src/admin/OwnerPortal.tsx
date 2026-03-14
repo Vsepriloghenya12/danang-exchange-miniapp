@@ -825,6 +825,15 @@ function moveFaq(id: string, dir: -1 | 1) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  function openContactOnlyEditor(c: any) {
+    setCUsername(String(c?.username || ""));
+    setCTgId(c?.tg_id ? String(c.tg_id) : "");
+    setCFullName(String(c?.fullName || ""));
+    setCStatus((c?.status as any) || "standard");
+    setCBanks(Array.isArray(c?.banks) ? c.banks : []);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function toggleBank(name: string) {
     setCBanks((prev) => {
       if (prev.includes(name)) return prev.filter((x) => x !== name);
@@ -1088,6 +1097,37 @@ function moveFaq(id: string, dir: -1 | 1) {
     }
     return m;
   }, [contacts]);
+
+  const manualClientRows = useMemo(() => {
+    const rows: any[] = [];
+    const seen = new Set<string>();
+
+    for (const u of users || []) {
+      const tgId = Number((u as any)?.tg_id);
+      if (!Number.isFinite(tgId) || tgId <= 0) continue;
+      const uname = u?.username ? String(u.username).toLowerCase() : "";
+      const c = contactsByTg[String(tgId)] || (uname ? contactsByUsername[uname] : undefined);
+      seen.add(`tg:${tgId}`);
+      if (uname) seen.add(`u:${uname}`);
+      rows.push({ kind: "user", u, c, tgId, sortDate: String((u as any)?.last_seen_at || c?.updated_at || c?.created_at || "") });
+    }
+
+    for (const c of contacts || []) {
+      if (!c) continue;
+      const tgIdNum = c?.tg_id ? Number(c.tg_id) : Number.NaN;
+      const uname = c?.username ? String(c.username).toLowerCase() : "";
+      if (Number.isFinite(tgIdNum) && seen.has(`tg:${tgIdNum}`)) continue;
+      if (uname && seen.has(`u:${uname}`)) continue;
+      if (Number.isFinite(tgIdNum)) seen.add(`tg:${tgIdNum}`);
+      if (uname) seen.add(`u:${uname}`);
+      rows.push({ kind: "contact", c, tgId: Number.isFinite(tgIdNum) ? tgIdNum : undefined, sortDate: String(c?.updated_at || c?.created_at || "") });
+    }
+
+    return rows
+      .slice()
+      .sort((a, b) => String(b.sortDate || "").localeCompare(String(a.sortDate || "")))
+      .slice(0, 150);
+  }, [users, contacts, contactsByTg, contactsByUsername]);
 
   // Cashbox computed rows (profit in VND)
   const cashComputed = useMemo(() => {
@@ -1686,81 +1726,84 @@ function moveFaq(id: string, dir: -1 | 1) {
             <div className="hr" />
             <div className="small"><b>Клиенты</b></div>
             <div className="vx-muted" style={{ marginTop: 4 }}>Нажмите на клиента, чтобы открыть его карточку для редактирования имени, статуса и банков.</div>
-            {users.length === 0 ? (
-              <div className="vx-muted">Пока нет клиентов (они появятся после входа в мини‑апп).</div>
+            {manualClientRows.length === 0 ? (
+              <div className="vx-muted">Пока нет клиентов. Можно добавить клиента вручную по username или tg_id — он сохранится даже без сделок.</div>
             ) : (
               <div className="vx-contactList">
-                {users
-                  .slice()
-                  .sort((a, b) => String(b.last_seen_at || "").localeCompare(String(a.last_seen_at || "")))
-                  .slice(0, 120)
-                  .map((u) => {
-                    const tgId = Number(u.tg_id);
-                    const uname = u.username ? String(u.username).toLowerCase() : "";
-                    const c = contactsByTg[String(tgId)] || (uname ? contactsByUsername[uname] : undefined);
-                    const agg = reqAgg[String(tgId)] || { cnt: 0, sell: {}, buy: {} };
-                    const isNew = agg.cnt === 1;
-                    const userTitle = [u.first_name, u.last_name].filter(Boolean).join(" ").trim();
-                    const who = u.username ? "@" + u.username : userTitle || `id ${tgId}`;
-                    const adminName = c?.fullName ? c.fullName : "—";
-                    const banks = Array.isArray(c?.banks) ? c!.banks! : [];
+                {manualClientRows.map((row) => {
+                  const u = row.kind === "user" ? row.u : null;
+                  const c = row.c;
+                  const tgId = row.tgId;
+                  const uname = (u?.username || c?.username) ? String(u?.username || c?.username).toLowerCase() : "";
+                  const agg = tgId ? (reqAgg[String(tgId)] || { cnt: 0, sell: {}, buy: {} }) : { cnt: 0, sell: {}, buy: {} };
+                  const isNew = agg.cnt === 1;
+                  const userTitle = [u?.first_name, u?.last_name].filter(Boolean).join(" ").trim();
+                  const who = uname ? "@" + uname : (c?.fullName || userTitle || (tgId ? `id ${tgId}` : "Клиент без Telegram ID"));
+                  const adminName = c?.fullName ? c.fullName : "—";
+                  const banks = Array.isArray(c?.banks) ? c.banks : [];
 
-                    const sumSellText = (() => {
-                      const sell: Record<string, number> = (agg as any).sell || {};
-                      const items = Object.entries(sell)
-                        .filter(([, v]) => Number(v) > 0)
-                        .sort((a: any, b: any) => String(a[0]).localeCompare(String(b[0])));
-                      return items.length ? items.map(([k, v]: any) => `${k}: ${fmtNum(v)}`).join(' • ') : '—';
-                    })();
+                  const sumSellText = (() => {
+                    const sell: Record<string, number> = (agg as any).sell || {};
+                    const items = Object.entries(sell)
+                      .filter(([, v]) => Number(v) > 0)
+                      .sort((a: any, b: any) => String(a[0]).localeCompare(String(b[0])));
+                    return items.length ? items.map(([k, v]: any) => `${k}: ${fmtNum(v)}`).join(' • ') : '—';
+                  })();
 
-                    const sumBuyText = (() => {
-                      const buy: Record<string, number> = (agg as any).buy || {};
-                      const items = Object.entries(buy)
-                        .filter(([, v]) => Number(v) > 0)
-                        .sort((a: any, b: any) => String(a[0]).localeCompare(String(b[0])));
-                      return items.length ? items.map(([k, v]: any) => `${k}: ${fmtNum(v)}`).join(' • ') : '—';
-                    })();
+                  const sumBuyText = (() => {
+                    const buy: Record<string, number> = (agg as any).buy || {};
+                    const items = Object.entries(buy)
+                      .filter(([, v]) => Number(v) > 0)
+                      .sort((a: any, b: any) => String(a[0]).localeCompare(String(b[0])));
+                    return items.length ? items.map(([k, v]: any) => `${k}: ${fmtNum(v)}`).join(' • ') : '—';
+                  })();
 
-                    const isEditing = String(cTgId || "") === String(tgId);
+                  const isEditing = (tgId && String(cTgId || "") === String(tgId)) || (!tgId && uname && String(cUsername || "").toLowerCase() === uname);
+                  const clickHandler = row.kind === "user"
+                    ? () => openClientEditor(u, c, Number(tgId))
+                    : () => openContactOnlyEditor(c);
 
-                    return (
-                      <div key={String(tgId)} className={"vx-contactRow is-clickable" + (isEditing ? " vx-cardSel" : "")} onClick={() => openClientEditor(u, c, tgId)}>
-                        <div className="row vx-between vx-center" style={{ gap: 8, flexWrap: "wrap" }}>
+                  return (
+                    <div key={String(c?.id || tgId || uname)} className={"vx-contactRow is-clickable" + (isEditing ? " vx-cardSel" : "")} onClick={clickHandler}>
+                      <div className="row vx-between vx-center" style={{ gap: 8, flexWrap: "wrap" }}>
+                        <div>
                           <div>
-                            <div>
-                              <b>{who}</b> <span className="vx-muted">• id:{tgId}</span>
-                              {isNew ? <span className="vx-tag vx-tagNew">Новый</span> : null}
-                            </div>
-                            <div className="vx-muted" style={{ marginTop: 2 }}>
-                              Имя (админ): <b>{adminName}</b>
-                            </div>
-                            {banks.length ? (
-                              <div className="vx-bankInline" style={{ marginTop: 6 }}>
-                                {banks.slice(0, 6).map((ic) => (
-                                  <img key={ic} src={bankIconUrl(ic)} alt="" className="vx-bankInlineImg" title={ic} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                                ))}
-                              </div>
-                            ) : null}
+                            <b>{who}</b>{tgId ? <span className="vx-muted"> • id:{tgId}</span> : null}
+                            {isNew ? <span className="vx-tag vx-tagNew">Новый</span> : null}
                           </div>
-
-                          <div style={{ textAlign: "right", maxWidth: 420 }}>
-                            <div className="vx-muted">Отдал</div>
-                            <div><b>{sumSellText}</b></div>
-                            <div className="vx-muted" style={{ marginTop: 4 }}>Получил</div>
-                            <div><b>{sumBuyText}</b></div>
-                            <div className="vx-muted" style={{ marginTop: 6 }}>Сделок: <b>{fmtNum(agg.cnt)}</b></div>
+                          <div className="vx-muted" style={{ marginTop: 2 }}>
+                            Имя (админ): <b>{adminName}</b>
                           </div>
+                          {row.kind !== "user" ? (
+                            <div className="vx-muted" style={{ marginTop: 2 }}>Ещё не заходил в мини‑приложение</div>
+                          ) : null}
+                          {banks.length ? (
+                            <div className="vx-bankInline" style={{ marginTop: 6 }}>
+                              {banks.slice(0, 6).map((ic) => (
+                                <img key={ic} src={bankIconUrl(ic)} alt="" className="vx-bankInlineImg" title={ic} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
 
-                        <div className="vx-sp8" />
-
-                        <div className="row vx-rowWrap vx-gap6" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                          <span className="vx-tag">Статус: <b>{statusLabelRu((c?.status as any) || (u.status as any) || "standard")}</b></span>
-                          <span className="vx-tag">Нажмите для редактирования</span>
+                        <div style={{ textAlign: "right", maxWidth: 420 }}>
+                          <div className="vx-muted">Отдал</div>
+                          <div><b>{sumSellText}</b></div>
+                          <div className="vx-muted" style={{ marginTop: 4 }}>Получил</div>
+                          <div><b>{sumBuyText}</b></div>
+                          <div className="vx-muted" style={{ marginTop: 6 }}>Сделок: <b>{fmtNum(agg.cnt)}</b></div>
                         </div>
                       </div>
-                    );
-                  })}
+
+                      <div className="vx-sp8" />
+
+                      <div className="row vx-rowWrap vx-gap6" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <span className="vx-tag">Статус: <b>{statusLabelRu((c?.status as any) || (u?.status as any) || "standard")}</b></span>
+                        <span className="vx-tag">Нажмите для редактирования</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
