@@ -11,7 +11,8 @@ import {
   apiAdminGetReviews,
   apiAdminApproveReview,
   apiAdminRejectReview,
-  apiAdminReplyReview
+  apiAdminReplyReview,
+  apiAdminGetRatesRange
 } from "../lib/api";
 import type { BonusesConfig, BonusesTier } from "../lib/types";
 
@@ -197,16 +198,38 @@ export default function AdminTab({
     if (r.ok) setRequests(r.requests || []);
   };
 
-  const loadRates = async () => {
-    const r = await apiGetTodayRates();
-    const rates = (r as any)?.data?.rates;
-    if (!rates) return;
-
+  const applyRatesToForm = (rates: any) => {
+    if (!rates || typeof rates !== "object") return;
+    clearRates();
     if (rates.USD) { setUsdBuy(nStr(rates.USD.buy_vnd)); setUsdSell(nStr(rates.USD.sell_vnd)); }
     if (rates.RUB) { setRubBuy(nStr(rates.RUB.buy_vnd)); setRubSell(nStr(rates.RUB.sell_vnd)); }
     if (rates.USDT) { setUsdtBuy(nStr(rates.USDT.buy_vnd)); setUsdtSell(nStr(rates.USDT.sell_vnd)); }
     if (rates.EUR) { setEurBuy(nStr(rates.EUR.buy_vnd)); setEurSell(nStr(rates.EUR.sell_vnd)); }
     if (rates.THB) { setThbBuy(nStr(rates.THB.buy_vnd)); setThbSell(nStr(rates.THB.sell_vnd)); }
+  };
+
+  const daNangISO = (shiftDays = 0) => {
+    const d = new Date(Date.now() + shiftDays * 24 * 60 * 60 * 1000);
+    return d.toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+  };
+
+  const loadRates = async () => {
+    const r = await apiGetTodayRates();
+    const rates = (r as any)?.data?.rates;
+    if (!rates) return;
+    applyRatesToForm(rates);
+  };
+
+  const loadYesterdayRates = async () => {
+    const day = daNangISO(-1);
+    const r: any = await apiAdminGetRatesRange(me.initData, { from: day, to: day });
+    const item = Array.isArray(r?.items) ? r.items.find((x: any) => String(x?.date || "") === day) : null;
+    const rates = item?.rates;
+    if (!rates) {
+      alert(`За ${day} курс не найден`);
+      return;
+    }
+    applyRatesToForm(rates);
   };
 
   useEffect(() => {
@@ -478,7 +501,8 @@ export default function AdminTab({
             <div className="row vx-rowWrap vx-gap8">
               <button className="btn" onClick={saveRates}>Сохранить</button>
               <button className="btn" onClick={clearRates}>Очистить</button>
-              <button className="btn" onClick={loadRates}>Загрузить</button>
+              <button className="btn" onClick={loadYesterdayRates}>Загрузить вчерашний</button>
+              <button className="btn" onClick={loadRates}>Загрузить текущий</button>
             </div>
           </div>
         </div>
