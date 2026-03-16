@@ -168,6 +168,7 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
   const [users, setUsers] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [clientsLoading, setClientsLoading] = useState<boolean>(false);
+  const [clientSearch, setClientSearch] = useState<string>("");
   const [cUsername, setCUsername] = useState<string>("");
   const [cTgId, setCTgId] = useState<string>("");
   const [cFullName, setCFullName] = useState<string>("");
@@ -1126,8 +1127,26 @@ function moveFaq(id: string, dir: -1 | 1) {
     return rows
       .slice()
       .sort((a, b) => String(b.sortDate || "").localeCompare(String(a.sortDate || "")))
-      .slice(0, 150);
+      .slice(0, 300);
   }, [users, contacts, contactsByTg, contactsByUsername]);
+
+  const filteredClientRows = useMemo(() => {
+    const q = String(clientSearch || "").trim().toLowerCase();
+    if (!q) return manualClientRows;
+    return manualClientRows.filter((row) => {
+      const u = row.kind === "user" ? row.u : null;
+      const c = row.c;
+      const tgId = row.tgId;
+      const username = String(u?.username || c?.username || "").toLowerCase();
+      const fullName = String(c?.fullName || [u?.first_name, u?.last_name].filter(Boolean).join(" ") || "").toLowerCase();
+      const status = String((c?.status as any) || (u?.status as any) || "standard").toLowerCase();
+      const statusRu = statusLabelRu(status).toLowerCase();
+      const banks = Array.isArray(c?.banks) ? c.banks.join(" ").toLowerCase() : "";
+      const tgText = tgId ? String(tgId) : "";
+      const hay = [username, fullName, status, statusRu, banks, tgText].join(" ");
+      return hay.includes(q);
+    });
+  }, [manualClientRows, clientSearch]);
 
   // Cashbox computed rows (profit in VND)
   const cashComputed = useMemo(() => {
@@ -1726,11 +1745,30 @@ function moveFaq(id: string, dir: -1 | 1) {
             <div className="hr" />
             <div className="small"><b>Клиенты</b></div>
             <div className="vx-muted" style={{ marginTop: 4 }}>Нажмите на клиента, чтобы открыть его карточку для редактирования имени, статуса и банков.</div>
+            <div className="vx-sp10" />
+            <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <input
+                className="input vx-in"
+                value={clientSearch}
+                onChange={(e) => setClientSearch(e.target.value)}
+                placeholder="Поиск: username, tg_id, имя, статус, банк"
+                style={{ flex: "1 1 280px" }}
+              />
+              {clientSearch ? (
+                <button className="btn vx-btnSm" type="button" onClick={() => setClientSearch("")}>
+                  Сбросить
+                </button>
+              ) : null}
+              <div className="vx-muted">Найдено: <b>{filteredClientRows.length}</b></div>
+            </div>
+            <div className="vx-sp10" />
             {manualClientRows.length === 0 ? (
               <div className="vx-muted">Пока нет клиентов. Можно добавить клиента вручную по username или tg_id — он сохранится даже без сделок.</div>
+            ) : filteredClientRows.length === 0 ? (
+              <div className="vx-muted">По вашему запросу клиенты не найдены.</div>
             ) : (
               <div className="vx-contactList">
-                {manualClientRows.map((row) => {
+                {filteredClientRows.map((row) => {
                   const u = row.kind === "user" ? row.u : null;
                   const c = row.c;
                   const tgId = row.tgId;
