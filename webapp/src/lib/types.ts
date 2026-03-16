@@ -245,6 +245,7 @@ export type AfishaEvent = {
   locationUrl: string;
   // optional background image URL served from server/public (e.g. /afisha/<id>.jpg)
   imageUrl?: string;
+  shareUrl?: string;
   created_at: string;
   updated_at: string;
   clicks?: { details: number; location: number };

@@ -31,6 +31,11 @@ type Me = {
 
 type ScreenKey = "home" | "calc" | "afisha" | "atm" | "reviews" | "staff" | "pay" | "history" | "other" | "faq" | "about" | "contacts";
 
+type LaunchTarget = {
+  screen?: ScreenKey;
+  eventId?: string;
+};
+
 const UI = {
   title: "Обмен валют — Дананг",
   fontImport:
@@ -237,6 +242,24 @@ function statusTitle(s: UserStatus) {
   return "Стандарт";
 }
 
+function parseLaunchTarget(tg: any): LaunchTarget {
+  try {
+    const q = new URLSearchParams(window.location.search || "");
+    const rawEventId = String(q.get("event") || q.get("afisha") || "").trim();
+    const rawScreen = String(q.get("screen") || "").toLowerCase().trim();
+    if (rawEventId) return { screen: "afisha", eventId: rawEventId };
+    if (rawScreen === "afisha") return { screen: "afisha" };
+
+    const startParam = String(tg?.initDataUnsafe?.start_param || q.get("startapp") || "").trim();
+    if (!startParam) return {};
+
+    const m = startParam.match(/^afisha[:_\/-](.+)$/i);
+    if (m?.[1]) return { screen: "afisha", eventId: decodeURIComponent(m[1]) };
+    if (/^afisha$/i.test(startParam)) return { screen: "afisha" };
+  } catch {}
+  return {};
+}
+
 export default function App() {
   // Owner portal is a separate browser page (/admin), not inside the miniapp UI.
   if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) {
@@ -342,6 +365,7 @@ export default function App() {
 
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
   const [screen, setScreen] = useState<ScreenKey>("home");
+  const [launchAfishaEventId, setLaunchAfishaEventId] = useState<string>("");
   const [courseExpanded, setCourseExpanded] = useState(false);
   const [visited, setVisited] = useState<Record<string, boolean>>({ home: true });
 
@@ -392,6 +416,12 @@ export default function App() {
   useEffect(() => {
     tg?.ready?.();
     tg?.expand?.();
+
+    const launchTarget = parseLaunchTarget(tg);
+    if (launchTarget.screen === "afisha") {
+      setScreen("afisha");
+      if (launchTarget.eventId) setLaunchAfishaEventId(launchTarget.eventId);
+    }
 
     const initData = tg?.initData || "";
     if (!initData && !isDemo) {
@@ -651,7 +681,11 @@ ${msg}`);
                   if (!handled) goHome();
                 }}
               />
-              <AfishaTab registerBack={(fn) => (afishaBackRef.current = fn)} />
+              <AfishaTab
+                registerBack={(fn) => (afishaBackRef.current = fn)}
+                focusEventId={launchAfishaEventId}
+                onFocusHandled={(id) => setLaunchAfishaEventId((prev) => (prev === id ? "" : prev))}
+              />
             </>
           </ScreenPane>
         ) : null}

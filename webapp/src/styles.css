@@ -3169,6 +3169,23 @@ html[data-theme="dark"] .theme-client .mx-afCats--sheet .mx-afCatBtn.is-on::befo
 .mx-afMeta{ font-size: 12.5px; font-weight: 850; color: rgba(0,0,0,.54); margin-top: 6px; position: relative; z-index: 1; }
 .mx-afLinkBtn{ opacity: .80; }
 .mx-afLinkBtn:active{ opacity: .92; }
+.mx-afBtnRow{ align-items: stretch; }
+.mx-afActionBtn{ flex: 1 1 0; min-width: 0; }
+.mx-afShareBtn{
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.mx-afEvCard.is-flash{
+  box-shadow: 0 0 0 2px rgba(246,198,0,.55), 0 22px 50px rgba(0,0,0,.18);
+}
+html[data-theme="dark"] .theme-client .mx-afEvCard.is-flash{
+  box-shadow: 0 0 0 2px rgba(246,198,0,.78), 0 24px 54px rgba(0,0,0,.52), 0 0 22px rgba(246,198,0,.18);
+}
 
 /* Afisha list view */
 .mx-afTop{ display:flex; align-items:center; justify-content:space-between; gap: 10px; margin: 8px 0 12px; }

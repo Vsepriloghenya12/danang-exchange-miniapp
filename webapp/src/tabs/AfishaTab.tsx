@@ -149,7 +149,23 @@ function getEventCats(ev: AfishaEvent): AfishaCategory[] {
     .filter(Boolean) as AfishaCategory[];
 }
 
-export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => boolean) => void }) {
+function IconShare({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 17L17 7" />
+      <path d="M9 7h8v8" />
+    </svg>
+  );
+}
+
+function buildBrowserShareUrl(ev: AfishaEvent) {
+  const u = new URL(window.location.href);
+  u.searchParams.set("screen", "afisha");
+  u.searchParams.set("event", ev.id);
+  return u.toString();
+}
+
+export default function AfishaTab({ registerBack, focusEventId, onFocusHandled }: { registerBack?: (fn: () => boolean) => void; focusEventId?: string; onFocusHandled?: (id: string) => void }) {
   const tg = getTg();
   const initData = tg?.initData || "";
 
@@ -172,10 +188,13 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
   const [loading, setLoading] = useState<boolean>(false);
   const [events, setEvents] = useState<AfishaEvent[]>([]);
   const [err, setErr] = useState<string>("");
+  const [flashId, setFlashId] = useState<string>("");
 
   // Bottom sheet refs
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const flashTimerRef = useRef<number | null>(null);
 
   // When a sheet is open, hard-lock the scroll container.
   // In Telegram Android WebView, drag gestures can otherwise "pull" the whole app (rubber-band)
@@ -230,6 +249,14 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
       }
     };
   }, [sheetOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current != null) {
+        window.clearTimeout(flashTimerRef.current);
+      }
+    };
+  }, []);
 
   // Prevent scroll-chain "rubber-band" inside the sheet list.
   // Telegram Android WebView can visually "lift" the sheet and reveal a bottom gap
@@ -427,6 +454,14 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
     return { from: from || undefined, to: to || undefined };
   }, [from, to]);
 
+  useEffect(() => {
+    if (!focusEventId) return;
+    setCats([]);
+    setDatePreset("any");
+    setFrom("");
+    setTo("");
+  }, [focusEventId]);
+
   const filteredEvents = useMemo(() => {
     if (!events || events.length === 0) return [];
     const set = new Set((cats || []).map((c) => String(c)));
@@ -436,6 +471,29 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
       return ec.some((x) => set.has(String(x)));
     });
   }, [events, cats]);
+
+  useEffect(() => {
+    if (!focusEventId || loading) return;
+    const target = filteredEvents.find((x) => String(x.id) === String(focusEventId));
+    if (!target) return;
+    const el = cardRefs.current[target.id];
+    if (!el) return;
+
+    const raf1 = window.requestAnimationFrame(() => {
+      const raf2 = window.requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setFlashId(target.id);
+        if (flashTimerRef.current != null) window.clearTimeout(flashTimerRef.current);
+        flashTimerRef.current = window.setTimeout(() => {
+          setFlashId((cur) => (cur === target.id ? "" : cur));
+        }, 2200);
+        onFocusHandled?.(target.id);
+      });
+      return () => window.cancelAnimationFrame(raf2);
+    });
+
+    return () => window.cancelAnimationFrame(raf1);
+  }, [focusEventId, filteredEvents, loading, onFocusHandled]);
 
   useEffect(() => {
     let alive = true;
@@ -472,6 +530,23 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
     openLink(kind === "details" ? ev.detailsUrl : ev.locationUrl);
   }
 
+  function onShare(ev: AfishaEvent) {
+    const targetUrl = String(ev.shareUrl || "").trim() || buildBrowserShareUrl(ev);
+    const shareText = `${ev.title}
+${fmtDate(ev.date)}`;
+    const tgShareUrl = `https://t.me/share/url?url=${encodeURIComponent(targetUrl)}&text=${encodeURIComponent(shareText)}`;
+    const tg = getTg();
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(tgShareUrl);
+      return;
+    }
+    if ((navigator as any)?.share) {
+      void (navigator as any).share({ title: ev.title, text: shareText, url: targetUrl }).catch(() => {});
+      return;
+    }
+    openLink(tgShareUrl);
+  }
+
   return (
     <div className="mx-afisha">
       {/* Filters row (always on categories page) */}
@@ -502,7 +577,10 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
         {filteredEvents.map((ev) => (
           <div
             key={ev.id}
-            className={"mx-afEvCard" + (ev.imageUrl ? " has-img" : "")}
+            ref={(node) => {
+              cardRefs.current[ev.id] = node;
+            }}
+            className={"mx-afEvCard" + (ev.imageUrl ? " has-img" : "") + (flashId === ev.id ? " is-flash" : "")}
           >
             {ev.imageUrl ? <div className="mx-afEvBg" style={{ backgroundImage: `url(${ev.imageUrl})` } as any} aria-hidden="true" /> : null}
             <div className="mx-afEvBody">
@@ -510,12 +588,15 @@ export default function AfishaTab({ registerBack }: { registerBack?: (fn: () => 
               {ev.comment ? <div className="mx-afComment">{ev.comment}</div> : null}
               <div className="mx-afMeta">{fmtDate(ev.date)}</div>
 
-              <div className="mx-btnRow" style={{ marginTop: 10 }}>
-                <button type="button" className="mx-btn mx-afLinkBtn" onClick={() => onClick(ev, "details")} style={{ opacity: 0.8 }}>
+              <div className="mx-btnRow mx-afBtnRow" style={{ marginTop: 10 }}>
+                <button type="button" className="mx-btn mx-afLinkBtn mx-afActionBtn" onClick={() => onClick(ev, "details")} style={{ opacity: 0.8 }}>
                   Подробнее
                 </button>
-                <button type="button" className="mx-btn mx-btnPrimary mx-afLinkBtn" onClick={() => onClick(ev, "location")} style={{ opacity: 0.8 }}>
+                <button type="button" className="mx-btn mx-btnPrimary mx-afLinkBtn mx-afActionBtn" onClick={() => onClick(ev, "location")} style={{ opacity: 0.8 }}>
                   Локация
+                </button>
+                <button type="button" className="mx-btn mx-afShareBtn" onClick={() => onShare(ev)} aria-label="Поделиться мероприятием">
+                  <IconShare className="mx-i" />
                 </button>
               </div>
             </div>
