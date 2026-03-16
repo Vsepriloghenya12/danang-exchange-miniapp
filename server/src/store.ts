@@ -181,6 +181,7 @@ export type StoredRequest = {
   buyAmount: number;
   payMethod?: string;
   receiveMethod: string;
+  comment?: string;
   from: { id: number; username?: string; first_name?: string; last_name?: string };
   // статус клиента (standard/silver/gold) на момент заявки
   status: UserStatus;

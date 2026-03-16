@@ -140,6 +140,7 @@ export default function StaffTab({ me }: any) {
   const [editBuyAmount, setEditBuyAmount] = useState<string>("");
   const [editPayMethod, setEditPayMethod] = useState<string>("transfer");
   const [editReceiveMethod, setEditReceiveMethod] = useState<string>("cash");
+  const [editComment, setEditComment] = useState<string>("");
   const [savingRequest, setSavingRequest] = useState(false);
 
   // sync editor when selection changes
@@ -156,6 +157,7 @@ export default function StaffTab({ me }: any) {
       setEditBuyAmount("");
       setEditPayMethod("transfer");
       setEditReceiveMethod("cash");
+      setEditComment("");
       return;
     }
     setEditSellCurrency(String(selectedReq.sellCurrency || ""));
@@ -164,6 +166,7 @@ export default function StaffTab({ me }: any) {
     setEditBuyAmount(String(selectedReq.buyAmount ?? ""));
     setEditPayMethod(String(selectedReq.payMethod || "transfer"));
     setEditReceiveMethod(String(selectedReq.receiveMethod || "cash"));
+    setEditComment(String(selectedReq.comment || ""));
   }, [selectedReq?.id]);
 
   async function loadAll() {
@@ -244,9 +247,10 @@ export default function StaffTab({ me }: any) {
       buyAmount: Number(String(editBuyAmount || "").replace(",", ".")),
       payMethod: String(editPayMethod || "").trim().toLowerCase(),
       receiveMethod: String(editReceiveMethod || "").trim().toLowerCase(),
+      comment: String(editComment || "").trim(),
     };
 
-    if (!payload.sellCurrency || !payload.buyCurrency || payload.sellCurrency === payload.buyCurrency) {
+    if (!payload.sellCurrency || !payload.buyCurrency || (payload.sellCurrency === payload.buyCurrency && payload.sellCurrency !== "VND")) {
       tg?.showAlert?.("Проверь пару валют.");
       return;
     }
@@ -485,6 +489,7 @@ export default function StaffTab({ me }: any) {
               <div>🎯 Получит: <b>{selectedReq.buyAmount}</b></div>
               <div>💳 Оплата: <b>{methodLabel(String(selectedReq.payMethod || ""))}</b></div>
               <div>📦 Получение: <b>{methodLabel(String(selectedReq.receiveMethod || ""))}</b></div>
+              {selectedReq.comment ? <div>📝 Комментарий: <b>{selectedReq.comment}</b></div> : null}
             </div>
 
             {(String(selectedReq.state) === "in_progress" || String(selectedReq.state) === "new") ? (
@@ -511,6 +516,7 @@ export default function StaffTab({ me }: any) {
                     <select className="input vx-in" value={editPayMethod} onChange={(e) => setEditPayMethod(e.target.value)}>
                       <option value="cash">Наличные</option>
                       <option value="transfer">Перевод</option>
+                      <option value="atm">Банкомат</option>
                     </select>
                     <select className="input vx-in" value={editReceiveMethod} onChange={(e) => setEditReceiveMethod(e.target.value)}>
                       <option value="cash">Наличные</option>
@@ -518,6 +524,13 @@ export default function StaffTab({ me }: any) {
                       <option value="atm">Банкомат</option>
                     </select>
                   </div>
+                  <textarea
+                    className="input vx-in"
+                    rows={3}
+                    value={editComment}
+                    onChange={(e) => setEditComment(e.target.value.slice(0, 300))}
+                    placeholder="Комментарий клиента"
+                  />
                 </div>
 
                 <div className="vx-sp10" />

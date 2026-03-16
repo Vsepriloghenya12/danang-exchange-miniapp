@@ -4,7 +4,7 @@ import type { BonusesConfig, MarketRatesResponse, UserStatus } from "../lib/type
 
 type Currency = "RUB" | "USDT" | "USD" | "EUR" | "THB" | "VND";
 type ReceiveMethod = "cash" | "transfer" | "atm";
-type PayMethod = "cash" | "transfer";
+type PayMethod = "cash" | "transfer" | "atm";
 
 type RateKey = Exclude<Currency, "VND">;
 type RateEntry = { buy_vnd: number; sell_vnd: number };
@@ -23,7 +23,7 @@ type Props = {
 };
 
 const CURRENCY_OPTIONS: Currency[] = ["RUB", "USDT", "USD", "EUR", "THB", "VND"];
-const ALL_PAY: PayMethod[] = ["cash", "transfer"];
+const ALL_PAY: PayMethod[] = ["cash", "transfer", "atm"];
 const ALL_RECEIVE: ReceiveMethod[] = ["cash", "transfer", "atm"];
 
 // Формулы с картинки (на эти пары НЕ действуют бонусы/надбавки)
@@ -219,15 +219,17 @@ function getRate(rates: Rates | null, c: Currency): RateEntry | null {
 // ======= Способы оплаты (что клиент ОТДАЁТ) =======
 // RUB / USDT -> только перевод
 // USD / EUR / THB -> только наличные
-// VND -> наличные или перевод
-function allowedPayMethods(sellCurrency: Currency): PayMethod[] {
+// VND -> наличные или перевод, а для VND -> VND доступны все способы
+function allowedPayMethods(sellCurrency: Currency, buyCurrency: Currency): PayMethod[] {
+  if (sellCurrency === "VND" && buyCurrency === "VND") return ["cash", "transfer", "atm"];
   if (sellCurrency === "RUB" || sellCurrency === "USDT") return ["transfer"];
   if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return ["cash"];
   return ["cash", "transfer"]; // VND
 }
 
 // ======= Способы получения (что клиент ПОЛУЧАЕТ) =======
-function allowedReceiveMethods(buyCurrency: Currency): ReceiveMethod[] {
+function allowedReceiveMethods(buyCurrency: Currency, sellCurrency?: Currency): ReceiveMethod[] {
+  if (sellCurrency === "VND" && buyCurrency === "VND") return ["cash", "transfer", "atm"];
   if (buyCurrency === "VND") return ["cash", "transfer", "atm"];
   if (buyCurrency === "RUB" || buyCurrency === "USDT") return ["transfer"];
   return ["cash"]; // USD/EUR/THB
@@ -379,6 +381,23 @@ function calcSellAmountVnd(rates: Rates, sellCurrency: Currency, buyCurrency: Cu
   return vndCost / sr.buy_vnd;
 }
 
+const VND_TO_VND_FEE_RATE = 0.02;
+const VND_TO_VND_MIN_FEE = 100_000;
+const VND_TO_VND_RATE_THRESHOLD = VND_TO_VND_MIN_FEE / VND_TO_VND_FEE_RATE; // 5,000,000
+const VND_TO_VND_BUY_THRESHOLD = VND_TO_VND_RATE_THRESHOLD - VND_TO_VND_MIN_FEE; // 4,900,000
+
+function calcBuyAmountSameVnd(sellAmount: number): number {
+  if (sellAmount <= 0) return 0;
+  const fee = Math.max(VND_TO_VND_MIN_FEE, sellAmount * VND_TO_VND_FEE_RATE);
+  return Math.max(0, sellAmount - fee);
+}
+
+function calcSellAmountSameVnd(buyAmount: number): number {
+  if (buyAmount <= 0) return 0;
+  if (buyAmount <= VND_TO_VND_BUY_THRESHOLD) return buyAmount + VND_TO_VND_MIN_FEE;
+  return buyAmount / (1 - VND_TO_VND_FEE_RATE);
+}
+
 // ---------- G-конвертация ----------
 function isGModePair(formulas: Record<string, { buyMul: number; sellMul: number }>, a: Currency, b: Currency): boolean {
   if (a === "VND" || b === "VND") return false;
@@ -497,6 +516,7 @@ export default function CalculatorTab({ me }: Props) {
   const [receiveMethod, setReceiveMethod] = useState<ReceiveMethod>("cash");
 
   const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeStatus(me?.status));
+  const [requestComment, setRequestComment] = useState("");
 
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [danangNowMs, setDanangNowMs] = useState(() => Date.now());
@@ -519,18 +539,20 @@ export default function CalculatorTab({ me }: Props) {
 
   // Enforce pay-method restrictions based on SELL currency
   useEffect(() => {
-    const allowed = allowedPayMethods(sellCurrency);
+    const allowed = allowedPayMethods(sellCurrency, buyCurrency);
     if (!allowed.includes(payMethod)) setPayMethod(allowed[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sellCurrency]);
+  }, [sellCurrency, buyCurrency]);
 
   // Enforce receive-method restrictions based on BUY currency and service hours
   useEffect(() => {
-    const baseAllowed = allowedReceiveMethods(buyCurrency);
-    const allowed = deliveryClosed ? baseAllowed.filter((m) => m === "transfer" || m === "atm") : baseAllowed;
+    const baseAllowed = allowedReceiveMethods(buyCurrency, sellCurrency);
+    const allowed = deliveryClosed && !(sellCurrency === "VND" && buyCurrency === "VND")
+      ? baseAllowed.filter((m) => m === "transfer" || m === "atm")
+      : baseAllowed;
     if (allowed.length > 0 && !allowed.includes(receiveMethod)) setReceiveMethod(allowed[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buyCurrency, deliveryClosed]);
+  }, [buyCurrency, sellCurrency, deliveryClosed]);
 
   // Load rates (VND) + market (G)
   useEffect(() => {
@@ -655,16 +677,22 @@ export default function CalculatorTab({ me }: Props) {
     });
   }, [buyCurrency]);
 
-  const allowedPay = useMemo(() => allowedPayMethods(sellCurrency), [sellCurrency]);
+  const allowedPay = useMemo(() => allowedPayMethods(sellCurrency, buyCurrency), [sellCurrency, buyCurrency]);
   const allowedRecv = useMemo(() => {
-    const baseAllowed = allowedReceiveMethods(buyCurrency);
-    return deliveryClosed ? baseAllowed.filter((m) => m === "transfer" || m === "atm") : baseAllowed;
-  }, [buyCurrency, deliveryClosed]);
+    const baseAllowed = allowedReceiveMethods(buyCurrency, sellCurrency);
+    return deliveryClosed && !(sellCurrency === "VND" && buyCurrency === "VND")
+      ? baseAllowed.filter((m) => m === "transfer" || m === "atm")
+      : baseAllowed;
+  }, [buyCurrency, sellCurrency, deliveryClosed]);
   const receiveMethodUnavailableByHours = deliveryClosed && allowedRecv.length === 0;
 
   // Missing data check
   const missingRates = useMemo(() => {
     const miss: string[] = [];
+
+    if (sellCurrency === "VND" && buyCurrency === "VND") {
+      return [];
+    }
 
     if (gMode) {
       if (!market || !market.ok) miss.push("G");
@@ -699,6 +727,7 @@ export default function CalculatorTab({ me }: Props) {
   const invalidMinSell =
     sellText.trim() !== "" &&
     sellAmount > 0 &&
+    !(sellCurrency === "VND" && buyCurrency === "VND") &&
     sellAmount < MIN_SELL_AMOUNTS[sellCurrency];
 
   const hasInvalid =
@@ -732,6 +761,21 @@ export default function CalculatorTab({ me }: Props) {
       if (!Number.isFinite(n)) return "";
       return fmtAmount(cur, n);
     };
+
+    if (sellCurrency === "VND" && buyCurrency === "VND") {
+      if (lastEdited.current === "sell") {
+        const outRaw = calcBuyAmountSameVnd(sellAmount);
+        const next = sellText.trim() !== "" && Number.isFinite(outRaw) ? formatComputed(buyCurrency, outRaw) : "";
+        buyRawRef.current = next ? outRaw : null;
+        if (next !== buyText) setBuyText(next);
+      } else {
+        const needRaw = calcSellAmountSameVnd(buyAmount);
+        const next = buyText.trim() !== "" && Number.isFinite(needRaw) ? formatComputedSell(sellCurrency, needRaw) : "";
+        sellRawRef.current = next ? needRaw : null;
+        if (next !== sellText) setSellText(next);
+      }
+      return;
+    }
 
     if (gMode) {
       if (lastEdited.current === "sell") {
@@ -826,8 +870,11 @@ export default function CalculatorTab({ me }: Props) {
     return { base, tier, m, eff: base + tier + m };
   }, [gMode, rates, buyCurrency, sellCurrency, sellAmount, clientStatus, payMethod, receiveMethod, bonuses]);
 
+  const sameCurrencyAllowed = sellCurrency === buyCurrency ? sellCurrency === "VND" && buyCurrency === "VND" : true;
+  const isVndToVnd = sellCurrency === "VND" && buyCurrency === "VND";
+
   const canSendBase =
-    canCalc && sellCurrency !== buyCurrency && sellText.trim() !== "" && buyText.trim() !== "" && sellAmount > 0 && buyAmount > 0;
+    canCalc && sameCurrencyAllowed && sellText.trim() !== "" && buyText.trim() !== "" && sellAmount > 0 && buyAmount > 0;
 
   const canSend = canSendBase && !hasInvalid && !managerOffline && !receiveMethodUnavailableByHours && allowedRecv.includes(receiveMethod);
 
@@ -842,9 +889,11 @@ export default function CalculatorTab({ me }: Props) {
       : null;
 
   const vndNote =
-    (sellCurrency === "VND" || buyCurrency === "VND") && !(buyCurrency === "VND" && receiveMethod === "atm")
-      ? "VND: наличные — передача и получение кратно 10,000; перевод — любая сумма."
-      : null;
+    isVndToVnd
+      ? "VND → VND: доступна выдача и получение всеми способами. Комиссия 2%, но не меньше 100,000 VND."
+      : (sellCurrency === "VND" || buyCurrency === "VND") && !(buyCurrency === "VND" && receiveMethod === "atm")
+        ? "VND: наличные — передача и получение кратно 10,000; перевод — любая сумма."
+        : null;
 
   const thbNote =
     sellCurrency === "THB" || buyCurrency === "THB"
@@ -861,12 +910,12 @@ export default function CalculatorTab({ me }: Props) {
     const nextSellCurrency = buyCurrency;
     const nextBuyCurrency = sellCurrency;
 
-    const swappedPayCandidate: PayMethod | null = receiveMethod === "cash" || receiveMethod === "transfer" ? receiveMethod : null;
-    const swappedReceiveCandidate: ReceiveMethod | null = payMethod === "cash" || payMethod === "transfer" ? payMethod : null;
+    const swappedPayCandidate: PayMethod | null = receiveMethod === "cash" || receiveMethod === "transfer" || receiveMethod === "atm" ? receiveMethod : null;
+    const swappedReceiveCandidate: ReceiveMethod | null = payMethod === "cash" || payMethod === "transfer" || payMethod === "atm" ? payMethod : null;
 
-    const nextAllowedPay = allowedPayMethods(nextSellCurrency);
-    const nextAllowedReceiveBase = allowedReceiveMethods(nextBuyCurrency);
-    const nextAllowedReceive = deliveryClosed
+    const nextAllowedPay = allowedPayMethods(nextSellCurrency, nextBuyCurrency);
+    const nextAllowedReceiveBase = allowedReceiveMethods(nextBuyCurrency, nextSellCurrency);
+    const nextAllowedReceive = deliveryClosed && !(nextSellCurrency === "VND" && nextBuyCurrency === "VND")
       ? nextAllowedReceiveBase.filter((m) => m === "transfer" || m === "atm")
       : nextAllowedReceiveBase;
 
@@ -913,6 +962,7 @@ export default function CalculatorTab({ me }: Props) {
       buyAmount,
       payMethod,
       receiveMethod,
+      comment: requestComment.trim(),
     };
 
     // 1) Always create the request on the server (so it appears in admin panel instantly)
@@ -948,6 +998,7 @@ export default function CalculatorTab({ me }: Props) {
     // Optional: clear inputs after submit
     setSellText("");
     setBuyText("");
+    setRequestComment("");
   }
 
   return (
@@ -1124,6 +1175,16 @@ export default function CalculatorTab({ me }: Props) {
             {invalidEurSell || invalidEurBuy ? <div className="vx-warn">EUR: передать и получить можно только наличными, кратно 50.</div> : null}
             {invalidThbSell || invalidThbBuy ? <div className="vx-warn">THB: передать и получить можно только наличными, кратно 100.</div> : null}
             {minSellNote ? <div className="vx-warn">{minSellNote}</div> : null}
+
+            <div className="vx-sp12" />
+
+            <textarea
+              className="input vx-in"
+              rows={3}
+              placeholder="например адрес куда доставить"
+              value={requestComment}
+              onChange={(e) => setRequestComment(e.target.value.slice(0, 300))}
+            />
 
             <div className="vx-sp12" />
 

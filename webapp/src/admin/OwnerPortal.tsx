@@ -1996,6 +1996,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                   <div>🎯 Получит: <b>{reqSelected.buyAmount}</b></div>
                   <div>💳 Оплата: <b>{methodRu(reqSelected.payMethod)}</b></div>
                   <div>📦 Получение: <b>{methodRu(reqSelected.receiveMethod)}</b></div>
+                  {reqSelected.comment ? <div>📝 Комментарий: <b>{reqSelected.comment}</b></div> : null}
                 </div>
 
                 <div className="hr" />

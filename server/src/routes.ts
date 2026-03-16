@@ -88,6 +88,29 @@ function parseRequestState(s: any): RequestState | null {
   return null;
 }
 
+function isSameCurrencyVndPair(sellCurrency: Currency, buyCurrency: Currency) {
+  return sellCurrency === "VND" && buyCurrency === "VND";
+}
+
+function isAllowedRequestPair(sellCurrency: Currency, buyCurrency: Currency) {
+  if (sellCurrency !== buyCurrency) return true;
+  return isSameCurrencyVndPair(sellCurrency, buyCurrency);
+}
+
+function allowedRequestPayMethods(sellCurrency: Currency, buyCurrency: Currency) {
+  if (isSameCurrencyVndPair(sellCurrency, buyCurrency)) return new Set(["cash", "transfer", "atm"]);
+  if (sellCurrency === "RUB" || sellCurrency === "USDT") return new Set(["transfer"]);
+  if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return new Set(["cash"]);
+  return new Set(["cash", "transfer"]);
+}
+
+function allowedRequestReceiveMethods(buyCurrency: Currency, sellCurrency?: Currency) {
+  if (sellCurrency === "VND" && buyCurrency === "VND") return new Set(["cash", "transfer", "atm"]);
+  if (buyCurrency === "VND") return new Set(["cash", "transfer", "atm"]);
+  if (buyCurrency === "RUB" || buyCurrency === "USDT") return new Set(["transfer"]);
+  return new Set(["cash"]);
+}
+
 export function createApiRouter(opts: {
   botToken: string;
   ownerTgId?: number;
@@ -1889,8 +1912,6 @@ router.post("/admin/faq", async (req, res) => {
       if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
 
       const allowedCurrencies = new Set(["RUB", "USDT", "USD", "EUR", "THB", "VND"]);
-      const allowedPayMethods = new Set(["cash", "transfer"]);
-      const allowedReceiveMethods = new Set(["cash", "transfer", "atm"]);
 
       const { result } = await mutateStore((store) => {
         const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
@@ -1907,8 +1928,11 @@ router.post("/admin/faq", async (req, res) => {
         const buyAmount = Number(req.body?.buyAmount);
         const payMethod = String(req.body?.payMethod || r.payMethod || "").toLowerCase().trim();
         const receiveMethod = String(req.body?.receiveMethod || r.receiveMethod || "").toLowerCase().trim();
+        const comment = String(req.body?.comment ?? r.comment ?? "").trim().slice(0, 300);
+        const allowedPayMethods = allowedRequestPayMethods(sellCurrency as Currency, buyCurrency as Currency);
+        const allowedReceiveMethods = allowedRequestReceiveMethods(buyCurrency as Currency, sellCurrency as Currency);
 
-        if (!allowedCurrencies.has(sellCurrency) || !allowedCurrencies.has(buyCurrency) || sellCurrency === buyCurrency) {
+        if (!allowedCurrencies.has(sellCurrency) || !allowedCurrencies.has(buyCurrency) || !isAllowedRequestPair(sellCurrency as Currency, buyCurrency as Currency)) {
           return { error: "bad_currency_pair" as const };
         }
         if (!Number.isFinite(sellAmount) || sellAmount <= 0 || !Number.isFinite(buyAmount) || buyAmount <= 0) {
@@ -1924,6 +1948,7 @@ router.post("/admin/faq", async (req, res) => {
         r.buyAmount = buyAmount;
         r.payMethod = payMethod;
         r.receiveMethod = receiveMethod;
+        r.comment = comment || undefined;
         r.state_updated_at = new Date().toISOString();
         return { request: { ...r } };
       });
@@ -2054,17 +2079,20 @@ router.post("/admin/faq", async (req, res) => {
       const sellAmount = Number(p.sellAmount);
       const buyAmount = Number(p.buyAmount);
       const receiveMethod = String(p.receiveMethod || "").toLowerCase() as ReceiveMethod;
+      const payMethod = String(p.payMethod || "").toLowerCase().trim();
+      const comment = String(p.comment || "").trim().slice(0, 300);
 
       const allowedCur = new Set<Currency>(["RUB", "USD", "USDT", "VND", "EUR", "THB"]);
-      const allowedMethod = new Set<ReceiveMethod>(["cash", "transfer", "atm"]);
+      const allowedPay = allowedRequestPayMethods(sellCurrency, buyCurrency);
+      const allowedReceive = allowedRequestReceiveMethods(buyCurrency, sellCurrency);
 
-      if (!allowedCur.has(sellCurrency) || !allowedCur.has(buyCurrency) || sellCurrency === buyCurrency) {
+      if (!allowedCur.has(sellCurrency) || !allowedCur.has(buyCurrency) || !isAllowedRequestPair(sellCurrency, buyCurrency)) {
         return res.status(400).json({ ok: false, error: "bad_currency" });
       }
       if (!(sellAmount > 0) || !(buyAmount > 0)) {
         return res.status(400).json({ ok: false, error: "bad_amount" });
       }
-      if (!allowedMethod.has(receiveMethod)) {
+      if (!allowedPay.has(payMethod) || !allowedReceive.has(receiveMethod)) {
         return res.status(400).json({ ok: false, error: "bad_method" });
       }
 
@@ -2100,8 +2128,9 @@ router.post("/admin/faq", async (req, res) => {
         buyCurrency,
         sellAmount,
         buyAmount,
-        payMethod: String(p.payMethod || ""),
+        payMethod,
         receiveMethod,
+        ...(comment ? { comment } : {}),
         from: user,
 	        status: effStatus,
         created_at: new Date().toISOString()
@@ -2129,17 +2158,27 @@ router.post("/admin/faq", async (req, res) => {
             : `${user.first_name || ""} ${user.last_name || ""}`.trim() || `id ${user.id}`) +
 	          ` • статус: ${statusLabel[effStatus]}`;
 
-        const payMap: Record<string, string> = { cash: "наличные", transfer: "перевод", other: "другое" };
+        const payMap: Record<string, string> = { cash: "наличные", transfer: "перевод", atm: "банкомат", other: "другое" };
 
-	        const text =
-          `💱 Новая заявка (в работе)\n` +
-          `🆔 #${shortId}\n` +
-          `👤 ${who}\n` +
-          `🔁 ${sellCurrency} → ${buyCurrency}\n` +
-	          `💸 Отдаёт: ${fmtReqAmount(sellCurrency, sellAmount)}\n` +
-	          `🎯 Получит: ${fmtReqAmount(buyCurrency, buyAmount)}\n` +
-          `💳 Оплата: ${payMap[String(p.payMethod || "")] || String(p.payMethod || "—")}\n` +
-          `📦 Получение: ${methodMap[receiveMethod]}\n` +
+        const text =
+          `💱 Новая заявка (в работе)
+` +
+          `🆔 #${shortId}
+` +
+          `👤 ${who}
+` +
+          `🔁 ${sellCurrency} → ${buyCurrency}
+` +
+          `💸 Отдаёт: ${fmtReqAmount(sellCurrency, sellAmount)}
+` +
+          `🎯 Получит: ${fmtReqAmount(buyCurrency, buyAmount)}
+` +
+          `💳 Оплата: ${payMap[payMethod] || payMethod || "—"}
+` +
+          `📦 Получение: ${methodMap[receiveMethod]}
+` +
+          `${comment ? `📝 Комментарий: ${comment}
+` : ""}` +
           `🕒 ${dtDaNang}`;
 
         const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;

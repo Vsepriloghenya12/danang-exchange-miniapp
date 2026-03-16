@@ -114,6 +114,7 @@ export default function HistoryTab({ me }: any) {
           const line1 = `Отдаёте: ${r?.sellAmount} ${r?.sellCurrency}`;
           const line2 = `Получаете: ${r?.buyAmount} ${r?.buyCurrency}`;
           const methods = `${methodLabel(String(r?.payMethod || ""))} → ${methodLabel(String(r?.receiveMethod || ""))}`;
+          const comment = String(r?.comment || "").trim();
 
           return (
             <button
