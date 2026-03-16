@@ -2,7 +2,7 @@ import { Telegraf, Markup } from "telegraf";
 import { randomUUID } from "node:crypto";
 import {
   readStore,
-  writeStore,
+  mutateStore,
   upsertUserFromTelegram,
   type UserStatus,
   type StoredRequest,
@@ -75,14 +75,14 @@ export function createBot(opts: {
     await bot.telegram.sendMessage(chatId, text);
   };
   const saveGroupChatId = async (chatId: number) => {
-    const store = await readStore();
-    store.config.groupChatId = chatId;
-    await writeStore(store);
+    await mutateStore((store) => {
+      store.config.groupChatId = chatId;
+    });
   };
   const saveRequestsGroupChatId = async (chatId: number) => {
-    const store = await readStore();
-    (store.config as any).requestsGroupChatId = chatId;
-    await writeStore(store);
+    await mutateStore((store) => {
+      (store.config as any).requestsGroupChatId = chatId;
+    });
   };
 
   bot.start(async (ctx) => {
@@ -204,26 +204,32 @@ export function createBot(opts: {
       return ctx.reply("Статус только: standard | silver | gold (можно: стандарт/серебро/золото)");
     }
 
-    const store = await readStore();
-    const key = String(tgId);
     const now = new Date().toISOString();
 
-    if (!store.users[key]) {
-      store.users[key] = {
-        tg_id: tgId,
-        username: undefined,
-        first_name: undefined,
-        last_name: undefined,
-        status: next,
-        created_at: now,
-        last_seen_at: now
-      };
-    } else {
-      store.users[key].status = next;
-      store.users[key].last_seen_at = now;
-    }
+    await mutateStore((store) => {
+      const key = String(tgId);
+      if (!store.users[key]) {
+        store.users[key] = {
+          tg_id: tgId,
+          username: undefined,
+          first_name: undefined,
+          last_name: undefined,
+          status: next,
+          created_at: now,
+          last_seen_at: now
+        };
+      } else {
+        store.users[key].status = next;
+        store.users[key].last_seen_at = now;
+      }
 
-    await writeStore(store);
+      for (const c of store.contacts || []) {
+        if (Number(c?.tg_id) === tgId) {
+          c.status = next;
+          c.updated_at = now;
+        }
+      }
+    });
     return ctx.reply(`Готово ✅ tg_id=${tgId} → статус ${statusLabel[next]}`);
   });
 
@@ -273,10 +279,10 @@ export function createBot(opts: {
       return;
     }
 
-    const store = await readStore();
+    const preStore = await readStore();
 
     const userKey = String(ctx.from?.id ?? "");
-    const status: UserStatus = store.users[userKey]?.status ?? "standard";
+    const status: UserStatus = preStore.users[userKey]?.status ?? "standard";
 
     const methodMap: Record<string, string> = { cash: "наличные", transfer: "перевод", atm: "банкомат" };
     const payMap: Record<string, string> = { cash: "наличные", transfer: "перевод", other: "другое" };
@@ -303,7 +309,6 @@ export function createBot(opts: {
 	      ` • статус: ${statusLabel[effStatus]}`;
 
     // Create a request in the store (so it appears in the miniapp admin tab instantly)
-    store.requests = store.requests || [];
     const id = randomUUID();
     const reqObj: StoredRequest = {
       id,
@@ -318,8 +323,10 @@ export function createBot(opts: {
 	      status: effStatus,
       created_at: new Date().toISOString()
     };
-    store.requests.push(reqObj);
-    await writeStore(store);
+    const { store } = await mutateStore((store) => {
+      store.requests = store.requests || [];
+      store.requests.push(reqObj);
+    });
 
     const shortId = id.slice(-6);
     const text =

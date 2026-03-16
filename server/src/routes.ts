@@ -6,12 +6,12 @@ import { fileURLToPath } from "node:url";
 import { listCanonicalBankIcons, normalizeBankIcons, normalizeContactBanks } from "./bankIcons.js";
 import {
   readStore,
-  writeStore,
+  mutateStore,
   upsertUserFromTelegram,
+  upsertContactRecord,
   defaultBonuses,
   defaultGFormulas,
   normUsername,
-  type Contact,
   type UserStatus,
   type RequestState,
   type StoredRequest,
@@ -27,36 +27,6 @@ import { getMarketSnapshot } from "./marketRates.js";
 import { HAS_DATABASE, ensureSchema, getPool } from "./db.js";
 
 
-// --------------------
-// Weather (OpenWeatherMap)
-// --------------------
-type WeatherPayload = {
-  city: string;
-  tempC: number;
-  feelsC: number;
-  desc: string;
-  humidity: number;
-  windMs: number;
-  emoji: string;
-  icon?: string;
-  updatedAt: string;
-};
-
-const DANANG = { lat: 16.0544, lon: 108.2022 };
-const WEATHER_TTL_MS = 10 * 60 * 1000;
-let weatherCache: { ts: number; data: WeatherPayload } | null = null;
-
-function weatherEmoji(main: string) {
-  const m = String(main || "").toLowerCase();
-  if (m.includes("thunder")) return "⛈️";
-  if (m.includes("drizzle")) return "🌦️";
-  if (m.includes("rain")) return "🌧️";
-  if (m.includes("snow")) return "❄️";
-  if (m.includes("mist") || m.includes("fog") || m.includes("haze")) return "🌫️";
-  if (m.includes("cloud")) return "☁️";
-  if (m.includes("clear")) return "☀️";
-  return "🌤️";
-}
 
 type ReceiveMethod = "cash" | "transfer" | "atm";
 type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB";
@@ -130,6 +100,71 @@ export function createApiRouter(opts: {
     if (list.length > 0) return list.includes(userId);
     if (opts.ownerTgId) return userId === opts.ownerTgId;
     return false;
+  }
+
+  let cachedBotUsername: string | null = null;
+  let botUsernamePromise: Promise<string | null> | null = null;
+
+  async function getBotUsername(): Promise<string | null> {
+    if (cachedBotUsername) return cachedBotUsername;
+    if (botUsernamePromise) return botUsernamePromise;
+    botUsernamePromise = (async () => {
+      try {
+        const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/getMe`);
+        const tgJson: any = await tgRes.json();
+        const uname = tgJson?.ok ? String(tgJson?.result?.username || "") : "";
+        if (uname) cachedBotUsername = uname;
+        return cachedBotUsername;
+      } catch {
+        return null;
+      } finally {
+        if (!cachedBotUsername) botUsernamePromise = null;
+      }
+    })();
+    return botUsernamePromise;
+  }
+
+  async function buildMiniAppLink(startParam: string, fallbackParams?: Record<string, string>): Promise<string> {
+    const overrideTmaLink = String(process.env.TMA_LINK || "").trim();
+    const explicitBotUsername = String(process.env.BOT_USERNAME || "").trim().replace(/^@+/, "");
+    const webappUrl = String(process.env.WEBAPP_URL || "").trim();
+
+    const applyStartParamToTgLink = (raw: string): string => {
+      try {
+        const u = new URL(raw);
+        const host = String(u.hostname || "").replace(/^www\./i, "").toLowerCase();
+        if (host !== "t.me" && host !== "telegram.me") return "";
+        u.searchParams.set("startapp", startParam);
+        return u.toString();
+      } catch {
+        return "";
+      }
+    };
+
+    const overrideLink = overrideTmaLink ? applyStartParamToTgLink(overrideTmaLink) : "";
+    if (overrideLink) return overrideLink;
+
+    if (explicitBotUsername) {
+      return `https://t.me/${explicitBotUsername}?startapp=${encodeURIComponent(startParam)}`;
+    }
+
+    const uname = await getBotUsername();
+    if (uname) return `https://t.me/${uname}?startapp=${encodeURIComponent(startParam)}`;
+
+    if (webappUrl) {
+      try {
+        const u = new URL(webappUrl);
+        u.hash = "";
+        for (const [k, v] of Object.entries(fallbackParams || {})) {
+          if (v) u.searchParams.set(k, v);
+        }
+        return u.toString();
+      } catch {
+        return webappUrl;
+      }
+    }
+
+    return "https://t.me";
   }
 
   async function requireAuth(req: express.Request) {
@@ -331,44 +366,6 @@ export function createApiRouter(opts: {
   });
 
   // --------------------
-  // Public: current weather for Da Nang (cached)
-  // --------------------
-  router.get("/weather", async (_req, res) => {
-    try {
-      if (weatherCache && Date.now() - weatherCache.ts < WEATHER_TTL_MS) {
-        return res.json({ ok: true, data: weatherCache.data, cached: true });
-      }
-
-      const apiKey = String(process.env.OWM_API_KEY || process.env.OPENWEATHER_API_KEY || "7da2b17df52f2ac9059c7165598237cb").trim();
-      if (!apiKey) return res.status(500).json({ ok: false, error: "owm_key_missing" });
-
-      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${DANANG.lat}&lon=${DANANG.lon}&appid=${apiKey}&units=metric&lang=ru`;
-      const r = await fetch(url);
-      const j: any = await r.json();
-      if (!r.ok) return res.status(502).json({ ok: false, error: j?.message || "owm_failed" });
-
-      const w0 = Array.isArray(j?.weather) ? j.weather[0] : null;
-      const main = String(w0?.main || "");
-      const payload: WeatherPayload = {
-        city: String(j?.name || "Da Nang"),
-        tempC: Math.round(Number(j?.main?.temp ?? 0)),
-        feelsC: Math.round(Number(j?.main?.feels_like ?? 0)),
-        desc: String(w0?.description || ""),
-        humidity: Number(j?.main?.humidity ?? 0),
-        windMs: Number(j?.wind?.speed ?? 0),
-        emoji: weatherEmoji(main),
-        icon: String(w0?.icon || "") || undefined,
-        updatedAt: new Date().toISOString()
-      };
-
-      weatherCache = { ts: Date.now(), data: payload };
-      return res.json({ ok: true, data: payload, cached: false });
-    } catch (e: any) {
-      return res.status(500).json({ ok: false, error: e?.message || "weather_failed" });
-    }
-  });
-
-  // --------------------
   // Public: list bank icon filenames from webapp/public/banks (or dist/banks)
   // --------------------
   const __filename = fileURLToPath(import.meta.url);
@@ -490,9 +487,9 @@ export function createApiRouter(opts: {
         )
       );
 
-      const store = await readStore();
-      store.config = { ...(store.config || {}), blacklistUsernames: normalized };
-      await writeStore(store);
+      await mutateStore((store) => {
+        store.config = { ...(store.config || {}), blacklistUsernames: normalized };
+      });
       return res.json({ ok: true, usernames: normalized });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -585,7 +582,18 @@ export function createApiRouter(opts: {
 
       // sort by date ASC
       out.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
-      return res.json({ ok: true, today, events: out });
+
+      const outWithShare = await Promise.all(
+        out.map(async (ev) => ({
+          ...ev,
+          shareUrl: await buildMiniAppLink(`afisha_${String(ev?.id || '').trim()}`, {
+            screen: 'afisha',
+            event: String(ev?.id || '').trim(),
+          }),
+        }))
+      );
+
+      return res.json({ ok: true, today, events: outWithShare });
     } catch (e: any) {
       return res.status(500).json({ ok: false, error: e?.message || 'afisha_failed' });
     }
@@ -600,15 +608,17 @@ export function createApiRouter(opts: {
       if (!id) return res.status(400).json({ ok: false, error: 'bad_id' });
       if (kind !== 'details' && kind !== 'location') return res.status(400).json({ ok: false, error: 'bad_kind' });
 
-      const store = await readStore();
-      const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
-      const ev = items.find((x) => String(x?.id || '') === id);
-      if (!ev) return res.status(404).json({ ok: false, error: 'not_found' });
-      ev.clicks = ev.clicks || { details: 0, location: 0 };
-      ev.clicks[kind] = Number(ev.clicks[kind] || 0) + 1;
-      ev.updated_at = new Date().toISOString();
-      (store as any).afisha = items;
-      await writeStore(store);
+      const { result } = await mutateStore((store) => {
+        const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
+        const ev = items.find((x) => String(x?.id || '') === id);
+        if (!ev) return { notFound: true };
+        ev.clicks = ev.clicks || { details: 0, location: 0 };
+        ev.clicks[kind] = Number(ev.clicks[kind] || 0) + 1;
+        ev.updated_at = new Date().toISOString();
+        (store as any).afisha = items;
+        return { notFound: false };
+      });
+      if (result.notFound) return res.status(404).json({ ok: false, error: 'not_found' });
       return res.json({ ok: true });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
@@ -690,11 +700,11 @@ export function createApiRouter(opts: {
         created_by: user?.id || 0
       };
 
-      const store = await readStore();
-      const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
-      items.push(ev);
-      (store as any).afisha = items;
-      await writeStore(store);
+      await mutateStore((store) => {
+        const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
+        items.push(ev);
+        (store as any).afisha = items;
+      });
       return res.json({ ok: true, event: ev });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
@@ -729,49 +739,52 @@ export function createApiRouter(opts: {
       const imageDataUrlRaw = (req.body as any)?.imageDataUrl;
       const imageDataUrl = typeof imageDataUrlRaw === 'string' ? String(imageDataUrlRaw) : null;
 
-      const store = await readStore();
-      const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
-      const ev = items.find((x) => String(x?.id || '') === id);
-      if (!ev) return res.status(404).json({ ok: false, error: 'not_found' });
+      const { result } = await mutateStore((store) => {
+        const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
+        const ev = items.find((x) => String(x?.id || '') === id);
+        if (!ev) return { error: 'not_found' as const };
 
-      if (categoriesRaw != null || categoryRaw != null) {
-        if (!category) return res.status(400).json({ ok: false, error: 'bad_category' });
-        if (catsNorm.length < 1 || catsNorm.length > 3) return res.status(400).json({ ok: false, error: 'bad_categories' });
-        ev.category = category;
-        ev.categories = catsNorm;
-      }
-      if (dateRaw != null) {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) return res.status(400).json({ ok: false, error: 'bad_date' });
-        ev.date = date;
-      }
-      if (titleRaw != null) {
-        if (!title || title.length < 2) return res.status(400).json({ ok: false, error: 'bad_title' });
-        ev.title = title;
-      }
-
-      if (commentRaw != null) {
-        if (comment && comment.length > 300) return res.status(400).json({ ok: false, error: 'bad_comment' });
-        ev.comment = comment || '';
-      }
-      if (detailsUrlRaw != null) {
-        if (!detailsUrl) return res.status(400).json({ ok: false, error: 'bad_details_url' });
-        ev.detailsUrl = detailsUrl;
-      }
-      if (locationUrlRaw != null) {
-        if (!locationUrl) return res.status(400).json({ ok: false, error: 'bad_location_url' });
-        ev.locationUrl = locationUrl;
-      }
-
-      if (imageDataUrl != null) {
-        if (imageDataUrl && imageDataUrl.startsWith('data:')) {
-          ev.imageUrl = saveAfishaImage(id, imageDataUrl);
+        if (categoriesRaw != null || categoryRaw != null) {
+          if (!category) return { error: 'bad_category' as const };
+          if (catsNorm.length < 1 || catsNorm.length > 3) return { error: 'bad_categories' as const };
+          ev.category = category;
+          ev.categories = catsNorm;
         }
-      }
+        if (dateRaw != null) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) return { error: 'bad_date' as const };
+          ev.date = date;
+        }
+        if (titleRaw != null) {
+          if (!title || title.length < 2) return { error: 'bad_title' as const };
+          ev.title = title;
+        }
 
-      ev.updated_at = new Date().toISOString();
-      (store as any).afisha = items;
-      await writeStore(store);
-      return res.json({ ok: true, event: ev });
+        if (commentRaw != null) {
+          if (comment && comment.length > 300) return { error: 'bad_comment' as const };
+          ev.comment = comment || '';
+        }
+        if (detailsUrlRaw != null) {
+          if (!detailsUrl) return { error: 'bad_details_url' as const };
+          ev.detailsUrl = detailsUrl;
+        }
+        if (locationUrlRaw != null) {
+          if (!locationUrl) return { error: 'bad_location_url' as const };
+          ev.locationUrl = locationUrl;
+        }
+
+        if (imageDataUrl != null) {
+          if (imageDataUrl && imageDataUrl.startsWith('data:')) {
+            ev.imageUrl = saveAfishaImage(id, imageDataUrl);
+          }
+        }
+
+        ev.updated_at = new Date().toISOString();
+        (store as any).afisha = items;
+        return { event: ev };
+      });
+      if (result.error === 'not_found') return res.status(404).json({ ok: false, error: 'not_found' });
+      if (result.error) return res.status(400).json({ ok: false, error: result.error });
+      return res.json({ ok: true, event: result.event });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
     }
@@ -818,10 +831,6 @@ export function createApiRouter(opts: {
     const store = await readStore();
     const current = (store.config as any)?.gFormulas;
     const formulas = cleanGFormulas(current);
-    if (JSON.stringify(current ?? null) !== JSON.stringify(formulas)) {
-      store.config = { ...(store.config || {}), gFormulas: formulas };
-      await writeStore(store);
-    }
     res.json({ ok: true, formulas });
   });
 
@@ -832,10 +841,6 @@ export function createApiRouter(opts: {
       const store = await readStore();
       const current = (store.config as any)?.gFormulas;
       const formulas = cleanGFormulas(current);
-      if (JSON.stringify(current ?? null) !== JSON.stringify(formulas)) {
-        store.config = { ...(store.config || {}), gFormulas: formulas };
-        await writeStore(store);
-      }
       res.json({ ok: true, formulas });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -848,9 +853,9 @@ export function createApiRouter(opts: {
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
       const body: any = req.body || {};
       const next = cleanGFormulas(body.formulas);
-      const store = await readStore();
-      store.config = { ...(store.config || {}), gFormulas: next };
-      await writeStore(store);
+      await mutateStore((store) => {
+        store.config = { ...(store.config || {}), gFormulas: next };
+      });
       res.json({ ok: true, formulas: next });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -882,11 +887,6 @@ function cleanFaqItems(input: any) {
 router.get("/faq", async (_req, res) => {
   const store = await readStore();
   const items = cleanFaqItems((store as any).faq);
-  // save normalized
-  if (JSON.stringify((store as any).faq ?? null) !== JSON.stringify(items)) {
-    (store as any).faq = items;
-    await writeStore(store);
-  }
   res.json({ ok: true, items });
 });
 
@@ -897,10 +897,6 @@ router.get("/admin/faq", async (req, res) => {
     if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
     const store = await readStore();
     const items = cleanFaqItems((store as any).faq);
-    if (JSON.stringify((store as any).faq ?? null) !== JSON.stringify(items)) {
-      (store as any).faq = items;
-      await writeStore(store);
-    }
     res.json({ ok: true, items });
   } catch (e: any) {
     res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -913,9 +909,9 @@ router.post("/admin/faq", async (req, res) => {
     if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
     const body: any = req.body || {};
     const next = cleanFaqItems(body.items);
-    const store = await readStore();
-    (store as any).faq = next;
-    await writeStore(store);
+    await mutateStore((store) => {
+      (store as any).faq = next;
+    });
     res.json({ ok: true, items: next });
   } catch (e: any) {
     res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -932,12 +928,6 @@ router.post("/admin/faq", async (req, res) => {
     const current = (store.config as any)?.bonuses;
     const bonuses = cleanBonuses(current);
 
-    // Если по дороге что-то «починили» — сохраним обратно, чтобы больше не повторялось.
-    if (JSON.stringify(current ?? null) !== JSON.stringify(bonuses)) {
-      store.config = { ...(store.config || {}), bonuses };
-      await writeStore(store);
-    }
-
     res.json({ ok: true, bonuses });
   });
 
@@ -949,11 +939,6 @@ router.post("/admin/faq", async (req, res) => {
       const store = await readStore();
       const current = (store.config as any)?.bonuses;
       const bonuses = cleanBonuses(current);
-
-      if (JSON.stringify(current ?? null) !== JSON.stringify(bonuses)) {
-        store.config = { ...(store.config || {}), bonuses };
-        await writeStore(store);
-      }
 
       res.json({ ok: true, bonuses });
     } catch (e: any) {
@@ -1031,9 +1016,9 @@ router.post("/admin/faq", async (req, res) => {
       const body = req.body || {};
       const bonuses = cleanBonuses(body.bonuses ?? body);
 
-      const store = await readStore();
-      store.config = { ...(store.config || {}), bonuses };
-      await writeStore(store);
+      await mutateStore((store) => {
+        store.config = { ...(store.config || {}), bonuses };
+      });
       res.json({ ok: true, bonuses });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -1095,10 +1080,10 @@ router.post("/admin/faq", async (req, res) => {
         }
       }
 
-      const store: any = await readStore();
-      store.atms = cleaned;
-      await writeStore(store);
-      res.json({ ok: true, atms: store.atms });
+      await mutateStore((store: any) => {
+        store.atms = cleaned;
+      });
+      res.json({ ok: true, atms: cleaned });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -1234,17 +1219,17 @@ router.post("/admin/faq", async (req, res) => {
         return res.status(400).json({ ok: false, error: "bad_numbers" });
       }
 
-      const store = await readStore();
       const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
-
-      store.ratesByDate[today] = {
+      const saved = {
         updated_at: new Date().toISOString(),
         updated_by: user.id,
         rates: data
       };
 
-      await writeStore(store);
-      res.json({ ok: true, date: today, data: store.ratesByDate[today] });
+      await mutateStore((store) => {
+        store.ratesByDate[today] = saved;
+      });
+      res.json({ ok: true, date: today, data: saved });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -1305,17 +1290,18 @@ router.post("/admin/faq", async (req, res) => {
         return res.status(400).json({ ok: false, error: "bad_numbers" });
       }
 
-      const store: any = await readStore();
-      if (!store.ratesByDate || typeof store.ratesByDate !== "object") store.ratesByDate = {};
-
-      store.ratesByDate[date] = {
+      const saved = {
         updated_at: new Date().toISOString(),
         updated_by: user.id,
         rates: data
       };
 
-      await writeStore(store);
-      return res.json({ ok: true, date, data: store.ratesByDate[date] });
+      await mutateStore((store: any) => {
+        if (!store.ratesByDate || typeof store.ratesByDate !== "object") store.ratesByDate = {};
+        store.ratesByDate[date] = saved;
+      });
+
+      return res.json({ ok: true, date, data: saved });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -1380,9 +1366,9 @@ router.post("/admin/faq", async (req, res) => {
         .map((x) => Number(x))
         .filter((n) => Number.isFinite(n) && n > 0);
 
-      const store = await readStore();
-      store.config = { ...(store.config || {}), adminTgIds };
-      await writeStore(store);
+      await mutateStore((store) => {
+        store.config = { ...(store.config || {}), adminTgIds };
+      });
       return res.json({ ok: true, adminTgIds });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -1409,9 +1395,9 @@ router.post("/admin/faq", async (req, res) => {
       const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
       const template = String((req.body as any)?.template || "");
-      const store = await readStore();
-      store.config = { ...(store.config || {}), publishTemplate: template };
-      await writeStore(store);
+      await mutateStore((store) => {
+        store.config = { ...(store.config || {}), publishTemplate: template };
+      });
       return res.json({ ok: true, template });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
@@ -1437,7 +1423,6 @@ router.post("/admin/faq", async (req, res) => {
       const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
-      const store = await readStore();
       const tg_id = req.body?.tg_id ? Number(req.body.tg_id) : undefined;
       const username = normUsername(req.body?.username);
       const fullName = String(req.body?.fullName || req.body?.full_name || "").trim();
@@ -1448,54 +1433,23 @@ router.post("/admin/faq", async (req, res) => {
       if (!tg_id && !username) return res.status(400).json({ ok: false, error: "tg_id_or_username_required" });
 
       const now = new Date().toISOString();
+      const { result } = await mutateStore((store) => {
+        const c = upsertContactRecord(store, {
+          tg_id,
+          username,
+          fullName,
+          banks: banks !== undefined ? normalizeBankIcons(banks) : undefined,
+          status: status || undefined,
+          now
+        });
 
-      const list = store.contacts || [];
-      const byTg = tg_id ? list.find((x) => x && Number(x.tg_id) === tg_id) : undefined;
-      const byU = username ? list.find((x) => x && normUsername(x.username) === username) : undefined;
-
-      let c = byTg || byU;
-
-      // if we have two duplicates (tg_id and username variants) — merge into tg_id record
-      if (byTg && byU && byTg !== byU) {
-        const primary = byTg as Contact;
-        const secondary = byU as Contact;
-        primary.username = primary.username || secondary.username;
-        primary.fullName = primary.fullName || secondary.fullName;
-        primary.banks = normalizeBankIcons((Array.isArray(primary.banks) && primary.banks.length) ? primary.banks : secondary.banks);
-        primary.status = primary.status || secondary.status;
-        primary.created_at = primary.created_at || secondary.created_at;
-
-        const i = list.indexOf(secondary as any);
-        if (i >= 0) list.splice(i, 1);
-        c = primary;
-      }
-
-      if (!c) {
-        const id = tg_id ? `tg_${tg_id}` : `u_${username}`;
-        c = { id, created_at: now, updated_at: now } as Contact;
-        (store.contacts || []).push(c);
-      } else {
-        const desiredId = tg_id ? `tg_${tg_id}` : `u_${username}`;
-        if (!c.id) c.id = desiredId;
-        // promote id when we learned tg_id/username (avoid future duplicates)
-        if (desiredId && c.id !== desiredId && !(store.contacts || []).some((x) => x && x !== c && x.id === desiredId)) {
-          c.id = desiredId;
+        if (status && tg_id && store.users?.[String(tg_id)]) {
+          store.users[String(tg_id)].status = status;
         }
-      }
-      c.updated_at = now;
-      if (tg_id) c.tg_id = tg_id;
-      if (username) c.username = username;
-      if (fullName || fullName === "") c.fullName = fullName;
-      if (banks !== undefined) c.banks = normalizeBankIcons(banks);
-      if (status) c.status = status;
 
-      // If the user already exists in users, sync status immediately
-      if (status && tg_id && store.users?.[String(tg_id)]) {
-        store.users[String(tg_id)].status = status;
-      }
-
-      await writeStore(store);
-      return res.json({ ok: true, contact: c });
+        return c;
+      });
+      return res.json({ ok: true, contact: result });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -1813,48 +1767,42 @@ router.post("/admin/faq", async (req, res) => {
         });
       }
 
-      const store = await readStore();
-      const key = String(tgId);
       const now = new Date().toISOString();
-      const existingUser = store.users?.[key];
+      await mutateStore((store) => {
+        const key = String(tgId);
+        const existingUser = store.users?.[key];
+        const relatedContact = (store.contacts || []).find((c) => Number(c?.tg_id) === tgId);
+        const relatedRequest = [...(store.requests || [])]
+          .slice()
+          .reverse()
+          .find((r) => Number((r as any)?.from?.id) === tgId);
 
-      // Пробуем найти связанные данные, чтобы статус можно было менять даже для
-      // старых/частично мигрированных клиентов, у которых ещё нет записи в users.
-      const relatedContact = (store.contacts || []).find((c) => Number(c?.tg_id) === tgId);
-      const relatedRequest = [...(store.requests || [])]
-        .slice()
-        .reverse()
-        .find((r) => Number((r as any)?.from?.id) === tgId);
-
-      if (!existingUser) {
-        store.users[key] = {
-          tg_id: tgId,
-          username: relatedContact?.username || relatedRequest?.from?.username,
-          first_name: relatedRequest?.from?.first_name,
-          last_name: relatedRequest?.from?.last_name,
-          status: next,
-          created_at: now,
-          last_seen_at: now,
-        };
-      } else {
-        existingUser.status = next;
-        existingUser.last_seen_at = now;
-      }
-
-      // Держим contacts синхронизированным с users, иначе старый contact.status
-      // потом может визуально или логически откатывать новый статус.
-      const knownUsername = String(store.users[key]?.username || "").trim().toLowerCase();
-      for (const c of store.contacts || []) {
-        const sameTg = Number(c?.tg_id) === tgId;
-        const sameUsername = !!knownUsername && String(c?.username || "").trim().toLowerCase() === knownUsername;
-        if (sameTg || sameUsername) {
-          c.status = next;
-          c.updated_at = now;
-          if (!c.tg_id) c.tg_id = tgId;
+        if (!existingUser) {
+          store.users[key] = {
+            tg_id: tgId,
+            username: relatedContact?.username || relatedRequest?.from?.username,
+            first_name: relatedRequest?.from?.first_name,
+            last_name: relatedRequest?.from?.last_name,
+            status: next,
+            created_at: now,
+            last_seen_at: now,
+          };
+        } else {
+          existingUser.status = next;
+          existingUser.last_seen_at = now;
         }
-      }
 
-      await writeStore(store);
+        const knownUsername = String(store.users[key]?.username || "").trim().toLowerCase();
+        for (const c of store.contacts || []) {
+          const sameTg = Number(c?.tg_id) === tgId;
+          const sameUsername = !!knownUsername && String(c?.username || "").trim().toLowerCase() === knownUsername;
+          if (sameTg || sameUsername) {
+            c.status = next;
+            c.updated_at = now;
+            if (!c.tg_id) c.tg_id = tgId;
+          }
+        }
+      });
 
       res.json({ ok: true, status: next, statusLabel: statusLabel[next] });
     } catch (e: any) {
@@ -1898,14 +1846,17 @@ router.post("/admin/faq", async (req, res) => {
       if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
       if (!next) return res.status(400).json({ ok: false, error: "bad_state" });
 
-      const store = await readStore();
-      const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
-      if (!r) return res.status(404).json({ ok: false, error: "not_found" });
+      const { result } = await mutateStore((store) => {
+        const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
+        if (!r) return { notFound: true as const };
 
-      r.state = next;
-      r.state_updated_at = new Date().toISOString();
-      r.state_updated_by = user.id;
-      await writeStore(store);
+        r.state = next;
+        r.state_updated_at = new Date().toISOString();
+        r.state_updated_by = user.id;
+        return { notFound: false as const, request: { ...r } };
+      });
+      if (result.notFound) return res.status(404).json({ ok: false, error: "not_found" });
+      const r = result.request as StoredRequest;
 
       // notify user
       try {
@@ -1937,46 +1888,49 @@ router.post("/admin/faq", async (req, res) => {
       const id = String(req.params.id || "");
       if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
 
-      const store = await readStore();
-      const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
-      if (!r) return res.status(404).json({ ok: false, error: "not_found" });
-
-      const curState = String(r.state || "");
-      if (curState !== "in_progress" && curState !== "new") {
-        return res.status(400).json({ ok: false, error: "request_not_editable" });
-      }
-
       const allowedCurrencies = new Set(["RUB", "USDT", "USD", "EUR", "THB", "VND"]);
       const allowedPayMethods = new Set(["cash", "transfer"]);
       const allowedReceiveMethods = new Set(["cash", "transfer", "atm"]);
 
-      const sellCurrency = String(req.body?.sellCurrency || r.sellCurrency || "").toUpperCase().trim();
-      const buyCurrency = String(req.body?.buyCurrency || r.buyCurrency || "").toUpperCase().trim();
-      const sellAmount = Number(req.body?.sellAmount);
-      const buyAmount = Number(req.body?.buyAmount);
-      const payMethod = String(req.body?.payMethod || r.payMethod || "").toLowerCase().trim();
-      const receiveMethod = String(req.body?.receiveMethod || r.receiveMethod || "").toLowerCase().trim();
+      const { result } = await mutateStore((store) => {
+        const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
+        if (!r) return { error: "not_found" as const };
 
-      if (!allowedCurrencies.has(sellCurrency) || !allowedCurrencies.has(buyCurrency) || sellCurrency === buyCurrency) {
-        return res.status(400).json({ ok: false, error: "bad_currency_pair" });
-      }
-      if (!Number.isFinite(sellAmount) || sellAmount <= 0 || !Number.isFinite(buyAmount) || buyAmount <= 0) {
-        return res.status(400).json({ ok: false, error: "bad_amount" });
-      }
-      if (!allowedPayMethods.has(payMethod) || !allowedReceiveMethods.has(receiveMethod)) {
-        return res.status(400).json({ ok: false, error: "bad_method" });
-      }
+        const curState = String(r.state || "");
+        if (curState !== "in_progress" && curState !== "new") {
+          return { error: "request_not_editable" as const };
+        }
 
-      r.sellCurrency = sellCurrency;
-      r.buyCurrency = buyCurrency;
-      r.sellAmount = sellAmount;
-      r.buyAmount = buyAmount;
-      r.payMethod = payMethod;
-      r.receiveMethod = receiveMethod;
-      r.state_updated_at = new Date().toISOString();
+        const sellCurrency = String(req.body?.sellCurrency || r.sellCurrency || "").toUpperCase().trim();
+        const buyCurrency = String(req.body?.buyCurrency || r.buyCurrency || "").toUpperCase().trim();
+        const sellAmount = Number(req.body?.sellAmount);
+        const buyAmount = Number(req.body?.buyAmount);
+        const payMethod = String(req.body?.payMethod || r.payMethod || "").toLowerCase().trim();
+        const receiveMethod = String(req.body?.receiveMethod || r.receiveMethod || "").toLowerCase().trim();
 
-      await writeStore(store);
-      return res.json({ ok: true, request: r });
+        if (!allowedCurrencies.has(sellCurrency) || !allowedCurrencies.has(buyCurrency) || sellCurrency === buyCurrency) {
+          return { error: "bad_currency_pair" as const };
+        }
+        if (!Number.isFinite(sellAmount) || sellAmount <= 0 || !Number.isFinite(buyAmount) || buyAmount <= 0) {
+          return { error: "bad_amount" as const };
+        }
+        if (!allowedPayMethods.has(payMethod) || !allowedReceiveMethods.has(receiveMethod)) {
+          return { error: "bad_method" as const };
+        }
+
+        r.sellCurrency = sellCurrency;
+        r.buyCurrency = buyCurrency;
+        r.sellAmount = sellAmount;
+        r.buyAmount = buyAmount;
+        r.payMethod = payMethod;
+        r.receiveMethod = receiveMethod;
+        r.state_updated_at = new Date().toISOString();
+        return { request: { ...r } };
+      });
+      if (result.error === "not_found") return res.status(404).json({ ok: false, error: "not_found" });
+      if (result.error === "request_not_editable") return res.status(400).json({ ok: false, error: "request_not_editable" });
+      if (result.error) return res.status(400).json({ ok: false, error: result.error });
+      return res.json({ ok: true, request: result.request });
     } catch (e: any) {
       return res.status(e?.message === "not_admin" ? 403 : 401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -1986,7 +1940,6 @@ router.post("/admin/faq", async (req, res) => {
   router.post("/staff/contacts/upsert", async (req, res) => {
     try {
       const { user } = await requireStaff(req);
-      const store = await readStore();
 
       const tg_id = req.body?.tg_id ? Number(req.body.tg_id) : undefined;
       const username = normUsername(req.body?.username);
@@ -1997,46 +1950,17 @@ router.post("/admin/faq", async (req, res) => {
       if (!tg_id && !username) return res.status(400).json({ ok: false, error: "tg_id_or_username_required" });
 
       const now = new Date().toISOString();
+      const { result } = await mutateStore((store) => {
+        return upsertContactRecord(store, {
+          tg_id,
+          username,
+          fullName,
+          banks: banks !== undefined ? normalizeBankIcons(banks) : undefined,
+          now
+        });
+      });
 
-      const list = store.contacts || [];
-      const byTg = tg_id ? list.find((x) => x && Number(x.tg_id) === tg_id) : undefined;
-      const byU = username ? list.find((x) => x && normUsername(x.username) === username) : undefined;
-
-      let c = byTg || byU;
-
-      if (byTg && byU && byTg !== byU) {
-        const primary = byTg as Contact;
-        const secondary = byU as Contact;
-        primary.username = primary.username || secondary.username;
-        primary.fullName = primary.fullName || secondary.fullName;
-        primary.banks = normalizeBankIcons((Array.isArray(primary.banks) && primary.banks.length) ? primary.banks : secondary.banks);
-        primary.created_at = primary.created_at || secondary.created_at;
-
-        const i = list.indexOf(secondary as any);
-        if (i >= 0) list.splice(i, 1);
-        c = primary;
-      }
-
-      if (!c) {
-        const id = tg_id ? `tg_${tg_id}` : `u_${username}`;
-        c = { id, created_at: now, updated_at: now } as Contact;
-        (store.contacts || []).push(c);
-      } else {
-        const desiredId = tg_id ? `tg_${tg_id}` : `u_${username}`;
-        if (!c.id) c.id = desiredId;
-        if (desiredId && c.id !== desiredId && !(store.contacts || []).some((x) => x && x !== c && x.id === desiredId)) {
-          c.id = desiredId;
-        }
-      }
-      c.updated_at = now;
-      if (tg_id) c.tg_id = tg_id;
-      if (username) c.username = username;
-      if (fullName || fullName === "") c.fullName = fullName;
-      if (banks !== undefined) c.banks = normalizeBankIcons(banks);
-
-      // note: staff doesn't change status here
-      await writeStore(store);
-      return res.json({ ok: true, contact: c, by: user.id });
+      return res.json({ ok: true, contact: result, by: user.id });
     } catch (e: any) {
       return res.status(e?.message === "not_admin" ? 403 : 401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -2076,14 +2000,17 @@ router.post("/admin/faq", async (req, res) => {
         });
       }
 
-      const store = await readStore();
-      const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
-      if (!r) return res.status(404).json({ ok: false, error: "not_found" });
+      const { result } = await mutateStore((store) => {
+        const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
+        if (!r) return { notFound: true as const };
 
-      r.state = next;
-      r.state_updated_at = new Date().toISOString();
-      r.state_updated_by = user.id;
-      await writeStore(store);
+        r.state = next;
+        r.state_updated_at = new Date().toISOString();
+        r.state_updated_by = user.id;
+        return { notFound: false as const, request: { ...r } };
+      });
+      if (result.notFound) return res.status(404).json({ ok: false, error: "not_found" });
+      const r = result.request as StoredRequest;
 
       // Уведомление пользователю (это и будет "push" на телефоне через Telegram)
       const shortId = id.slice(-6);
@@ -2141,8 +2068,6 @@ router.post("/admin/faq", async (req, res) => {
         return res.status(400).json({ ok: false, error: "bad_method" });
       }
 
-	      const store = await readStore();
-
 	      // For THB↔RUB we intentionally ignore status markups (treat as standard)
 	      const effStatus: UserStatus = ignoreStatusForPair(sellCurrency, buyCurrency)
 	        ? "standard"
@@ -2167,8 +2092,7 @@ router.post("/admin/faq", async (req, res) => {
         atm: "банкомат"
       };
 
-      store.requests = store.requests || [];
-	      const request: StoredRequest = {
+      const request: StoredRequest = {
         id: randomUUID(),
         // By default заявки сразу "в работе"
         state: "in_progress",
@@ -2182,8 +2106,19 @@ router.post("/admin/faq", async (req, res) => {
 	        status: effStatus,
         created_at: new Date().toISOString()
       };
-      store.requests.push(request);
-      await writeStore(store);
+      const { result } = await mutateStore((store) => {
+        store.requests = store.requests || [];
+        store.requests.push(request);
+        return {
+          request,
+          config: {
+            requestsGroupChatId: Number((store.config as any)?.requestsGroupChatId) || undefined,
+            groupChatId: Number((store.config as any)?.groupChatId) || undefined,
+            adminTgIds: Array.isArray((store.config as any)?.adminTgIds) ? ([...(store.config as any).adminTgIds] as number[]) : []
+          }
+        };
+      });
+      const configSnapshot = result.config;
 
       // Notify: post into requests group (preferred), fallback to private admins if not configured
       try {
@@ -2210,7 +2145,7 @@ router.post("/admin/faq", async (req, res) => {
         const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;
         const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
         const reqGroupChatId =
-          Number((store.config as any)?.requestsGroupChatId) || envReqGroup || Number((store.config as any)?.groupChatId) || envGroup;
+	          Number(configSnapshot?.requestsGroupChatId) || envReqGroup || Number(configSnapshot?.groupChatId) || envGroup;
 
         if (reqGroupChatId && Number.isFinite(reqGroupChatId)) {
           await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
@@ -2223,8 +2158,8 @@ router.post("/admin/faq", async (req, res) => {
             ? opts.ownerTgIds
             : opts.ownerTgId
             ? [opts.ownerTgId]
-            : Array.isArray((store.config as any)?.adminTgIds)
-            ? ((store.config as any).adminTgIds as number[])
+	            : Array.isArray(configSnapshot?.adminTgIds)
+	            ? (configSnapshot.adminTgIds as number[])
             : [];
           for (const rid of recipients) {
             await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
@@ -2344,17 +2279,6 @@ router.post("/admin/faq", async (req, res) => {
       if (!requestId) return res.status(400).json({ ok: false, error: "request_id_missing" });
       if (text.length < 3) return res.status(400).json({ ok: false, error: "text_too_short" });
 
-      const store = await readStore();
-      const reqObj = (store.requests || []).find((x) => String(x.id) === requestId);
-      if (!reqObj) return res.status(404).json({ ok: false, error: "request_not_found" });
-      if (reqObj.from?.id !== user.id) return res.status(403).json({ ok: false, error: "not_your_request" });
-      if (reqObj.state !== "done") return res.status(400).json({ ok: false, error: "request_not_done" });
-
-      const exists = (store.reviews || []).some(
-        (r) => r && String(r.requestId) === requestId && (r.state === "pending" || r.state === "approved")
-      );
-      if (exists) return res.status(400).json({ ok: false, error: "already_reviewed" });
-
       const review: StoredReview = {
         id: randomUUID(),
         requestId,
@@ -2368,9 +2292,25 @@ router.post("/admin/faq", async (req, res) => {
         created_at: new Date().toISOString()
       };
 
-      store.reviews = store.reviews || [];
-      store.reviews.push(review);
-      await writeStore(store);
+      const { result } = await mutateStore((store) => {
+        const reqObj = (store.requests || []).find((x) => String(x.id) === requestId);
+        if (!reqObj) return { error: "request_not_found" as const };
+        if (reqObj.from?.id !== user.id) return { error: "not_your_request" as const };
+        if (reqObj.state !== "done") return { error: "request_not_done" as const };
+
+        const exists = (store.reviews || []).some(
+          (r) => r && String(r.requestId) === requestId && (r.state === "pending" || r.state === "approved")
+        );
+        if (exists) return { error: "already_reviewed" as const };
+
+        store.reviews = store.reviews || [];
+        store.reviews.push(review);
+        return { review };
+      });
+      if (result.error === "request_not_found") return res.status(404).json({ ok: false, error: "request_not_found" });
+      if (result.error === "not_your_request") return res.status(403).json({ ok: false, error: "not_your_request" });
+      if (result.error === "request_not_done") return res.status(400).json({ ok: false, error: "request_not_done" });
+      if (result.error === "already_reviewed") return res.status(400).json({ ok: false, error: "already_reviewed" });
 
       return res.json({ ok: true, id: review.id, state: review.state });
     } catch (e: any) {
@@ -2405,15 +2345,17 @@ router.post("/admin/faq", async (req, res) => {
       const id = String(req.params.id || "").trim();
       if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
 
-      const store = await readStore();
-      const r = (store.reviews || []).find((x) => String(x.id) === id);
-      if (!r) return res.status(404).json({ ok: false, error: "not_found" });
+      const { result } = await mutateStore((store) => {
+        const r = (store.reviews || []).find((x) => String(x.id) === id);
+        if (!r) return { notFound: true as const };
 
-      r.state = "approved";
-      r.approved_at = new Date().toISOString();
-      r.approved_by = user.id;
-      await writeStore(store);
-      return res.json({ ok: true, review: r });
+        r.state = "approved";
+        r.approved_at = new Date().toISOString();
+        r.approved_by = user.id;
+        return { notFound: false as const, review: { ...r } };
+      });
+      if (result.notFound) return res.status(404).json({ ok: false, error: "not_found" });
+      return res.json({ ok: true, review: result.review });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -2426,15 +2368,17 @@ router.post("/admin/faq", async (req, res) => {
       const id = String(req.params.id || "").trim();
       if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
 
-      const store = await readStore();
-      const r = (store.reviews || []).find((x) => String(x.id) === id);
-      if (!r) return res.status(404).json({ ok: false, error: "not_found" });
+      const { result } = await mutateStore((store) => {
+        const r = (store.reviews || []).find((x) => String(x.id) === id);
+        if (!r) return { notFound: true as const };
 
-      r.state = "rejected";
-      r.rejected_at = new Date().toISOString();
-      r.rejected_by = user.id;
-      await writeStore(store);
-      return res.json({ ok: true, review: r });
+        r.state = "rejected";
+        r.rejected_at = new Date().toISOString();
+        r.rejected_by = user.id;
+        return { notFound: false as const, review: { ...r } };
+      });
+      if (result.notFound) return res.status(404).json({ ok: false, error: "not_found" });
+      return res.json({ ok: true, review: result.review });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -2450,13 +2394,15 @@ router.post("/admin/faq", async (req, res) => {
       const text = String(req.body?.text || "").trim();
       if (text.length < 1) return res.status(400).json({ ok: false, error: "text_required" });
 
-      const store = await readStore();
-      const r = (store.reviews || []).find((x) => String(x.id) === id);
-      if (!r) return res.status(404).json({ ok: false, error: "not_found" });
+      const { result } = await mutateStore((store) => {
+        const r = (store.reviews || []).find((x) => String(x.id) === id);
+        if (!r) return { notFound: true as const };
 
-      r.company_reply = { text, created_at: new Date().toISOString(), by: user.id };
-      await writeStore(store);
-      return res.json({ ok: true, review: r });
+        r.company_reply = { text, created_at: new Date().toISOString(), by: user.id };
+        return { notFound: false as const, review: { ...r } };
+      });
+      if (result.notFound) return res.status(404).json({ ok: false, error: "not_found" });
+      return res.json({ ok: true, review: result.review });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }

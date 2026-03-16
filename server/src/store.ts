@@ -651,6 +651,68 @@ export function findContact(store: Store, q: { tg_id?: number; username?: string
   });
 }
 
+export function upsertContactRecord(
+  store: Store,
+  input: {
+    tg_id?: number;
+    username?: string;
+    fullName?: string;
+    banks?: string[];
+    status?: UserStatus;
+    now?: string;
+  }
+): Contact {
+  const now = input.now || new Date().toISOString();
+  const tg_id = Number.isFinite(Number(input.tg_id)) && Number(input.tg_id) > 0 ? Number(input.tg_id) : undefined;
+  const username = normUsername(input.username);
+  const fullName = typeof input.fullName === "string" ? input.fullName.trim() : undefined;
+  const banks = Array.isArray(input.banks) ? [...input.banks] : undefined;
+  const status = input.status ? normalizeStatus(input.status) : undefined;
+
+  if (!store.contacts || !Array.isArray(store.contacts)) store.contacts = [];
+
+  const list = store.contacts;
+  const byTg = tg_id ? list.find((x) => x && Number(x.tg_id) === tg_id) : undefined;
+  const byU = username ? list.find((x) => x && normUsername(x.username) === username) : undefined;
+
+  let c = byTg || byU;
+
+  if (byTg && byU && byTg !== byU) {
+    const primary = byTg as Contact;
+    const secondary = byU as Contact;
+    primary.username = primary.username || secondary.username;
+    primary.fullName = primary.fullName || secondary.fullName;
+    primary.banks = Array.isArray(primary.banks) && primary.banks.length ? primary.banks : secondary.banks;
+    primary.status = primary.status || secondary.status;
+    primary.created_at = primary.created_at || secondary.created_at;
+
+    const i = list.indexOf(secondary as any);
+    if (i >= 0) list.splice(i, 1);
+    c = primary;
+  }
+
+  if (!c) {
+    const id = tg_id ? `tg_${tg_id}` : `u_${username}`;
+    c = { id, created_at: now, updated_at: now } as Contact;
+    list.push(c);
+  } else {
+    const desiredId = tg_id ? `tg_${tg_id}` : `u_${username}`;
+    if (!c.id) c.id = desiredId;
+    if (desiredId && c.id !== desiredId && !list.some((x) => x && x !== c && x.id === desiredId)) {
+      c.id = desiredId;
+    }
+  }
+
+  c.updated_at = now;
+  if (tg_id) c.tg_id = tg_id;
+  if (username) c.username = username;
+  if (fullName !== undefined) c.fullName = fullName;
+  if (banks !== undefined) c.banks = banks;
+  if (status) c.status = status;
+
+  return c;
+}
+
 export async function upsertUserFromTelegram(u: {
   id: number;
   username?: string;

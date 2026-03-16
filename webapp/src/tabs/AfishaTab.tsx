@@ -159,7 +159,7 @@ function IconShare({ className = "" }: { className?: string }) {
 }
 
 function buildBrowserShareUrl(ev: AfishaEvent) {
-  const u = new URL(window.location.href);
+  const u = new URL(`${window.location.origin}${window.location.pathname}`);
   u.searchParams.set("screen", "afisha");
   u.searchParams.set("event", ev.id);
   return u.toString();
@@ -534,6 +534,8 @@ export default function AfishaTab({ registerBack, focusEventId, onFocusHandled }
     const targetUrl = String(ev.shareUrl || "").trim() || buildBrowserShareUrl(ev);
     const shareText = `${ev.title}
 ${fmtDate(ev.date)}`;
+    const shareTextWithLink = `${shareText}
+${targetUrl}`;
     const tgShareUrl = `https://t.me/share/url?url=${encodeURIComponent(targetUrl)}&text=${encodeURIComponent(shareText)}`;
     const tg = getTg();
     if (tg?.openTelegramLink) {
@@ -541,7 +543,7 @@ ${fmtDate(ev.date)}`;
       return;
     }
     if ((navigator as any)?.share) {
-      void (navigator as any).share({ title: ev.title, text: shareText, url: targetUrl }).catch(() => {});
+      void (navigator as any).share({ title: ev.title, text: shareTextWithLink }).catch(() => {});
       return;
     }
     openLink(tgShareUrl);
