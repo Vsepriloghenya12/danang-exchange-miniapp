@@ -551,7 +551,20 @@ export function createApiRouter(opts: {
     return null;
   }
 
-  // Save a base64 data URL image into server/public/afisha and return a public URL like /afisha/<id>.jpg
+  function getAfishaStorageDir(): string {
+    const explicit = String(process.env.AFISHA_STORAGE_DIR || '').trim();
+    if (explicit) return path.resolve(explicit);
+
+    const volumeRoot = String(process.env.RAILWAY_VOLUME_MOUNT_PATH || '').trim();
+    if (volumeRoot) return path.resolve(volumeRoot, 'afisha');
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const runtimePublic = path.resolve(__dirname, '../public');
+    return path.join(runtimePublic, 'afisha');
+  }
+
+  // Save a base64 data URL image into persistent afisha storage and return a public URL like /afisha/<id>.jpg
   function saveAfishaImage(id: string, dataUrl: string): string {
     const m = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/i);
     if (!m) throw new Error('bad_image');
@@ -565,10 +578,7 @@ export function createApiRouter(opts: {
     if (!buf || buf.length < 10) throw new Error('bad_image');
     if (buf.length > 5 * 1024 * 1024) throw new Error('bad_image');
 
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    const runtimePublic = path.resolve(__dirname, '../public');
-    const dir = path.join(runtimePublic, 'afisha');
+    const dir = getAfishaStorageDir();
     fs.mkdirSync(dir, { recursive: true });
     const filename = `${id}${ext}`;
     fs.writeFileSync(path.join(dir, filename), buf);

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { apiSuggestAtm } from "../lib/api";
 
-const FIND_ATM_URL = "https://maps.app.goo.gl/dAe1EoSVSY97k1vx5?g_st=it";
+const FIND_ATM_URL = "https://www.google.com/maps/search/ATM+Vietcombank+near+me/";
 
 function openLink(url: string) {
   const tg = (window as any).Telegram?.WebApp;

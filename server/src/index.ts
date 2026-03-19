@@ -47,6 +47,36 @@ const __dirname = path.dirname(__filename);
 const webDist = path.resolve(__dirname, "../../webapp/dist");
 const runtimePublic = path.resolve(__dirname, "../public");
 
+
+function getAfishaRuntimeDir(): string {
+  const explicit = String(process.env.AFISHA_STORAGE_DIR || "").trim();
+  if (explicit) return path.resolve(explicit);
+
+  const volumeRoot = String(process.env.RAILWAY_VOLUME_MOUNT_PATH || "").trim();
+  if (volumeRoot) return path.resolve(volumeRoot, "afisha");
+
+  return path.join(runtimePublic, "afisha");
+}
+
+function mountAfishaStatic(app: express.Express) {
+  const volumeAfishaDir = getAfishaRuntimeDir();
+  const bundledAfishaDir = path.join(runtimePublic, "afisha");
+
+  const staticOpts = {
+    setHeaders(res: express.Response) {
+      res.setHeader("Cache-Control", "no-store, max-age=0");
+    }
+  };
+
+  if (fs.existsSync(volumeAfishaDir)) {
+    app.use("/afisha", express.static(volumeAfishaDir, staticOpts));
+  }
+
+  if (bundledAfishaDir !== volumeAfishaDir && fs.existsSync(bundledAfishaDir)) {
+    app.use("/afisha", express.static(bundledAfishaDir, staticOpts));
+  }
+}
+
 // Railway domain (preferred), or PUBLIC_URL if you set it manually
 const BASE_URL =
   process.env.PUBLIC_URL ||
@@ -98,6 +128,8 @@ async function startApiOnly() {
 
   if (fs.existsSync(webDist)) {
     // Runtime assets (no rebuild): put files into server/public
+    mountAfishaStatic(app);
+
     if (fs.existsSync(runtimePublic)) {
       app.use(
         express.static(runtimePublic, {
@@ -202,6 +234,8 @@ async function startMonolith() {
   );
 
   if (fs.existsSync(webDist)) {
+    mountAfishaStatic(app);
+
     if (fs.existsSync(runtimePublic)) {
       app.use(
         express.static(runtimePublic, {
