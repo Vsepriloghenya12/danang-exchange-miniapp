@@ -3164,7 +3164,9 @@ html[data-theme="dark"] .theme-client .mx-afCats--sheet .mx-afCatBtn.is-on::befo
 }
 
 .mx-list{ display:flex; flex-direction:column; gap: 12px; }
-.mx-afTitle{ font-size: 18px; font-weight: 950; line-height: 1.12; position: relative; z-index: 1; }
+.mx-afTitle{ font-size: 18px; font-weight: 950; line-height: 1.12; position: relative; z-index: 1; color: rgba(56,62,74,.88); text-shadow: 0 1px 0 rgba(255,255,255,.72); }
+html[data-theme="light"] .theme-client .mx-afTitle{ color: rgba(64,70,84,.88); text-shadow: 0 1px 0 rgba(255,255,255,.78); }
+html[data-theme="light"] .theme-client .mx-afEvCard:not(.has-img) .mx-afTitle{ color: rgba(68,74,88,.90); }
 .mx-afComment{ font-size: 13.5px; font-weight: 850; line-height: 1.22; color: rgba(0,0,0,.70); margin-top: 6px; position: relative; z-index: 1; }
 .mx-afMeta{ font-size: 12.5px; font-weight: 850; color: rgba(0,0,0,.54); margin-top: 6px; position: relative; z-index: 1; }
 .mx-afLinkBtn{ opacity: .80; }
