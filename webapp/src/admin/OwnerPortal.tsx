@@ -568,19 +568,23 @@ function moveFaq(id: string, dir: -1 | 1) {
 
   async function saveAfisha() {
     if (!token || !afEditId) return;
-    const payload: any = {
-      categories: afEditCats,
-      date: afEditDate,
-      title: afEditTitle.trim(),
-      comment: afEditComment.trim(),
-      detailsUrl: afEditDetailsUrl.trim(),
-      locationUrl: afEditLocationUrl.trim(),
-    };
-    if (afEditImageDataUrl) payload.imageDataUrl = afEditImageDataUrl;
-    const r = await apiAdminUpdateAfisha(token, afEditId, payload as any);
-    if (!r?.ok) return showErr(r?.error || 'Ошибка');
-    showOk('Сохранено');
-    await loadAfishaLists();
+    try {
+      const payload: any = {
+        categories: afEditCats,
+        date: afEditDate,
+        title: afEditTitle.trim(),
+        comment: afEditComment.trim(),
+        detailsUrl: afEditDetailsUrl.trim(),
+        locationUrl: afEditLocationUrl.trim(),
+      };
+      if (afEditImageDataUrl) payload.imageDataUrl = afEditImageDataUrl;
+      const r = await apiAdminUpdateAfisha(token, afEditId, payload as any);
+      if (!r?.ok) return showErr(r?.error || 'Ошибка');
+      showOk('Сохранено');
+      await loadAfishaLists();
+    } catch (e: any) {
+      showErr(e?.message || 'Ошибка сохранения');
+    }
   }
 
   function renderAfishaEditForm() {

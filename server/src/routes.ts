@@ -765,9 +765,11 @@ export function createApiRouter(opts: {
       const commentRaw = (req.body as any)?.comment;
       const comment = commentRaw != null ? String(commentRaw || '').trim() : null;
       const detailsUrlRaw = (req.body as any)?.detailsUrl;
-      const detailsUrl = detailsUrlRaw != null ? normUrl(detailsUrlRaw) : null;
+      const detailsUrlText = detailsUrlRaw != null ? String(detailsUrlRaw || '').trim() : null;
+      const detailsUrl = detailsUrlText != null && detailsUrlText !== '' ? normUrl(detailsUrlText) : null;
       const locationUrlRaw = (req.body as any)?.locationUrl;
-      const locationUrl = locationUrlRaw != null ? normUrl(locationUrlRaw) : null;
+      const locationUrlText = locationUrlRaw != null ? String(locationUrlRaw || '').trim() : null;
+      const locationUrl = locationUrlText != null && locationUrlText !== '' ? normUrl(locationUrlText) : null;
 
       const imageDataUrlRaw = (req.body as any)?.imageDataUrl;
       const imageDataUrl = typeof imageDataUrlRaw === 'string' ? String(imageDataUrlRaw) : null;
@@ -797,12 +799,12 @@ export function createApiRouter(opts: {
           ev.comment = comment || '';
         }
         if (detailsUrlRaw != null) {
-          if (!detailsUrl) return { error: 'bad_details_url' as const };
-          ev.detailsUrl = detailsUrl;
+          if (detailsUrlText && !detailsUrl) return { error: 'bad_details_url' as const };
+          if (detailsUrlText) ev.detailsUrl = detailsUrl;
         }
         if (locationUrlRaw != null) {
-          if (!locationUrl) return { error: 'bad_location_url' as const };
-          ev.locationUrl = locationUrl;
+          if (locationUrlText && !locationUrl) return { error: 'bad_location_url' as const };
+          if (locationUrlText) ev.locationUrl = locationUrl;
         }
 
         if (imageDataUrl != null) {
