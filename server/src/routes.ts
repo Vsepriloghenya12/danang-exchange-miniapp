@@ -97,17 +97,19 @@ function isAllowedRequestPair(sellCurrency: Currency, buyCurrency: Currency) {
   return isSameCurrencyVndPair(sellCurrency, buyCurrency);
 }
 
-function allowedRequestPayMethods(sellCurrency: Currency, buyCurrency: Currency) {
+function allowedRequestPayMethods(sellCurrency: Currency, buyCurrency: Currency, sellAmount?: number) {
   if (isSameCurrencyVndPair(sellCurrency, buyCurrency)) return new Set(["cash", "transfer", "atm"]);
-  if (sellCurrency === "RUB" || sellCurrency === "USDT") return new Set(["transfer"]);
+  if (sellCurrency === "USDT") return new Set(["transfer"]);
+  if (sellCurrency === "RUB") return new Set((sellAmount ?? 0) >= 20_000 ? ["cash", "transfer"] : ["transfer"]);
   if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return new Set(["cash"]);
   return new Set(["cash", "transfer"]);
 }
 
-function allowedRequestReceiveMethods(buyCurrency: Currency, sellCurrency?: Currency) {
+function allowedRequestReceiveMethods(buyCurrency: Currency, sellCurrency?: Currency, buyAmount?: number) {
   if (sellCurrency === "VND" && buyCurrency === "VND") return new Set(["cash", "transfer", "atm"]);
   if (buyCurrency === "VND") return new Set(["cash", "transfer", "atm"]);
-  if (buyCurrency === "RUB" || buyCurrency === "USDT") return new Set(["transfer"]);
+  if (buyCurrency === "USDT") return new Set(["transfer"]);
+  if (buyCurrency === "RUB") return new Set((buyAmount ?? 0) >= 20_000 ? ["cash", "transfer"] : ["transfer"]);
   return new Set(["cash"]);
 }
 
@@ -1941,8 +1943,8 @@ router.post("/admin/faq", async (req, res) => {
         const payMethod = String(req.body?.payMethod || r.payMethod || "").toLowerCase().trim();
         const receiveMethod = String(req.body?.receiveMethod || r.receiveMethod || "").toLowerCase().trim();
         const comment = String(req.body?.comment ?? r.comment ?? "").trim().slice(0, 300);
-        const allowedPayMethods = allowedRequestPayMethods(sellCurrency as Currency, buyCurrency as Currency);
-        const allowedReceiveMethods = allowedRequestReceiveMethods(buyCurrency as Currency, sellCurrency as Currency);
+        const allowedPayMethods = allowedRequestPayMethods(sellCurrency as Currency, buyCurrency as Currency, sellAmount);
+        const allowedReceiveMethods = allowedRequestReceiveMethods(buyCurrency as Currency, sellCurrency as Currency, buyAmount);
 
         if (!allowedCurrencies.has(sellCurrency) || !allowedCurrencies.has(buyCurrency) || !isAllowedRequestPair(sellCurrency as Currency, buyCurrency as Currency)) {
           return { error: "bad_currency_pair" as const };
@@ -2095,8 +2097,8 @@ router.post("/admin/faq", async (req, res) => {
       const comment = String(p.comment || "").trim().slice(0, 300);
 
       const allowedCur = new Set<Currency>(["RUB", "USD", "USDT", "VND", "EUR", "THB"]);
-      const allowedPay = allowedRequestPayMethods(sellCurrency, buyCurrency);
-      const allowedReceive = allowedRequestReceiveMethods(buyCurrency, sellCurrency);
+      const allowedPay = allowedRequestPayMethods(sellCurrency, buyCurrency, sellAmount);
+      const allowedReceive = allowedRequestReceiveMethods(buyCurrency, sellCurrency, buyAmount);
 
       if (!allowedCur.has(sellCurrency) || !allowedCur.has(buyCurrency) || !isAllowedRequestPair(sellCurrency, buyCurrency)) {
         return res.status(400).json({ ok: false, error: "bad_currency" });
