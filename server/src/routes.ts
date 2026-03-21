@@ -97,20 +97,28 @@ function isAllowedRequestPair(sellCurrency: Currency, buyCurrency: Currency) {
   return isSameCurrencyVndPair(sellCurrency, buyCurrency);
 }
 
-function allowedRequestPayMethods(sellCurrency: Currency, buyCurrency: Currency, sellAmount?: number) {
-  if (isSameCurrencyVndPair(sellCurrency, buyCurrency)) return new Set(["cash", "transfer", "atm"]);
-  if (sellCurrency === "USDT") return new Set(["transfer"]);
-  if (sellCurrency === "RUB") return new Set((sellAmount ?? 0) >= 20_000 ? ["cash", "transfer"] : ["transfer"]);
-  if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return new Set(["cash"]);
-  return new Set(["cash", "transfer"]);
+function rubRequestCashAllowed(sellCurrency: Currency, buyCurrency: Currency, sellAmount?: number, buyAmount?: number) {
+  if (sellCurrency === "RUB") return (sellAmount ?? 0) >= 20_000;
+  if (buyCurrency === "RUB") return (buyAmount ?? 0) >= 20_000;
+  return true;
 }
 
-function allowedRequestReceiveMethods(buyCurrency: Currency, sellCurrency?: Currency, buyAmount?: number) {
+function allowedRequestPayMethods(sellCurrency: Currency, buyCurrency: Currency, sellAmount?: number, buyAmount?: number) {
+  if (isSameCurrencyVndPair(sellCurrency, buyCurrency)) return new Set(["cash", "transfer", "atm"]);
+  const rubCashOk = rubRequestCashAllowed(sellCurrency, buyCurrency, sellAmount, buyAmount);
+  if (sellCurrency === "USDT") return new Set(["transfer"]);
+  if (sellCurrency === "RUB") return new Set(rubCashOk ? ["cash", "transfer"] : ["transfer"]);
+  if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return new Set(rubCashOk ? ["cash"] : []);
+  return new Set(rubCashOk ? ["cash", "transfer"] : ["transfer"]);
+}
+
+function allowedRequestReceiveMethods(buyCurrency: Currency, sellCurrency?: Currency, buyAmount?: number, sellAmount?: number) {
   if (sellCurrency === "VND" && buyCurrency === "VND") return new Set(["cash", "transfer", "atm"]);
-  if (buyCurrency === "VND") return new Set(["cash", "transfer", "atm"]);
+  const rubCashOk = rubRequestCashAllowed(sellCurrency || "VND", buyCurrency, sellAmount, buyAmount);
+  if (buyCurrency === "VND") return new Set(rubCashOk ? ["cash", "transfer", "atm"] : ["transfer", "atm"]);
   if (buyCurrency === "USDT") return new Set(["transfer"]);
-  if (buyCurrency === "RUB") return new Set((buyAmount ?? 0) >= 20_000 ? ["cash", "transfer"] : ["transfer"]);
-  return new Set(["cash"]);
+  if (buyCurrency === "RUB") return new Set(rubCashOk ? ["cash", "transfer"] : ["transfer"]);
+  return new Set(rubCashOk ? ["cash"] : []);
 }
 
 export function createApiRouter(opts: {
@@ -1943,8 +1951,8 @@ router.post("/admin/faq", async (req, res) => {
         const payMethod = String(req.body?.payMethod || r.payMethod || "").toLowerCase().trim();
         const receiveMethod = String(req.body?.receiveMethod || r.receiveMethod || "").toLowerCase().trim();
         const comment = String(req.body?.comment ?? r.comment ?? "").trim().slice(0, 300);
-        const allowedPayMethods = allowedRequestPayMethods(sellCurrency as Currency, buyCurrency as Currency, sellAmount);
-        const allowedReceiveMethods = allowedRequestReceiveMethods(buyCurrency as Currency, sellCurrency as Currency, buyAmount);
+        const allowedPayMethods = allowedRequestPayMethods(sellCurrency as Currency, buyCurrency as Currency, sellAmount, buyAmount);
+        const allowedReceiveMethods = allowedRequestReceiveMethods(buyCurrency as Currency, sellCurrency as Currency, buyAmount, sellAmount);
 
         if (!allowedCurrencies.has(sellCurrency) || !allowedCurrencies.has(buyCurrency) || !isAllowedRequestPair(sellCurrency as Currency, buyCurrency as Currency)) {
           return { error: "bad_currency_pair" as const };
@@ -2097,8 +2105,8 @@ router.post("/admin/faq", async (req, res) => {
       const comment = String(p.comment || "").trim().slice(0, 300);
 
       const allowedCur = new Set<Currency>(["RUB", "USD", "USDT", "VND", "EUR", "THB"]);
-      const allowedPay = allowedRequestPayMethods(sellCurrency, buyCurrency, sellAmount);
-      const allowedReceive = allowedRequestReceiveMethods(buyCurrency, sellCurrency, buyAmount);
+      const allowedPay = allowedRequestPayMethods(sellCurrency, buyCurrency, sellAmount, buyAmount);
+      const allowedReceive = allowedRequestReceiveMethods(buyCurrency, sellCurrency, buyAmount, sellAmount);
 
       if (!allowedCur.has(sellCurrency) || !allowedCur.has(buyCurrency) || !isAllowedRequestPair(sellCurrency, buyCurrency)) {
         return res.status(400).json({ ok: false, error: "bad_currency" });

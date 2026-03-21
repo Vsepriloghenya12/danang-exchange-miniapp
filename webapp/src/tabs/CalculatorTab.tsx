@@ -220,21 +220,34 @@ function getRate(rates: Rates | null, c: Currency): RateEntry | null {
 // RUB / USDT -> только перевод
 // USD / EUR / THB -> только наличные
 // VND -> наличные или перевод, а для VND -> VND доступны все способы
-function allowedPayMethods(sellCurrency: Currency, buyCurrency: Currency, sellAmount?: number): PayMethod[] {
+function rubCashAllowed(
+  sellCurrency: Currency,
+  buyCurrency: Currency,
+  sellAmount?: number,
+  buyAmount?: number
+): boolean {
+  if (sellCurrency === "RUB") return sellAmount != null && sellAmount >= 20_000;
+  if (buyCurrency === "RUB") return buyAmount != null && buyAmount >= 20_000;
+  return true;
+}
+
+function allowedPayMethods(sellCurrency: Currency, buyCurrency: Currency, sellAmount?: number, buyAmount?: number): PayMethod[] {
   if (sellCurrency === "VND" && buyCurrency === "VND") return ["cash", "transfer", "atm"];
+  const rubCashOk = rubCashAllowed(sellCurrency, buyCurrency, sellAmount, buyAmount);
   if (sellCurrency === "USDT") return ["transfer"];
-  if (sellCurrency === "RUB") return sellAmount != null && sellAmount >= 20_000 ? ["cash", "transfer"] : ["transfer"];
-  if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return ["cash"];
-  return ["cash", "transfer"]; // VND
+  if (sellCurrency === "RUB") return rubCashOk ? ["cash", "transfer"] : ["transfer"];
+  if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return rubCashOk ? ["cash"] : [];
+  return rubCashOk ? ["cash", "transfer"] : ["transfer"]; // VND
 }
 
 // ======= Способы получения (что клиент ПОЛУЧАЕТ) =======
-function allowedReceiveMethods(buyCurrency: Currency, sellCurrency?: Currency, buyAmount?: number): ReceiveMethod[] {
+function allowedReceiveMethods(buyCurrency: Currency, sellCurrency?: Currency, buyAmount?: number, sellAmount?: number): ReceiveMethod[] {
   if (sellCurrency === "VND" && buyCurrency === "VND") return ["cash", "transfer", "atm"];
-  if (buyCurrency === "VND") return ["cash", "transfer", "atm"];
+  const rubCashOk = rubCashAllowed(sellCurrency || "VND", buyCurrency, sellAmount, buyAmount);
+  if (buyCurrency === "VND") return rubCashOk ? ["cash", "transfer", "atm"] : ["transfer", "atm"];
   if (buyCurrency === "USDT") return ["transfer"];
-  if (buyCurrency === "RUB") return buyAmount != null && buyAmount >= 20_000 ? ["cash", "transfer"] : ["transfer"];
-  return ["cash"]; // USD/EUR/THB
+  if (buyCurrency === "RUB") return rubCashOk ? ["cash", "transfer"] : ["transfer"];
+  return rubCashOk ? ["cash"] : []; // USD/EUR/THB
 }
 
 // ======= Бонусы лояльности (только * -> VND и только RUB/USD/USDT) =======
@@ -541,14 +554,14 @@ export default function CalculatorTab({ me }: Props) {
 
   // Enforce pay-method restrictions based on SELL currency
   useEffect(() => {
-    const allowed = allowedPayMethods(sellCurrency, buyCurrency, parseAmount(sellCurrency, sellText));
+    const allowed = allowedPayMethods(sellCurrency, buyCurrency, parseAmount(sellCurrency, sellText), parseAmount(buyCurrency, buyText));
     if (!allowed.includes(payMethod)) setPayMethod(allowed[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sellCurrency, buyCurrency, sellText]);
 
   // Enforce receive-method restrictions based on BUY currency and service hours
   useEffect(() => {
-    const baseAllowed = allowedReceiveMethods(buyCurrency, sellCurrency, parseAmount(buyCurrency, buyText));
+    const baseAllowed = allowedReceiveMethods(buyCurrency, sellCurrency, parseAmount(buyCurrency, buyText), parseAmount(sellCurrency, sellText));
     const allowed = deliveryClosed && !(sellCurrency === "VND" && buyCurrency === "VND")
       ? baseAllowed.filter((m) => m === "transfer" || m === "atm")
       : baseAllowed;
@@ -679,9 +692,9 @@ export default function CalculatorTab({ me }: Props) {
     });
   }, [buyCurrency]);
 
-  const allowedPay = useMemo(() => allowedPayMethods(sellCurrency, buyCurrency, sellAmount), [sellCurrency, buyCurrency, sellAmount]);
+  const allowedPay = useMemo(() => allowedPayMethods(sellCurrency, buyCurrency, sellAmount, buyAmount), [sellCurrency, buyCurrency, sellAmount, buyAmount]);
   const allowedRecv = useMemo(() => {
-    const baseAllowed = allowedReceiveMethods(buyCurrency, sellCurrency, parseAmount(buyCurrency, buyText));
+    const baseAllowed = allowedReceiveMethods(buyCurrency, sellCurrency, parseAmount(buyCurrency, buyText), parseAmount(sellCurrency, sellText));
     return deliveryClosed && !(sellCurrency === "VND" && buyCurrency === "VND")
       ? baseAllowed.filter((m) => m === "transfer" || m === "atm")
       : baseAllowed;
@@ -915,8 +928,8 @@ export default function CalculatorTab({ me }: Props) {
     const swappedPayCandidate: PayMethod | null = receiveMethod === "cash" || receiveMethod === "transfer" || receiveMethod === "atm" ? receiveMethod : null;
     const swappedReceiveCandidate: ReceiveMethod | null = payMethod === "cash" || payMethod === "transfer" || payMethod === "atm" ? payMethod : null;
 
-    const nextAllowedPay = allowedPayMethods(nextSellCurrency, nextBuyCurrency, currentBuyRaw ?? undefined);
-    const nextAllowedReceiveBase = allowedReceiveMethods(nextBuyCurrency, nextSellCurrency, currentSellRaw ?? undefined);
+    const nextAllowedPay = allowedPayMethods(nextSellCurrency, nextBuyCurrency, currentBuyRaw ?? undefined, currentSellRaw ?? undefined);
+    const nextAllowedReceiveBase = allowedReceiveMethods(nextBuyCurrency, nextSellCurrency, currentSellRaw ?? undefined, currentBuyRaw ?? undefined);
     const nextAllowedReceive = deliveryClosed && !(nextSellCurrency === "VND" && nextBuyCurrency === "VND")
       ? nextAllowedReceiveBase.filter((m) => m === "transfer" || m === "atm")
       : nextAllowedReceiveBase;
@@ -1177,6 +1190,7 @@ export default function CalculatorTab({ me }: Props) {
             {invalidEurSell || invalidEurBuy ? <div className="vx-warn">EUR: передать и получить можно только наличными, кратно 50.</div> : null}
             {invalidThbSell || invalidThbBuy ? <div className="vx-warn">THB: передать и получить можно только наличными, кратно 100.</div> : null}
             {minSellNote ? <div className="vx-warn">{minSellNote}</div> : null}
+            {((sellCurrency === "RUB" && sellAmount != null && sellAmount < 20_000) || (buyCurrency === "RUB" && buyAmount != null && buyAmount < 20_000)) ? <div className="vx-warn">Наличные RUB доступны от 20,000 ₽.</div> : null}
 
             <div className="vx-sp12" />
 
