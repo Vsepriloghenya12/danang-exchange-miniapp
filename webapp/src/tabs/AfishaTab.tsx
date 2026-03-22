@@ -158,6 +158,54 @@ function IconShare({ className = "" }: { className?: string }) {
   );
 }
 
+
+const loadedAfishaImages = new Set<string>();
+function preloadAfishaImage(src: string) {
+  return new Promise<void>((resolve) => {
+    if (!src) return resolve();
+    if (loadedAfishaImages.has(src)) return resolve();
+    const img = new Image();
+    img.decoding = "async";
+    img.loading = "eager";
+    img.onload = () => {
+      loadedAfishaImages.add(src);
+      resolve();
+    };
+    img.onerror = () => resolve();
+    img.src = src;
+  });
+}
+
+function AfishaEventImage({ src, alt }: { src: string; alt: string }) {
+  const [ready, setReady] = useState<boolean>(() => loadedAfishaImages.has(src));
+  useEffect(() => {
+    let alive = true;
+    if (!src) {
+      setReady(false);
+      return;
+    }
+    if (loadedAfishaImages.has(src)) {
+      setReady(true);
+      return;
+    }
+    setReady(false);
+    preloadAfishaImage(src).then(() => {
+      if (!alive) return;
+      setReady(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [src]);
+
+  return (
+    <>
+      <div className={"mx-afEvBg" + (ready ? " is-ready" : "")} aria-hidden="true" style={{ backgroundImage: `url(${src})` } as any} />
+      <img className="mx-afEvPreload" src={src} alt={alt} loading="eager" decoding="async" fetchPriority="high" />
+    </>
+  );
+}
+
 function buildBrowserShareUrl(ev: AfishaEvent) {
   const u = new URL(`${window.location.origin}${window.location.pathname}`);
   u.searchParams.set("screen", "afisha");
@@ -508,6 +556,14 @@ export default function AfishaTab({ registerBack, focusEventId, onFocusHandled }
           setErr(String((r as any)?.error || "Ошибка"));
         } else {
           const arr = Array.isArray((r as any)?.events) ? ((r as any).events as AfishaEvent[]) : [];
+          const hot = arr.map((x) => String((x as any)?.imageUrl || "").trim()).filter(Boolean).slice(0, 8);
+          if (hot.length) {
+            await Promise.race([
+              Promise.allSettled(hot.map((u) => preloadAfishaImage(u))),
+              new Promise((resolve) => window.setTimeout(resolve, 700)),
+            ]);
+          }
+          if (!alive) return;
           setEvents(arr);
         }
       } catch {
@@ -584,7 +640,7 @@ ${targetUrl}`;
             }}
             className={"mx-afEvCard" + (ev.imageUrl ? " has-img" : "") + (flashId === ev.id ? " is-flash" : "")}
           >
-            {ev.imageUrl ? <div className="mx-afEvBg" style={{ backgroundImage: `url(${ev.imageUrl})` } as any} aria-hidden="true" /> : null}
+            {ev.imageUrl ? <AfishaEventImage src={ev.imageUrl} alt={ev.title} /> : null}
             <div className="mx-afEvBody">
               <div className="mx-afTitle">{ev.title}</div>
               {ev.comment ? <div className="mx-afComment">{ev.comment}</div> : null}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import { getTg } from "./lib/telegram";
 import { apiAuth, apiEvent, apiWarmup } from "./lib/api";
 import type { UserStatus } from "./lib/types";
@@ -129,7 +129,7 @@ function NavCard({
   );
 }
 
-function StatusIcon({ status }: { status?: UserStatus }) {
+const StatusIcon = memo(function StatusIcon({ status }: { status?: UserStatus }) {
   // Telegram WebView can be slow to paint images after navigation.
   // Use real existing files first, otherwise Telegram spends time trying missing assets.
   const bust = `v48-${String(status || "").toLowerCase() || "x"}`;
@@ -142,27 +142,29 @@ function StatusIcon({ status }: { status?: UserStatus }) {
   }, [status]);
 
   const [idx, setIdx] = useState(0);
-  const [ok, setOk] = useState(false);
+  const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
+  const [ok, setOk] = useState(() => isAssetLoaded(src));
 
   useEffect(() => {
     setIdx(0);
-    setOk(false);
   }, [status]);
 
-  const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
+  useEffect(() => {
+    setOk(isAssetLoaded(src));
+  }, [src]);
 
   return (
     <div className="mx-statusWrap" aria-label="Статус">
       {!ok ? <div className="mx-statusSkeleton" aria-hidden="true" /> : null}
       <img
-        key={src}
         className="mx-statusImg"
         src={src}
         alt=""
         loading="eager"
         decoding="async"
         style={{ opacity: ok ? 1 : 0 }}
-        onLoad={() => setOk(true)}
+        fetchPriority="high"
+        onLoad={() => { markAssetLoaded(src); setOk(true); }}
         onError={() => {
           setOk(false);
           setIdx((x) => (x < candidates.length - 1 ? x + 1 : x));
@@ -170,11 +172,10 @@ function StatusIcon({ status }: { status?: UserStatus }) {
       />
     </div>
   );
-}
+});
 
 
-
-function MainLogo({ theme }: { theme: "light" | "dark" }) {
+const MainLogo = memo(function MainLogo({ theme }: { theme: "light" | "dark" }) {
   // Separate logo files for light/dark themes. Easy to replace later.
   const bust = theme === "dark" ? "v31-dark" : "v31-light";
   const candidates = useMemo(
@@ -201,25 +202,28 @@ function MainLogo({ theme }: { theme: "light" | "dark" }) {
     [theme]
   );
   const [idx, setIdx] = useState(0);
-  const [ok, setOk] = useState(false);
+  const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
+  const [ok, setOk] = useState(() => isAssetLoaded(src));
 
   useEffect(() => {
     setIdx(0);
-    setOk(false);
   }, [theme]);
 
-  const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
+  useEffect(() => {
+    setOk(isAssetLoaded(src));
+  }, [src]);
 
   return (
     <div className="mx-mainLogoWrap" aria-label="Cash A Lot">
       <img
-        key={src}
         className="mx-mainLogoImg"
         src={src}
         alt=""
         loading="eager"
+        fetchPriority="high"
         decoding="async"
-        onLoad={() => setOk(true)}
+        style={{ opacity: ok ? 1 : 0.999, transition: "opacity .18s ease" }}
+        onLoad={() => { markAssetLoaded(src); setOk(true); }}
         onError={() => {
           setOk(false);
           setIdx((x) => (x < candidates.length - 1 ? x + 1 : x));
@@ -227,7 +231,7 @@ function MainLogo({ theme }: { theme: "light" | "dark" }) {
       />
     </div>
   );
-}
+});
 
 function normalizeStatus(s: any): UserStatus {
   const v = String(s ?? "").toLowerCase().trim();

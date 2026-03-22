@@ -1361,8 +1361,8 @@ function moveFaq(id: string, dir: -1 | 1) {
     return null;
   }, [reqSelected, selectedTgId, selectedUsername, contactsByTg, contactsByUsername]);
 
-  async function loadSupportDialogOwner(tgId: number, markRead = true) {
-    setSupportLoading(true);
+  async function loadSupportDialogOwner(tgId: number, markRead = true, silent = false) {
+    if (!silent) setSupportLoading(true);
     try {
       const r = await apiAdminGetSupportDialog(token, tgId, markRead);
       if (!r?.ok) {
@@ -1374,7 +1374,7 @@ function moveFaq(id: string, dir: -1 | 1) {
       setSupportMessages(Array.isArray(r?.dialog?.messages) ? r.dialog.messages : []);
       setSupportStats(r?.stats || null);
     } finally {
-      setSupportLoading(false);
+      if (!silent) setSupportLoading(false);
     }
   }
 
@@ -1392,7 +1392,7 @@ function moveFaq(id: string, dir: -1 | 1) {
 
   useEffect(() => {
     if (!supportOpen || !selectedTgId) return;
-    const t = window.setInterval(() => { void loadSupportDialogOwner(selectedTgId, false); }, 4000);
+    const t = window.setInterval(() => { void loadSupportDialogOwner(selectedTgId, false, true); }, 4000);
     return () => window.clearInterval(t);
   }, [supportOpen, selectedTgId]);
 
@@ -1557,6 +1557,23 @@ function moveFaq(id: string, dir: -1 | 1) {
     }
   }, [supportMessages, supportOpen]);
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const html = document.documentElement;
+    const body = document.body;
+    if (supportOpen) {
+      html.classList.add("vx-chatOpen");
+      body.classList.add("vx-chatOpen");
+    } else {
+      html.classList.remove("vx-chatOpen");
+      body.classList.remove("vx-chatOpen");
+    }
+    return () => {
+      html.classList.remove("vx-chatOpen");
+      body.classList.remove("vx-chatOpen");
+    };
+  }, [supportOpen]);
+
   if (!token) {
     return (
       <div className="vx-page theme-owner">
@@ -1623,18 +1640,18 @@ function moveFaq(id: string, dir: -1 | 1) {
               </div>
               <div className="vx-chatHint" style={{ marginTop: 6 }}>Сообщения идут через бота. Ответ клиента также приходит менеджеру в личный чат с ботом.</div>
               <div className="vx-sp10" />
-              <div className="vx-chatBox" ref={supportChatRef}>
-                {supportLoading ? <div className="vx-muted">Загрузка переписки…</div> : null}
+              <div className="vx-chatBox vx-chatScroll" ref={supportChatRef}>
+                {supportLoading && supportMessages.length === 0 ? <div className="vx-muted">Загрузка переписки…</div> : null}
                 {!supportLoading && supportMessages.length === 0 ? <div className="vx-chatEmpty">Переписка пока пустая.</div> : null}
-                {!supportLoading ? supportMessages.map((m:any) => (
+                {supportMessages.map((m:any) => (
                   <div key={String(m?.id || Math.random())} className={"vx-chatMsg " + (m?.from === "manager" ? "is-manager" : "is-client")}>
                     <div className="vx-chatMeta">{m?.from === "manager" ? (m?.manager_name || "Менеджер") : "Клиент"} • {fmtDt(String(m?.created_at || ""))}</div>
                     <div className="vx-chatText">{String(m?.text || "")}</div>
                   </div>
-                )) : null}
+                ))}
               </div>
               <div className="vx-sp10" />
-              <div className="vx-chatComposer">
+              <div className="vx-chatComposer vx-chatComposerSticky">
               <div className="vx-chatToolbar">
                 <div className="vx-chatStats">{supportStats?.clientMessageCount ? `Сообщений от клиента: ${supportStats.clientMessageCount}` : "Сообщений от клиента пока нет"}</div>
               </div>

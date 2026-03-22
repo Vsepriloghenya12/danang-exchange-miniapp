@@ -386,8 +386,8 @@ export default function StaffTab({ me }: any) {
     }
   }
 
-  async function loadSupportDialog(tgId: number, markRead = true) {
-    setDialogLoading(true);
+  async function loadSupportDialog(tgId: number, markRead = true, silent = false) {
+    if (!silent) setDialogLoading(true);
     try {
       const r = await apiAdminGetSupportDialog(initData, tgId, markRead);
       if (!r?.ok) {
@@ -400,7 +400,7 @@ export default function StaffTab({ me }: any) {
       setDialogMessages(Array.isArray(r?.dialog?.messages) ? r.dialog.messages : []);
       setDialogStats(r?.stats || null);
     } finally {
-      setDialogLoading(false);
+      if (!silent) setDialogLoading(false);
     }
   }
 
@@ -423,7 +423,7 @@ export default function StaffTab({ me }: any) {
 
   useEffect(() => {
     if (!messageOpen || !selectedTgId) return;
-    const t = window.setInterval(() => { void loadSupportDialog(selectedTgId, false); }, 4000);
+    const t = window.setInterval(() => { void loadSupportDialog(selectedTgId, false, true); }, 4000);
     return () => window.clearInterval(t);
   }, [messageOpen, selectedTgId]);
 
@@ -463,6 +463,23 @@ export default function StaffTab({ me }: any) {
       // ignore
     }
   }, [dialogMessages, messageOpen]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const html = document.documentElement;
+    const body = document.body;
+    if (messageOpen) {
+      html.classList.add("vx-chatOpen");
+      body.classList.add("vx-chatOpen");
+    } else {
+      html.classList.remove("vx-chatOpen");
+      body.classList.remove("vx-chatOpen");
+    }
+    return () => {
+      html.classList.remove("vx-chatOpen");
+      body.classList.remove("vx-chatOpen");
+    };
+  }, [messageOpen]);
 
   if (!initData) {
     return (
@@ -510,18 +527,18 @@ export default function StaffTab({ me }: any) {
             </div>
             <div className="vx-chatHint" style={{ marginTop: 6 }}>Сообщения идут через бота. Ответ клиента появится здесь и дополнительно придёт менеджеру в личный чат с ботом.</div>
             <div className="vx-sp10" />
-            <div className="vx-chatBox" ref={chatScrollRef}>
-              {dialogLoading ? <div className="vx-muted">Загрузка переписки…</div> : null}
+            <div className="vx-chatBox vx-chatScroll" ref={chatScrollRef}>
+              {dialogLoading && dialogMessages.length === 0 ? <div className="vx-muted">Загрузка переписки…</div> : null}
               {!dialogLoading && dialogMessages.length === 0 ? <div className="vx-chatEmpty">Переписка пока пустая.</div> : null}
-              {!dialogLoading ? dialogMessages.map((m:any) => (
+              {dialogMessages.map((m:any) => (
                 <div key={String(m?.id || Math.random())} className={"vx-chatMsg " + (m?.from === "manager" ? "is-manager" : "is-client")}>
                   <div className="vx-chatMeta">{m?.from === "manager" ? (m?.manager_name || "Менеджер") : "Клиент"} • {fmtDateTime(String(m?.created_at || ""))}</div>
                   <div className="vx-chatText">{String(m?.text || "")}</div>
                 </div>
-              )) : null}
+              ))}
             </div>
             <div className="vx-sp10" />
-            <div className="vx-chatComposer">
+            <div className="vx-chatComposer vx-chatComposerSticky">
             <div className="vx-chatToolbar">
               <div className="vx-chatStats">{dialogStats?.clientMessageCount ? `Сообщений от клиента: ${dialogStats.clientMessageCount}` : "Сообщений от клиента пока нет"}</div>
             </div>
