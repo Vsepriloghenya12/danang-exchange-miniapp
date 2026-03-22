@@ -83,6 +83,23 @@ function shiftISO(days: number) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function openClientDialog(username?: string, tgId?: number) {
+  const tg = (window as any).Telegram?.WebApp;
+  const uname = String(username || "").trim().replace(/^@+/, "");
+  if (uname) {
+    const url = `https://t.me/${uname}`;
+    if (tg?.openTelegramLink) tg.openTelegramLink(url);
+    else if (tg?.openLink) tg.openLink(url);
+    else window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+  if (tgId && Number.isFinite(tgId)) {
+    const deep = `tg://user?id=${tgId}`;
+    if (tg?.openLink) tg.openLink(deep);
+    else window.location.href = deep;
+  }
+}
+
 const DEFAULT_TEMPLATE = `Доброе утро!\n\nКурс на {{date}}:\n\n{{rates}}\n\n🛵    Бесплатная доставка\n             С 10:00 до 16:00.\n        при обмене от 20 000₽\n\n⏩БОЛЕЕ ВЫГОДНЫЙ КУРС  ⏪\n  при дистанционном обмене                        ⠀              от 20 000₽\n💳  Перевод на вьетнамский счёт;\n📥  Получение в банкоматах BIDV Vietcombank;`;
 
 export default function OwnerPortal() {
@@ -1991,6 +2008,10 @@ function moveFaq(id: string, dir: -1 | 1) {
                 <div className="h3 vx-m0">Заявка #{reqShortId(reqSelected.id)}</div>
                 <div className="vx-muted" style={{ marginTop: 4 }}>
                   Клиент: {selectedUsername ? "@" + selectedUsername : ""} {selectedTgId ? "• id:" + selectedTgId : ""}
+                </div>
+                <div className="vx-sp8" />
+                <div className="vx-inlineBtns">
+                  <button className="btn vx-btnSm" type="button" onClick={() => openClientDialog(selectedUsername, selectedTgId)}>Написать клиенту</button>
                 </div>
 
                 <div className="vx-sp10" />

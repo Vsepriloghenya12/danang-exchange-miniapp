@@ -43,9 +43,9 @@ export default function OtherTab({
     <div>
       <RowBtn title="FAQ" subtitle="Часто задаваемые вопросы" onClick={onFaq} />
       <div className="mx-sp10" />
-      <RowBtn title="О приложении" subtitle="Для туристов и локалов Дананга" onClick={onAbout} />
+      <RowBtn title="О приложении" onClick={onAbout} />
       <div className="mx-sp10" />
-      <RowBtn title="Контакты" subtitle="Админ и менеджер" onClick={onContacts} />
+      <RowBtn title="Контакты" onClick={onContacts} />
       <div className="mx-sp10" />
       <RowBtn title="Заказать приложение" subtitle="Связаться с разработчиком" onClick={onOrderApp} />
     </div>

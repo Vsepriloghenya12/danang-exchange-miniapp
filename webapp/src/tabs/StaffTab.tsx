@@ -64,6 +64,23 @@ function methodLabel(m: string) {
   return m || "—";
 }
 
+function openClientDialog(username?: string, tgId?: number) {
+  const tg = getTg();
+  const uname = String(username || "").trim().replace(/^@+/, "");
+  if (uname) {
+    const url = `https://t.me/${uname}`;
+    if (tg?.openTelegramLink) tg.openTelegramLink(url);
+    else if (tg?.openLink) tg.openLink(url);
+    else window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+  if (tgId && Number.isFinite(tgId)) {
+    const deep = `tg://user?id=${tgId}`;
+    if (tg?.openLink) tg.openLink(deep);
+    else window.location.href = deep;
+  }
+}
+
 export default function StaffTab({ me }: any) {
   const tg = getTg();
   const initData = tg?.initData || me?.initData || "";
@@ -479,6 +496,12 @@ export default function StaffTab({ me }: any) {
             <div className="h3 vx-m0">Заявка #{shortId(selectedReq.id)}</div>
             <div className="vx-muted" style={{ marginTop: 4 }}>
               Клиент: {selectedReq.from?.username ? `@${selectedReq.from.username}` : ""} • id:{selectedReq.from?.id}
+            </div>
+            <div className="vx-sp8" />
+            <div className="vx-inlineBtns">
+              <button type="button" className="btn vx-btnSm" onClick={() => openClientDialog(selectedReq.from?.username, Number(selectedReq.from?.id || 0))}>
+                Написать клиенту
+              </button>
             </div>
 
             <div className="vx-sp10" />
