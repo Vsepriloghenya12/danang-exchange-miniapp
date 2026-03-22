@@ -3876,6 +3876,49 @@ html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afEvBody{
 
 
 /* iPhone / Telegram WebView: prevent auto-zoom on client inputs in both themes */
+
+.vx-chatBox{
+  max-height: 46vh;
+  overflow: auto;
+  border: 1px solid rgba(127,127,127,.22);
+  border-radius: 16px;
+  padding: 10px;
+  background: rgba(255,255,255,.72);
+  display: grid;
+  gap: 8px;
+}
+html[data-theme="dark"] .theme-client .vx-chatBox,
+html[data-theme="dark"] .theme-owner .vx-chatBox{
+  background: rgba(18,24,31,.82);
+  border-color: rgba(255,255,255,.09);
+}
+.vx-chatMsg{
+  max-width: 88%;
+  border-radius: 14px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 4px;
+}
+.vx-chatMsg.is-manager{
+  margin-left: auto;
+  background: rgba(34,154,240,.14);
+  border: 1px solid rgba(34,154,240,.22);
+}
+.vx-chatMsg.is-client{
+  margin-right: auto;
+  background: rgba(127,127,127,.10);
+  border: 1px solid rgba(127,127,127,.18);
+}
+.vx-chatMeta{
+  font-size: 11px;
+  font-weight: 800;
+  opacity: .76;
+}
+.vx-chatText{
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.35;
+}
 @supports (-webkit-touch-callout: none) {
   .theme-client .vx-page input,
   .theme-client .vx-page select,

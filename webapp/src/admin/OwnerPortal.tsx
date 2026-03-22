@@ -28,6 +28,7 @@ import {
   apiAdminGetFaq,
   apiAdminSetFaq,
   apiAdminMessageUser,
+  apiAdminGetSupportDialog,
 } from "../lib/api";
 import type { Contact, UserStatus } from "../lib/types";
 
@@ -271,6 +272,12 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
   const [reqHistTo, setReqHistTo] = useState<string>(() => todayISO());
   const [reqFullName, setReqFullName] = useState<string>("");
   const [reqBanks, setReqBanks] = useState<string[]>([]);
+  const [supportOpen, setSupportOpen] = useState<boolean>(false);
+  const [supportDraft, setSupportDraft] = useState<string>("");
+  const [supportSending, setSupportSending] = useState<boolean>(false);
+  const [supportLoading, setSupportLoading] = useState<boolean>(false);
+  const [supportMessages, setSupportMessages] = useState<any[]>([]);
+  const [supportClientLabel, setSupportClientLabel] = useState<string>("");
 
   // Afisha (owner portal): active + history with date range + click counters
   const [afActive, setAfActive] = useState<any[]>([]);
@@ -1337,21 +1344,59 @@ function moveFaq(id: string, dir: -1 | 1) {
     return null;
   }, [reqSelected, selectedTgId, selectedUsername, contactsByTg, contactsByUsername]);
 
+  async function loadSupportDialogOwner(tgId: number) {
+    setSupportLoading(true);
+    try {
+      const r = await apiAdminGetSupportDialog(token, tgId);
+      if (!r?.ok) {
+        alert(r?.error || "Не удалось загрузить переписку");
+        return;
+      }
+      const client = r?.client || {};
+      setSupportClientLabel(client?.username ? `@${client.username}` : (client?.fullName || `id:${tgId}`));
+      setSupportMessages(Array.isArray(r?.dialog?.messages) ? r.dialog.messages : []);
+    } finally {
+      setSupportLoading(false);
+    }
+  }
+
   async function handleOwnerMessageClient() {
     if (selectedUsername && openClientDialog(selectedUsername, selectedTgId)) return;
     if (!selectedTgId) {
       alert("Не удалось определить Telegram ID клиента.");
       return;
     }
-    const textIn = window.prompt("Введите сообщение клиенту");
-    const msg = String(textIn || "").trim();
-    if (!msg) return;
-    const r = await apiAdminMessageUser(token, { tg_id: selectedTgId, text: msg, request_id: String(reqSelected?.id || "") || undefined });
-    if (!r?.ok) {
-      alert(r?.error || "Не удалось отправить сообщение");
+    setSupportDraft("");
+    setSupportMessages([]);
+    setSupportOpen(true);
+    await loadSupportDialogOwner(selectedTgId);
+  }
+
+  useEffect(() => {
+    if (!supportOpen || !selectedTgId) return;
+    const t = window.setInterval(() => { void loadSupportDialogOwner(selectedTgId); }, 5000);
+    return () => window.clearInterval(t);
+  }, [supportOpen, selectedTgId]);
+
+  async function sendOwnerSupportMessage() {
+    if (!selectedTgId) {
+      alert("Не удалось определить Telegram ID клиента.");
       return;
     }
-    alert("Сообщение отправлено клиенту.");
+    const msg = String(supportDraft || "").trim();
+    if (!msg) return;
+    setSupportSending(true);
+    try {
+      const r = await apiAdminMessageUser(token, { tg_id: selectedTgId, text: msg, request_id: String(reqSelected?.id || "") || undefined });
+      if (!r?.ok) {
+        alert(r?.error || "Не удалось отправить сообщение");
+        return;
+      }
+      setSupportDraft("");
+      await loadSupportDialogOwner(selectedTgId);
+    } finally {
+      setSupportSending(false);
+    }
   }
 
   // Sync request contact editor on selection change
@@ -1534,6 +1579,39 @@ function moveFaq(id: string, dir: -1 | 1) {
         {banner ? (
           <div className={banner.type === "err" ? "vx-toast vx-toastErr" : "vx-toast vx-toastOk"}>
             {banner.text}
+          </div>
+        ) : null}
+
+        {supportOpen ? (
+          <div className="vx-modalOverlay" onClick={() => !supportSending && setSupportOpen(false)}>
+            <div className="vx-modalCard" onClick={(e) => e.stopPropagation()}>
+              <div className="row vx-between vx-center">
+                <div>
+                  <div className="vx-modalTitle">Чат с клиентом</div>
+                  <div className="vx-modalSub">{supportClientLabel || "Клиент"}</div>
+                </div>
+                <button className="btn vx-btnSm" type="button" onClick={() => setSupportOpen(false)} disabled={supportSending}>Закрыть</button>
+              </div>
+              <div className="vx-muted" style={{ marginTop: 6 }}>Сообщения идут через бота. Ответ клиента также приходит менеджеру в личный чат с ботом.</div>
+              <div className="vx-sp10" />
+              <div className="vx-chatBox">
+                {supportLoading ? <div className="vx-muted">Загрузка переписки…</div> : null}
+                {!supportLoading && supportMessages.length === 0 ? <div className="vx-muted">Переписка пока пустая.</div> : null}
+                {!supportLoading ? supportMessages.map((m:any) => (
+                  <div key={String(m?.id || Math.random())} className={"vx-chatMsg " + (m?.from === "manager" ? "is-manager" : "is-client")}>
+                    <div className="vx-chatMeta">{m?.from === "manager" ? (m?.manager_name || "Менеджер") : "Клиент"} • {fmtDt(String(m?.created_at || ""))}</div>
+                    <div className="vx-chatText">{String(m?.text || "")}</div>
+                  </div>
+                )) : null}
+              </div>
+              <div className="vx-sp10" />
+              <textarea className="input vx-in" rows={4} value={supportDraft} onChange={(e)=>setSupportDraft(e.target.value.slice(0,4000))} placeholder="Введите сообщение клиенту" />
+              <div className="vx-sp10" />
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn" type="button" onClick={sendOwnerSupportMessage} disabled={supportSending || !supportDraft.trim()}>{supportSending ? "Отправка..." : "Отправить"}</button>
+                <button className="btn vx-btnSm" type="button" onClick={() => selectedTgId && loadSupportDialogOwner(selectedTgId)} disabled={supportLoading || !selectedTgId}>Обновить чат</button>
+              </div>
+            </div>
           </div>
         ) : null}
 

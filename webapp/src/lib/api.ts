@@ -198,6 +198,13 @@ export async function apiAdminMessageUser(token: string, payload: { tg_id: numbe
   return readJsonSafe(r);
 }
 
+export async function apiAdminGetSupportDialog(token: string, tgId: number) {
+  const r = await fetch(`/api/admin/support-dialog/${encodeURIComponent(String(tgId))}`, {
+    headers: { ...adminAuthHeaders(token) }
+  });
+  return readJsonSafe(r);
+}
+
 export async function apiAdminGetRequests(initData: string) {
   const r = await fetch("/api/admin/requests", {
     headers: { ...adminAuthHeaders(initData) }

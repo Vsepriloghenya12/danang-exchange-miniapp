@@ -66,6 +66,15 @@ export type GFormula = {
   sellMul: number;
 };
 
+export type SupportDialogMessage = {
+  id: string;
+  from: "manager" | "client";
+  text: string;
+  created_at: string;
+  manager_tg_id?: number;
+  manager_name?: string;
+};
+
 export type SupportDialog = {
   client_tg_id: number;
   manager_tg_id: number;
@@ -75,6 +84,7 @@ export type SupportDialog = {
   updated_at: string;
   last_manager_text?: string;
   last_client_text?: string;
+  messages?: SupportDialogMessage[];
 };
 
 export type StoredUser = {
@@ -373,6 +383,25 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
       const manager_tg_id = Number((v as any).manager_tg_id);
       if (!Number.isFinite(client_tg_id) || client_tg_id <= 0) continue;
       if (!Number.isFinite(manager_tg_id) || manager_tg_id <= 0) continue;
+      const rawMsgs = Array.isArray((v as any).messages) ? (v as any).messages : [];
+      const messages = rawMsgs
+        .map((m: any) => {
+          if (!m || typeof m !== "object") return null;
+          const text = typeof m.text === "string" ? m.text.trim() : "";
+          const from = m.from === "client" ? "client" : m.from === "manager" ? "manager" : "";
+          if (!text || !from) return null;
+          const created_at = String(m.created_at || new Date().toISOString());
+          return {
+            id: typeof m.id === "string" && m.id ? m.id : `${created_at}-${Math.random().toString(36).slice(2,8)}`,
+            from,
+            text,
+            created_at,
+            manager_tg_id: Number.isFinite(Number(m.manager_tg_id)) ? Number(m.manager_tg_id) : undefined,
+            manager_name: typeof m.manager_name === "string" ? m.manager_name : undefined
+          } as SupportDialogMessage;
+        })
+        .filter(Boolean)
+        .slice(-100) as SupportDialogMessage[];
       cleaned[String(client_tg_id)] = {
         client_tg_id,
         manager_tg_id,
@@ -381,7 +410,8 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
         created_at: String((v as any).created_at || new Date().toISOString()),
         updated_at: String((v as any).updated_at || (v as any).created_at || new Date().toISOString()),
         last_manager_text: typeof (v as any).last_manager_text === "string" ? (v as any).last_manager_text : undefined,
-        last_client_text: typeof (v as any).last_client_text === "string" ? (v as any).last_client_text : undefined
+        last_client_text: typeof (v as any).last_client_text === "string" ? (v as any).last_client_text : undefined,
+        messages
       };
     }
     const before = JSON.stringify(src || {});

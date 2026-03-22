@@ -429,12 +429,16 @@ ${text}`;
         const cfg: any = s.config as any;
         cfg.supportDialogs = cfg.supportDialogs || {};
         const prev = cfg.supportDialogs[String(clientTgId)] || relay;
+        const now = new Date().toISOString();
+        const nextMessages = Array.isArray(prev?.messages) ? [...prev.messages] : [];
+        nextMessages.push({ id: randomUUID(), from: "client", text, created_at: now });
         cfg.supportDialogs[String(clientTgId)] = {
           ...prev,
           client_tg_id: clientTgId,
           manager_tg_id: managerTgId,
-          updated_at: new Date().toISOString(),
-          last_client_text: text
+          updated_at: now,
+          last_client_text: text,
+          messages: nextMessages.slice(-100)
         };
       });
       await ctx.reply("✅ Ваше сообщение передано менеджеру.");

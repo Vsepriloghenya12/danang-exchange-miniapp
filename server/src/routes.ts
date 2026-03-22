@@ -70,6 +70,21 @@ function ignoreStatusForPair(a: Currency, b: Currency) {
   return (a === "THB" && b === "RUB") || (a === "RUB" && b === "THB");
 }
 
+
+function appendSupportDialogMessage(dialog: any, msg: { from: "manager" | "client"; text: string; created_at?: string; manager_tg_id?: number; manager_name?: string }) {
+  const created_at = String(msg.created_at || new Date().toISOString());
+  const next = Array.isArray(dialog?.messages) ? [...dialog.messages] : [];
+  next.push({
+    id: randomUUID(),
+    from: msg.from,
+    text: String(msg.text || "").trim(),
+    created_at,
+    manager_tg_id: Number.isFinite(Number(msg.manager_tg_id)) ? Number(msg.manager_tg_id) : undefined,
+    manager_name: typeof msg.manager_name === "string" ? msg.manager_name : undefined
+  });
+  return next.filter((m: any) => m && m.text).slice(-100);
+}
+
 const requestStateLabel: Record<RequestState, string> = {
   in_progress: "в работе",
   done: "готова",
@@ -1914,12 +1929,36 @@ ${textIn}
             created_at: prev.created_at || now,
             updated_at: now,
             last_manager_text: textIn,
-            last_client_text: prev.last_client_text
+            last_client_text: prev.last_client_text,
+            messages: appendSupportDialogMessage(prev, { from: "manager", text: textIn, created_at: now, manager_tg_id: managerTgId, manager_name: fromName })
           };
         });
       }
 
       return res.json({ ok: true, relay_enabled: Number.isFinite(managerTgId) && managerTgId > 0 });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  router.get("/admin/support-dialog/:tgId", async (req, res) => {
+    try {
+      const { isOwner, isAdmin } = await requireAdmin(req);
+      if (!isOwner && !isAdmin) return res.status(403).json({ ok: false, error: "forbidden" });
+      const tgId = Number(req.params.tgId || 0);
+      if (!Number.isFinite(tgId) || tgId <= 0) return res.status(400).json({ ok: false, error: "bad_tg_id" });
+      const store = await readStore();
+      const dialog = (store.config as any)?.supportDialogs?.[String(tgId)] || null;
+      const user = Object.values(store.users || {}).find((u: any) => Number(u?.tg_id) === tgId) as any;
+      const contact = (store.contacts || []).find((c: any) => Number(c?.tg_id) === tgId) || null;
+      const req = (dialog?.request_id ? (store.requests || []).find((r: any) => String(r?.id) === String(dialog.request_id)) : null) || null;
+      const client = {
+        tg_id: tgId,
+        username: contact?.username || user?.username || req?.from?.username || undefined,
+        fullName: contact?.fullName || [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() || undefined,
+        request_id: dialog?.request_id || undefined
+      };
+      return res.json({ ok: true, dialog: dialog || { client_tg_id: tgId, messages: [] }, client });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
