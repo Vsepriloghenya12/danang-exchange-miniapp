@@ -7,6 +7,7 @@ import {
   apiStaffSetRequestState,
   apiStaffUpdateRequest,
   apiStaffUpsertContact,
+  apiAdminMessageUser,
 } from "../lib/api";
 import type { Contact, UserStatus } from "../lib/types";
 
@@ -94,6 +95,9 @@ export default function StaffTab({ me }: any) {
   const [selectedId, setSelectedId] = useState<string>("");
 
   const [view, setView] = useState<"list" | "detail" | "history">("list");
+  const [messageOpen, setMessageOpen] = useState(false);
+  const [messageText, setMessageText] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   // Keep the latest selection/view accessible inside the polling interval.
   const selectedIdRef = useRef<string>("");
@@ -360,6 +364,47 @@ export default function StaffTab({ me }: any) {
     }
   }
 
+  function handleOpenClientMessage() {
+    const uname = String(selectedReq?.from?.username || "").trim();
+    const tgId = Number(selectedReq?.from?.id || 0);
+    if (uname) {
+      openClientDialog(uname, tgId);
+      return;
+    }
+    if (!Number.isFinite(tgId) || tgId <= 0) {
+      tg?.showAlert?.("Не удалось определить Telegram ID клиента.");
+      return;
+    }
+    setMessageText("");
+    setMessageOpen(true);
+  }
+
+  async function sendDirectMessage() {
+    const tgId = Number(selectedReq?.from?.id || 0);
+    const text = messageText.trim();
+    if (!Number.isFinite(tgId) || tgId <= 0) {
+      tg?.showAlert?.("Не удалось определить Telegram ID клиента.");
+      return;
+    }
+    if (!text) {
+      tg?.showAlert?.("Введите текст сообщения.");
+      return;
+    }
+    setSendingMessage(true);
+    try {
+      const r = await apiAdminMessageUser(initData, { tg_id: tgId, text });
+      if (!r?.ok) {
+        tg?.showAlert?.(r?.error || "Не удалось отправить сообщение");
+        return;
+      }
+      tg?.HapticFeedback?.notificationOccurred?.("success");
+      setMessageOpen(false);
+      setMessageText("");
+    } finally {
+      setSendingMessage(false);
+    }
+  }
+
   if (!initData) {
     return (
       <div>
@@ -393,6 +438,30 @@ export default function StaffTab({ me }: any) {
   return (
     <div>
       {Header}
+
+      {messageOpen ? (
+        <div className="vx-modalOverlay" onClick={() => !sendingMessage && setMessageOpen(false)}>
+          <div className="vx-modalCard" onClick={(e) => e.stopPropagation()}>
+            <div className="row vx-between vx-center">
+              <div className="vx-modalTitle">Сообщение клиенту</div>
+              <button type="button" className="btn vx-btnSm" onClick={() => setMessageOpen(false)} disabled={sendingMessage}>Закрыть</button>
+            </div>
+            <div className="vx-muted" style={{ marginTop: 6 }}>Сообщение уйдёт клиенту через бота.</div>
+            <div className="vx-sp10" />
+            <textarea
+              className="input vx-in"
+              rows={5}
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value.slice(0, 4000))}
+              placeholder="Введите сообщение клиенту"
+            />
+            <div className="vx-sp10" />
+            <button type="button" className="btn" onClick={sendDirectMessage} disabled={sendingMessage || !messageText.trim()}>
+              {sendingMessage ? "Отправка..." : "Отправить"}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {view === "list" ? (
         <>
@@ -499,7 +568,7 @@ export default function StaffTab({ me }: any) {
             </div>
             <div className="vx-sp8" />
             <div className="vx-inlineBtns">
-              <button type="button" className="btn vx-btnSm" onClick={() => openClientDialog(selectedReq.from?.username, Number(selectedReq.from?.id || 0))}>
+              <button type="button" className="btn vx-btnSm" onClick={handleOpenClientMessage}>
                 Написать клиенту
               </button>
             </div>

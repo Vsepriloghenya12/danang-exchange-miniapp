@@ -27,6 +27,7 @@ import {
   apiAdminSetGFormulas,
   apiAdminGetFaq,
   apiAdminSetFaq,
+  apiAdminMessageUser,
 } from "../lib/api";
 import type { Contact, UserStatus } from "../lib/types";
 
@@ -91,13 +92,15 @@ function openClientDialog(username?: string, tgId?: number) {
     if (tg?.openTelegramLink) tg.openTelegramLink(url);
     else if (tg?.openLink) tg.openLink(url);
     else window.open(url, "_blank", "noopener,noreferrer");
-    return;
+    return true;
   }
   if (tgId && Number.isFinite(tgId)) {
     const deep = `tg://user?id=${tgId}`;
     if (tg?.openLink) tg.openLink(deep);
     else window.location.href = deep;
+    return true;
   }
+  return false;
 }
 
 const DEFAULT_TEMPLATE = `Доброе утро!\n\nКурс на {{date}}:\n\n{{rates}}\n\n🛵    Бесплатная доставка\n             С 10:00 до 16:00.\n        при обмене от 20 000₽\n\n⏩БОЛЕЕ ВЫГОДНЫЙ КУРС  ⏪\n  при дистанционном обмене                        ⠀              от 20 000₽\n💳  Перевод на вьетнамский счёт;\n📥  Получение в банкоматах BIDV Vietcombank;`;
@@ -1334,6 +1337,23 @@ function moveFaq(id: string, dir: -1 | 1) {
     return null;
   }, [reqSelected, selectedTgId, selectedUsername, contactsByTg, contactsByUsername]);
 
+  async function handleOwnerMessageClient() {
+    if (selectedUsername && openClientDialog(selectedUsername, selectedTgId)) return;
+    if (!selectedTgId) {
+      alert("Не удалось определить Telegram ID клиента.");
+      return;
+    }
+    const textIn = window.prompt("Введите сообщение клиенту");
+    const msg = String(textIn || "").trim();
+    if (!msg) return;
+    const r = await apiAdminMessageUser(token, { tg_id: selectedTgId, text: msg });
+    if (!r?.ok) {
+      alert(r?.error || "Не удалось отправить сообщение");
+      return;
+    }
+    alert("Сообщение отправлено клиенту.");
+  }
+
   // Sync request contact editor on selection change
   useEffect(() => {
     setReqFullName(reqSelectedContact?.fullName || "");
@@ -2011,7 +2031,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                 </div>
                 <div className="vx-sp8" />
                 <div className="vx-inlineBtns">
-                  <button className="btn vx-btnSm" type="button" onClick={() => openClientDialog(selectedUsername, selectedTgId)}>Написать клиенту</button>
+                  <button className="btn vx-btnSm" type="button" onClick={handleOwnerMessageClient}>Написать клиенту</button>
                 </div>
 
                 <div className="vx-sp10" />

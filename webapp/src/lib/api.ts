@@ -189,6 +189,15 @@ export async function apiAdminSetUserStatus(initData: string, tgId: number, stat
   return r.json();
 }
 
+export async function apiAdminMessageUser(token: string, payload: { tg_id: number; text: string }) {
+  const r = await fetch("/api/admin/message-user", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
+    body: JSON.stringify(payload)
+  });
+  return readJsonSafe(r);
+}
+
 export async function apiAdminGetRequests(initData: string) {
   const r = await fetch("/api/admin/requests", {
     headers: { ...adminAuthHeaders(initData) }

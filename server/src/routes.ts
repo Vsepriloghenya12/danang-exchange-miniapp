@@ -1855,6 +1855,49 @@ router.post("/admin/faq", async (req, res) => {
     }
   });
 
+  router.post("/admin/message-user", async (req, res) => {
+    try {
+      const { isOwner, isAdmin, user } = await requireAdmin(req);
+      if (!isOwner && !isAdmin) return res.status(403).json({ ok: false, error: "forbidden" });
+
+      const tgId = Number(req.body?.tg_id ?? req.body?.tgId);
+      const textIn = String(req.body?.text || "").trim();
+      if (!Number.isFinite(tgId) || tgId <= 0) {
+        return res.status(400).json({ ok: false, error: "bad_tg_id" });
+      }
+      if (!textIn) {
+        return res.status(400).json({ ok: false, error: "empty_text" });
+      }
+      if (textIn.length > 4000) {
+        return res.status(400).json({ ok: false, error: "text_too_long" });
+      }
+
+      const fromName =
+        (user as any)?.username
+          ? `@${(user as any).username}`
+          : `${(user as any)?.first_name || ""} ${(user as any)?.last_name || ""}`.trim() || "менеджер";
+
+      const msg = `✉️ Сообщение от менеджера
+
+${textIn}
+
+— ${fromName}`;
+      const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: tgId, text: msg, disable_web_page_preview: true })
+      });
+      const tgJson = await tgRes.json().catch(() => ({} as any));
+      if (!tgRes.ok || !tgJson?.ok) {
+        return res.status(400).json({ ok: false, error: tgJson?.description || "send_failed" });
+      }
+
+      return res.json({ ok: true });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
   // --------------------
   // Requests
   // --------------------

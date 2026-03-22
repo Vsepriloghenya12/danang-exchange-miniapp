@@ -543,6 +543,7 @@ export default function CalculatorTab({ me }: Props) {
 
   const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeStatus(me?.status));
   const [requestComment, setRequestComment] = useState("");
+  const [showConditions, setShowConditions] = useState(false);
 
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [danangNowMs, setDanangNowMs] = useState(() => Date.now());
