@@ -48,6 +48,34 @@ const webDist = path.resolve(__dirname, "../../webapp/dist");
 const runtimePublic = path.resolve(__dirname, "../public");
 
 
+function setStaticCacheHeaders(res: express.Response, filePath: string) {
+  const ext = path.extname(filePath).toLowerCase();
+  const normalized = filePath.replace(/\\/g, "/");
+  const isHtml = ext === ".html";
+  const isHashedBundle = normalized.includes("/assets/");
+  const isMedia = [".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif", ".ico", ".woff", ".woff2", ".ttf", ".otf", ".mp4", ".webm"].includes(ext);
+
+  if (isHtml) {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    return;
+  }
+
+  if (isHashedBundle) {
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    return;
+  }
+
+  if (isMedia) {
+    // Logos, icons, fonts, banks, afisha images and short videos should stay snappy on reopen.
+    // Versioned files still invalidate immediately via their query string or filename.
+    res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400");
+    return;
+  }
+
+  res.setHeader("Cache-Control", "public, max-age=300");
+}
+
+
 function getAfishaRuntimeDir(): string {
   const explicit = String(process.env.AFISHA_STORAGE_DIR || "").trim();
   if (explicit) return path.resolve(explicit);
@@ -63,8 +91,8 @@ function mountAfishaStatic(app: express.Express) {
   const bundledAfishaDir = path.join(runtimePublic, "afisha");
 
   const staticOpts = {
-    setHeaders(res: express.Response) {
-      res.setHeader("Cache-Control", "no-store, max-age=0");
+    setHeaders(res: express.Response, filePath: string) {
+      setStaticCacheHeaders(res, filePath);
     }
   };
 
@@ -133,8 +161,8 @@ async function startApiOnly() {
     if (fs.existsSync(runtimePublic)) {
       app.use(
         express.static(runtimePublic, {
-          setHeaders(res) {
-            res.setHeader("Cache-Control", "no-store, max-age=0");
+          setHeaders(res, filePath) {
+            setStaticCacheHeaders(res, filePath);
           }
         })
       );
@@ -142,8 +170,8 @@ async function startApiOnly() {
 
     app.use(
       express.static(webDist, {
-        setHeaders(res) {
-          res.setHeader("Cache-Control", "no-store, max-age=0");
+        setHeaders(res, filePath) {
+          setStaticCacheHeaders(res, filePath);
         }
       })
     );
@@ -239,16 +267,16 @@ async function startMonolith() {
     if (fs.existsSync(runtimePublic)) {
       app.use(
         express.static(runtimePublic, {
-          setHeaders(res) {
-            res.setHeader("Cache-Control", "no-store, max-age=0");
+          setHeaders(res, filePath) {
+            setStaticCacheHeaders(res, filePath);
           }
         })
       );
     }
     app.use(
       express.static(webDist, {
-        setHeaders(res) {
-          res.setHeader("Cache-Control", "no-store, max-age=0");
+        setHeaders(res, filePath) {
+          setStaticCacheHeaders(res, filePath);
         }
       })
     );

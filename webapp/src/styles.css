@@ -2449,6 +2449,12 @@ html[data-theme="dark"] .theme-client .mx-statusSkeleton{
   pointer-events: none;
 }
 
+.mx-chat-open .mx-bottomNav{
+  --mxNavHide: 120px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Dark theme bottom menu: black bar + yellow neon edge */
 html[data-theme="dark"] .theme-client .mx-bottomNav{
   background: rgba(23,33,43,.96);
@@ -4187,6 +4193,7 @@ html[data-theme="dark"] .theme-client .vx-modalCard{
   max-height: min(88vh, 920px);
   display: grid;
   grid-template-rows: auto auto minmax(220px,1fr) auto;
+  overflow: hidden;
 }
 .vx-chatHint{
   font-size: 12px;
@@ -4223,6 +4230,7 @@ html[data-theme="dark"] .theme-client .vx-modalCard{
 .vx-chatComposer{
   display: grid;
   gap: 8px;
+  padding-bottom: calc(2px + env(safe-area-inset-bottom));
 }
 .vx-chatToolbar{
   display: flex;
@@ -4275,7 +4283,7 @@ html[data-theme="dark"] .theme-owner .vx-chatCountTag.is-unread{
 @media (max-width: 640px) {
   .vx-chatModal{
     width: calc(100vw - 12px);
-    max-height: 92vh;
+    max-height: calc(100vh - 12px - env(safe-area-inset-bottom));
   }
   .vx-chatMsg{
     max-width: 94%;
@@ -4283,4 +4291,15 @@ html[data-theme="dark"] .theme-owner .vx-chatCountTag.is-unread{
   .vx-chatText{
     font-size: 13px;
   }
+}
+
+
+.theme-owner .card > .card{
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.theme-owner .card > .card + .card{
+  margin-top: 12px;
 }

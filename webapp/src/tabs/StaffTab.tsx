@@ -82,6 +82,24 @@ function supportBadgeLabel(r: any) {
 }
 
 
+function sameDialogMessages(a: any[], b: any[]) {
+  if (a === b) return true;
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const x = a[i] || {};
+    const y = b[i] || {};
+    if (
+      String(x?.id || "") !== String(y?.id || "") ||
+      String(x?.from || "") !== String(y?.from || "") ||
+      String(x?.text || "") !== String(y?.text || "") ||
+      String(x?.created_at || "") !== String(y?.created_at || "")
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function openClientDialog(username?: string, tgId?: number) {
   const tg = getTg();
   const uname = String(username || "").trim().replace(/^@+/, "");
@@ -117,6 +135,7 @@ export default function StaffTab({ me }: any) {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [dialogLoading, setDialogLoading] = useState(false);
   const [dialogMessages, setDialogMessages] = useState<any[]>([]);
+  const [dialogRefreshing, setDialogRefreshing] = useState(false);
   const [dialogClientLabel, setDialogClientLabel] = useState("");
   const [dialogStats, setDialogStats] = useState<{ unreadCount?: number; clientMessageCount?: number } | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
@@ -212,9 +231,9 @@ export default function StaffTab({ me }: any) {
     setEditComment(String(selectedReq.comment || ""));
   }, [selectedReq?.id]);
 
-  async function loadAll() {
+  async function loadAll(opts?: { silent?: boolean }) {
     if (!initData) return;
-    setLoading(true);
+    if (!opts?.silent) setLoading(true);
     try {
       const [ri, bi] = await Promise.allSettled([
         apiStaffGetRequests(initData),
@@ -247,15 +266,17 @@ export default function StaffTab({ me }: any) {
         setIcons(Array.from(new Set(Array.isArray(bi.value.icons) ? bi.value.icons : [])));
       }
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }
 
   useEffect(() => {
     tg?.expand?.();
     if (!initData) return;
-    loadAll();
-    const id = window.setInterval(loadAll, 7000);
+    void loadAll();
+    const id = window.setInterval(() => {
+      void loadAll({ silent: true });
+    }, 7000);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initData]);
@@ -386,21 +407,24 @@ export default function StaffTab({ me }: any) {
     }
   }
 
-  async function loadSupportDialog(tgId: number, markRead = true) {
-    setDialogLoading(true);
+  async function loadSupportDialog(tgId: number, markRead = true, opts?: { silent?: boolean }) {
+    if (opts?.silent) setDialogRefreshing(true);
+    else setDialogLoading(true);
     try {
       const r = await apiAdminGetSupportDialog(initData, tgId, markRead);
       if (!r?.ok) {
-        tg?.showAlert?.(r?.error || "Не удалось загрузить переписку");
+        if (!opts?.silent) tg?.showAlert?.(r?.error || "Не удалось загрузить переписку");
         return;
       }
       const client = r?.client || {};
       const label = client?.username ? `@${client.username}` : (client?.fullName || `id:${tgId}`);
+      const nextMessages = Array.isArray(r?.dialog?.messages) ? r.dialog.messages : [];
       setDialogClientLabel(label);
-      setDialogMessages(Array.isArray(r?.dialog?.messages) ? r.dialog.messages : []);
+      setDialogMessages((prev) => (sameDialogMessages(prev, nextMessages) ? prev : nextMessages));
       setDialogStats(r?.stats || null);
     } finally {
-      setDialogLoading(false);
+      if (opts?.silent) setDialogRefreshing(false);
+      else setDialogLoading(false);
     }
   }
 
@@ -423,9 +447,20 @@ export default function StaffTab({ me }: any) {
 
   useEffect(() => {
     if (!messageOpen || !selectedTgId) return;
-    const t = window.setInterval(() => { void loadSupportDialog(selectedTgId, false); }, 4000);
+    const t = window.setInterval(() => { void loadSupportDialog(selectedTgId, false, { silent: true }); }, 4000);
     return () => window.clearInterval(t);
   }, [messageOpen, selectedTgId]);
+
+  useEffect(() => {
+    try {
+      const html = document.documentElement;
+      if (messageOpen) html.classList.add("mx-chat-open");
+      else html.classList.remove("mx-chat-open");
+      return () => html.classList.remove("mx-chat-open");
+    } catch {
+      return;
+    }
+  }, [messageOpen]);
 
   async function sendDirectMessage() {
     const tgId = Number(selectedReq?.from?.id || 0);
@@ -454,9 +489,14 @@ export default function StaffTab({ me }: any) {
   }
 
 
+  const lastDialogLenRef = useRef(0);
   useEffect(() => {
     const el = chatScrollRef.current;
-    if (!el) return;
+    if (!el || !messageOpen) return;
+    const nextLen = dialogMessages.length;
+    const shouldScroll = nextLen !== lastDialogLenRef.current || nextLen === 0;
+    lastDialogLenRef.current = nextLen;
+    if (!shouldScroll) return;
     try {
       el.scrollTop = el.scrollHeight;
     } catch {
@@ -511,14 +551,14 @@ export default function StaffTab({ me }: any) {
             <div className="vx-chatHint" style={{ marginTop: 6 }}>Сообщения идут через бота. Ответ клиента появится здесь и дополнительно придёт менеджеру в личный чат с ботом.</div>
             <div className="vx-sp10" />
             <div className="vx-chatBox" ref={chatScrollRef}>
-              {dialogLoading ? <div className="vx-muted">Загрузка переписки…</div> : null}
-              {!dialogLoading && dialogMessages.length === 0 ? <div className="vx-chatEmpty">Переписка пока пустая.</div> : null}
-              {!dialogLoading ? dialogMessages.map((m:any) => (
+              {dialogLoading && dialogMessages.length === 0 ? <div className="vx-muted">Загрузка переписки…</div> : null}
+              {!dialogLoading && !dialogRefreshing && dialogMessages.length === 0 ? <div className="vx-chatEmpty">Переписка пока пустая.</div> : null}
+              {dialogMessages.map((m:any) => (
                 <div key={String(m?.id || Math.random())} className={"vx-chatMsg " + (m?.from === "manager" ? "is-manager" : "is-client")}>
                   <div className="vx-chatMeta">{m?.from === "manager" ? (m?.manager_name || "Менеджер") : "Клиент"} • {fmtDateTime(String(m?.created_at || ""))}</div>
                   <div className="vx-chatText">{String(m?.text || "")}</div>
                 </div>
-              )) : null}
+              ))}
             </div>
             <div className="vx-sp10" />
             <div className="vx-chatComposer">

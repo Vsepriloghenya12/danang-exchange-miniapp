@@ -119,6 +119,24 @@ function supportBadgeLabel(r: any) {
   return total > 0 ? `Сообщений ${total}` : "";
 }
 
+function sameDialogMessages(a: any[], b: any[]) {
+  if (a === b) return true;
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const x = a[i] || {};
+    const y = b[i] || {};
+    if (
+      String(x?.id || "") !== String(y?.id || "") ||
+      String(x?.from || "") !== String(y?.from || "") ||
+      String(x?.text || "") !== String(y?.text || "") ||
+      String(x?.created_at || "") !== String(y?.created_at || "")
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 const DEFAULT_TEMPLATE = `Доброе утро!\n\nКурс на {{date}}:\n\n{{rates}}\n\n🛵    Бесплатная доставка\n             С 10:00 до 16:00.\n        при обмене от 20 000₽\n\n⏩БОЛЕЕ ВЫГОДНЫЙ КУРС  ⏪\n  при дистанционном обмене                        ⠀              от 20 000₽\n💳  Перевод на вьетнамский счёт;\n📥  Получение в банкоматах BIDV Vietcombank;`;
 
 export default function OwnerPortal() {
@@ -291,6 +309,7 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
   const [supportDraft, setSupportDraft] = useState<string>("");
   const [supportSending, setSupportSending] = useState<boolean>(false);
   const [supportLoading, setSupportLoading] = useState<boolean>(false);
+  const [supportRefreshing, setSupportRefreshing] = useState<boolean>(false);
   const [supportMessages, setSupportMessages] = useState<any[]>([]);
   const [supportClientLabel, setSupportClientLabel] = useState<string>("");
   const [supportStats, setSupportStats] = useState<{ unreadCount?: number; clientMessageCount?: number } | null>(null);
@@ -1361,20 +1380,23 @@ function moveFaq(id: string, dir: -1 | 1) {
     return null;
   }, [reqSelected, selectedTgId, selectedUsername, contactsByTg, contactsByUsername]);
 
-  async function loadSupportDialogOwner(tgId: number, markRead = true) {
-    setSupportLoading(true);
+  async function loadSupportDialogOwner(tgId: number, markRead = true, opts?: { silent?: boolean }) {
+    if (opts?.silent) setSupportRefreshing(true);
+    else setSupportLoading(true);
     try {
       const r = await apiAdminGetSupportDialog(token, tgId, markRead);
       if (!r?.ok) {
-        alert(r?.error || "Не удалось загрузить переписку");
+        if (!opts?.silent) alert(r?.error || "Не удалось загрузить переписку");
         return;
       }
       const client = r?.client || {};
+      const nextMessages = Array.isArray(r?.dialog?.messages) ? r.dialog.messages : [];
       setSupportClientLabel(client?.username ? `@${client.username}` : (client?.fullName || `id:${tgId}`));
-      setSupportMessages(Array.isArray(r?.dialog?.messages) ? r.dialog.messages : []);
+      setSupportMessages((prev) => (sameDialogMessages(prev, nextMessages) ? prev : nextMessages));
       setSupportStats(r?.stats || null);
     } finally {
-      setSupportLoading(false);
+      if (opts?.silent) setSupportRefreshing(false);
+      else setSupportLoading(false);
     }
   }
 
@@ -1392,7 +1414,7 @@ function moveFaq(id: string, dir: -1 | 1) {
 
   useEffect(() => {
     if (!supportOpen || !selectedTgId) return;
-    const t = window.setInterval(() => { void loadSupportDialogOwner(selectedTgId, false); }, 4000);
+    const t = window.setInterval(() => { void loadSupportDialogOwner(selectedTgId, false, { silent: true }); }, 4000);
     return () => window.clearInterval(t);
   }, [supportOpen, selectedTgId]);
 
@@ -1547,9 +1569,14 @@ function moveFaq(id: string, dir: -1 | 1) {
   }, [requests]);
 
 
+  const lastSupportLenRef = useRef(0);
   useEffect(() => {
     const el = supportChatRef.current;
-    if (!el) return;
+    if (!el || !supportOpen) return;
+    const nextLen = supportMessages.length;
+    const shouldScroll = nextLen !== lastSupportLenRef.current || nextLen === 0;
+    lastSupportLenRef.current = nextLen;
+    if (!shouldScroll) return;
     try {
       el.scrollTop = el.scrollHeight;
     } catch {
@@ -1624,14 +1651,14 @@ function moveFaq(id: string, dir: -1 | 1) {
               <div className="vx-chatHint" style={{ marginTop: 6 }}>Сообщения идут через бота. Ответ клиента также приходит менеджеру в личный чат с ботом.</div>
               <div className="vx-sp10" />
               <div className="vx-chatBox" ref={supportChatRef}>
-                {supportLoading ? <div className="vx-muted">Загрузка переписки…</div> : null}
-                {!supportLoading && supportMessages.length === 0 ? <div className="vx-chatEmpty">Переписка пока пустая.</div> : null}
-                {!supportLoading ? supportMessages.map((m:any) => (
+                {supportLoading && supportMessages.length === 0 ? <div className="vx-muted">Загрузка переписки…</div> : null}
+                {!supportLoading && !supportRefreshing && supportMessages.length === 0 ? <div className="vx-chatEmpty">Переписка пока пустая.</div> : null}
+                {supportMessages.map((m:any) => (
                   <div key={String(m?.id || Math.random())} className={"vx-chatMsg " + (m?.from === "manager" ? "is-manager" : "is-client")}>
                     <div className="vx-chatMeta">{m?.from === "manager" ? (m?.manager_name || "Менеджер") : "Клиент"} • {fmtDt(String(m?.created_at || ""))}</div>
                     <div className="vx-chatText">{String(m?.text || "")}</div>
                   </div>
-                )) : null}
+                ))}
               </div>
               <div className="vx-sp10" />
               <div className="vx-chatComposer">
@@ -1815,13 +1842,9 @@ function moveFaq(id: string, dir: -1 | 1) {
         </>
       ) : null}
 
-      {tab === "bonuses" ? (
-        <div className="card"><AdminTab me={me} forcedSection="bonuses" hideHeader hideSeg /></div>
-      ) : null}
+      {tab === "bonuses" ? <AdminTab me={me} forcedSection="bonuses" hideHeader hideSeg /> : null}
 
-      {tab === "reviews" ? (
-        <div className="card"><AdminTab me={me} forcedSection="reviews" hideHeader hideSeg /></div>
-      ) : null}
+      {tab === "reviews" ? <AdminTab me={me} forcedSection="reviews" hideHeader hideSeg /> : null}
 
       {tab === "clients" ? (
         <>

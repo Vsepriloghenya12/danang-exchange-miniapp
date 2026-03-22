@@ -500,7 +500,22 @@ export default function App() {
       void warm.marketRates().catch(() => {});
       void warm.gFormulas().catch(() => {});
       void warm.bonuses().catch(() => {});
-      void warm.afisha().catch(() => {});
+      void warm.afisha()
+        .then((r: any) => {
+          const urls = Array.isArray(r?.events)
+            ? Array.from(new Set(r.events.map((ev: any) => String(ev?.imageUrl || "").trim()).filter(Boolean))).slice(0, 8)
+            : [];
+          urls.forEach((u) => {
+            try {
+              const img = new Image();
+              img.decoding = "async";
+              img.src = u;
+            } catch {
+              // ignore
+            }
+          });
+        })
+        .catch(() => {});
       void warm.atms().catch(() => {});
       void warm.faq().catch(() => {});
       void warm.reviews().catch(() => {});
