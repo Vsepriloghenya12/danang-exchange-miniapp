@@ -1,51 +1,20 @@
 {
-  "id": "/",
-  "name": "Cash A Lot — Обмен валют в Дананге",
-  "short_name": "Cash A Lot",
-  "description": "Курсы, заявки, афиша, банкоматы и история обмена в одном приложении.",
-  "lang": "ru",
-  "dir": "ltr",
-  "start_url": "/?source=pwa",
-  "scope": "/",
+  "name": "Обмен валют — Дананг",
+  "short_name": "Exchange",
+  "start_url": "/",
   "display": "standalone",
-  "display_override": ["standalone", "browser"],
-  "orientation": "portrait-primary",
   "background_color": "#17212b",
   "theme_color": "#17212b",
-  "categories": ["finance", "travel", "lifestyle"],
-  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/brand/app-icon-192.png?v=30",
+      "src": "/brand/app-icon-192.png?v=28",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "/brand/app-icon-512.png?v=30",
+      "src": "/brand/app-icon.png?v=28",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Оставить заявку",
-      "short_name": "Заявка",
-      "url": "/?screen=calc",
-      "icons": [{ "src": "/brand/app-icon-192.png?v=30", "sizes": "192x192", "type": "image/png" }]
-    },
-    {
-      "name": "Афиша",
-      "short_name": "Афиша",
-      "url": "/?screen=afisha",
-      "icons": [{ "src": "/brand/app-icon-192.png?v=30", "sizes": "192x192", "type": "image/png" }]
-    },
-    {
-      "name": "Банкоматы",
-      "short_name": "Банкоматы",
-      "url": "/?screen=atm",
-      "icons": [{ "src": "/brand/app-icon-192.png?v=30", "sizes": "192x192", "type": "image/png" }]
+      "type": "image/png"
     }
   ]
 }

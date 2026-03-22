@@ -33,24 +33,14 @@ export default function OtherTab({
   onAbout,
   onContacts,
   onOrderApp,
-  onInstallApp,
-  installSubtitle,
 }: {
   onFaq: () => void;
   onAbout: () => void;
   onContacts: () => void;
   onOrderApp: () => void;
-  onInstallApp?: () => void;
-  installSubtitle?: string;
 }) {
   return (
     <div>
-      {onInstallApp ? (
-        <>
-          <RowBtn title="Установить приложение" subtitle={installSubtitle || "Добавить на главный экран"} onClick={onInstallApp} />
-          <div className="mx-sp10" />
-        </>
-      ) : null}
       <RowBtn title="FAQ" subtitle="Часто задаваемые вопросы" onClick={onFaq} />
       <div className="mx-sp10" />
       <RowBtn title="О приложении" onClick={onAbout} />

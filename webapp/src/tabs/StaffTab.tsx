@@ -66,6 +66,22 @@ function methodLabel(m: string) {
   return m || "—";
 }
 
+function supportClientCount(r: any) {
+  return Math.max(0, Number(r?.supportClientMessageCount || 0) || 0);
+}
+
+function supportUnreadCount(r: any) {
+  return Math.max(0, Number(r?.supportUnreadCount || 0) || 0);
+}
+
+function supportBadgeLabel(r: any) {
+  const unread = supportUnreadCount(r);
+  if (unread > 0) return `Новых ${unread}`;
+  const total = supportClientCount(r);
+  return total > 0 ? `Сообщений ${total}` : "";
+}
+
+
 function openClientDialog(username?: string, tgId?: number) {
   const tg = getTg();
   const uname = String(username || "").trim().replace(/^@+/, "");
@@ -102,6 +118,8 @@ export default function StaffTab({ me }: any) {
   const [dialogLoading, setDialogLoading] = useState(false);
   const [dialogMessages, setDialogMessages] = useState<any[]>([]);
   const [dialogClientLabel, setDialogClientLabel] = useState("");
+  const [dialogStats, setDialogStats] = useState<{ unreadCount?: number; clientMessageCount?: number } | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
   // Keep the latest selection/view accessible inside the polling interval.
   const selectedIdRef = useRef<string>("");
@@ -368,10 +386,10 @@ export default function StaffTab({ me }: any) {
     }
   }
 
-  async function loadSupportDialog(tgId: number) {
+  async function loadSupportDialog(tgId: number, markRead = true) {
     setDialogLoading(true);
     try {
-      const r = await apiAdminGetSupportDialog(initData, tgId);
+      const r = await apiAdminGetSupportDialog(initData, tgId, markRead);
       if (!r?.ok) {
         tg?.showAlert?.(r?.error || "Не удалось загрузить переписку");
         return;
@@ -380,6 +398,7 @@ export default function StaffTab({ me }: any) {
       const label = client?.username ? `@${client.username}` : (client?.fullName || `id:${tgId}`);
       setDialogClientLabel(label);
       setDialogMessages(Array.isArray(r?.dialog?.messages) ? r.dialog.messages : []);
+      setDialogStats(r?.stats || null);
     } finally {
       setDialogLoading(false);
     }
@@ -399,12 +418,12 @@ export default function StaffTab({ me }: any) {
     setMessageText("");
     setDialogMessages([]);
     setMessageOpen(true);
-    void loadSupportDialog(tgId);
+    void loadSupportDialog(tgId, true);
   }
 
   useEffect(() => {
     if (!messageOpen || !selectedTgId) return;
-    const t = window.setInterval(() => { void loadSupportDialog(selectedTgId); }, 5000);
+    const t = window.setInterval(() => { void loadSupportDialog(selectedTgId, false); }, 4000);
     return () => window.clearInterval(t);
   }, [messageOpen, selectedTgId]);
 
@@ -428,11 +447,22 @@ export default function StaffTab({ me }: any) {
       }
       tg?.HapticFeedback?.notificationOccurred?.("success");
       setMessageText("");
-      await loadSupportDialog(tgId);
+      await loadSupportDialog(tgId, true);
     } finally {
       setSendingMessage(false);
     }
   }
+
+
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    try {
+      el.scrollTop = el.scrollHeight;
+    } catch {
+      // ignore
+    }
+  }, [dialogMessages, messageOpen]);
 
   if (!initData) {
     return (
@@ -470,7 +500,7 @@ export default function StaffTab({ me }: any) {
 
       {messageOpen ? (
         <div className="vx-modalOverlay" onClick={() => !sendingMessage && setMessageOpen(false)}>
-          <div className="vx-modalCard" onClick={(e) => e.stopPropagation()}>
+          <div className="vx-modalCard vx-chatModal" onClick={(e) => e.stopPropagation()}>
             <div className="row vx-between vx-center">
               <div>
                 <div className="vx-modalTitle">Чат с клиентом</div>
@@ -478,11 +508,11 @@ export default function StaffTab({ me }: any) {
               </div>
               <button type="button" className="btn vx-btnSm" onClick={() => setMessageOpen(false)} disabled={sendingMessage}>Закрыть</button>
             </div>
-            <div className="vx-muted" style={{ marginTop: 6 }}>Сообщения идут через бота. Ответ клиента появится здесь и дополнительно придёт менеджеру в личный чат с ботом.</div>
+            <div className="vx-chatHint" style={{ marginTop: 6 }}>Сообщения идут через бота. Ответ клиента появится здесь и дополнительно придёт менеджеру в личный чат с ботом.</div>
             <div className="vx-sp10" />
-            <div className="vx-chatBox">
+            <div className="vx-chatBox" ref={chatScrollRef}>
               {dialogLoading ? <div className="vx-muted">Загрузка переписки…</div> : null}
-              {!dialogLoading && dialogMessages.length === 0 ? <div className="vx-muted">Переписка пока пустая.</div> : null}
+              {!dialogLoading && dialogMessages.length === 0 ? <div className="vx-chatEmpty">Переписка пока пустая.</div> : null}
               {!dialogLoading ? dialogMessages.map((m:any) => (
                 <div key={String(m?.id || Math.random())} className={"vx-chatMsg " + (m?.from === "manager" ? "is-manager" : "is-client")}>
                   <div className="vx-chatMeta">{m?.from === "manager" ? (m?.manager_name || "Менеджер") : "Клиент"} • {fmtDateTime(String(m?.created_at || ""))}</div>
@@ -491,8 +521,12 @@ export default function StaffTab({ me }: any) {
               )) : null}
             </div>
             <div className="vx-sp10" />
+            <div className="vx-chatComposer">
+            <div className="vx-chatToolbar">
+              <div className="vx-chatStats">{dialogStats?.clientMessageCount ? `Сообщений от клиента: ${dialogStats.clientMessageCount}` : "Сообщений от клиента пока нет"}</div>
+            </div>
             <textarea
-              className="input vx-in"
+              className="input vx-in vx-chatTextarea"
               rows={4}
               value={messageText}
               onChange={(e) => setMessageText(e.target.value.slice(0, 4000))}
@@ -503,9 +537,10 @@ export default function StaffTab({ me }: any) {
               <button type="button" className="btn" onClick={sendDirectMessage} disabled={sendingMessage || !messageText.trim()}>
                 {sendingMessage ? "Отправка..." : "Отправить"}
               </button>
-              <button type="button" className="btn vx-btnSm" onClick={() => selectedTgId && loadSupportDialog(selectedTgId)} disabled={dialogLoading || !selectedTgId}>
+              <button type="button" className="btn vx-btnSm" onClick={() => selectedTgId && loadSupportDialog(selectedTgId, true)} disabled={dialogLoading || !selectedTgId}>
                 Обновить чат
               </button>
+            </div>
             </div>
           </div>
         </div>
@@ -546,6 +581,7 @@ export default function StaffTab({ me }: any) {
                     <div>
                       <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
                       <span className="vx-tag">{stateLabel[String(r.state)] || String(r.state)}</span>
+                      {supportClientCount(r) > 0 ? <span className={"vx-tag vx-chatCountTag " + (supportUnreadCount(r) > 0 ? "is-unread" : "")}>{supportBadgeLabel(r)}</span> : null}
                     </div>
                   </button>
                 );
@@ -585,6 +621,7 @@ export default function StaffTab({ me }: any) {
                     <div>
                       <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
                       <span className="vx-tag">{stateLabel[String(r.state)] || String(r.state)}</span>
+                      {supportClientCount(r) > 0 ? <span className={"vx-tag vx-chatCountTag " + (supportUnreadCount(r) > 0 ? "is-unread" : "")}>{supportBadgeLabel(r)}</span> : null}
                     </div>
                   </button>
                 );
@@ -617,8 +654,9 @@ export default function StaffTab({ me }: any) {
             <div className="vx-sp8" />
             <div className="vx-inlineBtns">
               <button type="button" className="btn vx-btnSm" onClick={handleOpenClientMessage}>
-                Написать клиенту
+                {selectedReq?.from?.username ? "Написать клиенту" : "Открыть чат"}
               </button>
+              {supportClientCount(selectedReq) > 0 ? <span className={"vx-tag vx-chatCountTag " + (supportUnreadCount(selectedReq) > 0 ? "is-unread" : "")}>{supportBadgeLabel(selectedReq)}</span> : null}
             </div>
 
             <div className="vx-sp10" />

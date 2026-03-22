@@ -82,6 +82,7 @@ export type SupportDialog = {
   request_id?: string;
   created_at: string;
   updated_at: string;
+  manager_read_at?: string;
   last_manager_text?: string;
   last_client_text?: string;
   messages?: SupportDialogMessage[];
@@ -409,6 +410,7 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
         request_id: typeof (v as any).request_id === "string" ? (v as any).request_id : undefined,
         created_at: String((v as any).created_at || new Date().toISOString()),
         updated_at: String((v as any).updated_at || (v as any).created_at || new Date().toISOString()),
+        manager_read_at: typeof (v as any).manager_read_at === "string" ? (v as any).manager_read_at : undefined,
         last_manager_text: typeof (v as any).last_manager_text === "string" ? (v as any).last_manager_text : undefined,
         last_client_text: typeof (v as any).last_client_text === "string" ? (v as any).last_client_text : undefined,
         messages

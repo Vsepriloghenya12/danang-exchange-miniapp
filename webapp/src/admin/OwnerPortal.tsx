@@ -104,6 +104,21 @@ function openClientDialog(username?: string, tgId?: number) {
   return false;
 }
 
+function supportClientCount(r: any) {
+  return Math.max(0, Number(r?.supportClientMessageCount || 0) || 0);
+}
+
+function supportUnreadCount(r: any) {
+  return Math.max(0, Number(r?.supportUnreadCount || 0) || 0);
+}
+
+function supportBadgeLabel(r: any) {
+  const unread = supportUnreadCount(r);
+  if (unread > 0) return `Новых ${unread}`;
+  const total = supportClientCount(r);
+  return total > 0 ? `Сообщений ${total}` : "";
+}
+
 const DEFAULT_TEMPLATE = `Доброе утро!\n\nКурс на {{date}}:\n\n{{rates}}\n\n🛵    Бесплатная доставка\n             С 10:00 до 16:00.\n        при обмене от 20 000₽\n\n⏩БОЛЕЕ ВЫГОДНЫЙ КУРС  ⏪\n  при дистанционном обмене                        ⠀              от 20 000₽\n💳  Перевод на вьетнамский счёт;\n📥  Получение в банкоматах BIDV Vietcombank;`;
 
 export default function OwnerPortal() {
@@ -278,6 +293,8 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
   const [supportLoading, setSupportLoading] = useState<boolean>(false);
   const [supportMessages, setSupportMessages] = useState<any[]>([]);
   const [supportClientLabel, setSupportClientLabel] = useState<string>("");
+  const [supportStats, setSupportStats] = useState<{ unreadCount?: number; clientMessageCount?: number } | null>(null);
+  const supportChatRef = useRef<HTMLDivElement | null>(null);
 
   // Afisha (owner portal): active + history with date range + click counters
   const [afActive, setAfActive] = useState<any[]>([]);
@@ -1344,10 +1361,10 @@ function moveFaq(id: string, dir: -1 | 1) {
     return null;
   }, [reqSelected, selectedTgId, selectedUsername, contactsByTg, contactsByUsername]);
 
-  async function loadSupportDialogOwner(tgId: number) {
+  async function loadSupportDialogOwner(tgId: number, markRead = true) {
     setSupportLoading(true);
     try {
-      const r = await apiAdminGetSupportDialog(token, tgId);
+      const r = await apiAdminGetSupportDialog(token, tgId, markRead);
       if (!r?.ok) {
         alert(r?.error || "Не удалось загрузить переписку");
         return;
@@ -1355,6 +1372,7 @@ function moveFaq(id: string, dir: -1 | 1) {
       const client = r?.client || {};
       setSupportClientLabel(client?.username ? `@${client.username}` : (client?.fullName || `id:${tgId}`));
       setSupportMessages(Array.isArray(r?.dialog?.messages) ? r.dialog.messages : []);
+      setSupportStats(r?.stats || null);
     } finally {
       setSupportLoading(false);
     }
@@ -1369,12 +1387,12 @@ function moveFaq(id: string, dir: -1 | 1) {
     setSupportDraft("");
     setSupportMessages([]);
     setSupportOpen(true);
-    await loadSupportDialogOwner(selectedTgId);
+    await loadSupportDialogOwner(selectedTgId, true);
   }
 
   useEffect(() => {
     if (!supportOpen || !selectedTgId) return;
-    const t = window.setInterval(() => { void loadSupportDialogOwner(selectedTgId); }, 5000);
+    const t = window.setInterval(() => { void loadSupportDialogOwner(selectedTgId, false); }, 4000);
     return () => window.clearInterval(t);
   }, [supportOpen, selectedTgId]);
 
@@ -1393,7 +1411,7 @@ function moveFaq(id: string, dir: -1 | 1) {
         return;
       }
       setSupportDraft("");
-      await loadSupportDialogOwner(selectedTgId);
+      await loadSupportDialogOwner(selectedTgId, true);
     } finally {
       setSupportSending(false);
     }
@@ -1528,6 +1546,17 @@ function moveFaq(id: string, dir: -1 | 1) {
     return m;
   }, [requests]);
 
+
+  useEffect(() => {
+    const el = supportChatRef.current;
+    if (!el) return;
+    try {
+      el.scrollTop = el.scrollHeight;
+    } catch {
+      // ignore
+    }
+  }, [supportMessages, supportOpen]);
+
   if (!token) {
     return (
       <div className="vx-page theme-owner">
@@ -1584,7 +1613,7 @@ function moveFaq(id: string, dir: -1 | 1) {
 
         {supportOpen ? (
           <div className="vx-modalOverlay" onClick={() => !supportSending && setSupportOpen(false)}>
-            <div className="vx-modalCard" onClick={(e) => e.stopPropagation()}>
+            <div className="vx-modalCard vx-chatModal" onClick={(e) => e.stopPropagation()}>
               <div className="row vx-between vx-center">
                 <div>
                   <div className="vx-modalTitle">Чат с клиентом</div>
@@ -1592,11 +1621,11 @@ function moveFaq(id: string, dir: -1 | 1) {
                 </div>
                 <button className="btn vx-btnSm" type="button" onClick={() => setSupportOpen(false)} disabled={supportSending}>Закрыть</button>
               </div>
-              <div className="vx-muted" style={{ marginTop: 6 }}>Сообщения идут через бота. Ответ клиента также приходит менеджеру в личный чат с ботом.</div>
+              <div className="vx-chatHint" style={{ marginTop: 6 }}>Сообщения идут через бота. Ответ клиента также приходит менеджеру в личный чат с ботом.</div>
               <div className="vx-sp10" />
-              <div className="vx-chatBox">
+              <div className="vx-chatBox" ref={supportChatRef}>
                 {supportLoading ? <div className="vx-muted">Загрузка переписки…</div> : null}
-                {!supportLoading && supportMessages.length === 0 ? <div className="vx-muted">Переписка пока пустая.</div> : null}
+                {!supportLoading && supportMessages.length === 0 ? <div className="vx-chatEmpty">Переписка пока пустая.</div> : null}
                 {!supportLoading ? supportMessages.map((m:any) => (
                   <div key={String(m?.id || Math.random())} className={"vx-chatMsg " + (m?.from === "manager" ? "is-manager" : "is-client")}>
                     <div className="vx-chatMeta">{m?.from === "manager" ? (m?.manager_name || "Менеджер") : "Клиент"} • {fmtDt(String(m?.created_at || ""))}</div>
@@ -1605,11 +1634,16 @@ function moveFaq(id: string, dir: -1 | 1) {
                 )) : null}
               </div>
               <div className="vx-sp10" />
-              <textarea className="input vx-in" rows={4} value={supportDraft} onChange={(e)=>setSupportDraft(e.target.value.slice(0,4000))} placeholder="Введите сообщение клиенту" />
+              <div className="vx-chatComposer">
+              <div className="vx-chatToolbar">
+                <div className="vx-chatStats">{supportStats?.clientMessageCount ? `Сообщений от клиента: ${supportStats.clientMessageCount}` : "Сообщений от клиента пока нет"}</div>
+              </div>
+              <textarea className="input vx-in vx-chatTextarea" rows={4} value={supportDraft} onChange={(e)=>setSupportDraft(e.target.value.slice(0,4000))} placeholder="Введите сообщение клиенту" />
               <div className="vx-sp10" />
               <div className="row" style={{ gap: 8 }}>
                 <button className="btn" type="button" onClick={sendOwnerSupportMessage} disabled={supportSending || !supportDraft.trim()}>{supportSending ? "Отправка..." : "Отправить"}</button>
-                <button className="btn vx-btnSm" type="button" onClick={() => selectedTgId && loadSupportDialogOwner(selectedTgId)} disabled={supportLoading || !selectedTgId}>Обновить чат</button>
+                <button className="btn vx-btnSm" type="button" onClick={() => selectedTgId && loadSupportDialogOwner(selectedTgId, true)} disabled={supportLoading || !selectedTgId}>Обновить чат</button>
+              </div>
               </div>
             </div>
           </div>
@@ -2039,6 +2073,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                       <div>
                         <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
                         <span className="vx-tag">{stateRu(r.state)}</span>
+                        {supportClientCount(r) > 0 ? <span className={"vx-tag vx-chatCountTag " + (supportUnreadCount(r) > 0 ? "is-unread" : "")}>{supportBadgeLabel(r)}</span> : null}
                       </div>
                     </button>
                   );
@@ -2079,6 +2114,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                         <div>
                           <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
                           <span className="vx-tag">{stateRu(r.state)}</span>
+                          {supportClientCount(r) > 0 ? <span className={"vx-tag vx-chatCountTag " + (supportUnreadCount(r) > 0 ? "is-unread" : "")}>{supportBadgeLabel(r)}</span> : null}
                         </div>
                       </button>
                     );
@@ -2109,7 +2145,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                 </div>
                 <div className="vx-sp8" />
                 <div className="vx-inlineBtns">
-                  <button className="btn vx-btnSm" type="button" onClick={handleOwnerMessageClient}>Написать клиенту</button>
+                  <button className="btn vx-btnSm" type="button" onClick={handleOwnerMessageClient}>{selectedUsername ? "Написать клиенту" : "Открыть чат"}</button>{supportClientCount(reqSelected) > 0 ? <span className={"vx-tag vx-chatCountTag " + (supportUnreadCount(reqSelected) > 0 ? "is-unread" : "")}>{supportBadgeLabel(reqSelected)}</span> : null}
                 </div>
 
                 <div className="vx-sp10" />

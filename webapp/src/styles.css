@@ -4181,18 +4181,106 @@ html[data-theme="dark"] .theme-client .vx-modalCard{
 .vx-conditionsItem{ font-size: 14px; line-height: 1.42; opacity: .95; }
 .vx-inlineBtns{ display:flex; gap:8px; flex-wrap:wrap; }
 
-/* PWA install */
-.mx-pwaCard{
-  margin-top: 12px;
+
+.vx-chatModal{
+  width: min(760px, calc(100vw - 18px));
+  max-height: min(88vh, 920px);
+  display: grid;
+  grid-template-rows: auto auto minmax(220px,1fr) auto;
 }
-.mx-pwaText{
-  font-size: 13px;
-  line-height: 1.55;
-  color: rgba(0,0,0,.74);
+.vx-chatHint{
+  font-size: 12px;
+  line-height: 1.45;
+  opacity: .84;
 }
-.mx-pwaModal{
-  max-width: 420px;
+.vx-chatBox{
+  max-height: none;
+  min-height: 240px;
+  padding: 12px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(248,250,252,.86));
 }
-html[data-theme="dark"] .theme-client .mx-pwaText{
-  color: rgba(255,255,255,.82);
+.vx-chatEmpty{
+  color: rgba(90,102,118,.9);
+  text-align: center;
+  padding: 20px 12px;
+}
+.vx-chatMsg{
+  max-width: min(88%, 560px);
+  border-radius: 16px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 20px rgba(16,24,40,.06);
+}
+.vx-chatMeta{
+  font-size: 11px;
+  font-weight: 800;
+  opacity: .72;
+}
+.vx-chatText{
+  font-size: 14px;
+  line-height: 1.45;
+}
+.vx-chatComposer{
+  display: grid;
+  gap: 8px;
+}
+.vx-chatToolbar{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.vx-chatStats{
+  font-size: 12px;
+  font-weight: 800;
+  opacity: .8;
+}
+.vx-chatTextarea{
+  min-height: 96px;
+}
+.vx-chatCountTag{
+  background: rgba(33,43,54,.08);
+  border-color: rgba(33,43,54,.12);
+  font-weight: 800;
+}
+.vx-chatCountTag.is-unread{
+  background: rgba(34,154,240,.14);
+  border-color: rgba(34,154,240,.28);
+  color: rgba(18,86,132,.98);
+}
+html[data-theme="dark"] .theme-client .vx-chatModal,
+html[data-theme="dark"] .theme-owner .vx-chatModal{
+  background: rgba(18,24,31,.98);
+}
+html[data-theme="dark"] .theme-client .vx-chatBox,
+html[data-theme="dark"] .theme-owner .vx-chatBox{
+  background: linear-gradient(180deg, rgba(14,20,28,.92), rgba(17,24,32,.94));
+}
+html[data-theme="dark"] .theme-client .vx-chatEmpty,
+html[data-theme="dark"] .theme-owner .vx-chatEmpty{
+  color: rgba(214,220,226,.78);
+}
+html[data-theme="dark"] .theme-client .vx-chatCountTag,
+html[data-theme="dark"] .theme-owner .vx-chatCountTag{
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.1);
+  color: rgba(255,255,255,.92);
+}
+html[data-theme="dark"] .theme-client .vx-chatCountTag.is-unread,
+html[data-theme="dark"] .theme-owner .vx-chatCountTag.is-unread{
+  background: rgba(34,154,240,.18);
+  border-color: rgba(34,154,240,.34);
+  color: rgba(151,216,255,.98);
+}
+@media (max-width: 640px) {
+  .vx-chatModal{
+    width: calc(100vw - 12px);
+    max-height: 92vh;
+  }
+  .vx-chatMsg{
+    max-width: 94%;
+  }
+  .vx-chatText{
+    font-size: 13px;
+  }
 }

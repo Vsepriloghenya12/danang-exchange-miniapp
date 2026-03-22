@@ -85,6 +85,38 @@ function appendSupportDialogMessage(dialog: any, msg: { from: "manager" | "clien
   return next.filter((m: any) => m && m.text).slice(-100);
 }
 
+function computeSupportDialogStats(dialog: any) {
+  const messages = Array.isArray(dialog?.messages) ? dialog.messages : [];
+  const clientMessages = messages.filter((m: any) => m?.from === "client");
+  const clientMessageCount = clientMessages.length;
+  const readAt = Date.parse(String(dialog?.manager_read_at || ""));
+  const unreadCount = Number.isFinite(readAt)
+    ? clientMessages.filter((m: any) => Date.parse(String(m?.created_at || "")) > readAt).length
+    : clientMessageCount;
+  return {
+    clientMessageCount,
+    unreadCount,
+    hasClientMessages: clientMessageCount > 0,
+    lastClientText: typeof dialog?.last_client_text === "string" ? dialog.last_client_text : ""
+  };
+}
+
+function enrichRequestsWithSupport(requests: any[], supportDialogs: Record<string, any> | undefined) {
+  const dialogs = supportDialogs || {};
+  return (requests || []).map((r: any) => {
+    const tgId = Number(r?.from?.id || 0);
+    const dialog = Number.isFinite(tgId) && tgId > 0 ? dialogs[String(tgId)] : undefined;
+    const stats = computeSupportDialogStats(dialog);
+    return {
+      ...r,
+      supportClientMessageCount: stats.clientMessageCount,
+      supportUnreadCount: stats.unreadCount,
+      supportHasClientMessages: stats.hasClientMessages,
+      supportLastClientText: stats.lastClientText || undefined
+    };
+  });
+}
+
 const requestStateLabel: Record<RequestState, string> = {
   in_progress: "в работе",
   done: "готова",
@@ -1928,6 +1960,7 @@ ${textIn}
             request_id: requestId || prev.request_id,
             created_at: prev.created_at || now,
             updated_at: now,
+            manager_read_at: now,
             last_manager_text: textIn,
             last_client_text: prev.last_client_text,
             messages: appendSupportDialogMessage(prev, { from: "manager", text: textIn, created_at: now, manager_tg_id: managerTgId, manager_name: fromName })
@@ -1947,8 +1980,25 @@ ${textIn}
       if (!isOwner && !isAdmin) return res.status(403).json({ ok: false, error: "forbidden" });
       const tgId = Number(req.params.tgId || 0);
       if (!Number.isFinite(tgId) || tgId <= 0) return res.status(400).json({ ok: false, error: "bad_tg_id" });
-      const store = await readStore();
-      const dialog = (store.config as any)?.supportDialogs?.[String(tgId)] || null;
+      const shouldMarkRead = String(req.query?.markRead ?? "1") !== "0";
+      let store: any;
+      let dialog: any = null;
+      if (shouldMarkRead) {
+        const { result } = await mutateStore((store) => {
+          const cfg: any = store.config as any;
+          cfg.supportDialogs = cfg.supportDialogs || {};
+          const prev = cfg.supportDialogs[String(tgId)] || null;
+          if (prev) {
+            cfg.supportDialogs[String(tgId)] = { ...prev, manager_read_at: new Date().toISOString() };
+          }
+          return { storeSnapshot: store, dialog: cfg.supportDialogs[String(tgId)] || null };
+        });
+        store = result.storeSnapshot;
+        dialog = result.dialog;
+      } else {
+        store = await readStore();
+        dialog = (store.config as any)?.supportDialogs?.[String(tgId)] || null;
+      }
       const user = Object.values(store.users || {}).find((u: any) => Number(u?.tg_id) === tgId) as any;
       const contact = (store.contacts || []).find((c: any) => Number(c?.tg_id) === tgId) || null;
       const requestItem = (dialog?.request_id ? (store.requests || []).find((r: any) => String(r?.id) === String(dialog.request_id)) : null) || null;
@@ -1958,7 +2008,8 @@ ${textIn}
         fullName: contact?.fullName || [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() || undefined,
         request_id: dialog?.request_id || undefined
       };
-      return res.json({ ok: true, dialog: dialog || { client_tg_id: tgId, messages: [] }, client });
+      const stats = computeSupportDialogStats(dialog);
+      return res.json({ ok: true, dialog: dialog || { client_tg_id: tgId, messages: [] }, client, stats });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -1973,9 +2024,12 @@ ${textIn}
       await requireStaff(req);
       const store = await readStore();
       // legacy: migrate any "new" to "in_progress"
-      const requests = [...(store.requests || [])]
-        .map((r) => ({ ...r, state: (r as any).state === "new" ? "in_progress" : (r as any).state }))
-        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+      const requests = enrichRequestsWithSupport(
+        [...(store.requests || [])]
+          .map((r) => ({ ...r, state: (r as any).state === "new" ? "in_progress" : (r as any).state }))
+          .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))),
+        (store.config as any)?.supportDialogs
+      );
       const contacts: Record<string, any> = {};
       for (const c of store.contacts || []) {
         if (c?.tg_id) contacts[String(c.tg_id)] = normalizeContactBanks(c);
@@ -2129,8 +2183,11 @@ ${textIn}
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
 
       const store = await readStore();
-      const requests = [...(store.requests || [])].sort((a, b) =>
-        String(b.created_at).localeCompare(String(a.created_at))
+      const requests = enrichRequestsWithSupport(
+        [...(store.requests || [])].sort((a, b) =>
+          String(b.created_at).localeCompare(String(a.created_at))
+        ),
+        (store.config as any)?.supportDialogs
       );
 
       return res.json({ ok: true, requests });
