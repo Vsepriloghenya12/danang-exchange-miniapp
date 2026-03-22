@@ -1951,10 +1951,10 @@ ${textIn}
       const dialog = (store.config as any)?.supportDialogs?.[String(tgId)] || null;
       const user = Object.values(store.users || {}).find((u: any) => Number(u?.tg_id) === tgId) as any;
       const contact = (store.contacts || []).find((c: any) => Number(c?.tg_id) === tgId) || null;
-      const req = (dialog?.request_id ? (store.requests || []).find((r: any) => String(r?.id) === String(dialog.request_id)) : null) || null;
+      const requestItem = (dialog?.request_id ? (store.requests || []).find((r: any) => String(r?.id) === String(dialog.request_id)) : null) || null;
       const client = {
         tg_id: tgId,
-        username: contact?.username || user?.username || req?.from?.username || undefined,
+        username: contact?.username || user?.username || requestItem?.from?.username || undefined,
         fullName: contact?.fullName || [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() || undefined,
         request_id: dialog?.request_id || undefined
       };

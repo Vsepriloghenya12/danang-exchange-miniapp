@@ -424,7 +424,7 @@ export function createBot(opts: {
 ${text}`;
 
     try {
-      await ctx.telegram.sendMessage(managerTgId, forwardText, { disable_web_page_preview: true });
+      await ctx.telegram.sendMessage(managerTgId, forwardText);
       await mutateStore((s) => {
         const cfg: any = s.config as any;
         cfg.supportDialogs = cfg.supportDialogs || {};
