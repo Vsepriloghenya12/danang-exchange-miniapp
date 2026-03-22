@@ -4182,18 +4182,11 @@ html[data-theme="dark"] .theme-client .vx-modalCard{
 .vx-inlineBtns{ display:flex; gap:8px; flex-wrap:wrap; }
 
 
-.vx-chatOpen .vx-bottomWrap{
-  transform: translateY(140%);
-  opacity: 0;
-  pointer-events: none;
-}
 .vx-chatModal{
   width: min(760px, calc(100vw - 18px));
-  max-height: calc(100vh - 28px - env(safe-area-inset-bottom));
+  max-height: min(88vh, 920px);
   display: grid;
-  grid-template-rows: auto auto minmax(180px,1fr) auto;
-  overflow: hidden;
-  padding-bottom: max(16px, calc(16px + env(safe-area-inset-bottom)));
+  grid-template-rows: auto auto minmax(220px,1fr) auto;
 }
 .vx-chatHint{
   font-size: 12px;
@@ -4202,16 +4195,10 @@ html[data-theme="dark"] .theme-client .vx-modalCard{
 }
 .vx-chatBox{
   max-height: none;
-  min-height: 220px;
-  padding: 4px 2px 8px;
-  border-radius: 0;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-}
-.vx-chatScroll{
-  overflow: auto;
-  overscroll-behavior: contain;
+  min-height: 240px;
+  padding: 12px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(248,250,252,.86));
 }
 .vx-chatEmpty{
   color: rgba(90,102,118,.9);
@@ -4236,13 +4223,6 @@ html[data-theme="dark"] .theme-client .vx-modalCard{
 .vx-chatComposer{
   display: grid;
   gap: 8px;
-}
-.vx-chatComposerSticky{
-  position: sticky;
-  bottom: 0;
-  background: inherit;
-  padding-top: 10px;
-  border-top: 1px solid rgba(0,0,0,.08);
 }
 .vx-chatToolbar{
   display: flex;
@@ -4274,11 +4254,7 @@ html[data-theme="dark"] .theme-owner .vx-chatModal{
 }
 html[data-theme="dark"] .theme-client .vx-chatBox,
 html[data-theme="dark"] .theme-owner .vx-chatBox{
-  background: transparent;
-}
-html[data-theme="dark"] .theme-client .vx-chatComposerSticky,
-html[data-theme="dark"] .theme-owner .vx-chatComposerSticky{
-  border-top-color: rgba(255,255,255,.10);
+  background: linear-gradient(180deg, rgba(14,20,28,.92), rgba(17,24,32,.94));
 }
 html[data-theme="dark"] .theme-client .vx-chatEmpty,
 html[data-theme="dark"] .theme-owner .vx-chatEmpty{
@@ -4298,10 +4274,8 @@ html[data-theme="dark"] .theme-owner .vx-chatCountTag.is-unread{
 }
 @media (max-width: 640px) {
   .vx-chatModal{
-    width: calc(100vw - 10px);
-    max-height: calc(100vh - 10px - env(safe-area-inset-bottom));
-    grid-template-rows: auto auto minmax(140px,1fr) auto;
-    padding: 12px 12px calc(96px + env(safe-area-inset-bottom));
+    width: calc(100vw - 12px);
+    max-height: 92vh;
   }
   .vx-chatMsg{
     max-width: 94%;
@@ -4309,34 +4283,4 @@ html[data-theme="dark"] .theme-owner .vx-chatCountTag.is-unread{
   .vx-chatText{
     font-size: 13px;
   }
-  .vx-chatComposerSticky{
-    padding-top: 8px;
-    padding-bottom: 2px;
-  }
-}
-
-/* v34 smoothness: avoid visible pop-in of afisha photos */
-.mx-afEvBg{
-  opacity: 0;
-  transform: scale(1.018);
-  transition: opacity .22s ease, transform .42s ease;
-  will-change: opacity, transform;
-}
-.mx-afEvBg.is-ready{
-  opacity: 1;
-  transform: scale(1);
-}
-.mx-afEvPreload{
-  position: absolute;
-  width: 0;
-  height: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* v34 smoothness: keep logo paint stable after first successful load */
-.mx-mainLogoImg,
-.mx-statusImg{
-  will-change: opacity, transform;
-  transform: translateZ(0);
 }
