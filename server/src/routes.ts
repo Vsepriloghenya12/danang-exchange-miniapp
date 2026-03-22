@@ -1862,6 +1862,7 @@ router.post("/admin/faq", async (req, res) => {
 
       const tgId = Number(req.body?.tg_id ?? req.body?.tgId);
       const textIn = String(req.body?.text || "").trim();
+      const requestId = String(req.body?.request_id || req.body?.requestId || "").trim() || undefined;
       if (!Number.isFinite(tgId) || tgId <= 0) {
         return res.status(400).json({ ok: false, error: "bad_tg_id" });
       }
@@ -1877,11 +1878,18 @@ router.post("/admin/faq", async (req, res) => {
           ? `@${(user as any).username}`
           : `${(user as any)?.first_name || ""} ${(user as any)?.last_name || ""}`.trim() || "менеджер";
 
+      const fallbackManagerId = Array.isArray(opts.ownerTgIds) && opts.ownerTgIds.length
+        ? Number(opts.ownerTgIds[0])
+        : Number(opts.ownerTgId || 0);
+      const managerTgId = Number((user as any)?.id || 0) > 0 ? Number((user as any).id) : fallbackManagerId;
+
       const msg = `✉️ Сообщение от менеджера
 
 ${textIn}
 
-— ${fromName}`;
+— ${fromName}
+
+Ответьте в этом чате, и я передам ваш ответ менеджеру.`;
       const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -1892,7 +1900,26 @@ ${textIn}
         return res.status(400).json({ ok: false, error: tgJson?.description || "send_failed" });
       }
 
-      return res.json({ ok: true });
+      if (Number.isFinite(managerTgId) && managerTgId > 0) {
+        await mutateStore((store) => {
+          const cfg: any = store.config as any;
+          cfg.supportDialogs = cfg.supportDialogs || {};
+          const now = new Date().toISOString();
+          const prev = cfg.supportDialogs[String(tgId)] || {};
+          cfg.supportDialogs[String(tgId)] = {
+            client_tg_id: tgId,
+            manager_tg_id: managerTgId,
+            manager_name: fromName,
+            request_id: requestId || prev.request_id,
+            created_at: prev.created_at || now,
+            updated_at: now,
+            last_manager_text: textIn,
+            last_client_text: prev.last_client_text
+          };
+        });
+      }
+
+      return res.json({ ok: true, relay_enabled: Number.isFinite(managerTgId) && managerTgId > 0 });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }

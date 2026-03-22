@@ -66,6 +66,17 @@ export type GFormula = {
   sellMul: number;
 };
 
+export type SupportDialog = {
+  client_tg_id: number;
+  manager_tg_id: number;
+  manager_name?: string;
+  request_id?: string;
+  created_at: string;
+  updated_at: string;
+  last_manager_text?: string;
+  last_client_text?: string;
+};
+
 export type StoredUser = {
   tg_id: number;
   username?: string;
@@ -88,6 +99,7 @@ export type Store = {
     adminUsername?: string;
     adminDeepLink?: string;
     publishTemplate?: string;
+    supportDialogs?: Record<string, SupportDialog>;
 
     // Cross-pair formulas (multipliers) used by client Rates/Calculator.
     gFormulas?: Record<string, GFormula>;
@@ -346,6 +358,38 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
   if (typeof (store.config as any).adminDeepLink !== "string") {
     (store.config as any).adminDeepLink = "";
     dirty = true;
+  }
+
+  if (!(store.config as any).supportDialogs || typeof (store.config as any).supportDialogs !== "object" || Array.isArray((store.config as any).supportDialogs)) {
+    (store.config as any).supportDialogs = {};
+    dirty = true;
+  }
+  {
+    const src = (store.config as any).supportDialogs as Record<string, any>;
+    const cleaned: Record<string, SupportDialog> = {};
+    for (const [k, v] of Object.entries(src || {})) {
+      if (!v || typeof v !== "object") continue;
+      const client_tg_id = Number((v as any).client_tg_id ?? k);
+      const manager_tg_id = Number((v as any).manager_tg_id);
+      if (!Number.isFinite(client_tg_id) || client_tg_id <= 0) continue;
+      if (!Number.isFinite(manager_tg_id) || manager_tg_id <= 0) continue;
+      cleaned[String(client_tg_id)] = {
+        client_tg_id,
+        manager_tg_id,
+        manager_name: typeof (v as any).manager_name === "string" ? (v as any).manager_name : undefined,
+        request_id: typeof (v as any).request_id === "string" ? (v as any).request_id : undefined,
+        created_at: String((v as any).created_at || new Date().toISOString()),
+        updated_at: String((v as any).updated_at || (v as any).created_at || new Date().toISOString()),
+        last_manager_text: typeof (v as any).last_manager_text === "string" ? (v as any).last_manager_text : undefined,
+        last_client_text: typeof (v as any).last_client_text === "string" ? (v as any).last_client_text : undefined
+      };
+    }
+    const before = JSON.stringify(src || {});
+    const after = JSON.stringify(cleaned);
+    if (before !== after) {
+      (store.config as any).supportDialogs = cleaned;
+      dirty = true;
+    }
   }
 
   // gFormulas

@@ -392,7 +392,7 @@ export default function StaffTab({ me }: any) {
     }
     setSendingMessage(true);
     try {
-      const r = await apiAdminMessageUser(initData, { tg_id: tgId, text });
+      const r = await apiAdminMessageUser(initData, { tg_id: tgId, text, request_id: String(selectedReq?.id || "") || undefined });
       if (!r?.ok) {
         tg?.showAlert?.(r?.error || "Не удалось отправить сообщение");
         return;

@@ -1346,7 +1346,7 @@ function moveFaq(id: string, dir: -1 | 1) {
     const textIn = window.prompt("Введите сообщение клиенту");
     const msg = String(textIn || "").trim();
     if (!msg) return;
-    const r = await apiAdminMessageUser(token, { tg_id: selectedTgId, text: msg });
+    const r = await apiAdminMessageUser(token, { tg_id: selectedTgId, text: msg, request_id: String(reqSelected?.id || "") || undefined });
     if (!r?.ok) {
       alert(r?.error || "Не удалось отправить сообщение");
       return;

@@ -261,118 +261,189 @@ export function createBot(opts: {
     }
   });
 
-  // если вдруг кто-то всё ещё шлёт sendData() — не ломаем
+  // WebApp payloads + replies from clients in private bot dialog
   bot.on("message", async (ctx) => {
     const msg: any = ctx.message;
     const wad = msg?.web_app_data?.data;
-    if (!wad) return;
+    if (wad) {
+      console.log("✅ web_app_data received len=", String(wad).length);
 
-    console.log("✅ web_app_data received len=", String(wad).length);
+      if (ctx.from) await upsertUserFromTelegram(ctx.from);
 
-    if (ctx.from) await upsertUserFromTelegram(ctx.from);
+      let payload: any;
+      try {
+        payload = JSON.parse(wad);
+      } catch {
+        await ctx.reply("Не смог прочитать payload (не JSON).");
+        return;
+      }
 
-    let payload: any;
-    try {
-      payload = JSON.parse(wad);
-    } catch {
-      await ctx.reply("Не смог прочитать payload (не JSON).");
+      const preStore = await readStore();
+
+      const userKey = String(ctx.from?.id ?? "");
+      const status: UserStatus = preStore.users[userKey]?.status ?? "standard";
+
+      const methodMap: Record<string, string> = { cash: "наличные", transfer: "перевод", atm: "банкомат" };
+      const payMap: Record<string, string> = { cash: "наличные", transfer: "перевод", other: "другое" };
+      const dtDaNang = new Intl.DateTimeFormat("ru-RU", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      })
+        .format(new Date())
+        .replace(",", "");
+
+      const sellCur = String(payload.sellCurrency || "");
+      const buyCur = String(payload.buyCurrency || "");
+      const effStatus: UserStatus = ignoreStatusForPair(sellCur, buyCur) ? "standard" : normalizeStatus(status);
+
+      const who =
+        (ctx.from?.username
+          ? `@${ctx.from.username}`
+          : `${ctx.from?.first_name || ""} ${ctx.from?.last_name || ""}`.trim() || `id ${ctx.from?.id}`) +
+        ` • статус: ${statusLabel[effStatus]}`;
+
+      // Create a request in the store (so it appears in the miniapp admin tab instantly)
+      const id = randomUUID();
+      const reqObj: StoredRequest = {
+        id,
+        state: "in_progress",
+        sellCurrency: sellCur as any,
+        buyCurrency: buyCur as any,
+        sellAmount: Number(payload.sellAmount),
+        buyAmount: Number(payload.buyAmount),
+        payMethod: String(payload.payMethod || ""),
+        receiveMethod: String(payload.receiveMethod || "") as any,
+        from: ctx.from as any,
+        status: effStatus,
+        created_at: new Date().toISOString()
+      };
+      const { store } = await mutateStore((store) => {
+        store.requests = store.requests || [];
+        store.requests.push(reqObj);
+      });
+
+      const shortId = id.slice(-6);
+      const text =
+        `💱 Новая заявка (в работе)
+` +
+        `🆔 #${shortId}
+` +
+        `👤 ${who}
+` +
+        `🔁 ${sellCur} → ${buyCur}
+` +
+        `💸 Отдаёт: ${fmtReqAmount(sellCur, Number(payload.sellAmount))}
+` +
+        `🎯 Получит: ${fmtReqAmount(buyCur, Number(payload.buyAmount))}
+` +
+        `💳 Оплата: ${payMap[String(payload.payMethod)] || String(payload.payMethod || "—")}
+` +
+        `📦 Получение: ${methodMap[payload.receiveMethod as ReceiveMethod] || payload.receiveMethod}
+` +
+        `🕒 ${dtDaNang}`;
+
+      // Send request to a dedicated group (preferred) so managers can pick it up.
+      // Priority: store.config.requestsGroupChatId -> env REQUESTS_GROUP_CHAT_ID -> store.config.groupChatId -> env GROUP_CHAT_ID
+      const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;
+      const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
+      const reqGroupChatId =
+        (store.config as any).requestsGroupChatId || envReqGroup || store.config.groupChatId || envGroup;
+
+      try {
+        if (reqGroupChatId) {
+          await ctx.telegram.sendMessage(reqGroupChatId, text, ({ disable_web_page_preview: true } as any));
+        } else {
+          // If no group is set, fall back to private notifications (best-effort)
+          const recipients = ownerIds.length
+            ? ownerIds
+            : Array.isArray((store.config as any)?.adminTgIds)
+            ? ((store.config as any).adminTgIds as number[])
+            : [];
+          let wa = opts.webappUrl || "";
+          if (wa && !/^https?:\/\//i.test(wa)) wa = "https://" + wa;
+          const kb = wa ? Markup.inlineKeyboard([Markup.button.webApp("Открыть админку", wa)]) : undefined;
+          for (const rid of recipients) {
+            await ctx.telegram.sendMessage(rid, text, kb ? kb : undefined);
+          }
+        }
+      } catch (e: any) {
+        console.error("REQUEST GROUP NOTIFY FAIL:", e);
+      }
+
+      // Acknowledge to the user
+      try {
+        await ctx.reply("✅ Ваша заявка принята в работу, в ближайшее время с вами свяжется менеджер 🙌");
+      } catch {}
       return;
     }
 
-    const preStore = await readStore();
+    if (ctx.from) await upsertUserFromTelegram(ctx.from);
+    if (ctx.chat?.type !== "private") return;
 
-    const userKey = String(ctx.from?.id ?? "");
-    const status: UserStatus = preStore.users[userKey]?.status ?? "standard";
+    const textIn = ("text" in msg ? msg.text : "caption" in msg ? msg.caption : "") || "";
+    const text = String(textIn).trim();
+    if (!text) {
+      await ctx.reply("Пока можно ответить менеджеру только текстовым сообщением.");
+      return;
+    }
+    if (text.startsWith("/")) return;
 
-    const methodMap: Record<string, string> = { cash: "наличные", transfer: "перевод", atm: "банкомат" };
-    const payMap: Record<string, string> = { cash: "наличные", transfer: "перевод", other: "другое" };
-    const dtDaNang = new Intl.DateTimeFormat("ru-RU", {
-      timeZone: "Asia/Ho_Chi_Minh",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false
-    })
-      .format(new Date())
-      .replace(",", "");
+    const clientTgId = Number(ctx.from?.id || 0);
+    if (!Number.isFinite(clientTgId) || clientTgId <= 0) return;
 
-	    const sellCur = String(payload.sellCurrency || "");
-	    const buyCur = String(payload.buyCurrency || "");
-	    const effStatus: UserStatus = ignoreStatusForPair(sellCur, buyCur) ? "standard" : normalizeStatus(status);
+    const store = await readStore();
+    const relay = (store.config as any)?.supportDialogs?.[String(clientTgId)] as any;
+    if (!relay) return;
 
-	    const who =
-      (ctx.from?.username
-        ? `@${ctx.from.username}`
-        : `${ctx.from?.first_name || ""} ${ctx.from?.last_name || ""}`.trim() || `id ${ctx.from?.id}`) +
-	      ` • статус: ${statusLabel[effStatus]}`;
-
-    // Create a request in the store (so it appears in the miniapp admin tab instantly)
-    const id = randomUUID();
-    const reqObj: StoredRequest = {
-      id,
-      state: "in_progress",
-	      sellCurrency: sellCur as any,
-	      buyCurrency: buyCur as any,
-      sellAmount: Number(payload.sellAmount),
-      buyAmount: Number(payload.buyAmount),
-      payMethod: String(payload.payMethod || ""),
-      receiveMethod: String(payload.receiveMethod || "") as any,
-      from: ctx.from as any,
-	      status: effStatus,
-      created_at: new Date().toISOString()
-    };
-    const { store } = await mutateStore((store) => {
-      store.requests = store.requests || [];
-      store.requests.push(reqObj);
-    });
-
-    const shortId = id.slice(-6);
-    const text =
-      `💱 Новая заявка (в работе)\n` +
-      `🆔 #${shortId}\n` +
-      `👤 ${who}\n` +
-	      `🔁 ${sellCur} → ${buyCur}\n` +
-	      `💸 Отдаёт: ${fmtReqAmount(sellCur, Number(payload.sellAmount))}\n` +
-	      `🎯 Получит: ${fmtReqAmount(buyCur, Number(payload.buyAmount))}\n` +
-      `💳 Оплата: ${payMap[String(payload.payMethod)] || String(payload.payMethod || "—")}\n` +
-      `📦 Получение: ${methodMap[payload.receiveMethod as ReceiveMethod] || payload.receiveMethod}\n` +
-      `🕒 ${dtDaNang}`;
-
-    // Send request to a dedicated group (preferred) so managers can pick it up.
-    // Priority: store.config.requestsGroupChatId -> env REQUESTS_GROUP_CHAT_ID -> store.config.groupChatId -> env GROUP_CHAT_ID
-    const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;
-    const envGroup = process.env.GROUP_CHAT_ID ? Number(process.env.GROUP_CHAT_ID) : undefined;
-    const reqGroupChatId =
-      (store.config as any).requestsGroupChatId || envReqGroup || store.config.groupChatId || envGroup;
-
-    try {
-      if (reqGroupChatId) {
-        await ctx.telegram.sendMessage(reqGroupChatId, text, ({ disable_web_page_preview: true } as any));
-      } else {
-        // If no group is set, fall back to private notifications (best-effort)
-        const recipients = ownerIds.length
-          ? ownerIds
-          : Array.isArray((store.config as any)?.adminTgIds)
-          ? ((store.config as any).adminTgIds as number[])
-          : [];
-        let wa = opts.webappUrl || "";
-        if (wa && !/^https?:\/\//i.test(wa)) wa = "https://" + wa;
-        const kb = wa ? Markup.inlineKeyboard([Markup.button.webApp("Открыть админку", wa)]) : undefined;
-        for (const rid of recipients) {
-          await ctx.telegram.sendMessage(rid, text, kb ? kb : undefined);
-        }
-      }
-    } catch (e: any) {
-      console.error("REQUEST GROUP NOTIFY FAIL:", e);
+    const managerTgId = Number(relay?.manager_tg_id || 0);
+    if (!Number.isFinite(managerTgId) || managerTgId <= 0) {
+      await ctx.reply("Не удалось определить менеджера для ответа. Попробуйте позже.");
+      return;
     }
 
-    // Acknowledge to the user
+    const clientLabel = ctx.from?.username
+      ? `@${ctx.from.username}`
+      : `${ctx.from?.first_name || ""} ${ctx.from?.last_name || ""}`.trim() || `id ${clientTgId}`;
+    const reqLine = relay?.request_id ? `🆔 Заявка #${String(relay.request_id).slice(-6)}
+` : "";
+    const managerLine = relay?.manager_name ? `👨‍💼 Менеджер: ${String(relay.manager_name)}
+` : "";
+    const forwardText =
+      `💬 Ответ клиента
+` +
+      `${reqLine}` +
+      `👤 Клиент: ${clientLabel} • id:${clientTgId}
+` +
+      `${managerLine}` +
+      `
+${text}`;
+
     try {
-      await ctx.reply("✅ Ваша заявка принята в работу, в ближайшее время с вами свяжется менеджер 🙌");
-    } catch {}
+      await ctx.telegram.sendMessage(managerTgId, forwardText, { disable_web_page_preview: true });
+      await mutateStore((s) => {
+        const cfg: any = s.config as any;
+        cfg.supportDialogs = cfg.supportDialogs || {};
+        const prev = cfg.supportDialogs[String(clientTgId)] || relay;
+        cfg.supportDialogs[String(clientTgId)] = {
+          ...prev,
+          client_tg_id: clientTgId,
+          manager_tg_id: managerTgId,
+          updated_at: new Date().toISOString(),
+          last_client_text: text
+        };
+      });
+      await ctx.reply("✅ Ваше сообщение передано менеджеру.");
+    } catch (e: any) {
+      console.error("CLIENT RELAY FAIL:", e);
+      await ctx.reply("Не удалось передать сообщение менеджеру. Попробуйте чуть позже.");
+    }
   });
+
 
   return bot;
 }
