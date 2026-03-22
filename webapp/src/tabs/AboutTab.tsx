@@ -7,7 +7,13 @@ function openLink(url: string) {
   else window.open(url, "_blank", "noopener,noreferrer");
 }
 
-export default function AboutTab() {
+export default function AboutTab({
+  onInstallApp,
+  installLabel,
+}: {
+  onInstallApp?: () => void;
+  installLabel?: string;
+}) {
   return (
     <div className="card" style={{ padding: 14 }}>
       <div className="small" style={{ lineHeight: 1.6, whiteSpace: "pre-line" }}>
@@ -16,6 +22,14 @@ export default function AboutTab() {
 Если вы хотите опубликовать своё мероприятие в разделе «Афиша», пожалуйста, напишите нам.`}
       </div>
       <div style={{ height: 12 }} />
+      {onInstallApp ? (
+        <>
+          <button type="button" className="btn" onClick={onInstallApp}>
+            {installLabel || "Установить приложение"}
+          </button>
+          <div style={{ height: 10 }} />
+        </>
+      ) : null}
       <button type="button" className="btn" onClick={() => openLink("https://t.me/exchange_vn_dn")}>
         Написать нам
       </button>

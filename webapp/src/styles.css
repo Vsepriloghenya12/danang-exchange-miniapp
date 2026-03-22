@@ -4180,3 +4180,19 @@ html[data-theme="dark"] .theme-client .vx-modalCard{
 .vx-conditionsList{ display: grid; gap: 8px; }
 .vx-conditionsItem{ font-size: 14px; line-height: 1.42; opacity: .95; }
 .vx-inlineBtns{ display:flex; gap:8px; flex-wrap:wrap; }
+
+/* PWA install */
+.mx-pwaCard{
+  margin-top: 12px;
+}
+.mx-pwaText{
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(0,0,0,.74);
+}
+.mx-pwaModal{
+  max-width: 420px;
+}
+html[data-theme="dark"] .theme-client .mx-pwaText{
+  color: rgba(255,255,255,.82);
+}

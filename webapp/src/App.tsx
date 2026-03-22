@@ -36,6 +36,11 @@ type LaunchTarget = {
   eventId?: string;
 };
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+};
+
 const UI = {
   title: "Обмен валют — Дананг",
   fontImport:
@@ -342,6 +347,77 @@ export default function App() {
   }, []);
 
   const tg = getTg();
+  const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
+  const [isStandalonePwa, setIsStandalonePwa] = useState<boolean>(() => {
+    try {
+      return window.matchMedia?.("(display-mode: standalone)")?.matches || (window.navigator as any)?.standalone === true;
+    } catch {
+      return false;
+    }
+  });
+  const isTelegramLaunch = useMemo(() => Boolean(tg?.initData), [tg]);
+  const isIosBrowser = useMemo(() => {
+    try {
+      return /iphone|ipad|ipod/i.test(window.navigator.userAgent || "");
+    } catch {
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    const updateStandalone = () => {
+      try {
+        setIsStandalonePwa(window.matchMedia?.("(display-mode: standalone)")?.matches || (window.navigator as any)?.standalone === true);
+      } catch {
+        setIsStandalonePwa(false);
+      }
+    };
+
+    const onBeforeInstallPrompt = (ev: Event) => {
+      ev.preventDefault?.();
+      setInstallPromptEvent(ev as BeforeInstallPromptEvent);
+    };
+    const onInstalled = () => {
+      setInstallPromptEvent(null);
+      setShowInstallHelp(false);
+      updateStandalone();
+    };
+
+    updateStandalone();
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt as EventListener);
+    window.addEventListener("appinstalled", onInstalled);
+    const mq = window.matchMedia?.("(display-mode: standalone)");
+    mq?.addEventListener?.("change", updateStandalone);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt as EventListener);
+      window.removeEventListener("appinstalled", onInstalled);
+      mq?.removeEventListener?.("change", updateStandalone);
+    };
+  }, []);
+
+  const canInstallPwa = !isTelegramLaunch && !isStandalonePwa;
+  const installLabel = isStandalonePwa
+    ? "Уже установлено"
+    : installPromptEvent
+      ? "Установить сейчас"
+      : isIosBrowser
+        ? "Как установить на iPhone"
+        : "Как установить";
+
+  const openInstallFlow = async () => {
+    if (isStandalonePwa) return;
+    if (installPromptEvent) {
+      try {
+        await installPromptEvent.prompt();
+        await installPromptEvent.userChoice.catch(() => undefined);
+        return;
+      } catch {
+        // fall through to manual instructions
+      }
+    }
+    setShowInstallHelp(true);
+  };
 
   // Haptic feedback for buttons only (no vibration while typing/entering data).
   useEffect(() => {
@@ -424,13 +500,20 @@ export default function App() {
     }
 
     const initData = tg?.initData || "";
+    const fakeInit = "demo";
+    let cachedInitData = "";
     if (!initData && !isDemo) {
-      setMe({ ok: false, initData: "", error: "Нет initData. Открой мини-приложение из Telegram." });
+      try {
+        cachedInitData = String(localStorage.getItem("mx_cached_init_data") || "").trim();
+      } catch {
+        cachedInitData = "";
+      }
+    }
+    const useInit = isDemo ? fakeInit : (initData || cachedInitData);
+    if (!useInit && !isDemo) {
+      setMe({ ok: false, initData: "", error: "Нет авторизации Telegram. Откройте приложение через Telegram хотя бы один раз, затем можно установить его на телефон." });
       return;
     }
-
-    const fakeInit = "demo";
-    const useInit = isDemo ? fakeInit : initData;
 
     (async () => {
       if (isDemo) {
@@ -448,7 +531,15 @@ export default function App() {
       }
 
       const r = await apiAuth(useInit);
-      if (r.ok)
+      if (r.ok) {
+        if (!isDemo && useInit) {
+          try {
+            localStorage.setItem("mx_cached_init_data", useInit);
+            localStorage.setItem("mx_cached_init_at", String(Date.now()));
+          } catch {
+            // ignore
+          }
+        }
         setMe({
           ok: true,
           initData: useInit,
@@ -459,7 +550,17 @@ export default function App() {
           adminChat: (r as any).adminChat,
           blocked: !!(r as any).blocked,
         });
-      else setMe({ ok: false, initData: useInit, error: r.error });
+      } else {
+        if (!initData && !isDemo) {
+          try {
+            localStorage.removeItem("mx_cached_init_data");
+            localStorage.removeItem("mx_cached_init_at");
+          } catch {
+            // ignore
+          }
+        }
+        setMe({ ok: false, initData: useInit, error: r.error || "Не удалось авторизоваться. Откройте приложение из Telegram ещё раз." });
+      }
     })();
   }, [tg, isDemo]);
 
@@ -619,6 +720,25 @@ ${msg}`);
                   </button>
                 </div>
               </div>
+
+              {canInstallPwa ? (
+                <div className="mx-card mx-pwaCard">
+                  <div className="mx-cardHead">
+                    <div>
+                      <div className="mx-cardTitle">Установить на телефон</div>
+                      <div className="mx-cardSub">Добавьте приложение на главный экран и запускайте как отдельное.</div>
+                    </div>
+                  </div>
+                  <div className="mx-pwaText">
+                    После первого входа через Telegram установленная версия будет открываться быстрее и удобнее, как обычное приложение.
+                  </div>
+                  <div className="mx-btnRow">
+                    <button type="button" className="mx-btn mx-btnPrimary" onClick={openInstallFlow}>
+                      {installLabel}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div className="mx-homeNavGrid">
@@ -735,6 +855,8 @@ ${msg}`);
                 onAbout={() => goTo("about", "other_about")}
                 onContacts={() => goTo("contacts", "other_contacts")}
                 onOrderApp={() => openExternal("https://t.me/Tutenhaman")}
+                onInstallApp={canInstallPwa ? openInstallFlow : undefined}
+                installSubtitle={installPromptEvent ? "Установить на главный экран" : isIosBrowser ? "Safari → Поделиться → На экран «Домой»" : "Добавить как отдельное приложение"}
               />
             </>
           </ScreenPane>
@@ -762,11 +884,32 @@ ${msg}`);
           <ScreenPane active={screen === "about"}>
             <>
               <ScreenHeader title="О приложении" onBack={() => goTo("other", "about_back")} />
-              <AboutTab />
+              <AboutTab onInstallApp={canInstallPwa ? openInstallFlow : undefined} installLabel={installLabel} />
             </>
           </ScreenPane>
         ) : null}
       </div>
+
+      {showInstallHelp ? (
+        <div className="vx-modalOverlay" onClick={() => setShowInstallHelp(false)}>
+          <div className="vx-modalCard mx-pwaModal" onClick={(e) => e.stopPropagation()}>
+            <div className="vx-modalTitle">Установка на телефон</div>
+            <div className="mx-pwaText">
+              {isIosBrowser
+                ? "На iPhone откройте меню «Поделиться» в Safari и выберите «На экран Домой». После этого приложение появится как отдельная иконка."
+                : "В браузере телефона откройте меню страницы и выберите «Установить приложение» или «Добавить на главный экран»."}
+            </div>
+            <div className="mx-pwaText" style={{ marginTop: 8 }}>
+              Для полной работы один раз откройте приложение через Telegram — после этого установленная версия будет запускаться как отдельное приложение с сохранённой авторизацией.
+            </div>
+            <div className="mx-btnRow" style={{ marginTop: 12 }}>
+              <button type="button" className="mx-btn mx-btnPrimary" onClick={() => setShowInstallHelp(false)}>
+                Понятно
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mx-bottomNav" role="navigation" aria-label="Нижнее меню">
         <button
