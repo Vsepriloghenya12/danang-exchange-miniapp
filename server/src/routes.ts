@@ -12,6 +12,7 @@ import {
   defaultBonuses,
   defaultGFormulas,
   normUsername,
+  findContact,
   type UserStatus,
   type RequestState,
   type StoredRequest,
@@ -474,6 +475,7 @@ export function createApiRouter(opts: {
       const adminTgId = adminIds[0] ?? opts.ownerTgId ?? null;
       const adminUsername = String((store.config as any)?.adminUsername || "").trim();
       const adminDeepLink = String((store.config as any)?.adminDeepLink || "").trim();
+      const hasSavedContact = !!findContact(store, { tg_id: user.id, username: user.username });
       res.json({
         ok: true,
         user,
@@ -482,6 +484,7 @@ export function createApiRouter(opts: {
         isOwner,
         isAdmin,
         blocked,
+        hasSavedContact,
         adminChat: {
           tgId: adminTgId,
           username: adminUsername || undefined,
@@ -501,6 +504,7 @@ export function createApiRouter(opts: {
       const adminTgId = adminIds[0] ?? opts.ownerTgId ?? null;
       const adminUsername = String((store.config as any)?.adminUsername || "").trim();
       const adminDeepLink = String((store.config as any)?.adminDeepLink || "").trim();
+      const hasSavedContact = !!findContact(store, { tg_id: user.id, username: user.username });
       res.json({
         ok: true,
         data: {
@@ -510,6 +514,7 @@ export function createApiRouter(opts: {
           isOwner,
           isAdmin,
           blocked,
+          hasSavedContact,
           adminChat: {
             tgId: adminTgId,
             username: adminUsername || undefined,
@@ -2269,6 +2274,7 @@ ${textIn}
       const receiveMethod = String(p.receiveMethod || "").toLowerCase() as ReceiveMethod;
       const payMethod = String(p.payMethod || "").toLowerCase().trim();
       const comment = String(p.comment || "").trim().slice(0, 300);
+      const clientContact = String(p.clientContact || "").trim().replace(/\s+/g, " ").slice(0, 250);
 
       const allowedCur = new Set<Currency>(["RUB", "USD", "USDT", "VND", "EUR", "THB"]);
       const allowedPay = allowedRequestPayMethods(sellCurrency, buyCurrency, sellAmount, buyAmount);
@@ -2282,6 +2288,13 @@ ${textIn}
       }
       if (!allowedPay.has(payMethod) || !allowedReceive.has(receiveMethod)) {
         return res.status(400).json({ ok: false, error: "bad_method" });
+      }
+
+      const storeSnapshot = await readStore();
+      const savedContact = findContact(storeSnapshot, { tg_id: user.id, username: user.username });
+      const requiresClientContact = !normUsername(user.username) && !savedContact;
+      if (requiresClientContact && !clientContact) {
+        return res.status(400).json({ ok: false, error: "missing_client_contact" });
       }
 
 	      // For THB↔RUB we intentionally ignore status markups (treat as standard)
@@ -2319,6 +2332,7 @@ ${textIn}
         payMethod,
         receiveMethod,
         ...(comment ? { comment } : {}),
+        ...(clientContact ? { clientContact } : {}),
         from: user,
 	        status: effStatus,
         created_at: new Date().toISOString()
@@ -2326,6 +2340,15 @@ ${textIn}
       const { result } = await mutateStore((store) => {
         store.requests = store.requests || [];
         store.requests.push(request);
+        if (clientContact) {
+          upsertContactRecord(store, {
+            tg_id: user.id,
+            username: user.username,
+            fullName: [user.first_name, user.last_name].filter(Boolean).join(" ").trim() || undefined,
+            clientContact,
+            now: new Date().toISOString()
+          });
+        }
         return {
           request,
           config: {
@@ -2366,6 +2389,8 @@ ${textIn}
           `📦 Получение: ${methodMap[receiveMethod]}
 ` +
           `${comment ? `📝 Комментарий: ${comment}
+` : ""}` +
+          `${clientContact ? `☎️ Контакт клиента: ${clientContact}
 ` : ""}` +
           `🕒 ${dtDaNang}`;
 

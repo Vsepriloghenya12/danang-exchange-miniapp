@@ -1621,7 +1621,7 @@ function moveFaq(id: string, dir: -1 | 1) {
               <div className="vx-title">Управление</div>
               <div className="vx-topSub">/admin</div>
             </div>
-            <div className="row" style={{ gap: 8 }}>
+            <div className="vx-chatActionRow">
               <button className="btn vx-btnSm" type="button" onClick={loadAll}>
                 Обновить
               </button>
@@ -1639,7 +1639,7 @@ function moveFaq(id: string, dir: -1 | 1) {
         ) : null}
 
         {supportOpen ? (
-          <div className="vx-modalOverlay" onClick={() => !supportSending && setSupportOpen(false)}>
+          <div className="vx-modalOverlay vx-modalOverlayChat" onClick={() => !supportSending && setSupportOpen(false)}>
             <div className="vx-modalCard vx-chatModal" onClick={(e) => e.stopPropagation()}>
               <div className="row vx-between vx-center">
                 <div>
@@ -1667,7 +1667,7 @@ function moveFaq(id: string, dir: -1 | 1) {
               </div>
               <textarea className="input vx-in vx-chatTextarea" rows={4} value={supportDraft} onChange={(e)=>setSupportDraft(e.target.value.slice(0,4000))} placeholder="Введите сообщение клиенту" />
               <div className="vx-sp10" />
-              <div className="row" style={{ gap: 8 }}>
+              <div className="vx-chatActionRow">
                 <button className="btn" type="button" onClick={sendOwnerSupportMessage} disabled={supportSending || !supportDraft.trim()}>{supportSending ? "Отправка..." : "Отправить"}</button>
                 <button className="btn vx-btnSm" type="button" onClick={() => selectedTgId && loadSupportDialogOwner(selectedTgId, true)} disabled={supportLoading || !selectedTgId}>Обновить чат</button>
               </div>
@@ -2179,6 +2179,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                   <div>💳 Оплата: <b>{methodRu(reqSelected.payMethod)}</b></div>
                   <div>📦 Получение: <b>{methodRu(reqSelected.receiveMethod)}</b></div>
                   {reqSelected.comment ? <div>📝 Комментарий: <b>{reqSelected.comment}</b></div> : null}
+                  {reqSelected.clientContact ? <div>☎️ Контакт: <b>{reqSelected.clientContact}</b></div> : null}
                 </div>
 
                 <div className="hr" />

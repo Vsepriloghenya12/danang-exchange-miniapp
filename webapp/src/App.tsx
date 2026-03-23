@@ -26,6 +26,7 @@ type Me = {
   isAdmin?: boolean;
   adminChat?: { tgId: number | null; username?: string; deepLink?: string };
   blocked?: boolean;
+  hasSavedContact?: boolean;
   error?: string;
 };
 
@@ -443,6 +444,7 @@ export default function App() {
           isAdmin: true,
           adminChat: { tgId: 123456, username: "demo_admin" },
           blocked: false,
+          hasSavedContact: true,
         });
         return;
       }
@@ -458,6 +460,7 @@ export default function App() {
           isAdmin: !!(r as any).isAdmin,
           adminChat: (r as any).adminChat,
           blocked: !!(r as any).blocked,
+          hasSavedContact: !!(r as any).hasSavedContact,
         });
       else setMe({ ok: false, initData: useInit, error: r.error });
     })();

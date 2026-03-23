@@ -4283,13 +4283,54 @@ html[data-theme="dark"] .theme-owner .vx-chatCountTag.is-unread{
 @media (max-width: 640px) {
   .vx-chatModal{
     width: calc(100vw - 12px);
-    max-height: calc(100vh - 12px - env(safe-area-inset-bottom));
+    max-height: calc(100dvh - 10px);
+    border-radius: 24px;
+    grid-template-rows: auto auto minmax(120px,1fr) auto;
   }
   .vx-chatMsg{
     max-width: 94%;
   }
   .vx-chatText{
     font-size: 13px;
+  }
+}
+
+.vx-chatComposer{
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  background: inherit;
+  border-top: 1px solid rgba(0,0,0,.08);
+  padding-top: 10px;
+}
+html[data-theme="dark"] .theme-client .vx-chatComposer,
+html[data-theme="dark"] .theme-owner .vx-chatComposer{
+  border-top-color: rgba(255,255,255,.08);
+}
+.vx-chatActionRow{
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.vx-chatActionRow > .btn{
+  flex: 1 1 160px;
+}
+@media (max-width: 640px) {
+  .vx-modalOverlayChat{
+    align-items: flex-end;
+    padding: 6px;
+    padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  }
+  .vx-chatModal{
+    width: 100%;
+    max-height: calc(100dvh - 6px - env(safe-area-inset-bottom));
+    border-radius: 24px 24px 18px 18px;
+  }
+  .vx-chatBox{
+    min-height: 120px;
+  }
+  .vx-chatTextarea{
+    min-height: 84px;
   }
 }
 

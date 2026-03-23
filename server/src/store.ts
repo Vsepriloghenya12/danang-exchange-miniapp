@@ -139,6 +139,7 @@ export type Contact = {
   fullName?: string;
   banks?: string[];
   status?: UserStatus;
+  clientContact?: string;
   created_at: string;
   updated_at: string;
 };
@@ -205,6 +206,7 @@ export type StoredRequest = {
   payMethod?: string;
   receiveMethod: string;
   comment?: string;
+  clientContact?: string;
   from: { id: number; username?: string; first_name?: string; last_name?: string };
   // статус клиента (standard/silver/gold) на момент заявки
   status: UserStatus;
@@ -736,6 +738,7 @@ export function upsertContactRecord(
     fullName?: string;
     banks?: string[];
     status?: UserStatus;
+    clientContact?: string;
     now?: string;
   }
 ): Contact {
@@ -745,6 +748,7 @@ export function upsertContactRecord(
   const fullName = typeof input.fullName === "string" ? input.fullName.trim() : undefined;
   const banks = Array.isArray(input.banks) ? [...input.banks] : undefined;
   const status = input.status ? normalizeStatus(input.status) : undefined;
+  const clientContact = typeof input.clientContact === "string" ? input.clientContact.trim().slice(0, 250) : undefined;
 
   if (!store.contacts || !Array.isArray(store.contacts)) store.contacts = [];
 
@@ -761,6 +765,7 @@ export function upsertContactRecord(
     primary.fullName = primary.fullName || secondary.fullName;
     primary.banks = Array.isArray(primary.banks) && primary.banks.length ? primary.banks : secondary.banks;
     primary.status = primary.status || secondary.status;
+    primary.clientContact = primary.clientContact || secondary.clientContact;
     primary.created_at = primary.created_at || secondary.created_at;
 
     const i = list.indexOf(secondary as any);
@@ -786,6 +791,7 @@ export function upsertContactRecord(
   if (fullName !== undefined) c.fullName = fullName;
   if (banks !== undefined) c.banks = banks;
   if (status) c.status = status;
+  if (clientContact !== undefined) c.clientContact = clientContact;
 
   return c;
 }

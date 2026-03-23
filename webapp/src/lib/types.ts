@@ -30,6 +30,7 @@ export type AuthResponse =
       isAdmin?: boolean;
       // true if the user is in the owner's blacklist (username-based)
       blocked?: boolean;
+      hasSavedContact?: boolean;
       adminChat?: { tgId: number | null; username?: string; deepLink?: string };
     }
   | { ok: false; error: string };
@@ -44,6 +45,7 @@ export type Contact = {
   fullName?: string;
   banks?: string[]; // filenames from /banks
   status?: UserStatus; // optional desired status
+  clientContact?: string;
   created_at: string;
   updated_at: string;
 };

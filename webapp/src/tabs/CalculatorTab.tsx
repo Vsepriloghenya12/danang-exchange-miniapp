@@ -18,6 +18,7 @@ type Props = {
     initData: string;
     user?: { id: number; username?: string; first_name?: string; last_name?: string };
     status?: UserStatus;
+    hasSavedContact?: boolean;
     adminChat?: { tgId: number | null; username?: string; deepLink?: string };
   };
 };
@@ -544,6 +545,9 @@ export default function CalculatorTab({ me }: Props) {
   const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeStatus(me?.status));
   const [requestComment, setRequestComment] = useState("");
   const [showConditions, setShowConditions] = useState(false);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [contactInput, setContactInput] = useState("");
+  const [hasSavedContactLocal, setHasSavedContactLocal] = useState<boolean>(Boolean(me?.hasSavedContact));
 
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [danangNowMs, setDanangNowMs] = useState(() => Date.now());
@@ -552,6 +556,10 @@ export default function CalculatorTab({ me }: Props) {
     const t = window.setTimeout(() => setBanner(null), 6000);
     return () => window.clearTimeout(t);
   }, [banner]);
+
+  useEffect(() => {
+    setHasSavedContactLocal(Boolean(me?.hasSavedContact));
+  }, [me?.hasSavedContact]);
 
   useEffect(() => {
     const t = window.setInterval(() => setDanangNowMs(Date.now()), 60000);
@@ -981,15 +989,14 @@ export default function CalculatorTab({ me }: Props) {
     setBuyText(currentSellRaw != null && Number.isFinite(currentSellRaw) ? formatExact(nextBuyCurrency, currentSellRaw) : "");
   }
 
-  async function sendRequest() {
-    if (!canSend) return;
-
+  async function createRequest(clientContactOverride?: string) {
     const initData = tg?.initData || me.initData || "";
     if (!initData) {
       tg?.showAlert?.("Нет initData. Открой мини-приложение через Telegram (/start).");
-      return;
+      return false;
     }
 
+    const normalizedClientContact = String(clientContactOverride || "").trim().replace(/\s+/g, " ").slice(0, 250);
     const payload = {
       sellCurrency,
       buyCurrency,
@@ -998,9 +1005,9 @@ export default function CalculatorTab({ me }: Props) {
       payMethod,
       receiveMethod,
       comment: requestComment.trim(),
+      ...(normalizedClientContact ? { clientContact: normalizedClientContact } : {}),
     };
 
-    // 1) Always create the request on the server (so it appears in admin panel instantly)
     try {
       const res = await fetch("/api/requests", {
         method: "POST",
@@ -1012,28 +1019,69 @@ export default function CalculatorTab({ me }: Props) {
       });
       const json = await res.json().catch(() => ({}));
       if (!json?.ok) {
+        const err = String(json?.error || "fail");
         tg?.HapticFeedback?.notificationOccurred?.("error");
-        tg?.showAlert?.(`Ошибка: ${json?.error || "fail"}`);
-        return;
+        if (err === "missing_client_contact") {
+          setContactModalOpen(true);
+          return false;
+        }
+        tg?.showAlert?.(`Ошибка: ${err}`);
+        return false;
       }
       tg?.HapticFeedback?.notificationOccurred?.("success");
+      return true;
     } catch (e: any) {
       tg?.HapticFeedback?.notificationOccurred?.("error");
       tg?.showAlert?.(`Ошибка сети: ${e?.message || e}`);
-      return;
+      return false;
+    }
+  }
+
+  async function afterRequestSent(clientContactOverride?: string) {
+    const normalizedClientContact = String(clientContactOverride || "").trim().replace(/\s+/g, " ").slice(0, 250);
+    if (normalizedClientContact) {
+      setHasSavedContactLocal(true);
+      setContactInput(normalizedClientContact);
+      setContactModalOpen(false);
     }
 
-    // 2) UX: show confirmation прямо в приложении.
-    // Заявка уходит в группу менеджеров через бота (на сервере).
     setBanner({
       type: "ok",
       text: "Ваша заявка принята в работу, в ближайшее время с вами свяжется менеджер 🙌",
     });
 
-    // Optional: clear inputs after submit
     setSellText("");
     setBuyText("");
     setRequestComment("");
+  }
+
+  async function sendRequest() {
+    if (!canSend) return;
+
+    const needsClientContact = !String(me?.user?.username || "").trim() && !hasSavedContactLocal;
+    if (needsClientContact) {
+      const normalizedClientContact = String(contactInput || "").trim().replace(/\s+/g, " ").slice(0, 250);
+      if (!normalizedClientContact) {
+        setContactModalOpen(true);
+        return;
+      }
+      const ok = await createRequest(normalizedClientContact);
+      if (ok) await afterRequestSent(normalizedClientContact);
+      return;
+    }
+
+    const ok = await createRequest();
+    if (ok) await afterRequestSent();
+  }
+
+  async function submitRequestWithContact() {
+    const normalizedClientContact = String(contactInput || "").trim().replace(/\s+/g, " ").slice(0, 250);
+    if (!normalizedClientContact) {
+      tg?.showAlert?.("Укажите ваш Telegram, ссылку или номер телефона.");
+      return;
+    }
+    const ok = await createRequest(normalizedClientContact);
+    if (ok) await afterRequestSent(normalizedClientContact);
   }
 
   return (
@@ -1054,6 +1102,34 @@ export default function CalculatorTab({ me }: Props) {
               {conditionsItems.map((item) => (
                 <div key={item} className="vx-conditionsItem">• {item}</div>
               ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {contactModalOpen ? (
+        <div className="vx-modalOverlay" onClick={() => setContactModalOpen(false)}>
+          <div className="vx-modalCard" onClick={(e) => e.stopPropagation()}>
+            <div className="row vx-between vx-center" style={{ gap: 10 }}>
+              <div className="vx-modalTitle">Контактные данные</div>
+              <button type="button" className="btn vx-btnSm" onClick={() => setContactModalOpen(false)}>Закрыть</button>
+            </div>
+            <div className="vx-conditionsList" style={{ marginTop: 10 }}>
+              <div className="vx-conditionsItem">
+                У вас скрыт или отсутствует username. Для того чтобы менеджер с вами связался, оставьте ваши контактные данные, ссылку на Telegram или номер телефона. Ваши данные надежно сохраняются и не передаются третьим лицам.
+              </div>
+            </div>
+            <div className="vx-sp12" />
+            <textarea
+              className="input vx-in"
+              rows={3}
+              placeholder="Telegram, ссылка на профиль или номер телефона"
+              value={contactInput}
+              onChange={(e) => setContactInput(e.target.value.slice(0, 250))}
+            />
+            <div className="vx-sp12" />
+            <div className="row vx-gap8">
+              <button type="button" className="btn" onClick={submitRequestWithContact}>Отправить заявку</button>
             </div>
           </div>
         </div>

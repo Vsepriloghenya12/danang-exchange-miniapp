@@ -539,7 +539,7 @@ export default function StaffTab({ me }: any) {
       {Header}
 
       {messageOpen ? (
-        <div className="vx-modalOverlay" onClick={() => !sendingMessage && setMessageOpen(false)}>
+        <div className="vx-modalOverlay vx-modalOverlayChat" onClick={() => !sendingMessage && setMessageOpen(false)}>
           <div className="vx-modalCard vx-chatModal" onClick={(e) => e.stopPropagation()}>
             <div className="row vx-between vx-center">
               <div>
@@ -573,7 +573,7 @@ export default function StaffTab({ me }: any) {
               placeholder="Введите сообщение клиенту"
             />
             <div className="vx-sp10" />
-            <div className="row vx-gap8">
+            <div className="vx-chatActionRow">
               <button type="button" className="btn" onClick={sendDirectMessage} disabled={sendingMessage || !messageText.trim()}>
                 {sendingMessage ? "Отправка..." : "Отправить"}
               </button>
@@ -708,6 +708,7 @@ export default function StaffTab({ me }: any) {
               <div>💳 Оплата: <b>{methodLabel(String(selectedReq.payMethod || ""))}</b></div>
               <div>📦 Получение: <b>{methodLabel(String(selectedReq.receiveMethod || ""))}</b></div>
               {selectedReq.comment ? <div>📝 Комментарий: <b>{selectedReq.comment}</b></div> : null}
+              {selectedReq.clientContact ? <div>☎️ Контакт: <b>{selectedReq.clientContact}</b></div> : null}
             </div>
 
             {(String(selectedReq.state) === "in_progress" || String(selectedReq.state) === "new") ? (
