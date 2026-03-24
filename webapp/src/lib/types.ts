@@ -241,6 +241,7 @@ export type AfishaEvent = {
   // legacy (single category)
   category?: AfishaCategory;
   date: string; // YYYY-MM-DD
+  time?: string; // HH:MM
   title: string;
   comment?: string;
   detailsUrl: string;

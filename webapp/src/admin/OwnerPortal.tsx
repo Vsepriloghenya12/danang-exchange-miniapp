@@ -139,6 +139,22 @@ function sameDialogMessages(a: any[], b: any[]) {
 
 const DEFAULT_TEMPLATE = `Доброе утро!\n\nКурс на {{date}}:\n\n{{rates}}\n\n🛵    Бесплатная доставка\n             С 10:00 до 16:00.\n        при обмене от 20 000₽\n\n⏩БОЛЕЕ ВЫГОДНЫЙ КУРС  ⏪\n  при дистанционном обмене                        ⠀              от 20 000₽\n💳  Перевод на вьетнамский счёт;\n📥  Получение в банкоматах BIDV Vietcombank;`;
 
+type DeferredInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice?: Promise<{ outcome: "accepted" | "dismissed"; platform?: string }>;
+};
+
+function fmtAfTime(value?: string) {
+  const s = String(value || "").trim();
+  return /^\d{2}:\d{2}$/.test(s) ? s : "";
+}
+
+function fmtAfDateTime(ev: any) {
+  const date = String(ev?.date || "");
+  const time = fmtAfTime(ev?.time);
+  return time ? `${date} • ${time}` : date;
+}
+
 export default function OwnerPortal() {
   // Owner portal is opened in a regular browser; keep background consistent with the miniapp.
   useEffect(() => {
@@ -150,6 +166,71 @@ export default function OwnerPortal() {
     }
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    const syncInstalled = () => {
+      if (!mounted) return;
+      try {
+        setInstallDone(Boolean(window.matchMedia?.('(display-mode: standalone)')?.matches || (navigator as any)?.standalone === true));
+      } catch {}
+    };
+
+    const onBeforeInstall = (event: Event) => {
+      event.preventDefault?.();
+      if (!mounted) return;
+      setInstallPrompt(event as DeferredInstallPromptEvent);
+      setInstallSupported(true);
+    };
+
+    const onInstalled = () => {
+      if (!mounted) return;
+      setInstallDone(true);
+      setInstallPrompt(null);
+      setInstallSupported(true);
+    };
+
+    syncInstalled();
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/owner-sw.js').catch(() => {});
+    }
+
+    window.addEventListener('beforeinstallprompt', onBeforeInstall as EventListener);
+    window.addEventListener('appinstalled', onInstalled);
+    window.matchMedia?.('(display-mode: standalone)')?.addEventListener?.('change', syncInstalled);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall as EventListener);
+      window.removeEventListener('appinstalled', onInstalled);
+      window.matchMedia?.('(display-mode: standalone)')?.removeEventListener?.('change', syncInstalled);
+    };
+  }, []);
+
+  async function installOwnerApp() {
+    if (installDone) return;
+    if (installPrompt) {
+      try {
+        await installPrompt.prompt();
+        const choice = await installPrompt.userChoice;
+        if (choice?.outcome === 'accepted') {
+          setInstallDone(true);
+          showOk('Страница владельца установлена');
+        }
+      } catch {}
+      setInstallPrompt(null);
+      return;
+    }
+
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+    if (isIos) {
+      showOk('На iPhone/iPad: Поделиться → На экран Домой');
+      return;
+    }
+
+    showOk('Открой меню браузера и выбери «Установить приложение»');
+  }
+
   const [key, setKey] = useState<string>(() => {
     try {
       return localStorage.getItem(LS_KEY) || "";
@@ -160,6 +241,16 @@ export default function OwnerPortal() {
 
   // keep a draft input so we don't treat partial/incorrect values as a "logged in" session
   const [draftKey, setDraftKey] = useState<string>(key);
+
+  const [installPrompt, setInstallPrompt] = useState<DeferredInstallPromptEvent | null>(null);
+  const [installSupported, setInstallSupported] = useState(false);
+  const [installDone, setInstallDone] = useState<boolean>(() => {
+    try {
+      return window.matchMedia?.('(display-mode: standalone)')?.matches || (navigator as any)?.standalone === true;
+    } catch {
+      return false;
+    }
+  });
 
   const token = useMemo(() => (key ? `adminkey:${key}` : ""), [key]);
   const me = useMemo(() => ({ initData: token }), [token]);
@@ -321,6 +412,7 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
   const [afLoading, setAfLoading] = useState<boolean>(false);
   const [afCreateCats, setAfCreateCats] = useState<string[]>(["sport"]);
   const [afCreateDate, setAfCreateDate] = useState<string>(() => todayISO());
+  const [afCreateTime, setAfCreateTime] = useState<string>("");
   const [afCreateTitle, setAfCreateTitle] = useState<string>("");
   const [afCreateComment, setAfCreateComment] = useState<string>("");
   const [afCreateDetailsUrl, setAfCreateDetailsUrl] = useState<string>("");
@@ -330,6 +422,7 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
   const [afEditId, setAfEditId] = useState<string>("");
   const [afEditCats, setAfEditCats] = useState<string[]>(["sport"]);
   const [afEditDate, setAfEditDate] = useState<string>("");
+  const [afEditTime, setAfEditTime] = useState<string>("");
   const [afEditTitle, setAfEditTitle] = useState<string>("");
   const [afEditComment, setAfEditComment] = useState<string>("");
   const [afEditDetailsUrl, setAfEditDetailsUrl] = useState<string>("");
@@ -589,6 +682,7 @@ function moveFaq(id: string, dir: -1 | 1) {
     const cats = Array.isArray((ev as any).categories) ? (ev as any).categories : ev.category ? [ev.category] : ['sport'];
     setAfEditCats(cats.map((x: any) => String(x || '')).filter(Boolean).slice(0, 3));
     setAfEditDate(String(ev.date || ''));
+    setAfEditTime(fmtAfTime((ev as any).time));
     setAfEditTitle(String(ev.title || ''));
     setAfEditComment(String(ev.comment || ''));
     setAfEditDetailsUrl(String(ev.detailsUrl || ''));
@@ -612,6 +706,7 @@ function moveFaq(id: string, dir: -1 | 1) {
     const payload = {
       categories: afCreateCats,
       date: afCreateDate,
+      time: fmtAfTime(afCreateTime) || undefined,
       title: afCreateTitle.trim(),
       comment: afCreateComment.trim(),
       detailsUrl: afCreateDetailsUrl.trim(),
@@ -622,6 +717,7 @@ function moveFaq(id: string, dir: -1 | 1) {
     if (!r?.ok) return showErr(r?.error || 'Ошибка');
     showOk('Создано');
     setAfCreateTitle('');
+    setAfCreateTime('');
     setAfCreateComment('');
     setAfCreateDetailsUrl('');
     setAfCreateLocationUrl('');
@@ -635,6 +731,7 @@ function moveFaq(id: string, dir: -1 | 1) {
       const payload: any = {
         categories: afEditCats,
         date: afEditDate,
+        time: fmtAfTime(afEditTime) || '',
         title: afEditTitle.trim(),
         comment: afEditComment.trim(),
         detailsUrl: afEditDetailsUrl.trim(),
@@ -684,6 +781,7 @@ function moveFaq(id: string, dir: -1 | 1) {
             })}
           </div>
           <input className="input vx-in" type="date" value={afEditDate} onChange={(e) => setAfEditDate(e.target.value)} style={{ flex: "0 0 170px" }} />
+          <input className="input vx-in" type="time" value={afEditTime} onChange={(e) => setAfEditTime(e.target.value)} style={{ flex: "0 0 130px" }} />
         </div>
         <div className="vx-muted" style={{ marginTop: 6 }}>Можно выбрать до 3 категорий</div>
 
@@ -1604,6 +1702,12 @@ function moveFaq(id: string, dir: -1 | 1) {
             <button className="btn" type="button" onClick={onLogin}>
               Войти
             </button>
+            <div className="vx-installRow">
+              <button className="btn vx-btnSm" type="button" onClick={installOwnerApp} disabled={installDone}>
+                {installDone ? "Установлено" : "Установить на устройство"}
+              </button>
+              <span className="vx-muted">{installPrompt || installSupported ? "Откроется установка owner-страницы" : "Можно установить через меню браузера"}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1622,6 +1726,9 @@ function moveFaq(id: string, dir: -1 | 1) {
               <div className="vx-topSub">/admin</div>
             </div>
             <div className="vx-chatActionRow">
+              <button className="btn vx-btnSm" type="button" onClick={installOwnerApp} disabled={installDone}>
+                {installDone ? "Установлено" : "Установить"}
+              </button>
               <button className="btn vx-btnSm" type="button" onClick={loadAll}>
                 Обновить
               </button>
@@ -2271,6 +2378,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                 })}
               </div>
               <input className="input vx-in" type="date" value={afCreateDate} onChange={(e) => setAfCreateDate(e.target.value)} style={{ flex: "0 0 170px" }} />
+              <input className="input vx-in" type="time" value={afCreateTime} onChange={(e) => setAfCreateTime(e.target.value)} style={{ flex: "0 0 130px" }} />
             </div>
             <div className="vx-muted" style={{ marginTop: 6 }}>Можно выбрать до 3 категорий</div>
 
@@ -2350,7 +2458,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                         onClick={() => toggleEditAfisha(ev)}
                       >
                         <div className="vx-reqTop">
-                          <b>{String(ev.date || "")}</b>
+                          <b>{fmtAfDateTime(ev)}</b>
                           <span className="vx-muted">{afCatsLabel(ev)}</span>
                         </div>
                         <div><b>{String(ev.title || "")}</b></div>
@@ -2410,7 +2518,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                         onClick={() => toggleEditAfisha(ev)}
                       >
                         <div className="vx-reqTop">
-                          <b>{String(ev.date || "")}</b>
+                          <b>{fmtAfDateTime(ev)}</b>
                           <span className="vx-muted">{afCatsLabel(ev)}</span>
                         </div>
                         <div><b>{String(ev.title || "")}</b></div>

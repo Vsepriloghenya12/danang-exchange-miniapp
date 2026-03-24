@@ -32,6 +32,7 @@ export type AfishaEvent = {
   id: string;
   category: AfishaCategory;
   date: string; // YYYY-MM-DD
+  time?: string; // HH:MM
   title: string;
   // optional short note/comment shown under the title in the client
   comment?: string;
@@ -519,6 +520,19 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
     if (ev.comment != null && typeof ev.comment !== "string") {
       ev.comment = String(ev.comment || "");
       dirty = true;
+    }
+    if (ev.time != null) {
+      const t = String(ev.time || "").trim();
+      const normTime = /^\d{2}:\d{2}$/.test(t) ? t : "";
+      if (normTime) {
+        if (ev.time !== normTime) {
+          ev.time = normTime;
+          dirty = true;
+        }
+      } else {
+        delete ev.time;
+        dirty = true;
+      }
     }
     const cats = Array.isArray(ev.categories)
       ? ev.categories

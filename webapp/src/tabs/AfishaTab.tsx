@@ -88,6 +88,15 @@ function fmtDate(isoStr: string) {
   }
 }
 
+function fmtTime(value?: string) {
+  const s = String(value || '').trim();
+  return /^\d{2}:\d{2}$/.test(s) ? s : '';
+}
+
+function afishaSortKey(ev: AfishaEvent) {
+  return `${String(ev?.date || '')}T${fmtTime((ev as any)?.time) || '99:99'}`;
+}
+
 function presetRange(p: DatePreset): { from: string; to: string } {
   const now = new Date();
   if (p === "any") return { from: "", to: "" };
@@ -465,12 +474,25 @@ export default function AfishaTab({ registerBack, focusEventId, onFocusHandled }
   const filteredEvents = useMemo(() => {
     if (!events || events.length === 0) return [];
     const set = new Set((cats || []).map((c) => String(c)));
-    if (!cats || cats.length === 0) return events;
-    return events.filter((e) => {
-      const ec = getEventCats(e);
-      return ec.some((x) => set.has(String(x)));
-    });
+    const base = !cats || cats.length === 0
+      ? [...events]
+      : events.filter((e) => {
+          const ec = getEventCats(e);
+          return ec.some((x) => set.has(String(x)));
+        });
+    return base.sort((a, b) => afishaSortKey(a).localeCompare(afishaSortKey(b)));
   }, [events, cats]);
+
+  const groupedEvents = useMemo(() => {
+    const groups: Array<{ date: string; items: AfishaEvent[] }> = [];
+    for (const ev of filteredEvents) {
+      const date = String(ev?.date || '');
+      const last = groups[groups.length - 1];
+      if (!last || last.date !== date) groups.push({ date, items: [ev] });
+      else last.items.push(ev);
+    }
+    return groups;
+  }, [filteredEvents]);
 
   useEffect(() => {
     if (!focusEventId || loading) return;
@@ -576,32 +598,40 @@ ${targetUrl}`;
       {!loading && !err && filteredEvents.length === 0 ? <div className="mx-muted">Пока нет мероприятий.</div> : null}
 
       <div className="mx-list">
-        {filteredEvents.map((ev) => (
-          <div
-            key={ev.id}
-            ref={(node) => {
-              cardRefs.current[ev.id] = node;
-            }}
-            className={"mx-afEvCard" + (ev.imageUrl ? " has-img" : "") + (flashId === ev.id ? " is-flash" : "")}
-          >
-            {ev.imageUrl ? <div className="mx-afEvBg" style={{ backgroundImage: `url(${ev.imageUrl})` } as any} aria-hidden="true" /> : null}
-            <div className="mx-afEvBody">
-              <div className="mx-afTitle">{ev.title}</div>
-              {ev.comment ? <div className="mx-afComment">{ev.comment}</div> : null}
-              <div className="mx-afMeta">{fmtDate(ev.date)}</div>
+        {groupedEvents.map((group) => (
+          <div key={group.date} className="mx-afGroup">
+            <div className="mx-afGroupDate">{fmtDate(group.date)}</div>
+            {group.items.map((ev) => {
+              const timeLabel = fmtTime((ev as any)?.time);
+              return (
+                <div
+                  key={ev.id}
+                  ref={(node) => {
+                    cardRefs.current[ev.id] = node;
+                  }}
+                  className={"mx-afEvCard" + (ev.imageUrl ? " has-img" : "") + (flashId === ev.id ? " is-flash" : "")}
+                >
+                  {ev.imageUrl ? <div className="mx-afEvBg" style={{ backgroundImage: `url(${ev.imageUrl})` } as any} aria-hidden="true" /> : null}
+                  <div className="mx-afEvBody">
+                    <div className="mx-afTitle">{ev.title}</div>
+                    {ev.comment ? <div className="mx-afComment">{ev.comment}</div> : null}
+                    <div className="mx-afMeta">{timeLabel ? `${fmtDate(ev.date)} • ${timeLabel}` : fmtDate(ev.date)}</div>
 
-              <div className="mx-btnRow mx-afBtnRow" style={{ marginTop: 10 }}>
-                <button type="button" className="mx-btn mx-afLinkBtn mx-afActionBtn" onClick={() => onClick(ev, "details")} style={{ opacity: 0.8 }}>
-                  Подробнее
-                </button>
-                <button type="button" className="mx-btn mx-btnPrimary mx-afLinkBtn mx-afActionBtn" onClick={() => onClick(ev, "location")} style={{ opacity: 0.8 }}>
-                  Локация
-                </button>
-                <button type="button" className="mx-btn mx-afShareBtn" onClick={() => onShare(ev)} aria-label="Поделиться мероприятием">
-                  <IconShare className="mx-i" />
-                </button>
-              </div>
-            </div>
+                    <div className="mx-btnRow mx-afBtnRow" style={{ marginTop: 10 }}>
+                      <button type="button" className="mx-btn mx-afLinkBtn mx-afActionBtn" onClick={() => onClick(ev, "details")} style={{ opacity: 0.8 }}>
+                        Подробнее
+                      </button>
+                      <button type="button" className="mx-btn mx-btnPrimary mx-afLinkBtn mx-afActionBtn" onClick={() => onClick(ev, "location")} style={{ opacity: 0.8 }}>
+                        Локация
+                      </button>
+                      <button type="button" className="mx-btn mx-afShareBtn" onClick={() => onShare(ev)} aria-label="Поделиться мероприятием">
+                        <IconShare className="mx-i" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ))}
       </div>

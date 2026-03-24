@@ -581,13 +581,13 @@ export default function CalculatorTab({ me }: Props) {
 
   // Enforce receive-method restrictions based on BUY currency and service hours
   useEffect(() => {
-    const baseAllowed = allowedReceiveMethods(buyCurrency, sellCurrency, parseAmount(buyCurrency, buyText), parseAmount(sellCurrency, sellText));
+    const baseAllowed = allowedReceiveMethods(buyCurrency, sellCurrency, buyAmount, sellAmount);
     const allowed = deliveryClosed && !(sellCurrency === "VND" && buyCurrency === "VND")
       ? baseAllowed.filter((m) => m === "transfer" || m === "atm")
       : baseAllowed;
     if (allowed.length > 0 && !allowed.includes(receiveMethod)) setReceiveMethod(allowed[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buyCurrency, sellCurrency, buyText, deliveryClosed]);
+  }, [buyCurrency, sellCurrency, buyAmount, sellAmount, deliveryClosed]);
 
   // Load rates (VND) + market (G)
   useEffect(() => {
@@ -714,11 +714,11 @@ export default function CalculatorTab({ me }: Props) {
 
   const allowedPay = useMemo(() => allowedPayMethods(sellCurrency, buyCurrency, sellAmount, buyAmount), [sellCurrency, buyCurrency, sellAmount, buyAmount]);
   const allowedRecv = useMemo(() => {
-    const baseAllowed = allowedReceiveMethods(buyCurrency, sellCurrency, parseAmount(buyCurrency, buyText), parseAmount(sellCurrency, sellText));
+    const baseAllowed = allowedReceiveMethods(buyCurrency, sellCurrency, buyAmount, sellAmount);
     return deliveryClosed && !(sellCurrency === "VND" && buyCurrency === "VND")
       ? baseAllowed.filter((m) => m === "transfer" || m === "atm")
       : baseAllowed;
-  }, [buyCurrency, sellCurrency, buyAmount, deliveryClosed]);
+  }, [buyCurrency, sellCurrency, buyAmount, sellAmount, deliveryClosed]);
   const receiveMethodUnavailableByHours = deliveryClosed && allowedRecv.length === 0;
 
   // Missing data check

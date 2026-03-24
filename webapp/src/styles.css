@@ -3196,6 +3196,8 @@ html[data-theme="dark"] .theme-client .mx-afEvCard.is-flash{
 }
 
 /* Afisha list view */
+.mx-afGroup{ display:grid; gap:10px; }
+.mx-afGroupDate{ font-weight:900; font-size:15px; letter-spacing:.02em; opacity:.9; padding:2px 2px 0; }
 .mx-afTop{ display:flex; align-items:center; justify-content:space-between; gap: 10px; margin: 8px 0 12px; }
 .mx-afBack{ height: 38px; padding: 0 12px; border-radius: 16px; background: rgba(255,255,255,.96); border: 1px solid var(--stroke); box-shadow: var(--shadow2); font-weight: 900; }
 .mx-afTopTitle{ font-size: 14px; font-weight: 950; color: rgba(0,0,0,.72); }

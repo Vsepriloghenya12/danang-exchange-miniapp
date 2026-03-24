@@ -597,6 +597,17 @@ export function createApiRouter(opts: {
     return s;
   }
 
+  function normEventTime(value: any): string {
+    const s = String(value || '').trim();
+    return /^\d{2}:\d{2}$/.test(s) ? s : '';
+  }
+
+  function afishaSortKey(ev: any): string {
+    const date = String(ev?.date || '');
+    const time = normEventTime((ev as any)?.time) || '99:99';
+    return `${date}T${time}`;
+  }
+
   function normCategory(c: any): any {
     const v = String(c || '').trim().toLowerCase();
     if (['sport', 'спорт'].includes(v)) return 'sport';
@@ -675,8 +686,8 @@ export function createApiRouter(opts: {
       if (from) out = out.filter((ev) => String(ev.date || '') >= from);
       if (to) out = out.filter((ev) => String(ev.date || '') <= to);
 
-      // sort by date ASC
-      out.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+      // sort by date+time ASC
+      out.sort((a, b) => afishaSortKey(a).localeCompare(afishaSortKey(b)));
 
       const outWithShare = await Promise.all(
         out.map(async (ev) => ({
@@ -741,9 +752,9 @@ export function createApiRouter(opts: {
       if (from) items = items.filter((ev) => String(ev.date || '') >= from);
       if (to) items = items.filter((ev) => String(ev.date || '') <= to);
 
-      // newest first for history, soonest first for active
-      if (scope === 'active') items.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
-      else items.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+      // newest first for history, soonest first for active (with time inside the same day)
+      if (scope === 'active') items.sort((a, b) => afishaSortKey(a).localeCompare(afishaSortKey(b)));
+      else items.sort((a, b) => afishaSortKey(b).localeCompare(afishaSortKey(a)));
 
       return res.json({ ok: true, today, events: items });
     } catch (e: any) {
@@ -762,6 +773,9 @@ export function createApiRouter(opts: {
       const category = catsNorm[0] || null;
       const date = String((req.body as any)?.date || '').slice(0, 10);
       const title = String((req.body as any)?.title || '').trim();
+      const timeRaw = (req.body as any)?.time;
+      const timeText = timeRaw != null ? String(timeRaw || '').trim() : '';
+      const time = timeText ? normEventTime(timeText) : '';
       const comment = String((req.body as any)?.comment || '').trim();
       const detailsUrl = normUrl((req.body as any)?.detailsUrl);
       const locationUrl = normUrl((req.body as any)?.locationUrl);
@@ -771,6 +785,7 @@ export function createApiRouter(opts: {
       if (catsNorm.length < 1 || catsNorm.length > 3) return res.status(400).json({ ok: false, error: 'bad_categories' });
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ ok: false, error: 'bad_date' });
       if (title.length < 2) return res.status(400).json({ ok: false, error: 'bad_title' });
+      if (timeText && !time) return res.status(400).json({ ok: false, error: 'bad_time' });
       if (comment && comment.length > 300) return res.status(400).json({ ok: false, error: 'bad_comment' });
       if (!detailsUrl) return res.status(400).json({ ok: false, error: 'bad_details_url' });
       if (!locationUrl) return res.status(400).json({ ok: false, error: 'bad_location_url' });
@@ -784,6 +799,7 @@ export function createApiRouter(opts: {
         category,
         categories: catsNorm,
         date,
+        ...(time ? { time } : {}),
         title,
         ...(comment ? { comment } : {}),
         detailsUrl,
@@ -823,6 +839,9 @@ export function createApiRouter(opts: {
       const date = dateRaw != null ? String(dateRaw || '').slice(0, 10) : null;
       const titleRaw = (req.body as any)?.title;
       const title = titleRaw != null ? String(titleRaw || '').trim() : null;
+      const timeRaw = (req.body as any)?.time;
+      const timeText = timeRaw != null ? String(timeRaw || '').trim() : null;
+      const time = timeText != null && timeText !== '' ? normEventTime(timeText) : null;
 
       const commentRaw = (req.body as any)?.comment;
       const comment = commentRaw != null ? String(commentRaw || '').trim() : null;
@@ -854,6 +873,11 @@ export function createApiRouter(opts: {
         if (titleRaw != null) {
           if (!title || title.length < 2) return { error: 'bad_title' as const };
           ev.title = title;
+        }
+        if (timeRaw != null) {
+          if (timeText && !time) return { error: 'bad_time' as const };
+          if (time) ev.time = time;
+          else delete ev.time;
         }
 
         if (commentRaw != null) {
