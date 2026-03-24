@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { apiGetBonuses, apiGetGFormulas, apiGetMarketRates } from "../lib/api";
 import type { BonusesConfig, MarketRatesResponse, UserStatus } from "../lib/types";
 
@@ -581,13 +582,18 @@ export default function CalculatorTab({ me }: Props) {
 
   // Enforce receive-method restrictions based on BUY currency and service hours
   useEffect(() => {
-    const baseAllowed = allowedReceiveMethods(buyCurrency, sellCurrency, buyAmount, sellAmount);
+    const baseAllowed = allowedReceiveMethods(
+      buyCurrency,
+      sellCurrency,
+      parseAmount(buyCurrency, buyText),
+      parseAmount(sellCurrency, sellText)
+    );
     const allowed = deliveryClosed && !(sellCurrency === "VND" && buyCurrency === "VND")
       ? baseAllowed.filter((m) => m === "transfer" || m === "atm")
       : baseAllowed;
     if (allowed.length > 0 && !allowed.includes(receiveMethod)) setReceiveMethod(allowed[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buyCurrency, sellCurrency, buyAmount, sellAmount, deliveryClosed]);
+  }, [buyCurrency, sellCurrency, buyText, sellText, deliveryClosed]);
 
   // Load rates (VND) + market (G)
   useEffect(() => {
@@ -990,7 +996,7 @@ export default function CalculatorTab({ me }: Props) {
   }
 
   async function createRequest(clientContactOverride?: string) {
-    const initData = tg?.initData || me.initData || "";
+    const initData = tg?.initData || me?.initData || "";
     if (!initData) {
       tg?.showAlert?.("Нет initData. Открой мини-приложение через Telegram (/start).");
       return false;
@@ -1084,6 +1090,37 @@ export default function CalculatorTab({ me }: Props) {
     if (ok) await afterRequestSent(normalizedClientContact);
   }
 
+  const contactModal = contactModalOpen && typeof document !== "undefined"
+    ? createPortal(
+        <div className="vx-modalOverlay vx-contactModalOverlay" role="dialog" aria-modal="true" aria-label="Контактные данные" onClick={() => setContactModalOpen(false)}>
+          <div className="vx-modalCard vx-contactModalCard" onClick={(e) => e.stopPropagation()}>
+            <div className="row vx-between vx-center" style={{ gap: 10 }}>
+              <div className="vx-modalTitle">Контактные данные</div>
+              <button type="button" className="btn vx-btnSm" onClick={() => setContactModalOpen(false)}>Закрыть</button>
+            </div>
+            <div className="vx-conditionsList" style={{ marginTop: 10 }}>
+              <div className="vx-conditionsItem">
+                У вас скрыт или отсутствует username. Для того чтобы менеджер с вами связался, оставьте ваши контактные данные, ссылку на Telegram или номер телефона. Ваши данные надежно сохраняются и не передаются третьим лицам.
+              </div>
+            </div>
+            <div className="vx-sp12" />
+            <textarea
+              className="input vx-in"
+              rows={3}
+              placeholder="Telegram, ссылка на профиль или номер телефона"
+              value={contactInput}
+              onChange={(e) => setContactInput(e.target.value.slice(0, 250))}
+            />
+            <div className="vx-sp12" />
+            <div className="row vx-gap8">
+              <button type="button" className="btn" onClick={submitRequestWithContact}>Отправить заявку</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )
+    : null;
+
   return (
     <div className="vx-calc">
       <div className="vx-calcTitle" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -1107,33 +1144,7 @@ export default function CalculatorTab({ me }: Props) {
         </div>
       ) : null}
 
-      {contactModalOpen ? (
-        <div className="vx-modalOverlay" onClick={() => setContactModalOpen(false)}>
-          <div className="vx-modalCard" onClick={(e) => e.stopPropagation()}>
-            <div className="row vx-between vx-center" style={{ gap: 10 }}>
-              <div className="vx-modalTitle">Контактные данные</div>
-              <button type="button" className="btn vx-btnSm" onClick={() => setContactModalOpen(false)}>Закрыть</button>
-            </div>
-            <div className="vx-conditionsList" style={{ marginTop: 10 }}>
-              <div className="vx-conditionsItem">
-                У вас скрыт или отсутствует username. Для того чтобы менеджер с вами связался, оставьте ваши контактные данные, ссылку на Telegram или номер телефона. Ваши данные надежно сохраняются и не передаются третьим лицам.
-              </div>
-            </div>
-            <div className="vx-sp12" />
-            <textarea
-              className="input vx-in"
-              rows={3}
-              placeholder="Telegram, ссылка на профиль или номер телефона"
-              value={contactInput}
-              onChange={(e) => setContactInput(e.target.value.slice(0, 250))}
-            />
-            <div className="vx-sp12" />
-            <div className="row vx-gap8">
-              <button type="button" className="btn" onClick={submitRequestWithContact}>Отправить заявку</button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {contactModal}
 
       {banner ? (
         <div className={banner.type === "err" ? "vx-toast vx-toastErr" : "vx-toast vx-toastOk"}>{banner.text}</div>

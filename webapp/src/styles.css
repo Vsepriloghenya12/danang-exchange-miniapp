@@ -4346,3 +4346,20 @@ html[data-theme="dark"] .theme-owner .vx-chatComposer{
 .theme-owner .card > .card + .card{
   margin-top: 12px;
 }
+
+
+.vx-contactModalOverlay{
+  z-index: 2400 !important;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom)) 18px;
+}
+.vx-contactModalCard{
+  position: relative;
+  z-index: 1;
+  width: min(560px, calc(100vw - 24px));
+  max-height: min(84vh, 760px);
+  overflow: auto;
+}
+html[data-theme="dark"] .theme-client .vx-contactModalCard{
+  background: rgba(21,30,39,.985);
+  color: #f5f7fb;
+}
