@@ -621,7 +621,7 @@ export default function StaffTab({ me }: any) {
                     <div>
                       <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
                       <span className="vx-tag">{stateLabel[String(r.state)] || String(r.state)}</span>
-                      {supportClientCount(r) > 0 ? <span className={"vx-tag vx-chatCountTag " + (supportUnreadCount(r) > 0 ? "is-unread" : "")}>{supportBadgeLabel(r)}</span> : null}
+                      
                     </div>
                   </button>
                 );
@@ -661,7 +661,7 @@ export default function StaffTab({ me }: any) {
                     <div>
                       <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
                       <span className="vx-tag">{stateLabel[String(r.state)] || String(r.state)}</span>
-                      {supportClientCount(r) > 0 ? <span className={"vx-tag vx-chatCountTag " + (supportUnreadCount(r) > 0 ? "is-unread" : "")}>{supportBadgeLabel(r)}</span> : null}
+                      
                     </div>
                   </button>
                 );
@@ -691,14 +691,6 @@ export default function StaffTab({ me }: any) {
             <div className="vx-muted" style={{ marginTop: 4 }}>
               Клиент: {selectedReq.from?.username ? `@${selectedReq.from.username}` : ""} • id:{selectedReq.from?.id}
             </div>
-            <div className="vx-sp8" />
-            <div className="vx-inlineBtns">
-              <button type="button" className="btn vx-btnSm" onClick={handleOpenClientMessage}>
-                {selectedReq?.from?.username ? "Написать клиенту" : "Открыть чат"}
-              </button>
-              {supportClientCount(selectedReq) > 0 ? <span className={"vx-tag vx-chatCountTag " + (supportUnreadCount(selectedReq) > 0 ? "is-unread" : "")}>{supportBadgeLabel(selectedReq)}</span> : null}
-            </div>
-
             <div className="vx-sp10" />
 
             <div className="vx-rowWrap" style={{ display: "grid", gap: 6 }}>

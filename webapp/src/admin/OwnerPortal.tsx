@@ -2203,7 +2203,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                       <div>
                         <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
                         <span className="vx-tag">{stateRu(r.state)}</span>
-                        {supportClientCount(r) > 0 ? <span className={"vx-tag vx-chatCountTag " + (supportUnreadCount(r) > 0 ? "is-unread" : "")}>{supportBadgeLabel(r)}</span> : null}
+                        
                       </div>
                     </button>
                   );
@@ -2244,7 +2244,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                         <div>
                           <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
                           <span className="vx-tag">{stateRu(r.state)}</span>
-                          {supportClientCount(r) > 0 ? <span className={"vx-tag vx-chatCountTag " + (supportUnreadCount(r) > 0 ? "is-unread" : "")}>{supportBadgeLabel(r)}</span> : null}
+                          
                         </div>
                       </button>
                     );
@@ -2273,11 +2273,6 @@ function moveFaq(id: string, dir: -1 | 1) {
                 <div className="vx-muted" style={{ marginTop: 4 }}>
                   Клиент: {selectedUsername ? "@" + selectedUsername : ""} {selectedTgId ? "• id:" + selectedTgId : ""}
                 </div>
-                <div className="vx-sp8" />
-                <div className="vx-inlineBtns">
-                  <button className="btn vx-btnSm" type="button" onClick={handleOwnerMessageClient}>{selectedUsername ? "Написать клиенту" : "Открыть чат"}</button>{supportClientCount(reqSelected) > 0 ? <span className={"vx-tag vx-chatCountTag " + (supportUnreadCount(reqSelected) > 0 ? "is-unread" : "")}>{supportBadgeLabel(reqSelected)}</span> : null}
-                </div>
-
                 <div className="vx-sp10" />
                 <div style={{ display: "grid", gap: 6 }}>
                   <div>🔁 <b>{reqSelected.sellCurrency} → {reqSelected.buyCurrency}</b></div>

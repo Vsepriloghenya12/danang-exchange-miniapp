@@ -155,7 +155,7 @@ function allowedRequestPayMethods(sellCurrency: Currency, buyCurrency: Currency,
   if (isSameCurrencyVndPair(sellCurrency, buyCurrency)) return new Set(["cash", "transfer", "atm"]);
   const rubCashOk = rubRequestCashAllowed(sellCurrency, buyCurrency, sellAmount, buyAmount);
   if (sellCurrency === "USDT") return new Set(["transfer"]);
-  if (sellCurrency === "RUB") return new Set(rubCashOk ? ["cash", "transfer"] : ["transfer"]);
+  if (sellCurrency === "RUB") return new Set(["transfer"]);
   if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return new Set(rubCashOk ? ["cash"] : []);
   return new Set(rubCashOk ? ["cash", "transfer"] : ["transfer"]);
 }
@@ -2316,10 +2316,7 @@ ${textIn}
 
       const storeSnapshot = await readStore();
       const savedContact = findContact(storeSnapshot, { tg_id: user.id, username: user.username });
-      const requiresClientContact = !normUsername(user.username) && !savedContact;
-      if (requiresClientContact && !clientContact) {
-        return res.status(400).json({ ok: false, error: "missing_client_contact" });
-      }
+      const effectiveClientContact = clientContact || String((savedContact as any)?.clientContact || "").trim().replace(/\s+/g, " ").slice(0, 250);
 
 	      // For THB↔RUB we intentionally ignore status markups (treat as standard)
 	      const effStatus: UserStatus = ignoreStatusForPair(sellCurrency, buyCurrency)
@@ -2356,7 +2353,7 @@ ${textIn}
         payMethod,
         receiveMethod,
         ...(comment ? { comment } : {}),
-        ...(clientContact ? { clientContact } : {}),
+        ...(effectiveClientContact ? { clientContact: effectiveClientContact } : {}),
         from: user,
 	        status: effStatus,
         created_at: new Date().toISOString()
@@ -2364,12 +2361,12 @@ ${textIn}
       const { result } = await mutateStore((store) => {
         store.requests = store.requests || [];
         store.requests.push(request);
-        if (clientContact) {
+        if (effectiveClientContact) {
           upsertContactRecord(store, {
             tg_id: user.id,
             username: user.username,
             fullName: [user.first_name, user.last_name].filter(Boolean).join(" ").trim() || undefined,
-            clientContact,
+            clientContact: effectiveClientContact,
             now: new Date().toISOString()
           });
         }
@@ -2414,7 +2411,7 @@ ${textIn}
 ` +
           `${comment ? `📝 Комментарий: ${comment}
 ` : ""}` +
-          `${clientContact ? `☎️ Контакт клиента: ${clientContact}
+          `${effectiveClientContact ? `☎️ Контакт клиента: ${effectiveClientContact}
 ` : ""}` +
           `🕒 ${dtDaNang}`;
 

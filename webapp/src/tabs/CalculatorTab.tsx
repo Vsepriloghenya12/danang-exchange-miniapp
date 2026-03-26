@@ -46,6 +46,45 @@ function getTg() {
   return (window as any).Telegram?.WebApp;
 }
 
+async function copyPlainText(value: string) {
+  const text = String(value || "");
+  if (!text) return false;
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fallback below
+  }
+  try {
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.setAttribute("readonly", "true");
+    el.style.position = "fixed";
+    el.style.opacity = "0";
+    el.style.pointerEvents = "none";
+    document.body.appendChild(el);
+    el.focus();
+    el.select();
+    document.execCommand("copy");
+    document.body.removeChild(el);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function openManagerContactLink(me?: Props["me"]) {
+  const tg = getTg();
+  const deepLink = String(me?.adminChat?.deepLink || "").trim();
+  const username = String(me?.adminChat?.username || "manager_exchange_vn").trim().replace(/^@+/, "");
+  const url = deepLink || (username ? `https://t.me/${username}` : "https://t.me/manager_exchange_vn");
+  if (tg?.openTelegramLink && /^https:\/\/t\.me\//i.test(url)) tg.openTelegramLink(url);
+  else if (tg?.openLink) tg.openLink(url);
+  else window.open(url, "_blank", "noopener,noreferrer");
+}
+
 // ======= Number formatting/parsing =======
 // Thousands separator must be a comma (1,000 / 10,000)
 // Only USDT may contain a fractional part, with exactly 1 digit (e.g. 100.1)
@@ -248,7 +287,7 @@ function allowedPayMethods(sellCurrency: Currency, buyCurrency: Currency, sellAm
   if (sellCurrency === "VND" && buyCurrency === "VND") return ["cash", "transfer", "atm"];
   const rubCashOk = rubCashAllowed(sellCurrency, buyCurrency, sellAmount, buyAmount);
   if (sellCurrency === "USDT") return ["transfer"];
-  if (sellCurrency === "RUB") return rubCashOk ? ["cash", "transfer"] : ["transfer"];
+  if (sellCurrency === "RUB") return ["transfer"];
   if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return rubCashOk ? ["cash"] : [];
   return rubCashOk ? ["cash", "transfer"] : ["transfer"]; // VND
 }
@@ -546,9 +585,12 @@ export default function CalculatorTab({ me }: Props) {
   const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeStatus(me?.status));
   const [requestComment, setRequestComment] = useState("");
   const [showConditions, setShowConditions] = useState(false);
-  const [contactModalOpen, setContactModalOpen] = useState(false);
-  const [contactInput, setContactInput] = useState("");
   const [hasSavedContactLocal, setHasSavedContactLocal] = useState<boolean>(Boolean(me?.hasSavedContact));
+  const [requestSuccessModal, setRequestSuccessModal] = useState<null | { requestId: string; copyText: string }>(null);
+  const [commentKeyboardInset, setCommentKeyboardInset] = useState(0);
+
+  const commentFieldRef = useRef<HTMLTextAreaElement | null>(null);
+  const commentComposerRef = useRef<HTMLDivElement | null>(null);
 
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [danangNowMs, setDanangNowMs] = useState(() => Date.now());
@@ -565,6 +607,32 @@ export default function CalculatorTab({ me }: Props) {
   useEffect(() => {
     const t = window.setInterval(() => setDanangNowMs(Date.now()), 60000);
     return () => window.clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const updateInset = () => {
+      if (document.activeElement !== commentFieldRef.current) {
+        setCommentKeyboardInset(0);
+        return;
+      }
+      const raw = Math.max(0, Math.round(window.innerHeight - (vv.height + vv.offsetTop)));
+      setCommentKeyboardInset(raw > 60 ? raw + 10 : 0);
+      window.setTimeout(() => {
+        commentComposerRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }, 30);
+    };
+
+    vv.addEventListener("resize", updateInset);
+    vv.addEventListener("scroll", updateInset);
+    window.addEventListener("orientationchange", updateInset);
+    return () => {
+      vv.removeEventListener("resize", updateInset);
+      vv.removeEventListener("scroll", updateInset);
+      window.removeEventListener("orientationchange", updateInset);
+    };
   }, []);
 
   const danangTime = useMemo(() => getDanangTimeInfo(danangNowMs), [danangNowMs]);
@@ -995,14 +1063,38 @@ export default function CalculatorTab({ me }: Props) {
     setBuyText(currentSellRaw != null && Number.isFinite(currentSellRaw) ? formatExact(nextBuyCurrency, currentSellRaw) : "");
   }
 
-  async function createRequest(clientContactOverride?: string) {
+  function buildRequestCopyText(requestId: string) {
+    const lines = [
+      `Заявка #${requestId}`,
+      `Обмен: ${sellCurrency} → ${buyCurrency}`,
+      `Отдаю: ${fmtAmount(sellCurrency, sellAmount || 0)}`,
+      `Получаю: ${fmtAmount(buyCurrency, buyAmount || 0)}`,
+      `Оплата: ${methodLabel(payMethod)}`,
+      `Получение: ${methodLabel(receiveMethod)}`,
+    ];
+    const comment = String(requestComment || "").trim();
+    if (comment) lines.push(`Комментарий: ${comment}`);
+    return lines.join("\n");
+  }
+
+  async function copyRequestInfo(requestId: string, readyText?: string) {
+    const ok = await copyPlainText(readyText || buildRequestCopyText(requestId));
+    if (ok) {
+      tg?.HapticFeedback?.notificationOccurred?.("success");
+      setBanner({ type: "ok", text: "Информация о заявке скопирована." });
+      return;
+    }
+    tg?.HapticFeedback?.notificationOccurred?.("error");
+    tg?.showAlert?.("Не удалось скопировать заявку.");
+  }
+
+  async function createRequest() {
     const initData = tg?.initData || me?.initData || "";
     if (!initData) {
       tg?.showAlert?.("Нет initData. Открой мини-приложение через Telegram (/start).");
-      return false;
+      return null;
     }
 
-    const normalizedClientContact = String(clientContactOverride || "").trim().replace(/\s+/g, " ").slice(0, 250);
     const payload = {
       sellCurrency,
       buyCurrency,
@@ -1011,7 +1103,6 @@ export default function CalculatorTab({ me }: Props) {
       payMethod,
       receiveMethod,
       comment: requestComment.trim(),
-      ...(normalizedClientContact ? { clientContact: normalizedClientContact } : {}),
     };
 
     try {
@@ -1027,93 +1118,77 @@ export default function CalculatorTab({ me }: Props) {
       if (!json?.ok) {
         const err = String(json?.error || "fail");
         tg?.HapticFeedback?.notificationOccurred?.("error");
-        if (err === "missing_client_contact") {
-          setContactModalOpen(true);
-          return false;
-        }
         tg?.showAlert?.(`Ошибка: ${err}`);
-        return false;
+        return null;
       }
       tg?.HapticFeedback?.notificationOccurred?.("success");
-      return true;
+      return {
+        id: String(json?.id || ""),
+        state: String(json?.state || ""),
+      };
     } catch (e: any) {
       tg?.HapticFeedback?.notificationOccurred?.("error");
       tg?.showAlert?.(`Ошибка сети: ${e?.message || e}`);
-      return false;
+      return null;
     }
   }
 
-  async function afterRequestSent(clientContactOverride?: string) {
-    const normalizedClientContact = String(clientContactOverride || "").trim().replace(/\s+/g, " ").slice(0, 250);
-    if (normalizedClientContact) {
-      setHasSavedContactLocal(true);
-      setContactInput(normalizedClientContact);
-      setContactModalOpen(false);
+  async function afterRequestSent(result: { id: string; state: string }) {
+    const requestId = String(result?.id || "");
+    const needsManualManagerContact = !String(me?.user?.username || "").trim() && !hasSavedContactLocal;
+    if (needsManualManagerContact && requestId) {
+      setRequestSuccessModal({
+        requestId,
+        copyText: buildRequestCopyText(requestId),
+      });
+    } else {
+      setBanner({
+        type: "ok",
+        text: "Ваша заявка принята в работу, в ближайшее время с вами свяжется менеджер 🙌",
+      });
     }
-
-    setBanner({
-      type: "ok",
-      text: "Ваша заявка принята в работу, в ближайшее время с вами свяжется менеджер 🙌",
-    });
 
     setSellText("");
     setBuyText("");
     setRequestComment("");
+    setCommentKeyboardInset(0);
   }
 
   async function sendRequest() {
     if (!canSend) return;
-
-    const needsClientContact = !String(me?.user?.username || "").trim() && !hasSavedContactLocal;
-    if (needsClientContact) {
-      const normalizedClientContact = String(contactInput || "").trim().replace(/\s+/g, " ").slice(0, 250);
-      if (!normalizedClientContact) {
-        setContactModalOpen(true);
-        return;
-      }
-      const ok = await createRequest(normalizedClientContact);
-      if (ok) await afterRequestSent(normalizedClientContact);
-      return;
-    }
-
-    const ok = await createRequest();
-    if (ok) await afterRequestSent();
+    const result = await createRequest();
+    if (result) await afterRequestSent(result);
   }
 
-  async function submitRequestWithContact() {
-    const normalizedClientContact = String(contactInput || "").trim().replace(/\s+/g, " ").slice(0, 250);
-    if (!normalizedClientContact) {
-      tg?.showAlert?.("Укажите ваш Telegram, ссылку или номер телефона.");
-      return;
-    }
-    const ok = await createRequest(normalizedClientContact);
-    if (ok) await afterRequestSent(normalizedClientContact);
-  }
-
-  const contactModal = contactModalOpen && typeof document !== "undefined"
+  const requestDoneModal = requestSuccessModal && typeof document !== "undefined"
     ? createPortal(
-        <div className="vx-modalOverlay vx-contactModalOverlay" role="dialog" aria-modal="true" aria-label="Контактные данные" onClick={() => setContactModalOpen(false)}>
-          <div className="vx-modalCard vx-contactModalCard" onClick={(e) => e.stopPropagation()}>
+        <div className="vx-modalOverlay vx-contactModalOverlay" role="dialog" aria-modal="true" aria-label="Заявка принята" onClick={() => setRequestSuccessModal(null)}>
+          <div className="vx-modalCard vx-contactModalCard vx-requestDoneCard" onClick={(e) => e.stopPropagation()}>
             <div className="row vx-between vx-center" style={{ gap: 10 }}>
-              <div className="vx-modalTitle">Контактные данные</div>
-              <button type="button" className="btn vx-btnSm" onClick={() => setContactModalOpen(false)}>Закрыть</button>
-            </div>
-            <div className="vx-conditionsList" style={{ marginTop: 10 }}>
-              <div className="vx-conditionsItem">
-                У вас скрыт или отсутствует username. Для того чтобы менеджер с вами связался, оставьте ваши контактные данные, ссылку на Telegram или номер телефона. Ваши данные надежно сохраняются и не передаются третьим лицам.
+              <div>
+                <div className="vx-modalTitle">Заявка принята</div>
+                <div className="vx-modalSub">Для уточнения деталей свяжитесь с менеджером.</div>
               </div>
+              <button type="button" className="btn vx-btnSm" onClick={() => setRequestSuccessModal(null)}>Закрыть</button>
             </div>
+            <div className="vx-requestDoneText">
+              Ваша заявка с номером принята, для уточнения деталей свяжитесь с менеджером.
+            </div>
+            <button
+              type="button"
+              className="vx-requestIdRow"
+              onClick={() => copyRequestInfo(requestSuccessModal.requestId, requestSuccessModal.copyText)}
+              aria-label="Скопировать информацию о заявке"
+            >
+              <span className="vx-requestIdLabel">Номер заявки</span>
+              <span className="vx-requestIdValue">#{requestSuccessModal.requestId}</span>
+              <span className="vx-copyBadge" aria-hidden="true">📋</span>
+            </button>
+            <div className="vx-requestCopyHint">Нажмите на номер, чтобы скопировать всю информацию о заявке.</div>
             <div className="vx-sp12" />
-            <textarea
-              className="input vx-in"
-              rows={3}
-              placeholder="Telegram, ссылка на профиль или номер телефона"
-              value={contactInput}
-              onChange={(e) => setContactInput(e.target.value.slice(0, 250))}
-            />
-            <div className="vx-sp12" />
-            <div className="row vx-gap8">
-              <button type="button" className="btn" onClick={submitRequestWithContact}>Отправить заявку</button>
+            <div className="row vx-gap8" style={{ display: "grid", gap: 8 }}>
+              <button type="button" className="vx-primary" onClick={() => openManagerContactLink(me)}>Связаться с менеджером</button>
+              <button type="button" className="btn" onClick={() => copyRequestInfo(requestSuccessModal.requestId, requestSuccessModal.copyText)}>Скопировать заявку</button>
             </div>
           </div>
         </div>,
@@ -1144,7 +1219,7 @@ export default function CalculatorTab({ me }: Props) {
         </div>
       ) : null}
 
-      {contactModal}
+      {requestDoneModal}
 
       {banner ? (
         <div className={banner.type === "err" ? "vx-toast vx-toastErr" : "vx-toast vx-toastOk"}>{banner.text}</div>
@@ -1314,19 +1389,34 @@ export default function CalculatorTab({ me }: Props) {
 
             <div className="vx-sp12" />
 
-            <textarea
-              className="input vx-in"
-              rows={3}
-              placeholder={requestCommentPlaceholder(receiveMethod)}
-              value={requestComment}
-              onChange={(e) => setRequestComment(e.target.value.slice(0, 300))}
-            />
+            <div
+              ref={commentComposerRef}
+              className={"vx-requestComposer" + (commentKeyboardInset > 0 ? " is-lifted" : "")}
+              style={commentKeyboardInset > 0 ? { bottom: `${commentKeyboardInset}px` } : undefined}
+            >
+              <textarea
+                ref={commentFieldRef}
+                className="input vx-in vx-requestCommentInput"
+                rows={3}
+                placeholder={requestCommentPlaceholder(receiveMethod)}
+                value={requestComment}
+                onFocus={() => {
+                  window.setTimeout(() => {
+                    commentComposerRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                  }, 140);
+                }}
+                onBlur={() => {
+                  window.setTimeout(() => setCommentKeyboardInset(0), 120);
+                }}
+                onChange={(e) => setRequestComment(e.target.value.slice(0, 300))}
+              />
 
-            <div className="vx-sp12" />
+              <div className="vx-sp12" />
 
-            <button className="vx-primary" disabled={!canSend} onClick={sendRequest}>
-              Отправить заявку
-            </button>
+              <button className="vx-primary" disabled={!canSend} onClick={sendRequest}>
+                Отправить заявку
+              </button>
+            </div>
           </div>
         </div>
       </div>
