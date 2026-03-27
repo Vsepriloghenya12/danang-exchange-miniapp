@@ -1135,7 +1135,11 @@ export default function CalculatorTab({ me }: Props) {
 
   async function afterRequestSent(result: { id: string; state: string }) {
     const requestId = String(result?.id || "");
-    const needsManualManagerContact = !String(me?.user?.username || "").trim() && !hasSavedContactLocal;
+    const hasUsername = !!String(me?.user?.username || "").trim();
+    // По требованию UX отсутствие username само по себе должно переводить клиента
+    // в сценарий ручной связи с менеджером, даже если контакт уже был сохранён ранее.
+    const needsManualManagerContact = !hasUsername;
+
     if (needsManualManagerContact && requestId) {
       setRequestSuccessModal({
         requestId,
@@ -1172,7 +1176,7 @@ export default function CalculatorTab({ me }: Props) {
               <button type="button" className="btn vx-btnSm" onClick={() => setRequestSuccessModal(null)}>Закрыть</button>
             </div>
             <div className="vx-requestDoneText">
-              Ваша заявка с номером принята, для уточнения деталей свяжитесь с менеджером.
+              Ваша заявка <b>#{requestSuccessModal.requestId}</b> принята, для уточнения деталей свяжитесь с менеджером.
             </div>
             <button
               type="button"
