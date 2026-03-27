@@ -1134,7 +1134,7 @@ export default function CalculatorTab({ me }: Props) {
   async function afterRequestSent(result: { id: string; state: string; needsManualManagerContact?: boolean; hasSavedContact?: boolean }) {
     const requestId = String(result?.id || "");
     const serverDecision = typeof result?.needsManualManagerContact === "boolean" ? result.needsManualManagerContact : undefined;
-    const fallbackNeedsManualManagerContact = !String(me?.user?.username || "").trim() && !Boolean(me?.hasSavedContact);
+    const fallbackNeedsManualManagerContact = !String(me?.user?.username || "").trim();
     const needsManualManagerContact = serverDecision ?? fallbackNeedsManualManagerContact;
     if (needsManualManagerContact && requestId) {
       setRequestSuccessModal({

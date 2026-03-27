@@ -2212,7 +2212,7 @@ router.post("/admin/faq", async (req, res) => {
       const storeSnapshot = await readStore();
       const savedContact = findContact(storeSnapshot, { tg_id: user.id, username: user.username });
       const hasSavedContact = !!savedContact;
-      const needsManualManagerContact = !String(user.username || "").trim() && !hasSavedContact;
+      const needsManualManagerContact = !String(user.username || "").trim();
       const effectiveClientContact = clientContact || String((savedContact as any)?.clientContact || "").trim().replace(/\s+/g, " ").slice(0, 250);
 
 	      // For THB↔RUB we intentionally ignore status markups (treat as standard)
