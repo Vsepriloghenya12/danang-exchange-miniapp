@@ -189,22 +189,6 @@ export async function apiAdminSetUserStatus(initData: string, tgId: number, stat
   return r.json();
 }
 
-export async function apiAdminMessageUser(token: string, payload: { tg_id: number; text: string; request_id?: string }) {
-  const r = await fetch("/api/admin/message-user", {
-    method: "POST",
-    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
-    body: JSON.stringify(payload)
-  });
-  return readJsonSafe(r);
-}
-
-export async function apiAdminGetSupportDialog(token: string, tgId: number, markRead = true) {
-  const qs = markRead ? "?markRead=1" : "?markRead=0";
-  const r = await fetch(`/api/admin/support-dialog/${encodeURIComponent(String(tgId))}${qs}`, {
-    headers: { ...adminAuthHeaders(token) }
-  });
-  return readJsonSafe(r);
-}
 
 export async function apiAdminGetRequests(initData: string) {
   const r = await fetch("/api/admin/requests", {

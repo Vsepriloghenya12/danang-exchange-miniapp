@@ -384,68 +384,7 @@ export function createBot(opts: {
 
     if (ctx.from) await upsertUserFromTelegram(ctx.from);
     if (ctx.chat?.type !== "private") return;
-
-    const textIn = ("text" in msg ? msg.text : "caption" in msg ? msg.caption : "") || "";
-    const text = String(textIn).trim();
-    if (!text) {
-      await ctx.reply("Пока можно ответить менеджеру только текстовым сообщением.");
-      return;
-    }
-    if (text.startsWith("/")) return;
-
-    const clientTgId = Number(ctx.from?.id || 0);
-    if (!Number.isFinite(clientTgId) || clientTgId <= 0) return;
-
-    const store = await readStore();
-    const relay = (store.config as any)?.supportDialogs?.[String(clientTgId)] as any;
-    if (!relay) return;
-
-    const managerTgId = Number(relay?.manager_tg_id || 0);
-    if (!Number.isFinite(managerTgId) || managerTgId <= 0) {
-      await ctx.reply("Не удалось определить менеджера для ответа. Попробуйте позже.");
-      return;
-    }
-
-    const clientLabel = ctx.from?.username
-      ? `@${ctx.from.username}`
-      : `${ctx.from?.first_name || ""} ${ctx.from?.last_name || ""}`.trim() || `id ${clientTgId}`;
-    const reqLine = relay?.request_id ? `🆔 Заявка #${String(relay.request_id).slice(-6)}
-` : "";
-    const managerLine = relay?.manager_name ? `👨‍💼 Менеджер: ${String(relay.manager_name)}
-` : "";
-    const forwardText =
-      `💬 Ответ клиента
-` +
-      `${reqLine}` +
-      `👤 Клиент: ${clientLabel} • id:${clientTgId}
-` +
-      `${managerLine}` +
-      `
-${text}`;
-
-    try {
-      await ctx.telegram.sendMessage(managerTgId, forwardText);
-      await mutateStore((s) => {
-        const cfg: any = s.config as any;
-        cfg.supportDialogs = cfg.supportDialogs || {};
-        const prev = cfg.supportDialogs[String(clientTgId)] || relay;
-        const now = new Date().toISOString();
-        const nextMessages = Array.isArray(prev?.messages) ? [...prev.messages] : [];
-        nextMessages.push({ id: randomUUID(), from: "client", text, created_at: now });
-        cfg.supportDialogs[String(clientTgId)] = {
-          ...prev,
-          client_tg_id: clientTgId,
-          manager_tg_id: managerTgId,
-          updated_at: now,
-          last_client_text: text,
-          messages: nextMessages.slice(-100)
-        };
-      });
-      await ctx.reply("✅ Ваше сообщение передано менеджеру.");
-    } catch (e: any) {
-      console.error("CLIENT RELAY FAIL:", e);
-      await ctx.reply("Не удалось передать сообщение менеджеру. Попробуйте чуть позже.");
-    }
+    return;
   });
 
 

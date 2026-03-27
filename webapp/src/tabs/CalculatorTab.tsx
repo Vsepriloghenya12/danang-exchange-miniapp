@@ -585,7 +585,6 @@ export default function CalculatorTab({ me }: Props) {
   const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeStatus(me?.status));
   const [requestComment, setRequestComment] = useState("");
   const [showConditions, setShowConditions] = useState(false);
-  const [hasSavedContactLocal, setHasSavedContactLocal] = useState<boolean>(Boolean(me?.hasSavedContact));
   const [requestSuccessModal, setRequestSuccessModal] = useState<null | { requestId: string; copyText: string }>(null);
   const [commentKeyboardInset, setCommentKeyboardInset] = useState(0);
 
@@ -600,9 +599,6 @@ export default function CalculatorTab({ me }: Props) {
     return () => window.clearTimeout(t);
   }, [banner]);
 
-  useEffect(() => {
-    setHasSavedContactLocal(Boolean(me?.hasSavedContact));
-  }, [me?.hasSavedContact]);
 
   useEffect(() => {
     const t = window.setInterval(() => setDanangNowMs(Date.now()), 60000);
@@ -1125,6 +1121,8 @@ export default function CalculatorTab({ me }: Props) {
       return {
         id: String(json?.id || ""),
         state: String(json?.state || ""),
+        needsManualManagerContact: !!json?.needsManualManagerContact,
+        hasSavedContact: !!json?.hasSavedContact,
       };
     } catch (e: any) {
       tg?.HapticFeedback?.notificationOccurred?.("error");
@@ -1133,13 +1131,11 @@ export default function CalculatorTab({ me }: Props) {
     }
   }
 
-  async function afterRequestSent(result: { id: string; state: string }) {
+  async function afterRequestSent(result: { id: string; state: string; needsManualManagerContact?: boolean; hasSavedContact?: boolean }) {
     const requestId = String(result?.id || "");
-    const hasUsername = !!String(me?.user?.username || "").trim();
-    // По требованию UX отсутствие username само по себе должно переводить клиента
-    // в сценарий ручной связи с менеджером, даже если контакт уже был сохранён ранее.
-    const needsManualManagerContact = !hasUsername;
-
+    const serverDecision = typeof result?.needsManualManagerContact === "boolean" ? result.needsManualManagerContact : undefined;
+    const fallbackNeedsManualManagerContact = !String(me?.user?.username || "").trim() && !Boolean(me?.hasSavedContact);
+    const needsManualManagerContact = serverDecision ?? fallbackNeedsManualManagerContact;
     if (needsManualManagerContact && requestId) {
       setRequestSuccessModal({
         requestId,
@@ -1176,7 +1172,7 @@ export default function CalculatorTab({ me }: Props) {
               <button type="button" className="btn vx-btnSm" onClick={() => setRequestSuccessModal(null)}>Закрыть</button>
             </div>
             <div className="vx-requestDoneText">
-              Ваша заявка <b>#{requestSuccessModal.requestId}</b> принята, для уточнения деталей свяжитесь с менеджером.
+              Ваша заявка с номером <b>#{requestSuccessModal.requestId}</b> принята, для уточнения деталей свяжитесь с менеджером.
             </div>
             <button
               type="button"

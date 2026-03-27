@@ -7,8 +7,6 @@ import {
   apiStaffSetRequestState,
   apiStaffUpdateRequest,
   apiStaffUpsertContact,
-  apiAdminMessageUser,
-  apiAdminGetSupportDialog,
 } from "../lib/api";
 import type { Contact, UserStatus } from "../lib/types";
 
@@ -66,56 +64,6 @@ function methodLabel(m: string) {
   return m || "—";
 }
 
-function supportClientCount(r: any) {
-  return Math.max(0, Number(r?.supportClientMessageCount || 0) || 0);
-}
-
-function supportUnreadCount(r: any) {
-  return Math.max(0, Number(r?.supportUnreadCount || 0) || 0);
-}
-
-function supportBadgeLabel(r: any) {
-  const unread = supportUnreadCount(r);
-  if (unread > 0) return `Новых ${unread}`;
-  const total = supportClientCount(r);
-  return total > 0 ? `Сообщений ${total}` : "";
-}
-
-
-function sameDialogMessages(a: any[], b: any[]) {
-  if (a === b) return true;
-  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i += 1) {
-    const x = a[i] || {};
-    const y = b[i] || {};
-    if (
-      String(x?.id || "") !== String(y?.id || "") ||
-      String(x?.from || "") !== String(y?.from || "") ||
-      String(x?.text || "") !== String(y?.text || "") ||
-      String(x?.created_at || "") !== String(y?.created_at || "")
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function openClientDialog(username?: string, tgId?: number) {
-  const tg = getTg();
-  const uname = String(username || "").trim().replace(/^@+/, "");
-  if (uname) {
-    const url = `https://t.me/${uname}`;
-    if (tg?.openTelegramLink) tg.openTelegramLink(url);
-    else if (tg?.openLink) tg.openLink(url);
-    else window.open(url, "_blank", "noopener,noreferrer");
-    return;
-  }
-  if (tgId && Number.isFinite(tgId)) {
-    const deep = `tg://user?id=${tgId}`;
-    if (tg?.openLink) tg.openLink(deep);
-    else window.location.href = deep;
-  }
-}
 
 export default function StaffTab({ me }: any) {
   const tg = getTg();
@@ -130,15 +78,6 @@ export default function StaffTab({ me }: any) {
   const [selectedId, setSelectedId] = useState<string>("");
 
   const [view, setView] = useState<"list" | "detail" | "history">("list");
-  const [messageOpen, setMessageOpen] = useState(false);
-  const [messageText, setMessageText] = useState("");
-  const [sendingMessage, setSendingMessage] = useState(false);
-  const [dialogLoading, setDialogLoading] = useState(false);
-  const [dialogMessages, setDialogMessages] = useState<any[]>([]);
-  const [dialogRefreshing, setDialogRefreshing] = useState(false);
-  const [dialogClientLabel, setDialogClientLabel] = useState("");
-  const [dialogStats, setDialogStats] = useState<{ unreadCount?: number; clientMessageCount?: number } | null>(null);
-  const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
   // Keep the latest selection/view accessible inside the polling interval.
   const selectedIdRef = useRef<string>("");
@@ -407,102 +346,6 @@ export default function StaffTab({ me }: any) {
     }
   }
 
-  async function loadSupportDialog(tgId: number, markRead = true, opts?: { silent?: boolean }) {
-    if (opts?.silent) setDialogRefreshing(true);
-    else setDialogLoading(true);
-    try {
-      const r = await apiAdminGetSupportDialog(initData, tgId, markRead);
-      if (!r?.ok) {
-        if (!opts?.silent) tg?.showAlert?.(r?.error || "Не удалось загрузить переписку");
-        return;
-      }
-      const client = r?.client || {};
-      const label = client?.username ? `@${client.username}` : (client?.fullName || `id:${tgId}`);
-      const nextMessages = Array.isArray(r?.dialog?.messages) ? r.dialog.messages : [];
-      setDialogClientLabel(label);
-      setDialogMessages((prev) => (sameDialogMessages(prev, nextMessages) ? prev : nextMessages));
-      setDialogStats(r?.stats || null);
-    } finally {
-      if (opts?.silent) setDialogRefreshing(false);
-      else setDialogLoading(false);
-    }
-  }
-
-  function handleOpenClientMessage() {
-    const uname = String(selectedReq?.from?.username || "").trim();
-    const tgId = Number(selectedReq?.from?.id || 0);
-    if (uname) {
-      openClientDialog(uname, tgId);
-      return;
-    }
-    if (!Number.isFinite(tgId) || tgId <= 0) {
-      tg?.showAlert?.("Не удалось определить Telegram ID клиента.");
-      return;
-    }
-    setMessageText("");
-    setDialogMessages([]);
-    setMessageOpen(true);
-    void loadSupportDialog(tgId, true);
-  }
-
-  useEffect(() => {
-    if (!messageOpen || !selectedTgId) return;
-    const t = window.setInterval(() => { void loadSupportDialog(selectedTgId, false, { silent: true }); }, 4000);
-    return () => window.clearInterval(t);
-  }, [messageOpen, selectedTgId]);
-
-  useEffect(() => {
-    try {
-      const html = document.documentElement;
-      if (messageOpen) html.classList.add("mx-chat-open");
-      else html.classList.remove("mx-chat-open");
-      return () => html.classList.remove("mx-chat-open");
-    } catch {
-      return;
-    }
-  }, [messageOpen]);
-
-  async function sendDirectMessage() {
-    const tgId = Number(selectedReq?.from?.id || 0);
-    const text = messageText.trim();
-    if (!Number.isFinite(tgId) || tgId <= 0) {
-      tg?.showAlert?.("Не удалось определить Telegram ID клиента.");
-      return;
-    }
-    if (!text) {
-      tg?.showAlert?.("Введите текст сообщения.");
-      return;
-    }
-    setSendingMessage(true);
-    try {
-      const r = await apiAdminMessageUser(initData, { tg_id: tgId, text, request_id: String(selectedReq?.id || "") || undefined });
-      if (!r?.ok) {
-        tg?.showAlert?.(r?.error || "Не удалось отправить сообщение");
-        return;
-      }
-      tg?.HapticFeedback?.notificationOccurred?.("success");
-      setMessageText("");
-      await loadSupportDialog(tgId, true);
-    } finally {
-      setSendingMessage(false);
-    }
-  }
-
-
-  const lastDialogLenRef = useRef(0);
-  useEffect(() => {
-    const el = chatScrollRef.current;
-    if (!el || !messageOpen) return;
-    const nextLen = dialogMessages.length;
-    const shouldScroll = nextLen !== lastDialogLenRef.current || nextLen === 0;
-    lastDialogLenRef.current = nextLen;
-    if (!shouldScroll) return;
-    try {
-      el.scrollTop = el.scrollHeight;
-    } catch {
-      // ignore
-    }
-  }, [dialogMessages, messageOpen]);
 
   if (!initData) {
     return (
@@ -537,54 +380,6 @@ export default function StaffTab({ me }: any) {
   return (
     <div>
       {Header}
-
-      {messageOpen ? (
-        <div className="vx-modalOverlay vx-modalOverlayChat" onClick={() => !sendingMessage && setMessageOpen(false)}>
-          <div className="vx-modalCard vx-chatModal" onClick={(e) => e.stopPropagation()}>
-            <div className="row vx-between vx-center">
-              <div>
-                <div className="vx-modalTitle">Чат с клиентом</div>
-                <div className="vx-modalSub">{dialogClientLabel || "Клиент"}</div>
-              </div>
-              <button type="button" className="btn vx-btnSm" onClick={() => setMessageOpen(false)} disabled={sendingMessage}>Закрыть</button>
-            </div>
-            <div className="vx-chatHint" style={{ marginTop: 6 }}>Сообщения идут через бота. Ответ клиента появится здесь и дополнительно придёт менеджеру в личный чат с ботом.</div>
-            <div className="vx-sp10" />
-            <div className="vx-chatBox" ref={chatScrollRef}>
-              {dialogLoading && dialogMessages.length === 0 ? <div className="vx-muted">Загрузка переписки…</div> : null}
-              {!dialogLoading && !dialogRefreshing && dialogMessages.length === 0 ? <div className="vx-chatEmpty">Переписка пока пустая.</div> : null}
-              {dialogMessages.map((m:any) => (
-                <div key={String(m?.id || Math.random())} className={"vx-chatMsg " + (m?.from === "manager" ? "is-manager" : "is-client")}>
-                  <div className="vx-chatMeta">{m?.from === "manager" ? (m?.manager_name || "Менеджер") : "Клиент"} • {fmtDateTime(String(m?.created_at || ""))}</div>
-                  <div className="vx-chatText">{String(m?.text || "")}</div>
-                </div>
-              ))}
-            </div>
-            <div className="vx-sp10" />
-            <div className="vx-chatComposer">
-            <div className="vx-chatToolbar">
-              <div className="vx-chatStats">{dialogStats?.clientMessageCount ? `Сообщений от клиента: ${dialogStats.clientMessageCount}` : "Сообщений от клиента пока нет"}</div>
-            </div>
-            <textarea
-              className="input vx-in vx-chatTextarea"
-              rows={4}
-              value={messageText}
-              onChange={(e) => setMessageText(e.target.value.slice(0, 4000))}
-              placeholder="Введите сообщение клиенту"
-            />
-            <div className="vx-sp10" />
-            <div className="vx-chatActionRow">
-              <button type="button" className="btn" onClick={sendDirectMessage} disabled={sendingMessage || !messageText.trim()}>
-                {sendingMessage ? "Отправка..." : "Отправить"}
-              </button>
-              <button type="button" className="btn vx-btnSm" onClick={() => selectedTgId && loadSupportDialog(selectedTgId, true)} disabled={dialogLoading || !selectedTgId}>
-                Обновить чат
-              </button>
-            </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {view === "list" ? (
         <>

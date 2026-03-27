@@ -1931,117 +1931,12 @@ router.post("/admin/faq", async (req, res) => {
     }
   });
 
-  router.post("/admin/message-user", async (req, res) => {
-    try {
-      const { isOwner, isAdmin, user } = await requireAdmin(req);
-      if (!isOwner && !isAdmin) return res.status(403).json({ ok: false, error: "forbidden" });
-
-      const tgId = Number(req.body?.tg_id ?? req.body?.tgId);
-      const textIn = String(req.body?.text || "").trim();
-      const requestId = String(req.body?.request_id || req.body?.requestId || "").trim() || undefined;
-      if (!Number.isFinite(tgId) || tgId <= 0) {
-        return res.status(400).json({ ok: false, error: "bad_tg_id" });
-      }
-      if (!textIn) {
-        return res.status(400).json({ ok: false, error: "empty_text" });
-      }
-      if (textIn.length > 4000) {
-        return res.status(400).json({ ok: false, error: "text_too_long" });
-      }
-
-      const fromName =
-        (user as any)?.username
-          ? `@${(user as any).username}`
-          : `${(user as any)?.first_name || ""} ${(user as any)?.last_name || ""}`.trim() || "менеджер";
-
-      const fallbackManagerId = Array.isArray(opts.ownerTgIds) && opts.ownerTgIds.length
-        ? Number(opts.ownerTgIds[0])
-        : Number(opts.ownerTgId || 0);
-      const managerTgId = Number((user as any)?.id || 0) > 0 ? Number((user as any).id) : fallbackManagerId;
-
-      const msg = `✉️ Сообщение от менеджера
-
-${textIn}
-
-— ${fromName}
-
-Ответьте в этом чате, и я передам ваш ответ менеджеру.`;
-      const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chat_id: tgId, text: msg, disable_web_page_preview: true })
-      });
-      const tgJson = await tgRes.json().catch(() => ({} as any));
-      if (!tgRes.ok || !tgJson?.ok) {
-        return res.status(400).json({ ok: false, error: tgJson?.description || "send_failed" });
-      }
-
-      if (Number.isFinite(managerTgId) && managerTgId > 0) {
-        await mutateStore((store) => {
-          const cfg: any = store.config as any;
-          cfg.supportDialogs = cfg.supportDialogs || {};
-          const now = new Date().toISOString();
-          const prev = cfg.supportDialogs[String(tgId)] || {};
-          cfg.supportDialogs[String(tgId)] = {
-            client_tg_id: tgId,
-            manager_tg_id: managerTgId,
-            manager_name: fromName,
-            request_id: requestId || prev.request_id,
-            created_at: prev.created_at || now,
-            updated_at: now,
-            manager_read_at: now,
-            last_manager_text: textIn,
-            last_client_text: prev.last_client_text,
-            messages: appendSupportDialogMessage(prev, { from: "manager", text: textIn, created_at: now, manager_tg_id: managerTgId, manager_name: fromName })
-          };
-        });
-      }
-
-      return res.json({ ok: true, relay_enabled: Number.isFinite(managerTgId) && managerTgId > 0 });
-    } catch (e: any) {
-      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
-    }
+  router.post("/admin/message-user", async (_req, res) => {
+    return res.status(410).json({ ok: false, error: "disabled" });
   });
 
-  router.get("/admin/support-dialog/:tgId", async (req, res) => {
-    try {
-      const { isOwner, isAdmin } = await requireAdmin(req);
-      if (!isOwner && !isAdmin) return res.status(403).json({ ok: false, error: "forbidden" });
-      const tgId = Number(req.params.tgId || 0);
-      if (!Number.isFinite(tgId) || tgId <= 0) return res.status(400).json({ ok: false, error: "bad_tg_id" });
-      const shouldMarkRead = String(req.query?.markRead ?? "1") !== "0";
-      let store: any;
-      let dialog: any = null;
-      if (shouldMarkRead) {
-        const { result } = await mutateStore((store) => {
-          const cfg: any = store.config as any;
-          cfg.supportDialogs = cfg.supportDialogs || {};
-          const prev = cfg.supportDialogs[String(tgId)] || null;
-          if (prev) {
-            cfg.supportDialogs[String(tgId)] = { ...prev, manager_read_at: new Date().toISOString() };
-          }
-          return { storeSnapshot: store, dialog: cfg.supportDialogs[String(tgId)] || null };
-        });
-        store = result.storeSnapshot;
-        dialog = result.dialog;
-      } else {
-        store = await readStore();
-        dialog = (store.config as any)?.supportDialogs?.[String(tgId)] || null;
-      }
-      const user = Object.values(store.users || {}).find((u: any) => Number(u?.tg_id) === tgId) as any;
-      const contact = (store.contacts || []).find((c: any) => Number(c?.tg_id) === tgId) || null;
-      const requestItem = (dialog?.request_id ? (store.requests || []).find((r: any) => String(r?.id) === String(dialog.request_id)) : null) || null;
-      const client = {
-        tg_id: tgId,
-        username: contact?.username || user?.username || requestItem?.from?.username || undefined,
-        fullName: contact?.fullName || [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() || undefined,
-        request_id: dialog?.request_id || undefined
-      };
-      const stats = computeSupportDialogStats(dialog);
-      return res.json({ ok: true, dialog: dialog || { client_tg_id: tgId, messages: [] }, client, stats });
-    } catch (e: any) {
-      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
-    }
+  router.get("/admin/support-dialog/:tgId", async (_req, res) => {
+    return res.status(410).json({ ok: false, error: "disabled" });
   });
 
   // --------------------
@@ -2316,6 +2211,8 @@ ${textIn}
 
       const storeSnapshot = await readStore();
       const savedContact = findContact(storeSnapshot, { tg_id: user.id, username: user.username });
+      const hasSavedContact = !!savedContact;
+      const needsManualManagerContact = !String(user.username || "").trim() && !hasSavedContact;
       const effectiveClientContact = clientContact || String((savedContact as any)?.clientContact || "").trim().replace(/\s+/g, " ").slice(0, 250);
 
 	      // For THB↔RUB we intentionally ignore status markups (treat as standard)
@@ -2444,7 +2341,7 @@ ${textIn}
         }
       } catch {}
 
-      res.json({ ok: true, id: request.id, state: request.state });
+      res.json({ ok: true, id: request.id, state: request.state, hasSavedContact, needsManualManagerContact });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }

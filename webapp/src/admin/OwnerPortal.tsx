@@ -27,8 +27,6 @@ import {
   apiAdminSetGFormulas,
   apiAdminGetFaq,
   apiAdminSetFaq,
-  apiAdminMessageUser,
-  apiAdminGetSupportDialog,
 } from "../lib/api";
 import type { Contact, UserStatus } from "../lib/types";
 
@@ -85,57 +83,7 @@ function shiftISO(days: number) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function openClientDialog(username?: string, tgId?: number) {
-  const tg = (window as any).Telegram?.WebApp;
-  const uname = String(username || "").trim().replace(/^@+/, "");
-  if (uname) {
-    const url = `https://t.me/${uname}`;
-    if (tg?.openTelegramLink) tg.openTelegramLink(url);
-    else if (tg?.openLink) tg.openLink(url);
-    else window.open(url, "_blank", "noopener,noreferrer");
-    return true;
-  }
-  if (tgId && Number.isFinite(tgId)) {
-    const deep = `tg://user?id=${tgId}`;
-    if (tg?.openLink) tg.openLink(deep);
-    else window.location.href = deep;
-    return true;
-  }
-  return false;
-}
 
-function supportClientCount(r: any) {
-  return Math.max(0, Number(r?.supportClientMessageCount || 0) || 0);
-}
-
-function supportUnreadCount(r: any) {
-  return Math.max(0, Number(r?.supportUnreadCount || 0) || 0);
-}
-
-function supportBadgeLabel(r: any) {
-  const unread = supportUnreadCount(r);
-  if (unread > 0) return `Новых ${unread}`;
-  const total = supportClientCount(r);
-  return total > 0 ? `Сообщений ${total}` : "";
-}
-
-function sameDialogMessages(a: any[], b: any[]) {
-  if (a === b) return true;
-  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i += 1) {
-    const x = a[i] || {};
-    const y = b[i] || {};
-    if (
-      String(x?.id || "") !== String(y?.id || "") ||
-      String(x?.from || "") !== String(y?.from || "") ||
-      String(x?.text || "") !== String(y?.text || "") ||
-      String(x?.created_at || "") !== String(y?.created_at || "")
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
 
 const DEFAULT_TEMPLATE = `Доброе утро!\n\nКурс на {{date}}:\n\n{{rates}}\n\n🛵    Бесплатная доставка\n             С 10:00 до 16:00.\n        при обмене от 20 000₽\n\n⏩БОЛЕЕ ВЫГОДНЫЙ КУРС  ⏪\n  при дистанционном обмене                        ⠀              от 20 000₽\n💳  Перевод на вьетнамский счёт;\n📥  Получение в банкоматах BIDV Vietcombank;`;
 
@@ -396,15 +344,6 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
   const [reqHistTo, setReqHistTo] = useState<string>(() => todayISO());
   const [reqFullName, setReqFullName] = useState<string>("");
   const [reqBanks, setReqBanks] = useState<string[]>([]);
-  const [supportOpen, setSupportOpen] = useState<boolean>(false);
-  const [supportDraft, setSupportDraft] = useState<string>("");
-  const [supportSending, setSupportSending] = useState<boolean>(false);
-  const [supportLoading, setSupportLoading] = useState<boolean>(false);
-  const [supportRefreshing, setSupportRefreshing] = useState<boolean>(false);
-  const [supportMessages, setSupportMessages] = useState<any[]>([]);
-  const [supportClientLabel, setSupportClientLabel] = useState<string>("");
-  const [supportStats, setSupportStats] = useState<{ unreadCount?: number; clientMessageCount?: number } | null>(null);
-  const supportChatRef = useRef<HTMLDivElement | null>(null);
 
   // Afisha (owner portal): active + history with date range + click counters
   const [afActive, setAfActive] = useState<any[]>([]);
@@ -1478,209 +1417,6 @@ function moveFaq(id: string, dir: -1 | 1) {
     return null;
   }, [reqSelected, selectedTgId, selectedUsername, contactsByTg, contactsByUsername]);
 
-  async function loadSupportDialogOwner(tgId: number, markRead = true, opts?: { silent?: boolean }) {
-    if (opts?.silent) setSupportRefreshing(true);
-    else setSupportLoading(true);
-    try {
-      const r = await apiAdminGetSupportDialog(token, tgId, markRead);
-      if (!r?.ok) {
-        if (!opts?.silent) alert(r?.error || "Не удалось загрузить переписку");
-        return;
-      }
-      const client = r?.client || {};
-      const nextMessages = Array.isArray(r?.dialog?.messages) ? r.dialog.messages : [];
-      setSupportClientLabel(client?.username ? `@${client.username}` : (client?.fullName || `id:${tgId}`));
-      setSupportMessages((prev) => (sameDialogMessages(prev, nextMessages) ? prev : nextMessages));
-      setSupportStats(r?.stats || null);
-    } finally {
-      if (opts?.silent) setSupportRefreshing(false);
-      else setSupportLoading(false);
-    }
-  }
-
-  async function handleOwnerMessageClient() {
-    if (selectedUsername && openClientDialog(selectedUsername, selectedTgId)) return;
-    if (!selectedTgId) {
-      alert("Не удалось определить Telegram ID клиента.");
-      return;
-    }
-    setSupportDraft("");
-    setSupportMessages([]);
-    setSupportOpen(true);
-    await loadSupportDialogOwner(selectedTgId, true);
-  }
-
-  useEffect(() => {
-    if (!supportOpen || !selectedTgId) return;
-    const t = window.setInterval(() => { void loadSupportDialogOwner(selectedTgId, false, { silent: true }); }, 4000);
-    return () => window.clearInterval(t);
-  }, [supportOpen, selectedTgId]);
-
-  async function sendOwnerSupportMessage() {
-    if (!selectedTgId) {
-      alert("Не удалось определить Telegram ID клиента.");
-      return;
-    }
-    const msg = String(supportDraft || "").trim();
-    if (!msg) return;
-    setSupportSending(true);
-    try {
-      const r = await apiAdminMessageUser(token, { tg_id: selectedTgId, text: msg, request_id: String(reqSelected?.id || "") || undefined });
-      if (!r?.ok) {
-        alert(r?.error || "Не удалось отправить сообщение");
-        return;
-      }
-      setSupportDraft("");
-      await loadSupportDialogOwner(selectedTgId, true);
-    } finally {
-      setSupportSending(false);
-    }
-  }
-
-  // Sync request contact editor on selection change
-  useEffect(() => {
-    setReqFullName(reqSelectedContact?.fullName || "");
-    setReqBanks(Array.isArray(reqSelectedContact?.banks) ? reqSelectedContact!.banks! : []);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reqSelectedContact?.id, reqSelectedId]);
-
-  const reqActive = useMemo(
-    () =>
-      (requests || [])
-        .filter((r) => {
-          const s = String(r?.state || "");
-          return s !== "done" && s !== "canceled";
-        })
-        .slice()
-        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))),
-    [requests]
-  );
-
-  const reqRejected = useMemo(
-    () =>
-      (requests || [])
-        .filter((r) => String(r?.state || "") === "canceled")
-        .slice()
-        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))),
-    [requests]
-  );
-
-  const reqHistoryAll = useMemo(
-    () =>
-      (requests || [])
-        .filter((r) => String(r?.state || "") === "done")
-        .slice()
-        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))),
-    [requests]
-  );
-
-  const reqHistory = useMemo(() => {
-    const from = reqHistFrom ? new Date(reqHistFrom + "T00:00:00").getTime() : NaN;
-    const to = reqHistTo ? new Date(reqHistTo + "T23:59:59").getTime() : NaN;
-
-    return reqHistoryAll.filter((r) => {
-      const t = new Date(String(r?.created_at || "")).getTime();
-      if (!Number.isFinite(t)) return true;
-      if (Number.isFinite(from) && t < from) return false;
-      if (Number.isFinite(to) && t > to) return false;
-      return true;
-    });
-  }, [reqHistoryAll, reqHistFrom, reqHistTo]);
-
-  function reqShortId(id: any) {
-    const s = String(id || "");
-    return s.length > 6 ? s.slice(-6) : s;
-  }
-
-  function openReqDetails(id: string) {
-    setReqSelectedId(String(id));
-    setReqView("detail");
-    try {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch {
-      // ignore
-    }
-  }
-
-  async function setReqState(next: "in_progress" | "done" | "canceled") {
-    if (!reqSelected) return;
-    const r = await apiAdminSetRequestState(token, String(reqSelected.id), next);
-    if (!r?.ok) {
-      showErr(r?.error || "Ошибка");
-      return;
-    }
-    await loadClients();
-    if (next === "done") setReqView("history");
-    if (next === "canceled") setReqView("rejected");
-    showOk("Сохранено ✅");
-  }
-
-  async function saveReqContact() {
-    if (!reqSelected) return;
-    if (!selectedTgId && !selectedUsername) {
-      showErr("Нет tg_id/username");
-      return;
-    }
-
-    const payload: any = {
-      ...(selectedTgId ? { tg_id: selectedTgId } : {}),
-      ...(selectedUsername ? { username: selectedUsername } : {}),
-      fullName: reqFullName,
-      banks: reqBanks,
-    };
-
-    const r = await apiAdminUpsertContact(token, payload);
-    if (!r?.ok) {
-      showErr(r?.error || "Ошибка");
-      return;
-    }
-    const c = await apiAdminGetContacts(token);
-    if (c?.ok) setContacts(Array.isArray(c.contacts) ? c.contacts : []);
-    showOk("Сохранено ✅");
-  }
-
-  function toggleReqBank(name: string) {
-    setReqBanks((prev) => {
-      if (prev.includes(name)) return prev.filter((x) => x !== name);
-      return [...prev, name];
-    });
-  }
-
-  const reqAgg = useMemo(() => {
-    const m: Record<string, { cnt: number; sell: Record<string, number>; buy: Record<string, number> }> = {};
-    for (const r of requests || []) {
-      const id = r?.from?.id;
-      if (!id) continue;
-      const k = String(id);
-      if (!m[k]) m[k] = { cnt: 0, sell: {}, buy: {} };
-      m[k].cnt += 1;
-
-      const sc = String(r.sellCurrency || "");
-      const sa = Number(r.sellAmount);
-      if (sc && Number.isFinite(sa)) m[k].sell[sc] = (m[k].sell[sc] || 0) + sa;
-
-      const bc = String(r.buyCurrency || "");
-      const ba = Number(r.buyAmount);
-      if (bc && Number.isFinite(ba)) m[k].buy[bc] = (m[k].buy[bc] || 0) + ba;
-    }
-    return m;
-  }, [requests]);
-
-
-  const lastSupportLenRef = useRef(0);
-  useEffect(() => {
-    const el = supportChatRef.current;
-    if (!el || !supportOpen) return;
-    const nextLen = supportMessages.length;
-    const shouldScroll = nextLen !== lastSupportLenRef.current || nextLen === 0;
-    lastSupportLenRef.current = nextLen;
-    if (!shouldScroll) return;
-    try {
-      el.scrollTop = el.scrollHeight;
-    } catch {
-      // ignore
-    }
-  }, [supportMessages, supportOpen]);
 
   if (!token) {
     return (
@@ -1742,44 +1478,6 @@ function moveFaq(id: string, dir: -1 | 1) {
         {banner ? (
           <div className={banner.type === "err" ? "vx-toast vx-toastErr" : "vx-toast vx-toastOk"}>
             {banner.text}
-          </div>
-        ) : null}
-
-        {supportOpen ? (
-          <div className="vx-modalOverlay vx-modalOverlayChat" onClick={() => !supportSending && setSupportOpen(false)}>
-            <div className="vx-modalCard vx-chatModal" onClick={(e) => e.stopPropagation()}>
-              <div className="row vx-between vx-center">
-                <div>
-                  <div className="vx-modalTitle">Чат с клиентом</div>
-                  <div className="vx-modalSub">{supportClientLabel || "Клиент"}</div>
-                </div>
-                <button className="btn vx-btnSm" type="button" onClick={() => setSupportOpen(false)} disabled={supportSending}>Закрыть</button>
-              </div>
-              <div className="vx-chatHint" style={{ marginTop: 6 }}>Сообщения идут через бота. Ответ клиента также приходит менеджеру в личный чат с ботом.</div>
-              <div className="vx-sp10" />
-              <div className="vx-chatBox" ref={supportChatRef}>
-                {supportLoading && supportMessages.length === 0 ? <div className="vx-muted">Загрузка переписки…</div> : null}
-                {!supportLoading && !supportRefreshing && supportMessages.length === 0 ? <div className="vx-chatEmpty">Переписка пока пустая.</div> : null}
-                {supportMessages.map((m:any) => (
-                  <div key={String(m?.id || Math.random())} className={"vx-chatMsg " + (m?.from === "manager" ? "is-manager" : "is-client")}>
-                    <div className="vx-chatMeta">{m?.from === "manager" ? (m?.manager_name || "Менеджер") : "Клиент"} • {fmtDt(String(m?.created_at || ""))}</div>
-                    <div className="vx-chatText">{String(m?.text || "")}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="vx-sp10" />
-              <div className="vx-chatComposer">
-              <div className="vx-chatToolbar">
-                <div className="vx-chatStats">{supportStats?.clientMessageCount ? `Сообщений от клиента: ${supportStats.clientMessageCount}` : "Сообщений от клиента пока нет"}</div>
-              </div>
-              <textarea className="input vx-in vx-chatTextarea" rows={4} value={supportDraft} onChange={(e)=>setSupportDraft(e.target.value.slice(0,4000))} placeholder="Введите сообщение клиенту" />
-              <div className="vx-sp10" />
-              <div className="vx-chatActionRow">
-                <button className="btn" type="button" onClick={sendOwnerSupportMessage} disabled={supportSending || !supportDraft.trim()}>{supportSending ? "Отправка..." : "Отправить"}</button>
-                <button className="btn vx-btnSm" type="button" onClick={() => selectedTgId && loadSupportDialogOwner(selectedTgId, true)} disabled={supportLoading || !selectedTgId}>Обновить чат</button>
-              </div>
-              </div>
-            </div>
           </div>
         ) : null}
 
