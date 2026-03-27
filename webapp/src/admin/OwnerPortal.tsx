@@ -525,7 +525,7 @@ function moveFaq(id: string, dir: -1 | 1) {
 
   function afCatsLabel(ev: any) {
     const raw = Array.isArray(ev?.categories) ? ev.categories : ev?.category ? [ev.category] : [];
-    const cats = Array.from(new Set(raw.map((x: any) => String(x || "")).filter(Boolean))).slice(0, 3);
+    const cats = Array.from(new Set<string>(raw.map((x: any) => String(x || "")).filter(Boolean))).slice(0, 3);
     return cats.length ? cats.map((c) => afCatLabel(c)).join(", ") : "—";
   }
 
@@ -1417,6 +1417,135 @@ function moveFaq(id: string, dir: -1 | 1) {
     return null;
   }, [reqSelected, selectedTgId, selectedUsername, contactsByTg, contactsByUsername]);
 
+  // Sync request contact editor on selection change
+  useEffect(() => {
+    setReqFullName(reqSelectedContact?.fullName || "");
+    setReqBanks(Array.isArray(reqSelectedContact?.banks) ? reqSelectedContact.banks : []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reqSelectedContact?.id, reqSelectedId]);
+
+  const reqActive = useMemo(
+    () =>
+      (requests || [])
+        .filter((r) => {
+          const s = String(r?.state || "");
+          return s !== "done" && s !== "canceled";
+        })
+        .slice()
+        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))),
+    [requests]
+  );
+
+  const reqRejected = useMemo(
+    () =>
+      (requests || [])
+        .filter((r) => String(r?.state || "") === "canceled")
+        .slice()
+        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))),
+    [requests]
+  );
+
+  const reqHistoryAll = useMemo(
+    () =>
+      (requests || [])
+        .filter((r) => String(r?.state || "") === "done")
+        .slice()
+        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))),
+    [requests]
+  );
+
+  const reqHistory = useMemo(() => {
+    const from = reqHistFrom ? new Date(reqHistFrom + "T00:00:00").getTime() : NaN;
+    const to = reqHistTo ? new Date(reqHistTo + "T23:59:59").getTime() : NaN;
+
+    return reqHistoryAll.filter((r) => {
+      const t = new Date(String(r?.created_at || "")).getTime();
+      if (!Number.isFinite(t)) return true;
+      if (Number.isFinite(from) && t < from) return false;
+      if (Number.isFinite(to) && t > to) return false;
+      return true;
+    });
+  }, [reqHistoryAll, reqHistFrom, reqHistTo]);
+
+  function reqShortId(id: any) {
+    const s = String(id || "");
+    return s.length > 6 ? s.slice(-6) : s;
+  }
+
+  function openReqDetails(id: string) {
+    setReqSelectedId(String(id));
+    setReqView("detail");
+    try {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function setReqState(next: "in_progress" | "done" | "canceled") {
+    if (!reqSelected) return;
+    const r = await apiAdminSetRequestState(token, String(reqSelected.id), next);
+    if (!r?.ok) {
+      showErr(r?.error || "Ошибка");
+      return;
+    }
+    await loadClients();
+    if (next === "done") setReqView("history");
+    if (next === "canceled") setReqView("rejected");
+    showOk("Сохранено ✅");
+  }
+
+  async function saveReqContact() {
+    if (!reqSelected) return;
+    if (!selectedTgId && !selectedUsername) {
+      showErr("Нет tg_id/username");
+      return;
+    }
+
+    const payload: any = {
+      ...(selectedTgId ? { tg_id: selectedTgId } : {}),
+      ...(selectedUsername ? { username: selectedUsername } : {}),
+      fullName: reqFullName,
+      banks: reqBanks,
+    };
+
+    const r = await apiAdminUpsertContact(token, payload);
+    if (!r?.ok) {
+      showErr(r?.error || "Ошибка");
+      return;
+    }
+    const c = await apiAdminGetContacts(token);
+    if (c?.ok) setContacts(Array.isArray(c.contacts) ? c.contacts : []);
+    showOk("Сохранено ✅");
+  }
+
+  function toggleReqBank(name: string) {
+    setReqBanks((prev) => {
+      if (prev.includes(name)) return prev.filter((x) => x !== name);
+      return [...prev, name];
+    });
+  }
+
+  const reqAgg = useMemo(() => {
+    const m: Record<string, { cnt: number; sell: Record<string, number>; buy: Record<string, number> }> = {};
+    for (const r of requests || []) {
+      const id = r?.from?.id;
+      if (!id) continue;
+      const k = String(id);
+      if (!m[k]) m[k] = { cnt: 0, sell: {}, buy: {} };
+      m[k].cnt += 1;
+
+      const sc = String(r.sellCurrency || "");
+      const sa = Number(r.sellAmount);
+      if (sc && Number.isFinite(sa)) m[k].sell[sc] = (m[k].sell[sc] || 0) + sa;
+
+      const bc = String(r.buyCurrency || "");
+      const ba = Number(r.buyAmount);
+      if (bc && Number.isFinite(ba)) m[k].buy[bc] = (m[k].buy[bc] || 0) + ba;
+    }
+    return m;
+  }, [requests]);
+
 
   if (!token) {
     return (
@@ -1798,7 +1927,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                           ) : null}
                           {banks.length ? (
                             <div className="vx-bankInline" style={{ marginTop: 6 }}>
-                              {banks.slice(0, 6).map((ic) => (
+                              {banks.slice(0, 6).map((ic: string) => (
                                 <img key={ic} src={bankIconUrl(ic)} alt="" className="vx-bankInlineImg" title={ic} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                               ))}
                             </div>

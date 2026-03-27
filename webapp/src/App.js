@@ -1,0 +1,455 @@
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { getTg } from "./lib/telegram";
+import { apiAuth, apiEvent, apiWarmup } from "./lib/api";
+import RatesTab from "./tabs/RatesTab";
+import CalculatorTab from "./tabs/CalculatorTab";
+import AfishaTab from "./tabs/AfishaTab";
+import AtmTab from "./tabs/AtmTab";
+import ReviewsTab from "./tabs/ReviewsTab";
+import StaffTab from "./tabs/StaffTab";
+import HistoryTab from "./tabs/HistoryTab";
+import AboutTab from "./tabs/AboutTab";
+import OtherTab from "./tabs/OtherTab";
+import FaqTab from "./tabs/FaqTab";
+import ContactsTab from "./tabs/ContactsTab";
+import PaymentsTab from "./tabs/PaymentsTab";
+import OwnerPortal from "./admin/OwnerPortal";
+const UI = {
+    title: "Обмен валют — Дананг",
+    fontImport: "https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800;900&family=Inter:wght@500;600;700;800;900&family=DM+Sans:wght@700;800;900&display=swap",
+};
+function openExternal(url) {
+    const tg = getTg();
+    if (tg?.openTelegramLink && /^https:\/\/t\.me\//i.test(url))
+        tg.openTelegramLink(url);
+    else if (tg?.openLink)
+        tg.openLink(url);
+    else
+        window.open(url, "_blank", "noopener,noreferrer");
+}
+function IconSun({ className = "" }) {
+    return (_jsxs("svg", { viewBox: "0 0 24 24", className: className, fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [_jsx("path", { d: "M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" }), _jsx("path", { d: "M12 2v2" }), _jsx("path", { d: "M12 20v2" }), _jsx("path", { d: "M4.93 4.93l1.41 1.41" }), _jsx("path", { d: "M17.66 17.66l1.41 1.41" }), _jsx("path", { d: "M2 12h2" }), _jsx("path", { d: "M20 12h2" }), _jsx("path", { d: "M4.93 19.07l1.41-1.41" }), _jsx("path", { d: "M17.66 6.34l1.41-1.41" })] }));
+}
+function IconMoon({ className = "" }) {
+    return (_jsx("svg", { viewBox: "0 0 24 24", className: className, fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: _jsx("path", { d: "M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" }) }));
+}
+function IconArrowLeft({ className = "" }) {
+    return (_jsx("svg", { viewBox: "0 0 24 24", className: className, fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: _jsx("path", { d: "M15 18l-6-6 6-6" }) }));
+}
+function IconChevron({ className = "" }) {
+    return (_jsx("svg", { viewBox: "0 0 24 24", className: className, fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: _jsx("path", { d: "M9 18l6-6-6-6" }) }));
+}
+function ScreenHeader({ title, onBack }) {
+    return (_jsxs("div", { className: "mx-header", children: [_jsx("button", { type: "button", className: "mx-backBtn", onClick: onBack, "aria-label": "\u041D\u0430\u0437\u0430\u0434", children: _jsx(IconArrowLeft, { className: "mx-i" }) }), _jsx("div", { className: "mx-hTitle", children: title }), _jsx("div", { style: { width: 40 } })] }));
+}
+function ScreenPane({ active, children }) {
+    return _jsx("div", { className: "mx-screenPane " + (active ? "is-active" : "is-hidden"), children: children });
+}
+function NavCard({ title, subtitle, iconSrc, onClick, }) {
+    return (_jsxs("button", { type: "button", className: "mx-navCard", onClick: onClick, children: [_jsx("img", { className: "mx-navIcon", src: iconSrc, alt: "" }), _jsxs("div", { className: "mx-navText", children: [_jsx("div", { className: "mx-navTitle", children: title }), subtitle ? _jsx("div", { className: "mx-navSub", children: subtitle }) : null] }), _jsx(IconChevron, { className: "mx-i mx-chev" })] }));
+}
+function StatusIcon({ status }) {
+    // Telegram WebView can be slow to paint images after navigation.
+    // Use real existing files first, otherwise Telegram spends time trying missing assets.
+    const bust = `v48-${String(status || "").toLowerCase() || "x"}`;
+    const candidates = useMemo(() => {
+        const s = String(status || "").toLowerCase();
+        const list = [];
+        if (s)
+            list.push(`/brand/status-${s}.svg`);
+        list.push("/brand/status.svg");
+        return list;
+    }, [status]);
+    const [idx, setIdx] = useState(0);
+    const [ok, setOk] = useState(false);
+    useEffect(() => {
+        setIdx(0);
+        setOk(false);
+    }, [status]);
+    const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
+    return (_jsxs("div", { className: "mx-statusWrap", "aria-label": "\u0421\u0442\u0430\u0442\u0443\u0441", children: [!ok ? _jsx("div", { className: "mx-statusSkeleton", "aria-hidden": "true" }) : null, _jsx("img", { className: "mx-statusImg", src: src, alt: "", loading: "eager", decoding: "async", style: { opacity: ok ? 1 : 0 }, onLoad: () => setOk(true), onError: () => {
+                    setOk(false);
+                    setIdx((x) => (x < candidates.length - 1 ? x + 1 : x));
+                } }, src)] }));
+}
+function MainLogo({ theme }) {
+    // Separate logo files for light/dark themes. Easy to replace later.
+    const bust = theme === "dark" ? "v31-dark" : "v31-light";
+    const candidates = useMemo(() => theme === "dark"
+        ? [
+            "/brand/main-logo-dark.png",
+            "/brand/main-logo.png",
+            "/brand/main-logo.webp",
+            "/brand/main-logo.jpg",
+            "/brand/logo.png",
+            "/brand/logo.webp",
+            "/brand/logo.jpg",
+        ]
+        : [
+            "/brand/main-logo-light.png",
+            "/brand/main-logo.png",
+            "/brand/main-logo.webp",
+            "/brand/main-logo.jpg",
+            "/brand/logo.png",
+            "/brand/logo.webp",
+            "/brand/logo.jpg",
+        ], [theme]);
+    const [idx, setIdx] = useState(0);
+    const [ok, setOk] = useState(false);
+    useEffect(() => {
+        setIdx(0);
+        setOk(false);
+    }, [theme]);
+    const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
+    return (_jsx("div", { className: "mx-mainLogoWrap", "aria-label": "Cash A Lot", children: _jsx("img", { className: "mx-mainLogoImg", src: src, alt: "", loading: "eager", decoding: "async", onLoad: () => setOk(true), onError: () => {
+                setOk(false);
+                setIdx((x) => (x < candidates.length - 1 ? x + 1 : x));
+            } }, src) }));
+}
+function normalizeStatus(s) {
+    const v = String(s ?? "").toLowerCase().trim();
+    if (v === "gold")
+        return "gold";
+    if (v === "silver")
+        return "silver";
+    return "standard";
+}
+function statusTitle(s) {
+    if (s === "gold")
+        return "Золото";
+    if (s === "silver")
+        return "Серебро";
+    return "Стандарт";
+}
+function parseLaunchTarget(tg) {
+    try {
+        const q = new URLSearchParams(window.location.search || "");
+        const rawEventId = String(q.get("event") || q.get("afisha") || "").trim();
+        const rawScreen = String(q.get("screen") || "").toLowerCase().trim();
+        if (rawEventId)
+            return { screen: "afisha", eventId: rawEventId };
+        if (rawScreen === "afisha")
+            return { screen: "afisha" };
+        const startParam = String(tg?.initDataUnsafe?.start_param || q.get("startapp") || "").trim();
+        if (!startParam)
+            return {};
+        const m = startParam.match(/^afisha[:_\/-](.+)$/i);
+        if (m?.[1])
+            return { screen: "afisha", eventId: decodeURIComponent(m[1]) };
+        if (/^afisha$/i.test(startParam))
+            return { screen: "afisha" };
+    }
+    catch { }
+    return {};
+}
+export default function App() {
+    // Owner portal is a separate browser page (/admin), not inside the miniapp UI.
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) {
+        return _jsx(OwnerPortal, {});
+    }
+    // Light/Dark toggle for the client miniapp.
+    const [theme, setTheme] = useState(() => {
+        try {
+            const v = String(localStorage.getItem("mx_theme") || "").toLowerCase();
+            return v === "dark" ? "dark" : "light";
+        }
+        catch {
+            return "light";
+        }
+    });
+    useEffect(() => {
+        try {
+            document.documentElement.setAttribute("data-theme", theme);
+            localStorage.setItem("mx_theme", theme);
+        }
+        catch {
+            // ignore
+        }
+    }, [theme]);
+    // Warm up critical images early to avoid a visible "pop-in" in Telegram WebView.
+    useEffect(() => {
+        const urls = [
+            "/brand/main-logo-light.png?v31-light",
+            "/brand/main-logo-dark.png?v31-dark",
+            "/brand/header-logo-light.png?v31-light",
+            "/brand/header-logo-dark.png?v31-dark",
+            "/brand/status-standard.svg?v48-standard",
+            "/brand/status-silver.svg?v48-silver",
+            "/brand/status-gold.svg?v48-gold",
+            "/brand/icons/tab-afisha-256.png?v=1",
+            "/brand/icons/tab-atm-256.png?v=1",
+            "/brand/icons/tab-rates-256.png?v=1",
+            "/brand/icons/tab-reviews-256.png?v=1",
+        ];
+        try {
+            urls.forEach((u) => {
+                const img = new Image();
+                img.decoding = "async";
+                img.src = u;
+            });
+        }
+        catch {
+            // ignore
+        }
+    }, []);
+    const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+    // Allow Afisha screen to override the back button (e.g. return from list -> categories).
+    const afishaBackRef = useRef(null);
+    useEffect(() => {
+        try {
+            document.body.classList.add("vx-body-client");
+            return () => document.body.classList.remove("vx-body-client");
+        }
+        catch {
+            return;
+        }
+    }, []);
+    // Preload status icons to avoid a visible "loading" placeholder when returning to the home screen.
+    useEffect(() => {
+        try {
+            const sts = ["standard", "silver", "gold"];
+            const exts = [".svg", ".png", ".webp"];
+            for (const s of sts) {
+                for (const ext of exts) {
+                    const img = new Image();
+                    img.src = `/brand/status-${s}${ext}`;
+                }
+            }
+        }
+        catch {
+            // ignore
+        }
+    }, []);
+    const tg = getTg();
+    // Haptic feedback for buttons only (no vibration while typing/entering data).
+    useEffect(() => {
+        const handler = (e) => {
+            const t = e?.target ?? null;
+            if (!t)
+                return;
+            const btn = t.closest?.("button");
+            if (!btn)
+                return;
+            if (btn.disabled)
+                return;
+            if (btn.getAttribute("data-nohaptic") === "1")
+                return;
+            try {
+                const w = window.Telegram?.WebApp;
+                w?.HapticFeedback?.impactOccurred?.("light");
+            }
+            catch {
+                // ignore
+            }
+        };
+        document.addEventListener("click", handler, true);
+        return () => document.removeEventListener("click", handler, true);
+    }, []);
+    const [me, setMe] = useState({ ok: false, initData: "" });
+    const [screen, setScreen] = useState("home");
+    const [launchAfishaEventId, setLaunchAfishaEventId] = useState("");
+    const [courseExpanded, setCourseExpanded] = useState(false);
+    const [visited, setVisited] = useState({ home: true });
+    useEffect(() => {
+        setVisited((prev) => (prev[screen] ? prev : { ...prev, [screen]: true }));
+    }, [screen]);
+    // Demo mode for opening the webapp in a normal browser without Telegram initData.
+    // IMPORTANT: must be declared before any hooks that reference it (avoid TDZ runtime crash).
+    const isDemo = useMemo(() => new URLSearchParams(window.location.search).get("demo") === "1", []);
+    const sessionId = useMemo(() => {
+        try {
+            // session per app open
+            return crypto.randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        }
+        catch {
+            return `s_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        }
+    }, []);
+    const didTrackOpen = useRef(false);
+    useEffect(() => {
+        if (!me.ok || !me.initData || isDemo)
+            return;
+        if (didTrackOpen.current)
+            return;
+        didTrackOpen.current = true;
+        const platform = window.Telegram?.WebApp?.platform || "";
+        void apiEvent(me.initData, {
+            name: "app_open",
+            sessionId,
+            platform,
+            path: window.location.pathname + window.location.search,
+        });
+    }, [me.ok, me.initData, isDemo, sessionId]);
+    useEffect(() => {
+        if (!me.ok || !me.initData || isDemo)
+            return;
+        const platform = window.Telegram?.WebApp?.platform || "";
+        void apiEvent(me.initData, {
+            name: "screen_open",
+            sessionId,
+            platform,
+            path: window.location.pathname + window.location.search,
+            props: { screen },
+        });
+    }, [screen, me.ok, me.initData, isDemo, sessionId]);
+    useEffect(() => {
+        tg?.ready?.();
+        tg?.expand?.();
+        const launchTarget = parseLaunchTarget(tg);
+        if (launchTarget.screen === "afisha") {
+            setScreen("afisha");
+            if (launchTarget.eventId)
+                setLaunchAfishaEventId(launchTarget.eventId);
+        }
+        const initData = tg?.initData || "";
+        if (!initData && !isDemo) {
+            setMe({ ok: false, initData: "", error: "Нет initData. Открой мини-приложение из Telegram." });
+            return;
+        }
+        const fakeInit = "demo";
+        const useInit = isDemo ? fakeInit : initData;
+        (async () => {
+            if (isDemo) {
+                setMe({
+                    ok: true,
+                    initData: useInit,
+                    user: { id: 123456, username: "demo_user", first_name: "Demo" },
+                    status: "gold",
+                    isOwner: true,
+                    isAdmin: true,
+                    adminChat: { tgId: 123456, username: "demo_admin" },
+                    blocked: false,
+                    hasSavedContact: true,
+                });
+                return;
+            }
+            const r = await apiAuth(useInit);
+            if (r.ok)
+                setMe({
+                    ok: true,
+                    initData: useInit,
+                    user: r.user,
+                    status: r.status,
+                    isOwner: r.isOwner,
+                    isAdmin: !!r.isAdmin,
+                    adminChat: r.adminChat,
+                    blocked: !!r.blocked,
+                    hasSavedContact: !!r.hasSavedContact,
+                });
+            else
+                setMe({ ok: false, initData: useInit, error: r.error });
+        })();
+    }, [tg, isDemo]);
+    // Blacklist screen: show only an owner-provided image from /brand/blocked.(png|jpg|webp)
+    const blockedCandidates = useMemo(() => ["/brand/blocked.webp", "/brand/blocked.png", "/brand/blocked.jpg", "/brand/blocked.jpeg"], []);
+    const [blockedIdx, setBlockedIdx] = useState(0);
+    const [blockedOk, setBlockedOk] = useState(false);
+    const blockedSrc = blockedCandidates[Math.min(blockedIdx, blockedCandidates.length - 1)];
+    if (me.ok && me.blocked) {
+        return (_jsxs("div", { className: "vx-blockedOnly", children: [_jsx("img", { className: "vx-blockedImg", src: blockedSrc, alt: "", onLoad: () => setBlockedOk(true), onError: () => {
+                        setBlockedOk(false);
+                        setBlockedIdx((x) => (x < blockedCandidates.length - 1 ? x + 1 : x));
+                    } }), !blockedOk && blockedIdx >= blockedCandidates.length - 1 ? (_jsx("div", { className: "vx-blockedFallback", children: "\u0414\u043E\u0441\u0442\u0443\u043F \u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0435\u043D" })) : null] }));
+    }
+    useEffect(() => {
+        if (!me.ok)
+            return;
+        const warm = apiWarmup();
+        const run = () => {
+            void warm.todayRates().catch(() => { });
+            void warm.marketRates().catch(() => { });
+            void warm.gFormulas().catch(() => { });
+            void warm.bonuses().catch(() => { });
+            void warm.afisha()
+                .then((r) => {
+                const urls = Array.isArray(r?.events)
+                    ? Array.from(new Set(r.events.map((ev) => String(ev?.imageUrl || "").trim()).filter(Boolean))).slice(0, 8)
+                    : [];
+                urls.forEach((u) => {
+                    try {
+                        const img = new Image();
+                        img.decoding = "async";
+                        img.src = u;
+                    }
+                    catch {
+                        // ignore
+                    }
+                });
+            })
+                .catch(() => { });
+            void warm.atms().catch(() => { });
+            void warm.faq().catch(() => { });
+            void warm.reviews().catch(() => { });
+            if (me.initData && me.initData !== "demo")
+                void warm.myRequests(me.initData).catch(() => { });
+        };
+        const ric = window.requestIdleCallback;
+        if (typeof ric === "function") {
+            const id = ric(run, { timeout: 1200 });
+            return () => {
+                try {
+                    window.cancelIdleCallback?.(id);
+                }
+                catch { }
+            };
+        }
+        const t = window.setTimeout(run, 180);
+        return () => window.clearTimeout(t);
+    }, [me.ok, me.initData]);
+    const goHome = () => {
+        setScreen("home");
+    };
+    const trackClick = (target, props = {}) => {
+        try {
+            if (!me.ok || !me.initData || isDemo)
+                return;
+            const platform = window.Telegram?.WebApp?.platform || "";
+            void apiEvent(me.initData, {
+                name: "click",
+                sessionId,
+                platform,
+                path: window.location.pathname + window.location.search,
+                props: { target, ...props },
+            });
+        }
+        catch {
+            // ignore
+        }
+    };
+    const goTo = (next, target) => {
+        trackClick(target, { to: next });
+        setScreen(next);
+    };
+    const showStatusInfo = () => {
+        const st = normalizeStatus(me.status);
+        const title = `Ваш статус: ${statusTitle(st)}`;
+        const msg = st === "gold"
+            ? "Курс стал ещё лучше."
+            : st === "silver"
+                ? "Повышенный курс."
+                : "• Базовые условия\n• Все функции приложения доступны";
+        if (tg?.showPopup) {
+            tg.showPopup({
+                title,
+                message: msg,
+                buttons: [{ type: "close", text: "Ок" }],
+            });
+        }
+        else if (tg?.showAlert) {
+            tg.showAlert(`${title}
+
+${msg}`);
+        }
+        else {
+            alert(`${title}
+
+${msg}`);
+        }
+    };
+    return (_jsxs("div", { className: `vx-page theme-client ${screen === "home" ? "mx-homePage" : ""}`, children: [_jsxs("div", { className: "container", children: [_jsx(ScreenPane, { active: screen === "home", children: _jsxs("div", { className: "mx-homeLayout", children: [_jsxs("div", { className: "mx-homeLead", children: [_jsxs("div", { className: "mx-topRow mx-topRowHome", children: [_jsx("button", { type: "button", className: "mx-themeBtn", onClick: toggleTheme, "aria-label": theme === "dark" ? "Тёмная тема" : "Светлая тема", children: theme === "dark" ? _jsx(IconMoon, { className: "mx-themeI" }) : _jsx(IconSun, { className: "mx-themeI" }) }), _jsx("div", { className: "mx-topCenter", children: _jsx(MainLogo, { theme: theme }) }), _jsx("button", { type: "button", className: "mx-statusBtn", onClick: showStatusInfo, "aria-label": "\u0412\u0430\u0448 \u0441\u0442\u0430\u0442\u0443\u0441", children: _jsx(StatusIcon, { status: me.status }) })] }), _jsxs("div", { className: "mx-card", children: [_jsx("div", { className: "mx-cardHead", children: _jsxs("div", { children: [_jsx("div", { className: "mx-cardTitle", children: "\u041A\u0443\u0440\u0441" }), _jsx("div", { className: "mx-cardSub", children: me.ok ? UI.title : me.error ?? "Авторизация…" })] }) }), _jsx("div", { className: "mx-courseBody", children: _jsx(RatesTab, { embedded: true, limit: courseExpanded ? undefined : 3 }) }), _jsxs("div", { className: "mx-btnRow", children: [_jsx("button", { type: "button", className: "mx-btn", onClick: () => setCourseExpanded((v) => !v), children: courseExpanded ? "Свернуть" : "Все курсы" }), _jsx("button", { type: "button", className: "mx-btn mx-btnPrimary", onClick: () => goTo("calc", "home_calc_btn"), children: "\u041E\u0441\u0442\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u044F\u0432\u043A\u0443" })] })] })] }), _jsxs("div", { className: "mx-homeNavGrid", children: [_jsx(NavCard, { title: "\u0410\u0444\u0438\u0448\u0430", subtitle: "\u0421\u043E\u0431\u044B\u0442\u0438\u044F, \u0441\u043F\u043E\u0440\u0442, \u0432\u0435\u0447\u0435\u0440\u0438\u043D\u043A\u0438", iconSrc: "/brand/icons/tab-afisha-256.png?v=1", onClick: () => goTo("afisha", "nav_afisha") }), _jsx(NavCard, { title: "\u0411\u0430\u043D\u043A\u043E\u043C\u0430\u0442\u044B", subtitle: "VIETCOMBANK \u0438 BIDV", iconSrc: "/brand/icons/tab-atm-256.png?v=1", onClick: () => goTo("atm", "nav_atm") }), _jsx(NavCard, { title: "\u041E\u0442\u0437\u044B\u0432\u044B", subtitle: "\u041E\u0442\u0437\u044B\u0432\u044B \u043A\u043B\u0438\u0435\u043D\u0442\u043E\u0432", iconSrc: "/brand/icons/tab-reviews-256.png?v=1", onClick: () => goTo("reviews", "nav_reviews") }), me.isAdmin ? (_jsx(NavCard, { title: "\u0410\u0434\u043C\u0438\u043D", subtitle: "\u0417\u0430\u044F\u0432\u043A\u0438", iconSrc: "/brand/icons/tab-rates-256.png?v=1", onClick: () => goTo("staff", "nav_staff") })) : null] })] }) }), visited.calc ? (_jsx(ScreenPane, { active: screen === "calc", children: _jsxs(_Fragment, { children: [_jsx(ScreenHeader, { title: "\u041E\u0441\u0442\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u044F\u0432\u043A\u0443", onBack: goHome }), _jsx(CalculatorTab, { me: me })] }) })) : null, visited.pay ? (_jsx(ScreenPane, { active: screen === "pay", children: _jsxs(_Fragment, { children: [_jsx(ScreenHeader, { title: "\u041E\u043F\u043B\u0430\u0442\u044B \u0438 \u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435", onBack: goHome }), _jsx(PaymentsTab, {})] }) })) : null, visited.afisha ? (_jsx(ScreenPane, { active: screen === "afisha", children: _jsxs(_Fragment, { children: [_jsx(ScreenHeader, { title: "\u0410\u0444\u0438\u0448\u0430", onBack: () => {
+                                        const handled = afishaBackRef.current?.() ?? false;
+                                        if (!handled)
+                                            goHome();
+                                    } }), _jsx(AfishaTab, { registerBack: (fn) => (afishaBackRef.current = fn), focusEventId: launchAfishaEventId, onFocusHandled: (id) => setLaunchAfishaEventId((prev) => (prev === id ? "" : prev)) })] }) })) : null, visited.atm ? (_jsx(ScreenPane, { active: screen === "atm", children: _jsxs(_Fragment, { children: [_jsx(ScreenHeader, { title: "\u0411\u0430\u043D\u043A\u043E\u043C\u0430\u0442\u044B", onBack: goHome }), _jsx(AtmTab, { isActive: screen === "atm" })] }) })) : null, visited.reviews ? (_jsx(ScreenPane, { active: screen === "reviews", children: _jsxs(_Fragment, { children: [_jsx(ScreenHeader, { title: "\u041E\u0442\u0437\u044B\u0432\u044B", onBack: goHome }), _jsx(ReviewsTab, {})] }) })) : null, visited.staff ? (_jsx(ScreenPane, { active: screen === "staff", children: _jsxs(_Fragment, { children: [_jsx(ScreenHeader, { title: "\u0410\u0434\u043C\u0438\u043D", onBack: goHome }), _jsx(StaffTab, { me: me })] }) })) : null, visited.history ? (_jsx(ScreenPane, { active: screen === "history", children: _jsxs(_Fragment, { children: [_jsx(ScreenHeader, { title: "\u041C\u043E\u044F \u0438\u0441\u0442\u043E\u0440\u0438\u044F", onBack: goHome }), _jsx(HistoryTab, { me: me })] }) })) : null, visited.other ? (_jsx(ScreenPane, { active: screen === "other", children: _jsxs(_Fragment, { children: [_jsx(ScreenHeader, { title: "\u041F\u0440\u043E\u0447\u0435\u0435", onBack: goHome }), _jsx(OtherTab, { onFaq: () => goTo("faq", "other_faq"), onAbout: () => goTo("about", "other_about"), onContacts: () => goTo("contacts", "other_contacts"), onOrderApp: () => openExternal("https://t.me/Tutenhaman") })] }) })) : null, visited.faq ? (_jsx(ScreenPane, { active: screen === "faq", children: _jsxs(_Fragment, { children: [_jsx(ScreenHeader, { title: "FAQ", onBack: () => goTo("other", "faq_back") }), _jsx(FaqTab, {})] }) })) : null, visited.contacts ? (_jsx(ScreenPane, { active: screen === "contacts", children: _jsxs(_Fragment, { children: [_jsx(ScreenHeader, { title: "\u041A\u043E\u043D\u0442\u0430\u043A\u0442\u044B", onBack: () => goTo("other", "contacts_back") }), _jsx(ContactsTab, {})] }) })) : null, visited.about ? (_jsx(ScreenPane, { active: screen === "about", children: _jsxs(_Fragment, { children: [_jsx(ScreenHeader, { title: "\u041E \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0438", onBack: () => goTo("other", "about_back") }), _jsx(AboutTab, {})] }) })) : null] }), _jsxs("div", { className: "mx-bottomNav", role: "navigation", "aria-label": "\u041D\u0438\u0436\u043D\u0435\u0435 \u043C\u0435\u043D\u044E", children: [_jsx("button", { type: "button", className: "mx-bottomBtn " + (screen === "pay" ? "is-on" : ""), onClick: () => goTo("pay", "bottom_pay"), children: "\u041E\u043F\u043B\u0430\u0442\u044B \u0438 \u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435" }), _jsx("button", { type: "button", className: "mx-bottomBtn " + (screen === "history" ? "is-on" : ""), onClick: () => goTo("history", "bottom_history"), children: "\u041C\u043E\u044F \u0438\u0441\u0442\u043E\u0440\u0438\u044F" }), _jsx("button", { type: "button", className: "mx-bottomBtn " + (screen === "other" ? "is-on" : ""), onClick: () => goTo("other", "bottom_other"), children: "\u041F\u0440\u043E\u0447\u0435\u0435" })] })] }));
+}
