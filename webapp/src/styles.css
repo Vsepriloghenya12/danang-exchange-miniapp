@@ -5040,7 +5040,10 @@ html[data-theme="dark"] .theme-client .mx-langMini{
   grid-row:1 / span 2 !important;
   min-width:0 !important;
   width:100% !important;
-  align-self:center !important;
+  height:100% !important;
+  display:flex !important;
+  align-items:stretch !important;
+  align-self:stretch !important;
   justify-self:stretch !important;
 }
 .theme-client .mx-statusBtn{
@@ -5178,7 +5181,13 @@ html[data-theme="dark"] .theme-client .mx-langSwitchBtn{
   justify-self:end !important;
 }
 .theme-client .mx-mainLogoWrap{
-  height:80px !important;
+  height:100% !important;
+  min-height:0 !important;
+}
+.theme-client .mx-mainLogoImg{
+  width:100% !important;
+  height:100% !important;
+  object-fit:contain !important;
 }
 html[data-theme="dark"] .theme-client .mx-homeLangSwitchBtn,
 html[data-theme="dark"] .theme-client .mx-topRowHome .mx-langSwitchBtn{
@@ -5219,6 +5228,6 @@ html[data-theme="dark"] .theme-client .mx-topRowHome .mx-langSwitchBtn{
     border-radius:15px !important;
   }
   .theme-client .mx-mainLogoWrap{
-    height:72px !important;
+    height:100% !important;
   }
 }
