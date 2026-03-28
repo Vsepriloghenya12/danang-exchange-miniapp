@@ -1176,25 +1176,27 @@ export default function CalculatorTab({ me }: Props) {
 
   const requestDoneModal = requestSuccessModal && typeof document !== "undefined"
     ? createPortal(
-        <div className="vx-modalOverlay vx-contactModalOverlay" role="dialog" aria-modal="true" aria-label="Заявка принята" onClick={() => setRequestSuccessModal(null)}>
+        <div className="vx-modalOverlay vx-contactModalOverlay" role="dialog" aria-modal="true" aria-label="Заявка принята">
           <div className="vx-modalCard vx-contactModalCard vx-requestDoneCard" onClick={(e) => e.stopPropagation()}>
+            <div className="vx-requestDoneHero" aria-hidden="true">✓</div>
             <div className="vx-requestDoneText">
               Так как у вас отсутствует юзернейм, пожалуйста скопируйте данные заявки и свяжитесь с менеджером
             </div>
-            <button
-              type="button"
-              className="vx-requestIdRow"
-              onClick={() => copyRequestInfo(requestSuccessModal.requestId, requestSuccessModal.copyText)}
-              aria-label="Скопировать информацию о заявке"
-            >
-              <span className="vx-requestIdLabel">Номер заявки</span>
+            <div className="vx-requestIdBar">
               <span className="vx-requestIdValue">#{shortRequestId(requestSuccessModal.requestId)}</span>
-              <span className="vx-copyBadge" aria-hidden="true"><CopyIcon className="vx-copyIcon" /></span>
-            </button>
-            <div className="vx-sp4" />
+              <button
+                type="button"
+                className="vx-copyIconBtn"
+                onClick={() => copyRequestInfo(requestSuccessModal.requestId, requestSuccessModal.copyText)}
+                aria-label="Скопировать информацию о заявке"
+                title="Скопировать данные заявки"
+              >
+                <CopyIcon className="vx-copyIcon" />
+              </button>
+            </div>
             <button
               type="button"
-              className="vx-primary"
+              className="vx-primary vx-requestManagerBtn"
               onClick={() => {
                 openManagerContactLink(me);
                 setRequestSuccessModal(null);
