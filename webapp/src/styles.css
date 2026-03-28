@@ -4913,6 +4913,12 @@ html[data-theme="dark"] .theme-client .mx-langMini{
   line-height:1 !important;
 }
 .theme-client .mx-langMini:active{ transform:translateY(1px) !important; }
+.theme-client .mx-topLeftStack > .mx-langMini{
+  grid-row:1 !important;
+}
+.theme-client .mx-topLeftStack > .mx-themeBtn{
+  grid-row:2 !important;
+}
 .theme-client .mx-topLeftStack > .mx-themeBtn{
   width:56px !important;
   min-width:56px !important;
