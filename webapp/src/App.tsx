@@ -628,7 +628,7 @@ ${msg}`);
           <div className="mx-homeLayout">
             <div className="mx-homeLead">
               <div className="mx-topRow mx-topRowHome">
-                <div className="mx-topLeftStack">
+                <div className="mx-topLeftRail">
                   <button
                     type="button"
                     className="mx-langBtn"
@@ -636,9 +636,9 @@ ${msg}`);
                     aria-label={isEn ? "Switch language" : "Переключить язык"}
                     title={isEn ? "Switch language" : "Переключить язык"}
                   >
-                    <span className="mx-langBtnLabel">🌐</span>
+                    <span className="mx-langBtnLabel">{isEn ? "LANG" : "ЯЗЫК"}</span>
                     <span className="mx-langBtnText">{isEn ? "EN" : "RU"}</span>
-                    <span className="mx-langBtnHint">{isEn ? "RU" : "EN"}</span>
+                    <span className="mx-langBtnHint">{isEn ? "tap for RU" : "нажми для EN"}</span>
                   </button>
                   <button
                     type="button"

@@ -4561,3 +4561,73 @@ html[data-theme="dark"] .theme-client .mx-langBtnHint{
   color: rgba(246,198,0,.62);
   opacity:1;
 }
+
+
+.mx-topLeftRail{
+  position: fixed;
+  top: max(10px, calc(env(safe-area-inset-top, 0px) + 8px));
+  left: 12px;
+  z-index: 60;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  width:64px;
+  pointer-events:none;
+}
+.mx-topLeftRail > button{ pointer-events:auto; }
+.theme-client .mx-topRowHome{ padding-left: 72px; }
+.theme-client .mx-topCenter{ min-width: 0; }
+.theme-client .mx-statusBtn{ position: relative; z-index: 4; }
+.mx-topLeftStack{ display:none; }
+.mx-langBtn{
+  width:64px;
+  min-width:64px;
+  height:54px;
+  border-radius:18px;
+  border:1px solid rgba(255,179,87,.34);
+  background:linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(248,250,255,.97) 100%);
+  box-shadow:0 16px 34px rgba(15,23,42,.18), inset 0 1px rgba(255,255,255,.94);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
+  padding:6px 4px;
+  color:rgba(0,0,0,.88);
+  line-height:1;
+}
+.mx-langBtnLabel{
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.14em;
+  opacity:.72;
+}
+.mx-langBtnText{
+  font-size:16px;
+  font-weight:950;
+  letter-spacing:.1em;
+}
+.mx-langBtnHint{
+  font-size:8px;
+  font-weight:800;
+  letter-spacing:.04em;
+  opacity:.58;
+  white-space:nowrap;
+}
+html[data-theme="dark"] .theme-client .mx-langBtn{
+  background:linear-gradient(180deg, rgba(31,43,56,.99) 0%, rgba(22,31,41,.98) 100%);
+  border-color: rgba(246,198,0,.42);
+  box-shadow:0 0 0 1px rgba(246,198,0,.12) inset, 0 0 22px rgba(246,198,0,.1), 0 12px 28px rgba(0,0,0,.46);
+  color: rgba(246,198,0,.99);
+}
+html[data-theme="dark"] .theme-client .mx-langBtnHint{
+  color: rgba(246,198,0,.72);
+  opacity:1;
+}
+@media (max-width: 380px){
+  .mx-topLeftRail{ left: 10px; width: 58px; }
+  .theme-client .mx-topRowHome{ padding-left: 66px; }
+  .mx-langBtn{ width:58px; min-width:58px; height:50px; }
+  .mx-langBtnText{ font-size:14px; }
+  .mx-langBtnHint{ font-size:7px; }
+}
