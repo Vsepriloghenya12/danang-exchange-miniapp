@@ -10,9 +10,6 @@ function getTg() {
 
 function openLink(url: string) {
   const tg = getTg();
-  const isEn = lang === "en";
-  const CATS = CAT_LABELS[lang];
-  const DATE_PRESETS = DATE_PRESET_LABELS[lang];
   if (tg?.openLink) tg.openLink(url);
   else window.open(url, "_blank", "noopener,noreferrer");
 }
@@ -169,13 +166,13 @@ function presetRange(p: DatePreset): { from: string; to: string } {
   return { from: "", to: "" };
 }
 
-function filterLabel(p: DatePreset, f: string, t: string) {
-  const presetLabel = DATE_PRESETS.find((x) => x.key === p)?.label || "";
+function filterLabel(p: DatePreset, f: string, t: string, lang: Lang) {
+  const presetLabel = DATE_PRESET_LABELS[lang].find((x) => x.key === p)?.label || "";
   if (p !== "custom") return presetLabel;
   if (!f && !t) return presetLabel;
-  if (f && t) return `${presetLabel}: ${fmtDate(f)} — ${fmtDate(t)}`;
-  if (f) return `${presetLabel}: c ${fmtDate(f)}`;
-  return `${presetLabel}: по ${fmtDate(t)}`;
+  if (f && t) return `${presetLabel}: ${fmtDate(f, lang)} — ${fmtDate(t, lang)}`;
+  if (f) return `${presetLabel}: ${lang === "en" ? "from" : "с"} ${fmtDate(f, lang)}`;
+  return `${presetLabel}: ${lang === "en" ? "to" : "по"} ${fmtDate(t, lang)}`;
 }
 
 function getEventCats(ev: AfishaEvent): AfishaCategory[] {
@@ -204,7 +201,17 @@ function buildBrowserShareUrl(ev: AfishaEvent) {
   return u.toString();
 }
 
-export default function AfishaTab({ registerBack, focusEventId, onFocusHandled }: { registerBack?: (fn: () => boolean) => void; focusEventId?: string; onFocusHandled?: (id: string) => void }) {
+export default function AfishaTab({
+  registerBack,
+  focusEventId,
+  onFocusHandled,
+  lang = "ru",
+}: {
+  registerBack?: (fn: () => boolean) => void;
+  focusEventId?: string;
+  onFocusHandled?: (id: string) => void;
+  lang?: Lang;
+}) {
   const tg = getTg();
   const isEn = lang === "en";
   const CATS = CAT_LABELS[lang];
@@ -479,7 +486,7 @@ export default function AfishaTab({ registerBack, focusEventId, onFocusHandled }
     setDraftTo(to);
   }, [sheetOpen, datePreset, from, to]);
 
-  const appliedLabel = useMemo(() => filterLabel(datePreset, from, to), [datePreset, from, to]);
+  const appliedLabel = useMemo(() => filterLabel(datePreset, from, to, lang), [datePreset, from, to, lang]);
 
   const catsLabel = useMemo(() => {
     if (!cats || cats.length === 0) return isEn ? "All" : "Все";
@@ -593,9 +600,6 @@ ${fmtDate(ev.date, lang)}`;
 ${targetUrl}`;
     const tgShareUrl = `https://t.me/share/url?url=${encodeURIComponent(targetUrl)}&text=${encodeURIComponent(shareText)}`;
     const tg = getTg();
-  const isEn = lang === "en";
-  const CATS = CAT_LABELS[lang];
-  const DATE_PRESETS = DATE_PRESET_LABELS[lang];
     if (tg?.openTelegramLink) {
       tg.openTelegramLink(tgShareUrl);
       return;
@@ -636,7 +640,7 @@ ${targetUrl}`;
       <div className="mx-list">
         {groupedEvents.map((group) => (
           <div key={group.date} className="mx-afGroup">
-            <div className="mx-afGroupDate">{fmtDate(group.date)}</div>
+            <div className="mx-afGroupDate">{fmtDate(group.date, lang)}</div>
             {group.items.map((ev) => {
               const timeLabel = fmtTime((ev as any)?.time);
               return (
