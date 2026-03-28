@@ -22,10 +22,52 @@
 
     <title>Обмен валют — Дананг</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script defer src="/lang-switch-runtime-fix.js"></script>
     <script type="module" crossorigin src="/assets/main-CLxVS4AF.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/OwnerPortal-lG99FWN2.js">
     <link rel="stylesheet" crossorigin href="/assets/OwnerPortal-DtFufZYd.css">
+    <style>
+      .theme-client .mx-langSwitchBtn {
+        position: fixed !important;
+        top: max(10px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
+        left: 12px !important;
+        width: 56px !important;
+        min-width: 56px !important;
+        height: 26px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        border-radius: 999px !important;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(246, 248, 252, 0.96) 100%) !important;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14), inset 0 1px rgba(255, 255, 255, 0.92) !important;
+        color: rgba(9, 23, 33, 0.88) !important;
+        font-size: 11px !important;
+        font-weight: 900 !important;
+        letter-spacing: 0.08em !important;
+        line-height: 1 !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        z-index: 9999 !important;
+      }
+
+      html[data-theme="dark"] .theme-client .mx-langSwitchBtn {
+        background: linear-gradient(180deg, rgba(31, 43, 56, 0.99) 0%, rgba(22, 31, 41, 0.98) 100%) !important;
+        box-shadow: 0 0 0 1px rgba(246, 198, 0, 0.12) inset, 0 0 16px rgba(246, 198, 0, 0.08), 0 10px 22px rgba(0, 0, 0, 0.34) !important;
+        color: rgba(246, 198, 0, 0.98) !important;
+      }
+
+      @media (max-width: 380px) {
+        .theme-client .mx-langSwitchBtn {
+          left: 10px !important;
+          width: 52px !important;
+          min-width: 52px !important;
+          height: 24px !important;
+          font-size: 10px !important;
+        }
+      }
+    </style>
   </head>
   <body style="background:#17212b;">
     <div id="root"></div>
