@@ -38,6 +38,23 @@ type LaunchTarget = {
   eventId?: string;
 };
 
+function readPreferredLang(): Lang {
+  try {
+    const fromUrl = String(new URLSearchParams(window.location.search).get("lang") || "").toLowerCase();
+    if (fromUrl === "en") return "en";
+    if (fromUrl === "ru") return "ru";
+  } catch {
+    // ignore
+  }
+
+  try {
+    const v = String(localStorage.getItem("mx_lang") || "").toLowerCase();
+    return v === "en" ? "en" : "ru";
+  } catch {
+    return "ru";
+  }
+}
+
 const UI = {
   title: "Обмен валют — Дананг",
   fontImport:
@@ -316,19 +333,18 @@ export default function App() {
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
 
-  const [lang, setLang] = useState<Lang>(() => {
-    try {
-      const v = String(localStorage.getItem("mx_lang") || "").toLowerCase();
-      return v === "en" ? "en" : "ru";
-    } catch {
-      return "ru";
-    }
-  });
+  const [lang, setLang] = useState<Lang>(() => readPreferredLang());
 
   useEffect(() => {
     try {
       document.documentElement.setAttribute("lang", lang);
       localStorage.setItem("mx_lang", lang);
+
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("lang") !== lang) {
+        url.searchParams.set("lang", lang);
+        window.history.replaceState(null, "", url.toString());
+      }
     } catch {
       // ignore
     }
@@ -773,7 +789,7 @@ ${msg}`);
           <ScreenPane active={screen === "staff"}>
             <>
               <ScreenHeader title={isEn ? "Admin" : "Админ"} onBack={goHome} lang={lang} />
-              <StaffTab me={me} />
+              <StaffTab me={me} lang={lang} />
             </>
           </ScreenPane>
         ) : null}

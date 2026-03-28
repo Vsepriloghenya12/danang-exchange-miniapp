@@ -22,9 +22,21 @@
 
     <title>Обмен валют — Дананг</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script type="module" crossorigin src="/assets/main-CLxVS4AF.js?v=langbtn-20260328-3"></script>
-    <link rel="modulepreload" crossorigin href="/assets/OwnerPortal-lG99FWN2.js?v=langbtn-20260328-3">
-    <link rel="stylesheet" crossorigin href="/assets/OwnerPortal-DtFufZYd.css?v=langbtn-20260328-3">
+    <script>
+      (function () {
+        try {
+          var params = new URLSearchParams(window.location.search || "");
+          var queryLang = String(params.get("lang") || "").toLowerCase();
+          var storedLang = String(localStorage.getItem("mx_lang") || "").toLowerCase();
+          var effective = queryLang === "en" || queryLang === "ru" ? queryLang : storedLang === "en" ? "en" : "ru";
+          if (queryLang === "en" || queryLang === "ru") localStorage.setItem("mx_lang", queryLang);
+          document.documentElement.setAttribute("lang", effective);
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/main-CLxVS4AF.js?v=langbtn-20260328-4"></script>
+    <link rel="modulepreload" crossorigin href="/assets/OwnerPortal-lG99FWN2.js?v=langbtn-20260328-4">
+    <link rel="stylesheet" crossorigin href="/assets/OwnerPortal-DtFufZYd.css?v=langbtn-20260328-4">
     <style>
       .theme-client.vx-page.mx-homePage {
         padding-top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px)) !important;
@@ -133,7 +145,7 @@
       }
 
       .theme-client .mx-mainLogoWrap {
-        height: 72px !important;
+        height: 80px !important;
       }
 
       .mx-runtimeLangFloatingBtn {
@@ -208,7 +220,7 @@
         }
 
         .theme-client .mx-mainLogoWrap {
-          height: 64px !important;
+          height: 72px !important;
         }
       }
     </style>
@@ -221,7 +233,7 @@
 
         function currentLang() {
           try {
-            var raw = String(localStorage.getItem("mx_lang") || document.documentElement.getAttribute("lang") || "ru").toLowerCase();
+            var raw = String(new URLSearchParams(window.location.search || "").get("lang") || localStorage.getItem("mx_lang") || document.documentElement.getAttribute("lang") || "ru").toLowerCase();
             return raw === "en" ? "en" : "ru";
           } catch (e) {
             return "ru";
@@ -272,6 +284,7 @@
 
           try {
             var url = new URL(window.location.href);
+            url.searchParams.set("lang", next);
             url.searchParams.set("_langv", String(Date.now()));
             window.location.replace(url.toString());
           } catch (e) {

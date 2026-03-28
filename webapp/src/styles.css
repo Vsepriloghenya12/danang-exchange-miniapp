@@ -5178,7 +5178,7 @@ html[data-theme="dark"] .theme-client .mx-langSwitchBtn{
   justify-self:end !important;
 }
 .theme-client .mx-mainLogoWrap{
-  height:72px !important;
+  height:80px !important;
 }
 html[data-theme="dark"] .theme-client .mx-homeLangSwitchBtn,
 html[data-theme="dark"] .theme-client .mx-topRowHome .mx-langSwitchBtn{
@@ -5219,6 +5219,6 @@ html[data-theme="dark"] .theme-client .mx-topRowHome .mx-langSwitchBtn{
     border-radius:15px !important;
   }
   .theme-client .mx-mainLogoWrap{
-    height:64px !important;
+    height:72px !important;
   }
 }

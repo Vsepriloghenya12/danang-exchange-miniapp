@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { getUserStatusLabelRu, USER_STATUS_OPTIONS_RU } from "../domain/status";
+import { getUserStatusLabel, USER_STATUS_OPTIONS_RU } from "../domain/status";
 import {
   apiGetBankIcons,
   bankIconUrl,
@@ -11,51 +11,82 @@ import {
 } from "../lib/api";
 import type { Contact, UserStatus } from "../lib/types";
 
+type Lang = "ru" | "en";
+
 function getTg() {
   return (window as any).Telegram?.WebApp;
 }
 
-// В админке оставляем только 3 статуса: в работе (ставится автоматически), готова, отклонена
-const STATE_OPTIONS = [
-  { v: "in_progress", l: "В работе" },
-  { v: "done", l: "Готова" },
-  { v: "canceled", l: "Отклонена" },
-] as const;
+function getStateOptions(lang: Lang) {
+  if (lang === "en") {
+    return [
+      { v: "in_progress", l: "In progress" },
+      { v: "done", l: "Done" },
+      { v: "canceled", l: "Canceled" },
+    ] as const;
+  }
 
-const stateLabel: Record<string, string> = {
-  in_progress: "В работе",
-  done: "Готова",
-  canceled: "Отклонена",
-  new: "В работе",
-};
+  return [
+    { v: "in_progress", l: "В работе" },
+    { v: "done", l: "Готова" },
+    { v: "canceled", l: "Отклонена" },
+  ] as const;
+}
+
+function getStateLabel(value: string, lang: Lang) {
+  const normalized = String(value || "").toLowerCase();
+  if (lang === "en") {
+    if (normalized === "done") return "Done";
+    if (normalized === "canceled") return "Canceled";
+    return "In progress";
+  }
+  if (normalized === "done") return "Готова";
+  if (normalized === "canceled") return "Отклонена";
+  return "В работе";
+}
 function shortId(id: string) {
   const s = String(id || "");
   return s.length > 6 ? s.slice(-6) : s;
 }
 
-function fmtDateTime(iso: string) {
+function fmtDateTime(iso: string, lang: Lang) {
   try {
     const d = new Date(iso);
     if (!Number.isFinite(d.getTime())) return "";
-    return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleString(lang === "en" ? "en-GB" : "ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   } catch {
     return "";
   }
 }
 
-function methodLabel(m: string) {
+function methodLabel(m: string, lang: Lang) {
   const v = String(m || "").toLowerCase();
-  if (v === "cash") return "Наличные";
-  if (v === "transfer") return "Перевод";
-  if (v === "atm") return "Банкомат";
-  if (v === "other") return "Другое";
+  if (v === "cash") return lang === "en" ? "Cash" : "Наличные";
+  if (v === "transfer") return lang === "en" ? "Transfer" : "Перевод";
+  if (v === "atm") return lang === "en" ? "ATM" : "Банкомат";
+  if (v === "other") return lang === "en" ? "Other" : "Другое";
   return m || "—";
 }
 
 
-export default function StaffTab({ me }: any) {
+export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) {
   const tg = getTg();
   const initData = tg?.initData || me?.initData || "";
+  const isEn = lang === "en";
+  const stateOptions = useMemo(() => getStateOptions(lang), [lang]);
+  const userStatusOptions = useMemo(
+    () =>
+      lang === "en"
+        ? USER_STATUS_OPTIONS_RU.map((s) => ({ value: s.value, label: getUserStatusLabel(s.value, "en") }))
+        : USER_STATUS_OPTIONS_RU,
+    [lang]
+  );
 
   const [loading, setLoading] = useState(true);
   const [icons, setIcons] = useState<string[]>([]);
@@ -212,7 +243,7 @@ export default function StaffTab({ me }: any) {
     if (!selectedReq) return;
     const r = await apiStaffSetRequestState(initData, String(selectedReq.id), next);
     if (!r?.ok) {
-      tg?.showAlert?.(r?.error || "Ошибка");
+      tg?.showAlert?.(r?.error || (isEn ? "Error" : "Ошибка"));
       return;
     }
     await loadAll();
@@ -227,7 +258,7 @@ export default function StaffTab({ me }: any) {
     if (!selectedReq || savingRequest) return;
     const state = String(selectedReq.state || "");
     if (state !== "in_progress" && state !== "new") {
-      tg?.showAlert?.("Редактирование доступно только для заявки в работе.");
+      tg?.showAlert?.(isEn ? "Editing is available only for a request in progress." : "Редактирование доступно только для заявки в работе.");
       return;
     }
 
@@ -242,11 +273,11 @@ export default function StaffTab({ me }: any) {
     };
 
     if (!payload.sellCurrency || !payload.buyCurrency || (payload.sellCurrency === payload.buyCurrency && payload.sellCurrency !== "VND")) {
-      tg?.showAlert?.("Проверь пару валют.");
+      tg?.showAlert?.(isEn ? "Check the currency pair." : "Проверь пару валют.");
       return;
     }
     if (!Number.isFinite(payload.sellAmount) || payload.sellAmount <= 0 || !Number.isFinite(payload.buyAmount) || payload.buyAmount <= 0) {
-      tg?.showAlert?.("Проверь суммы заявки.");
+      tg?.showAlert?.(isEn ? "Check the request amounts." : "Проверь суммы заявки.");
       return;
     }
 
@@ -254,7 +285,7 @@ export default function StaffTab({ me }: any) {
     try {
       const r = await apiStaffUpdateRequest(initData, String(selectedReq.id), payload);
       if (!r?.ok) {
-        tg?.showAlert?.(r?.error || "Ошибка");
+        tg?.showAlert?.(r?.error || (isEn ? "Error" : "Ошибка"));
         return;
       }
       await loadAll();
@@ -268,7 +299,7 @@ export default function StaffTab({ me }: any) {
     if (!selectedTgId) return;
     const r = await apiAdminSetUserStatus(initData, selectedTgId, next);
     if (!r?.ok) {
-      tg?.showAlert?.(r?.error || "Ошибка");
+      tg?.showAlert?.(r?.error || (isEn ? "Error" : "Ошибка"));
       return;
     }
 
@@ -307,7 +338,7 @@ export default function StaffTab({ me }: any) {
 
     const r = await apiStaffUpsertContact(initData, payload);
     if (!r?.ok) {
-      tg?.showAlert?.(r?.error || "Ошибка");
+      tg?.showAlert?.(r?.error || (isEn ? "Error" : "Ошибка"));
       return;
     }
 
@@ -339,9 +370,9 @@ export default function StaffTab({ me }: any) {
     return (
       <div>
         <div className="vx-head">
-          <div className="h2 vx-m0">Админ</div>
+          <div className="h2 vx-m0">{isEn ? "Admin" : "Админ"}</div>
         </div>
-        <div className="small">Откройте вкладку админа внутри Telegram.</div>
+        <div className="small">{isEn ? "Open the admin tab inside Telegram." : "Откройте вкладку админа внутри Telegram."}</div>
       </div>
     );
   }
@@ -350,17 +381,17 @@ export default function StaffTab({ me }: any) {
     <>
       <div className="vx-head">
         <div>
-          <div className="h2 vx-m0">Админ</div>
-          <div className="vx-meta">Заявки • статус • карточка клиента</div>
+          <div className="h2 vx-m0">{isEn ? "Admin" : "Админ"}</div>
+          <div className="vx-meta">{isEn ? "Requests • status • client card" : "Заявки • статус • карточка клиента"}</div>
         </div>
         <div className="row vx-rowWrap vx-gap6" style={{ justifyContent: "flex-end" }}>
           <button type="button" className="btn vx-btnSm" onClick={loadAll}>
-            Обновить
+            {isEn ? "Refresh" : "Обновить"}
           </button>
         </div>
       </div>
 
-      {loading ? <div className="vx-help">Загрузка…</div> : null}
+      {loading ? <div className="vx-help">{isEn ? "Loading…" : "Загрузка…"}</div> : null}
       <div className="vx-sp12" />
     </>
   );
@@ -372,18 +403,18 @@ export default function StaffTab({ me }: any) {
       {view === "list" ? (
         <>
           <div className="row vx-between vx-center">
-            <div className="h3 vx-m0">Активные заявки</div>
+            <div className="h3 vx-m0">{isEn ? "Active requests" : "Активные заявки"}</div>
             <button type="button" className="btn vx-btnSm" onClick={() => setView("history")}
               disabled={historyReqs.length === 0}
             >
-              История
+              {isEn ? "History" : "История"}
             </button>
           </div>
 
           <div className="vx-sp10" />
 
           {activeReqs.length === 0 ? (
-            <div className="vx-muted">Заявок пока нет.</div>
+            <div className="vx-muted">{isEn ? "No requests yet." : "Заявок пока нет."}</div>
           ) : (
             <div className="vx-reqList">
               {activeReqs.slice(0, 40).map((r) => {
@@ -398,12 +429,12 @@ export default function StaffTab({ me }: any) {
                   >
                     <div className="vx-reqTop">
                       <b>#{shortId(r.id)}</b>
-                      <span className="vx-muted">{fmtDateTime(r.created_at)}</span>
+                      <span className="vx-muted">{fmtDateTime(r.created_at, lang)}</span>
                     </div>
                     <div className="vx-muted">{who}</div>
                     <div>
                       <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
-                      <span className="vx-tag">{stateLabel[String(r.state)] || String(r.state)}</span>
+                      <span className="vx-tag">{getStateLabel(String(r.state), lang)}</span>
                       
                     </div>
                   </button>
@@ -417,13 +448,13 @@ export default function StaffTab({ me }: any) {
       {view === "history" ? (
         <>
           <div className="row vx-between vx-center">
-            <div className="h3 vx-m0">История заявок</div>
-            <button type="button" className="btn vx-btnSm" onClick={() => setView("list")}>Назад</button>
+            <div className="h3 vx-m0">{isEn ? "Request history" : "История заявок"}</div>
+            <button type="button" className="btn vx-btnSm" onClick={() => setView("list")}>{isEn ? "Back" : "Назад"}</button>
           </div>
           <div className="vx-sp10" />
 
           {historyReqs.length === 0 ? (
-            <div className="vx-muted">Заявок пока нет.</div>
+            <div className="vx-muted">{isEn ? "No requests yet." : "Заявок пока нет."}</div>
           ) : (
             <div className="vx-reqList">
               {historyReqs.slice(0, 120).map((r) => {
@@ -438,12 +469,12 @@ export default function StaffTab({ me }: any) {
                   >
                     <div className="vx-reqTop">
                       <b>#{shortId(r.id)}</b>
-                      <span className="vx-muted">{fmtDateTime(r.created_at)}</span>
+                      <span className="vx-muted">{fmtDateTime(r.created_at, lang)}</span>
                     </div>
                     <div className="vx-muted">{who}</div>
                     <div>
                       <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
-                      <span className="vx-tag">{stateLabel[String(r.state)] || String(r.state)}</span>
+                      <span className="vx-tag">{getStateLabel(String(r.state), lang)}</span>
                       
                     </div>
                   </button>
@@ -457,40 +488,42 @@ export default function StaffTab({ me }: any) {
       {view === "detail" ? (
         !selectedReq ? (
           <>
-            <button type="button" className="btn vx-btnSm" onClick={() => setView("list")}>Назад</button>
+            <button type="button" className="btn vx-btnSm" onClick={() => setView("list")}>{isEn ? "Back" : "Назад"}</button>
             <div className="vx-sp10" />
-            <div className="vx-muted">Заявка не найдена.</div>
+            <div className="vx-muted">{isEn ? "Request not found." : "Заявка не найдена."}</div>
           </>
         ) : (
           <>
             <div className="row vx-between vx-center">
-              <button type="button" className="btn vx-btnSm" onClick={() => setView("list")}>← Назад</button>
-              <div className="vx-muted">{fmtDateTime(selectedReq.created_at)}</div>
+              <button type="button" className="btn vx-btnSm" onClick={() => setView("list")}>{isEn ? "← Back" : "← Назад"}</button>
+              <div className="vx-muted">{fmtDateTime(selectedReq.created_at, lang)}</div>
             </div>
 
             <div className="vx-sp10" />
 
-            <div className="h3 vx-m0">Заявка #{shortId(selectedReq.id)}</div>
+            <div className="h3 vx-m0">{isEn ? "Request" : "Заявка"} #{shortId(selectedReq.id)}</div>
             <div className="vx-muted" style={{ marginTop: 4 }}>
-              Клиент: {selectedReq.from?.username ? `@${selectedReq.from.username}` : ""} • id:{selectedReq.from?.id}
+              {isEn ? "Client" : "Клиент"}: {selectedReq.from?.username ? `@${selectedReq.from.username}` : ""} • id:{selectedReq.from?.id}
             </div>
             <div className="vx-sp10" />
 
             <div className="vx-rowWrap" style={{ display: "grid", gap: 6 }}>
               <div>🔁 <b>{selectedReq.sellCurrency} → {selectedReq.buyCurrency}</b></div>
-              <div>💸 Отдаёт: <b>{selectedReq.sellAmount}</b></div>
-              <div>🎯 Получит: <b>{selectedReq.buyAmount}</b></div>
-              <div>💳 Оплата: <b>{methodLabel(String(selectedReq.payMethod || ""))}</b></div>
-              <div>📦 Получение: <b>{methodLabel(String(selectedReq.receiveMethod || ""))}</b></div>
-              {selectedReq.comment ? <div>📝 Комментарий: <b>{selectedReq.comment}</b></div> : null}
-              {selectedReq.clientContact ? <div>☎️ Контакт: <b>{selectedReq.clientContact}</b></div> : null}
+              <div>💸 {isEn ? "Pays" : "Отдаёт"}: <b>{selectedReq.sellAmount}</b></div>
+              <div>🎯 {isEn ? "Gets" : "Получит"}: <b>{selectedReq.buyAmount}</b></div>
+              <div>💳 {isEn ? "Payment" : "Оплата"}: <b>{methodLabel(String(selectedReq.payMethod || ""), lang)}</b></div>
+              <div>📦 {isEn ? "Receiving" : "Получение"}: <b>{methodLabel(String(selectedReq.receiveMethod || ""), lang)}</b></div>
+              {selectedReq.comment ? <div>📝 {isEn ? "Comment" : "Комментарий"}: <b>{selectedReq.comment}</b></div> : null}
+              {selectedReq.clientContact ? <div>☎️ {isEn ? "Contact" : "Контакт"}: <b>{selectedReq.clientContact}</b></div> : null}
             </div>
 
             {(String(selectedReq.state) === "in_progress" || String(selectedReq.state) === "new") ? (
               <>
                 <div className="hr" />
-                <div className="small">Редактирование заявки</div>
-                <div className="vx-muted" style={{ marginTop: 4 }}>Пока заявка в работе, админ может скорректировать пару, суммы и способы.</div>
+                <div className="small">{isEn ? "Request editing" : "Редактирование заявки"}</div>
+                <div className="vx-muted" style={{ marginTop: 4 }}>
+                  {isEn ? "While the request is in progress, the admin can adjust the pair, amounts, and methods." : "Пока заявка в работе, админ может скорректировать пару, суммы и способы."}
+                </div>
                 <div className="vx-sp8" />
 
                 <div className="vx-rowWrap" style={{ display: "grid", gap: 8 }}>
@@ -503,19 +536,19 @@ export default function StaffTab({ me }: any) {
                     </select>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <input className="input vx-in" inputMode="decimal" value={editSellAmount} onChange={(e) => setEditSellAmount(e.target.value)} placeholder="Сумма, которую отдаёт клиент" />
-                    <input className="input vx-in" inputMode="decimal" value={editBuyAmount} onChange={(e) => setEditBuyAmount(e.target.value)} placeholder="Сумма, которую получает клиент" />
+                    <input className="input vx-in" inputMode="decimal" value={editSellAmount} onChange={(e) => setEditSellAmount(e.target.value)} placeholder={isEn ? "Amount the client pays" : "Сумма, которую отдаёт клиент"} />
+                    <input className="input vx-in" inputMode="decimal" value={editBuyAmount} onChange={(e) => setEditBuyAmount(e.target.value)} placeholder={isEn ? "Amount the client receives" : "Сумма, которую получает клиент"} />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     <select className="input vx-in" value={editPayMethod} onChange={(e) => setEditPayMethod(e.target.value)}>
-                      <option value="cash">Наличные</option>
-                      <option value="transfer">Перевод</option>
-                      <option value="atm">Банкомат</option>
+                      <option value="cash">{isEn ? "Cash" : "Наличные"}</option>
+                      <option value="transfer">{isEn ? "Transfer" : "Перевод"}</option>
+                      <option value="atm">{isEn ? "ATM" : "Банкомат"}</option>
                     </select>
                     <select className="input vx-in" value={editReceiveMethod} onChange={(e) => setEditReceiveMethod(e.target.value)}>
-                      <option value="cash">Наличные</option>
-                      <option value="transfer">Перевод</option>
-                      <option value="atm">Банкомат</option>
+                      <option value="cash">{isEn ? "Cash" : "Наличные"}</option>
+                      <option value="transfer">{isEn ? "Transfer" : "Перевод"}</option>
+                      <option value="atm">{isEn ? "ATM" : "Банкомат"}</option>
                     </select>
                   </div>
                   <textarea
@@ -523,23 +556,23 @@ export default function StaffTab({ me }: any) {
                     rows={3}
                     value={editComment}
                     onChange={(e) => setEditComment(e.target.value.slice(0, 300))}
-                    placeholder="Комментарий клиента"
+                    placeholder={isEn ? "Client comment" : "Комментарий клиента"}
                   />
                 </div>
 
                 <div className="vx-sp10" />
                 <button type="button" className="btn" onClick={saveRequestEdit} disabled={savingRequest}>
-                  {savingRequest ? "Сохраняю заявку…" : "Сохранить заявку"}
+                  {savingRequest ? (isEn ? "Saving request…" : "Сохраняю заявку…") : (isEn ? "Save request" : "Сохранить заявку")}
                 </button>
               </>
             ) : null}
 
             <div className="hr" />
 
-            <div className="small">Статус</div>
+            <div className="small">{isEn ? "Status" : "Статус"}</div>
             <div className="vx-sp8" />
             <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {STATE_OPTIONS.map((s) => (
+              {stateOptions.map((s) => (
                 <button
                   key={s.v}
                   type="button"
@@ -553,13 +586,13 @@ export default function StaffTab({ me }: any) {
 
             <div className="hr" />
 
-            <div className="small">Статус клиента</div>
+            <div className="small">{isEn ? "Client status" : "Статус клиента"}</div>
             <div className="vx-muted" style={{ marginTop: 4 }}>
-              Текущий статус: <b>{getUserStatusLabelRu(selectedClientStatus)}</b>
+              {isEn ? "Current status" : "Текущий статус"}: <b>{getUserStatusLabel(selectedClientStatus, lang)}</b>
             </div>
             <div className="vx-sp8" />
             <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {USER_STATUS_OPTIONS_RU.map((s) => (
+              {userStatusOptions.map((s) => (
                 <button
                   key={s.value}
                   type="button"
@@ -573,23 +606,23 @@ export default function StaffTab({ me }: any) {
 
             <div className="hr" />
 
-            <div className="small">Контакт клиента</div>
+            <div className="small">{isEn ? "Client contact" : "Контакт клиента"}</div>
             <div className="vx-sp8" />
 
             <input
               className="input vx-in"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="ФИО (например: Иванов Иван)"
+              placeholder={isEn ? "Full name (for example: Ivan Ivanov)" : "ФИО (например: Иванов Иван)"}
             />
 
             <div className="vx-sp10" />
 
             {icons.length === 0 ? (
-              <div className="vx-muted">Иконок банков нет (положи файлы в webapp/public/banks).</div>
+              <div className="vx-muted">{isEn ? "No bank icons found (put files into webapp/public/banks)." : "Иконок банков нет (положи файлы в webapp/public/banks)."}</div>
             ) : (
               <>
-                <div className="vx-muted">Банки клиента</div>
+                <div className="vx-muted">{isEn ? "Client banks" : "Банки клиента"}</div>
                 <div className="vx-sp8" />
                 <div className="vx-bankGrid">
                   {icons.map((ic) => {
@@ -612,12 +645,12 @@ export default function StaffTab({ me }: any) {
 
             <div className="vx-sp10" />
             <button type="button" className="btn" onClick={saveContact}>
-              Сохранить контакт
+              {isEn ? "Save contact" : "Сохранить контакт"}
             </button>
 
             {selectedContact ? (
               <div className="vx-muted" style={{ marginTop: 8 }}>
-                Сохранено ранее: {selectedContact.fullName || "—"}
+                {isEn ? "Saved earlier" : "Сохранено ранее"}: {selectedContact.fullName || "—"}
               </div>
             ) : null}
           </>
