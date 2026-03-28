@@ -2194,6 +2194,7 @@ router.post("/admin/faq", async (req, res) => {
       const payMethod = String(p.payMethod || "").toLowerCase().trim();
       const comment = String(p.comment || "").trim().slice(0, 300);
       const clientContact = String(p.clientContact || "").trim().replace(/\s+/g, " ").slice(0, 250);
+      const language = String(p.language || "ru").toLowerCase() === "en" ? "en" : "ru";
 
       const allowedCur = new Set<Currency>(["RUB", "USD", "USDT", "VND", "EUR", "THB"]);
       const allowedPay = allowedRequestPayMethods(sellCurrency, buyCurrency, sellAmount, buyAmount);
@@ -2251,6 +2252,7 @@ router.post("/admin/faq", async (req, res) => {
         receiveMethod,
         ...(comment ? { comment } : {}),
         ...(effectiveClientContact ? { clientContact: effectiveClientContact } : {}),
+        language,
         from: user,
 	        status: effStatus,
         created_at: new Date().toISOString()
@@ -2310,6 +2312,8 @@ router.post("/admin/faq", async (req, res) => {
 ` : ""}` +
           `${effectiveClientContact ? `☎️ Контакт клиента: ${effectiveClientContact}
 ` : ""}` +
+          `🌐 Язык: ${language === "en" ? "English" : "Русский"}
+` +
           `🕒 ${dtDaNang}`;
 
         const envReqGroup = process.env.REQUESTS_GROUP_CHAT_ID ? Number(process.env.REQUESTS_GROUP_CHAT_ID) : undefined;

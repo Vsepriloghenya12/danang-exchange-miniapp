@@ -31,6 +31,7 @@ type Me = {
 };
 
 type ScreenKey = "home" | "calc" | "afisha" | "atm" | "reviews" | "staff" | "pay" | "history" | "other" | "faq" | "about" | "contacts";
+type Lang = "ru" | "en";
 
 type LaunchTarget = {
   screen?: ScreenKey;
@@ -91,10 +92,10 @@ function IconChevron({ className = "" }: { className?: string }) {
   );
 }
 
-function ScreenHeader({ title, onBack }: { title: string; onBack: () => void }) {
+function ScreenHeader({ title, onBack, lang = "ru" }: { title: string; onBack: () => void; lang?: Lang }) {
   return (
     <div className="mx-header">
-      <button type="button" className="mx-backBtn" onClick={onBack} aria-label="Назад">
+      <button type="button" className="mx-backBtn" onClick={onBack} aria-label={lang === "en" ? "Back" : "Назад"}>
         <IconArrowLeft className="mx-i" />
       </button>
       <div className="mx-hTitle">{title}</div>
@@ -313,6 +314,28 @@ export default function App() {
   }, []);
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+
+
+  const [lang, setLang] = useState<Lang>(() => {
+    try {
+      const v = String(localStorage.getItem("mx_lang") || "").toLowerCase();
+      return v === "en" ? "en" : "ru";
+    } catch {
+      return "ru";
+    }
+  });
+
+  useEffect(() => {
+    try {
+      document.documentElement.setAttribute("lang", lang);
+      localStorage.setItem("mx_lang", lang);
+    } catch {
+      // ignore
+    }
+  }, [lang]);
+
+  const toggleLang = () => setLang((v) => (v === "ru" ? "en" : "ru"));
+  const isEn = lang === "en";
 
   // Allow Afisha screen to override the back button (e.g. return from list -> categories).
   const afishaBackRef = useRef<null | (() => boolean)>(null);
@@ -566,9 +589,16 @@ export default function App() {
 
   const showStatusInfo = () => {
     const st = normalizeStatus(me.status);
-    const title = `Ваш статус: ${statusTitle(st)}`;
-    const msg =
-      st === "gold"
+    const title = isEn
+      ? `Your status: ${st === "gold" ? "Gold" : st === "silver" ? "Silver" : "Standard"}`
+      : `Ваш статус: ${statusTitle(st)}`;
+    const msg = isEn
+      ? st === "gold"
+        ? "Your exchange rate is even better."
+        : st === "silver"
+          ? "You have an improved rate."
+          : "• Standard conditions\n• All app functions are available"
+      : st === "gold"
         ? "Курс стал ещё лучше."
         : st === "silver"
           ? "Повышенный курс."
@@ -578,7 +608,7 @@ export default function App() {
       tg.showPopup({
         title,
         message: msg,
-        buttons: [{ type: "close", text: "Ок" }],
+        buttons: [{ type: "close", text: isEn ? "OK" : "Ок" }],
       });
     } else if (tg?.showAlert) {
       tg.showAlert(`${title}
@@ -598,20 +628,31 @@ ${msg}`);
           <div className="mx-homeLayout">
             <div className="mx-homeLead">
               <div className="mx-topRow mx-topRowHome">
-                <button
-                  type="button"
-                  className="mx-themeBtn"
-                  onClick={toggleTheme}
-                  aria-label={theme === "dark" ? "Тёмная тема" : "Светлая тема"}
-                >
-                  {theme === "dark" ? <IconMoon className="mx-themeI" /> : <IconSun className="mx-themeI" />}
-                </button>
+                <div className="mx-topLeftStack">
+                  <button
+                    type="button"
+                    className="mx-langBtn"
+                    onClick={toggleLang}
+                    aria-label={isEn ? "Switch language" : "Переключить язык"}
+                    title={isEn ? "Switch language" : "Переключить язык"}
+                  >
+                    {isEn ? "EN" : "RU"}
+                  </button>
+                  <button
+                    type="button"
+                    className="mx-themeBtn"
+                    onClick={toggleTheme}
+                    aria-label={theme === "dark" ? (isEn ? "Dark theme" : "Тёмная тема") : (isEn ? "Light theme" : "Светлая тема")}
+                  >
+                    {theme === "dark" ? <IconMoon className="mx-themeI" /> : <IconSun className="mx-themeI" />}
+                  </button>
+                </div>
 
                 <div className="mx-topCenter">
                   <MainLogo theme={theme} />
                 </div>
 
-                <button type="button" className="mx-statusBtn" onClick={showStatusInfo} aria-label="Ваш статус">
+                <button type="button" className="mx-statusBtn" onClick={showStatusInfo} aria-label={isEn ? "Your status" : "Ваш статус"}>
                   <StatusIcon status={me.status} />
                 </button>
               </div>
@@ -619,21 +660,21 @@ ${msg}`);
               <div className="mx-card">
                 <div className="mx-cardHead">
                   <div>
-                    <div className="mx-cardTitle">Курс</div>
-                    <div className="mx-cardSub">{me.ok ? UI.title : me.error ?? "Авторизация…"}</div>
+                    <div className="mx-cardTitle">{isEn ? "Rates" : "Курс"}</div>
+                    <div className="mx-cardSub">{me.ok ? (isEn ? "Currency exchange — Da Nang" : UI.title) : me.error ?? (isEn ? "Authorizing…" : "Авторизация…")}</div>
                   </div>
                 </div>
 
                 <div className="mx-courseBody">
-                  <RatesTab embedded limit={courseExpanded ? undefined : 3} />
+                  <RatesTab embedded limit={courseExpanded ? undefined : 3} lang={lang} />
                 </div>
 
                 <div className="mx-btnRow">
                   <button type="button" className="mx-btn" onClick={() => setCourseExpanded((v) => !v)}>
-                    {courseExpanded ? "Свернуть" : "Все курсы"}
+                    {courseExpanded ? (isEn ? "Collapse" : "Свернуть") : (isEn ? "All rates" : "Все курсы")}
                   </button>
                   <button type="button" className="mx-btn mx-btnPrimary" onClick={() => goTo("calc", "home_calc_btn")}>
-                    Оставить заявку
+                    {isEn ? "Create request" : "Оставить заявку"}
                   </button>
                 </div>
               </div>
@@ -641,28 +682,28 @@ ${msg}`);
 
             <div className="mx-homeNavGrid">
               <NavCard
-                title="Афиша"
-                subtitle="События, спорт, вечеринки"
+                title={isEn ? "Events" : "Афиша"}
+                subtitle={isEn ? "Events, sports, parties" : "События, спорт, вечеринки"}
                 iconSrc="/brand/icons/tab-afisha-256.png?v=1"
                 onClick={() => goTo("afisha", "nav_afisha")}
               />
               <NavCard
-                title="Банкоматы"
-                subtitle="VIETCOMBANK и BIDV"
+                title={isEn ? "ATMs" : "Банкоматы"}
+                subtitle={isEn ? "VIETCOMBANK and BIDV" : "VIETCOMBANK и BIDV"}
                 iconSrc="/brand/icons/tab-atm-256.png?v=1"
                 onClick={() => goTo("atm", "nav_atm")}
               />
               <NavCard
-                title="Отзывы"
-                subtitle="Отзывы клиентов"
+                title={isEn ? "Reviews" : "Отзывы"}
+                subtitle={isEn ? "Customer reviews" : "Отзывы клиентов"}
                 iconSrc="/brand/icons/tab-reviews-256.png?v=1"
                 onClick={() => goTo("reviews", "nav_reviews")}
               />
 
               {me.isAdmin ? (
                 <NavCard
-                  title="Админ"
-                  subtitle="Заявки"
+                  title={isEn ? "Admin" : "Админ"}
+                  subtitle={isEn ? "Requests" : "Заявки"}
                   iconSrc="/brand/icons/tab-rates-256.png?v=1"
                   onClick={() => goTo("staff", "nav_staff")}
                 />
@@ -674,8 +715,8 @@ ${msg}`);
         {visited.calc ? (
           <ScreenPane active={screen === "calc"}>
             <>
-              <ScreenHeader title="Оставить заявку" onBack={goHome} />
-              <CalculatorTab me={me} />
+              <ScreenHeader title={isEn ? "Create request" : "Оставить заявку"} onBack={goHome} lang={lang} />
+              <CalculatorTab me={me} lang={lang} />
             </>
           </ScreenPane>
         ) : null}
@@ -683,8 +724,8 @@ ${msg}`);
         {visited.pay ? (
           <ScreenPane active={screen === "pay"}>
             <>
-              <ScreenHeader title="Оплаты и бронирование" onBack={goHome} />
-              <PaymentsTab />
+              <ScreenHeader title={isEn ? "Payments and booking" : "Оплаты и бронирование"} onBack={goHome} lang={lang} />
+              <PaymentsTab lang={lang} />
             </>
           </ScreenPane>
         ) : null}
@@ -693,13 +734,15 @@ ${msg}`);
           <ScreenPane active={screen === "afisha"}>
             <>
               <ScreenHeader
-                title="Афиша"
+                title={isEn ? "Events" : "Афиша"}
+                lang={lang}
                 onBack={() => {
                   const handled = afishaBackRef.current?.() ?? false;
                   if (!handled) goHome();
                 }}
               />
               <AfishaTab
+                lang={lang}
                 registerBack={(fn) => (afishaBackRef.current = fn)}
                 focusEventId={launchAfishaEventId}
                 onFocusHandled={(id) => setLaunchAfishaEventId((prev) => (prev === id ? "" : prev))}
@@ -711,8 +754,8 @@ ${msg}`);
         {visited.atm ? (
           <ScreenPane active={screen === "atm"}>
             <>
-              <ScreenHeader title="Банкоматы" onBack={goHome} />
-              <AtmTab isActive={screen === "atm"} />
+              <ScreenHeader title={isEn ? "ATMs" : "Банкоматы"} onBack={goHome} lang={lang} />
+              <AtmTab isActive={screen === "atm"} lang={lang} />
             </>
           </ScreenPane>
         ) : null}
@@ -720,8 +763,8 @@ ${msg}`);
         {visited.reviews ? (
           <ScreenPane active={screen === "reviews"}>
             <>
-              <ScreenHeader title="Отзывы" onBack={goHome} />
-              <ReviewsTab />
+              <ScreenHeader title={isEn ? "Reviews" : "Отзывы"} onBack={goHome} lang={lang} />
+              <ReviewsTab lang={lang} />
             </>
           </ScreenPane>
         ) : null}
@@ -729,7 +772,7 @@ ${msg}`);
         {visited.staff ? (
           <ScreenPane active={screen === "staff"}>
             <>
-              <ScreenHeader title="Админ" onBack={goHome} />
+              <ScreenHeader title={isEn ? "Admin" : "Админ"} onBack={goHome} lang={lang} />
               <StaffTab me={me} />
             </>
           </ScreenPane>
@@ -738,8 +781,8 @@ ${msg}`);
         {visited.history ? (
           <ScreenPane active={screen === "history"}>
             <>
-              <ScreenHeader title="Моя история" onBack={goHome} />
-              <HistoryTab me={me} />
+              <ScreenHeader title={isEn ? "My history" : "Моя история"} onBack={goHome} lang={lang} />
+              <HistoryTab me={me} lang={lang} />
             </>
           </ScreenPane>
         ) : null}
@@ -747,8 +790,9 @@ ${msg}`);
         {visited.other ? (
           <ScreenPane active={screen === "other"}>
             <>
-              <ScreenHeader title="Прочее" onBack={goHome} />
+              <ScreenHeader title={isEn ? "More" : "Прочее"} onBack={goHome} lang={lang} />
               <OtherTab
+                lang={lang}
                 onFaq={() => goTo("faq", "other_faq")}
                 onAbout={() => goTo("about", "other_about")}
                 onContacts={() => goTo("contacts", "other_contacts")}
@@ -761,8 +805,8 @@ ${msg}`);
         {visited.faq ? (
           <ScreenPane active={screen === "faq"}>
             <>
-              <ScreenHeader title="FAQ" onBack={() => goTo("other", "faq_back")} />
-              <FaqTab />
+              <ScreenHeader title="FAQ" onBack={() => goTo("other", "faq_back")} lang={lang} />
+              <FaqTab lang={lang} />
             </>
           </ScreenPane>
         ) : null}
@@ -770,8 +814,8 @@ ${msg}`);
         {visited.contacts ? (
           <ScreenPane active={screen === "contacts"}>
             <>
-              <ScreenHeader title="Контакты" onBack={() => goTo("other", "contacts_back")} />
-              <ContactsTab />
+              <ScreenHeader title={isEn ? "Contacts" : "Контакты"} onBack={() => goTo("other", "contacts_back")} lang={lang} />
+              <ContactsTab lang={lang} />
             </>
           </ScreenPane>
         ) : null}
@@ -779,34 +823,34 @@ ${msg}`);
         {visited.about ? (
           <ScreenPane active={screen === "about"}>
             <>
-              <ScreenHeader title="О приложении" onBack={() => goTo("other", "about_back")} />
-              <AboutTab />
+              <ScreenHeader title={isEn ? "About app" : "О приложении"} onBack={() => goTo("other", "about_back")} lang={lang} />
+              <AboutTab lang={lang} />
             </>
           </ScreenPane>
         ) : null}
       </div>
 
-      <div className="mx-bottomNav" role="navigation" aria-label="Нижнее меню">
+      <div className="mx-bottomNav" role="navigation" aria-label={isEn ? "Bottom menu" : "Нижнее меню"}>
         <button
           type="button"
           className={"mx-bottomBtn " + (screen === "pay" ? "is-on" : "")}
           onClick={() => goTo("pay", "bottom_pay")}
         >
-          Оплаты и бронирование
+          {isEn ? "Payments and booking" : "Оплаты и бронирование"}
         </button>
         <button
           type="button"
           className={"mx-bottomBtn " + (screen === "history" ? "is-on" : "")}
           onClick={() => goTo("history", "bottom_history")}
         >
-          Моя история
+          {isEn ? "My history" : "Моя история"}
         </button>
         <button
           type="button"
           className={"mx-bottomBtn " + (screen === "other" ? "is-on" : "")}
           onClick={() => goTo("other", "bottom_other")}
         >
-          Прочее
+          {isEn ? "More" : "Прочее"}
         </button>
       </div>
     </div>

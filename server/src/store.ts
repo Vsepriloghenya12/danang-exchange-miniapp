@@ -141,6 +141,7 @@ export type Contact = {
   banks?: string[];
   status?: UserStatus;
   clientContact?: string;
+  language?: "ru" | "en";
   created_at: string;
   updated_at: string;
 };
@@ -208,6 +209,7 @@ export type StoredRequest = {
   receiveMethod: string;
   comment?: string;
   clientContact?: string;
+  language?: "ru" | "en";
   from: { id: number; username?: string; first_name?: string; last_name?: string };
   // статус клиента (standard/silver/gold) на момент заявки
   status: UserStatus;
@@ -753,6 +755,7 @@ export function upsertContactRecord(
     banks?: string[];
     status?: UserStatus;
     clientContact?: string;
+  language?: "ru" | "en";
     now?: string;
   }
 ): Contact {

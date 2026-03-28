@@ -2,27 +2,45 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { apiAfishaClick, apiGetAfisha } from "../lib/api";
 import type { AfishaCategory, AfishaEvent } from "../lib/types";
 
+type Lang = "ru" | "en";
+
 function getTg() {
   return (window as any).Telegram?.WebApp;
 }
 
 function openLink(url: string) {
   const tg = getTg();
+  const isEn = lang === "en";
+  const CATS = CAT_LABELS[lang];
+  const DATE_PRESETS = DATE_PRESET_LABELS[lang];
   if (tg?.openLink) tg.openLink(url);
   else window.open(url, "_blank", "noopener,noreferrer");
 }
 
-const CATS: Array<{ key: AfishaCategory; label: string }> = [
-  { key: "sport", label: "Спорт" },
-  { key: "party", label: "Вечеринки" },
-  { key: "culture", label: "Культура и искусство" },
-  { key: "games", label: "Игры" },
-  { key: "market", label: "Ярмарки" },
-  { key: "food", label: "Еда" },
-  { key: "music", label: "Музыка" },
-  { key: "learning", label: "Обучение" },
-  { key: "misc", label: "Разное" },
-];
+const CAT_LABELS: Record<Lang, Array<{ key: AfishaCategory; label: string }>> = {
+  ru: [
+    { key: "sport", label: "Спорт" },
+    { key: "party", label: "Вечеринки" },
+    { key: "culture", label: "Культура и искусство" },
+    { key: "games", label: "Игры" },
+    { key: "market", label: "Ярмарки" },
+    { key: "food", label: "Еда" },
+    { key: "music", label: "Музыка" },
+    { key: "learning", label: "Обучение" },
+    { key: "misc", label: "Разное" },
+  ],
+  en: [
+    { key: "sport", label: "Sport" },
+    { key: "party", label: "Parties" },
+    { key: "culture", label: "Culture & art" },
+    { key: "games", label: "Games" },
+    { key: "market", label: "Markets" },
+    { key: "food", label: "Food" },
+    { key: "music", label: "Music" },
+    { key: "learning", label: "Learning" },
+    { key: "misc", label: "Other" },
+  ],
+};
 
 function iso(d: Date) {
   const yyyy = d.getFullYear();
@@ -67,22 +85,34 @@ type DatePreset =
   | "thisMonth"
   | "custom";
 
-const DATE_PRESETS: Array<{ key: DatePreset; label: string }> = [
-  { key: "any", label: "Любая дата" },
-  { key: "today", label: "Сегодня" },
-  { key: "tomorrow", label: "Завтра" },
-  { key: "weekend", label: "На этих выходных" },
-  { key: "thisWeek", label: "На этой неделе" },
-  { key: "nextWeek", label: "На следующей неделе" },
-  { key: "thisMonth", label: "В этом месяце" },
-  { key: "custom", label: "Пользовательские настройки временного периода" },
-];
+const DATE_PRESET_LABELS: Record<Lang, Array<{ key: DatePreset; label: string }>> = {
+  ru: [
+    { key: "any", label: "Любая дата" },
+    { key: "today", label: "Сегодня" },
+    { key: "tomorrow", label: "Завтра" },
+    { key: "weekend", label: "На этих выходных" },
+    { key: "thisWeek", label: "На этой неделе" },
+    { key: "nextWeek", label: "На следующей неделе" },
+    { key: "thisMonth", label: "В этом месяце" },
+    { key: "custom", label: "Пользовательский период" },
+  ],
+  en: [
+    { key: "any", label: "Any date" },
+    { key: "today", label: "Today" },
+    { key: "tomorrow", label: "Tomorrow" },
+    { key: "weekend", label: "This weekend" },
+    { key: "thisWeek", label: "This week" },
+    { key: "nextWeek", label: "Next week" },
+    { key: "thisMonth", label: "This month" },
+    { key: "custom", label: "Custom period" },
+  ],
+};
 
-function fmtDate(isoStr: string) {
+function fmtDate(isoStr: string, lang: Lang = "ru") {
   try {
     const d = new Date(isoStr);
     if (!Number.isFinite(d.getTime())) return isoStr;
-    return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return d.toLocaleDateString(lang === "en" ? "en-GB" : "ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
   } catch {
     return isoStr;
   }
@@ -176,6 +206,9 @@ function buildBrowserShareUrl(ev: AfishaEvent) {
 
 export default function AfishaTab({ registerBack, focusEventId, onFocusHandled }: { registerBack?: (fn: () => boolean) => void; focusEventId?: string; onFocusHandled?: (id: string) => void }) {
   const tg = getTg();
+  const isEn = lang === "en";
+  const CATS = CAT_LABELS[lang];
+  const DATE_PRESETS = DATE_PRESET_LABELS[lang];
   const initData = tg?.initData || "";
 
   // Selected categories for filtering (multi-select). Empty array = show all categories.
@@ -449,14 +482,14 @@ export default function AfishaTab({ registerBack, focusEventId, onFocusHandled }
   const appliedLabel = useMemo(() => filterLabel(datePreset, from, to), [datePreset, from, to]);
 
   const catsLabel = useMemo(() => {
-    if (!cats || cats.length === 0) return "Все";
-    if (cats.length === 1) return CATS.find((x) => x.key === cats[0])?.label || "Категория";
+    if (!cats || cats.length === 0) return isEn ? "All" : "Все";
+    if (cats.length === 1) return CATS.find((x) => x.key === cats[0])?.label || (isEn ? "Category" : "Категория");
     const names = cats
       .slice(0, 2)
       .map((k) => CATS.find((x) => x.key === k)?.label)
       .filter(Boolean);
-    return names.length ? `${names.join(", ")}${cats.length > 2 ? ` +${cats.length - 2}` : ""}` : `Категории: ${cats.length}`;
-  }, [cats]);
+    return names.length ? `${names.join(", ")}${cats.length > 2 ? ` +${cats.length - 2}` : ""}` : `${isEn ? "Categories" : "Категории"}: ${cats.length}`;
+  }, [cats, CATS, isEn]);
 
   // Always show the list of events. Filters (date/categories) just narrow it down.
   const params = useMemo(() => {
@@ -527,7 +560,7 @@ export default function AfishaTab({ registerBack, focusEventId, onFocusHandled }
         if (!alive) return;
         if (!r?.ok) {
           setEvents([]);
-          setErr(String((r as any)?.error || "Ошибка"));
+          setErr(String((r as any)?.error || (isEn ? "Error" : "Ошибка")));
         } else {
           const arr = Array.isArray((r as any)?.events) ? ((r as any).events as AfishaEvent[]) : [];
           setEvents(arr);
@@ -535,7 +568,7 @@ export default function AfishaTab({ registerBack, focusEventId, onFocusHandled }
       } catch {
         if (!alive) return;
         setEvents([]);
-        setErr("Ошибка загрузки");
+        setErr(isEn ? "Loading error" : "Ошибка загрузки");
       } finally {
         if (alive) setLoading(false);
       }
@@ -543,7 +576,7 @@ export default function AfishaTab({ registerBack, focusEventId, onFocusHandled }
     return () => {
       alive = false;
     };
-  }, [params]);
+  }, [params, isEn]);
 
   async function onClick(ev: AfishaEvent, kind: "details" | "location") {
     try {
@@ -555,11 +588,14 @@ export default function AfishaTab({ registerBack, focusEventId, onFocusHandled }
   function onShare(ev: AfishaEvent) {
     const targetUrl = String(ev.shareUrl || "").trim() || buildBrowserShareUrl(ev);
     const shareText = `${ev.title}
-${fmtDate(ev.date)}`;
+${fmtDate(ev.date, lang)}`;
     const shareTextWithLink = `${shareText}
 ${targetUrl}`;
     const tgShareUrl = `https://t.me/share/url?url=${encodeURIComponent(targetUrl)}&text=${encodeURIComponent(shareText)}`;
     const tg = getTg();
+  const isEn = lang === "en";
+  const CATS = CAT_LABELS[lang];
+  const DATE_PRESETS = DATE_PRESET_LABELS[lang];
     if (tg?.openTelegramLink) {
       tg.openTelegramLink(tgShareUrl);
       return;
@@ -577,7 +613,7 @@ ${targetUrl}`;
       <div className="mx-filterRow">
         <button type="button" className="mx-filterBtn" onClick={() => setSheet("date")}>
           <div className="mx-filterBtnLeft">
-            <div className="mx-filterBtnHint">Дата</div>
+            <div className="mx-filterBtnHint">{isEn ? "Date" : "Дата"}</div>
             <div className="mx-filterBtnVal">{appliedLabel}</div>
           </div>
           <div className="mx-filterBtnChev">▾</div>
@@ -585,7 +621,7 @@ ${targetUrl}`;
 
         <button type="button" className="mx-filterBtn" onClick={() => setSheet("cats")}>
           <div className="mx-filterBtnLeft">
-            <div className="mx-filterBtnHint">Категории</div>
+            <div className="mx-filterBtnHint">{isEn ? "Categories" : "Категории"}</div>
             <div className="mx-filterBtnVal">{catsLabel}</div>
           </div>
           <div className="mx-filterBtnChev">▾</div>
@@ -593,9 +629,9 @@ ${targetUrl}`;
       </div>
 
       {/* Events list (always visible). Filters narrow it down. */}
-      {loading ? <div className="mx-muted">Загрузка…</div> : null}
+      {loading ? <div className="mx-muted">{isEn ? "Loading…" : "Загрузка…"}</div> : null}
       {!loading && err ? <div className="mx-muted">{err}</div> : null}
-      {!loading && !err && filteredEvents.length === 0 ? <div className="mx-muted">Пока нет мероприятий.</div> : null}
+      {!loading && !err && filteredEvents.length === 0 ? <div className="mx-muted">{isEn ? "No events yet." : "Пока нет мероприятий."}</div> : null}
 
       <div className="mx-list">
         {groupedEvents.map((group) => (
@@ -615,16 +651,16 @@ ${targetUrl}`;
                   <div className="mx-afEvBody">
                     <div className="mx-afTitle">{ev.title}</div>
                     {ev.comment ? <div className="mx-afComment">{ev.comment}</div> : null}
-                    <div className="mx-afMeta">{timeLabel ? `${fmtDate(ev.date)} • ${timeLabel}` : fmtDate(ev.date)}</div>
+                    <div className="mx-afMeta">{timeLabel ? `${fmtDate(ev.date, lang)} • ${timeLabel}` : fmtDate(ev.date, lang)}</div>
 
                     <div className="mx-btnRow mx-afBtnRow" style={{ marginTop: 10 }}>
                       <button type="button" className="mx-btn mx-afLinkBtn mx-afActionBtn" onClick={() => onClick(ev, "details")} style={{ opacity: 0.8 }}>
-                        Подробнее
+                        {isEn ? "Details" : "Подробнее"}
                       </button>
                       <button type="button" className="mx-btn mx-btnPrimary mx-afLinkBtn mx-afActionBtn" onClick={() => onClick(ev, "location")} style={{ opacity: 0.8 }}>
-                        Локация
+                        {isEn ? "Location" : "Локация"}
                       </button>
-                      <button type="button" className="mx-btn mx-afShareBtn" onClick={() => onShare(ev)} aria-label="Поделиться мероприятием">
+                      <button type="button" className="mx-btn mx-afShareBtn" onClick={() => onShare(ev)} aria-label={isEn ? "Share event" : "Поделиться мероприятием"}>
                         <IconShare className="mx-i" />
                       </button>
                     </div>
@@ -661,7 +697,7 @@ ${targetUrl}`;
 
             {sheet === "date" ? (
               <>
-                <div className="mx-sheetTitle">Выберите период</div>
+                <div className="mx-sheetTitle">{isEn ? "Select period" : "Выберите период"}</div>
                 <div ref={listRef} className="mx-sheetList">
                   {DATE_PRESETS.map((p) => (
                     <button
@@ -679,11 +715,11 @@ ${targetUrl}`;
                 {draftPreset === "custom" ? (
                   <div className="mx-sheetCustom">
                     <div className="mx-customRow">
-                      <div className="mx-customLbl">С</div>
+                      <div className="mx-customLbl">{isEn ? "From" : "С"}</div>
                       <input className="mx-dateInput" type="date" value={draftFrom} onChange={(e) => setDraftFrom(e.target.value)} />
                     </div>
                     <div className="mx-customRow">
-                      <div className="mx-customLbl">По</div>
+                      <div className="mx-customLbl">{isEn ? "To" : "По"}</div>
                       <input className="mx-dateInput" type="date" value={draftTo} onChange={(e) => setDraftTo(e.target.value)} />
                     </div>
                   </div>
@@ -707,13 +743,13 @@ ${targetUrl}`;
                       setSheet(null);
                     }}
                   >
-                    Показать результаты
+                    {isEn ? "Show results" : "Показать результаты"}
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <div className="mx-sheetTitle">Категории</div>
+                <div className="mx-sheetTitle">{isEn ? "Categories" : "Категории"}</div>
                 <div ref={listRef} className="mx-sheetList mx-sheetList--cats">
                   <div className="mx-afCats mx-afCats--sheet">
                     <button
@@ -722,7 +758,7 @@ ${targetUrl}`;
                       onClick={() => setCats([])}
                     >
                       <div>
-                        <div className="mx-afCatLabel">Все категории</div>
+                        <div className="mx-afCatLabel">{isEn ? "All categories" : "Все категории"}</div>
                       </div>
                     </button>
 
@@ -750,7 +786,7 @@ ${targetUrl}`;
                 </div>
                 <div className="mx-sheetFooter">
                   <button type="button" className="mx-sheetBtn" onClick={() => setSheet(null)}>
-                    Готово
+                    {isEn ? "Done" : "Готово"}
                   </button>
                 </div>
               </>

@@ -12,8 +12,10 @@ type RateEntry = { buy_vnd: number; sell_vnd: number };
 type Rates = Partial<Record<RateKey, RateEntry>>;
 
 type ClientStatus = "standard" | "silver" | "gold";
+type Lang = "ru" | "en";
 
 type Props = {
+  lang?: Lang;
   me: {
     ok: boolean;
     initData: string;
@@ -571,8 +573,13 @@ function minSellAmountLabel(cur: Currency): string {
   return `${fmtAmount(cur, value)} ${cur}`;
 }
 
-export default function CalculatorTab({ me }: Props) {
+export default function CalculatorTab({ me, lang = "ru" }: Props) {
   const tg = getTg();
+  const isEn = lang === "en";
+  const uiMethodLabel = (m: ReceiveMethod | PayMethod) => isEn ? (m === "cash" ? "Cash" : m === "transfer" ? "Transfer" : "ATM") : methodLabel(m);
+  const uiStatusLabel = (s: ClientStatus) => isEn ? (s === "gold" ? "Gold" : s === "silver" ? "Silver" : "Standard") : statusLabel(s);
+  const uiAmountPlaceholder = (prefix: string, cur: Currency, same = false) => { const min = same && cur === "VND" ? null : minSellAmountLabel(cur); return min ? `${prefix} (${isEn ? "min." : "мин."} ${min})` : prefix; };
+  const uiCommentPlaceholder = (rm: ReceiveMethod) => isEn ? (rm === "cash" ? "enter the address" : rm === "transfer" ? "enter transfer details" : "") : requestCommentPlaceholder(rm);
 
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState<Rates | null>(null);
@@ -999,29 +1006,40 @@ export default function CalculatorTab({ me }: Props) {
 
   const usdNote =
     sellCurrency === "USD" || buyCurrency === "USD"
-      ? "USD: вы можете передать и получить только наличные доллары номиналом 100$ нового образца, без надписей и дефектов."
+      ? (isEn ? "USD: only new-series $100 cash notes without marks or defects are accepted and paid out." : "USD: вы можете передать и получить только наличные доллары номиналом 100$ нового образца, без надписей и дефектов.")
       : null;
 
   const eurNote =
     sellCurrency === "EUR" || buyCurrency === "EUR"
-      ? "EUR: вы можете передать и получить только наличные купюры по 50€ нового образца, без надписей и дефектов."
+      ? (isEn ? "EUR: only new-series €50 cash notes without marks or defects are accepted and paid out." : "EUR: вы можете передать и получить только наличные купюры по 50€ нового образца, без надписей и дефектов.")
       : null;
 
   const vndNote =
     isVndToVnd
-      ? "VND → VND: доступна выдача и получение всеми способами. Комиссия 2%, но не меньше 100,000 VND."
+      ? (isEn ? "VND → VND: all methods are available. Fee is 2%, but at least 100,000 VND." : "VND → VND: доступна выдача и получение всеми способами. Комиссия 2%, но не меньше 100,000 VND.")
       : null;
 
   const thbNote =
     sellCurrency === "THB" || buyCurrency === "THB"
-      ? "THB: передать и получить баты можно только наличными, кратно 100 бат."
+      ? (isEn ? "THB: cash only, in multiples of 100 baht." : "THB: передать и получить баты можно только наличными, кратно 100 бат.")
       : null;
 
   const minSellNote = invalidMinSell
-    ? `Минимальная сумма ${sellCurrency} для обмена — ${minSellAmountLabel(sellCurrency)}.`
+    ? (isEn ? `Minimum ${sellCurrency} amount for exchange is ${minSellAmountLabel(sellCurrency)}.` : `Минимальная сумма ${sellCurrency} для обмена — ${minSellAmountLabel(sellCurrency)}.`)
     : null;
 
-  const conditionsItems = useMemo(() => ([
+  const conditionsItems = useMemo(() => (isEn ? [
+    "Service hours: daily from 10:00 to 22:00. After 20:00 only remote exchange is available.",
+    "Minimum RUB amount — 10,000 ₽.",
+    "Minimum USD / EUR / USDT amount — 200.",
+    "Minimum THB amount — 10,000 baht.",
+    "Minimum VND amount — 6,500,000 VND.",
+    "Cash delivery is available from 20,000₽ / 100$ / 100 USDT.",
+    "USD: only new-series $100 cash notes without defects are accepted and paid out.",
+    "EUR: only new-series €50 cash notes without defects are accepted and paid out.",
+    "THB: cash only, in multiples of 100 baht.",
+    "VND → VND: fee is 2%, but at least 100,000 VND. Cash, transfer, and ATM are available.",
+  ] : [
     "Время работы сервиса: ежедневно с 10:00 до 22:00. После 20:00 возможен только дистанционный обмен.",
     "Минимальная сумма RUB для обмена — 10,000 ₽.",
     "Минимальная сумма USD / EUR / USDT для обмена — 200.",
@@ -1032,7 +1050,7 @@ export default function CalculatorTab({ me }: Props) {
     "EUR: принимаются и выдаются только наличные купюры 50€ нового образца, без дефектов.",
     "THB: передача и получение только наличными, кратно 100 бат.",
     "VND → VND: комиссия 2%, но не меньше 100,000 VND. Доступны наличные, перевод и банкомат.",
-  ]), []);
+  ]), [isEn]);
 
   function swapCurrencies() {
     const nextSellCurrency = buyCurrency;
@@ -1075,15 +1093,15 @@ export default function CalculatorTab({ me }: Props) {
 
   function buildRequestCopyText(requestId: string) {
     const lines = [
-      `Заявка #${requestId}`,
-      `Обмен: ${sellCurrency} → ${buyCurrency}`,
-      `Отдаю: ${fmtAmount(sellCurrency, sellAmount || 0)}`,
-      `Получаю: ${fmtAmount(buyCurrency, buyAmount || 0)}`,
-      `Оплата: ${methodLabel(payMethod)}`,
-      `Получение: ${methodLabel(receiveMethod)}`,
+      `${isEn ? "Request" : "Заявка"} #${requestId}`,
+      `${isEn ? "Exchange" : "Обмен"}: ${sellCurrency} → ${buyCurrency}`,
+      `${isEn ? "You give" : "Отдаю"}: ${fmtAmount(sellCurrency, sellAmount || 0)}`,
+      `${isEn ? "You get" : "Получаю"}: ${fmtAmount(buyCurrency, buyAmount || 0)}`,
+      `${isEn ? "Payment" : "Оплата"}: ${uiMethodLabel(payMethod)}`,
+      `${isEn ? "Receive" : "Получение"}: ${uiMethodLabel(receiveMethod)}`,
     ];
     const comment = String(requestComment || "").trim();
-    if (comment) lines.push(`Комментарий: ${comment}`);
+    if (comment) lines.push(`${isEn ? "Comment" : "Комментарий"}: ${comment}`);
     return lines.join("\n");
   }
 
@@ -1091,17 +1109,17 @@ export default function CalculatorTab({ me }: Props) {
     const ok = await copyPlainText(readyText || buildRequestCopyText(requestId));
     if (ok) {
       tg?.HapticFeedback?.notificationOccurred?.("success");
-      setBanner({ type: "ok", text: "Информация о заявке скопирована." });
+      setBanner({ type: "ok", text: isEn ? "Request data copied." : "Информация о заявке скопирована." });
       return;
     }
     tg?.HapticFeedback?.notificationOccurred?.("error");
-    tg?.showAlert?.("Не удалось скопировать заявку.");
+    tg?.showAlert?.(isEn ? "Failed to copy request data." : "Не удалось скопировать заявку.");
   }
 
   async function createRequest() {
     const initData = tg?.initData || me?.initData || "";
     if (!initData) {
-      tg?.showAlert?.("Нет initData. Открой мини-приложение через Telegram (/start).");
+      tg?.showAlert?.(isEn ? "No initData. Open the mini app from Telegram (/start)." : "Нет initData. Открой мини-приложение через Telegram (/start).");
       return null;
     }
 
@@ -1113,6 +1131,7 @@ export default function CalculatorTab({ me }: Props) {
       payMethod,
       receiveMethod,
       comment: requestComment.trim(),
+      language: lang,
     };
 
     try {
@@ -1158,7 +1177,7 @@ export default function CalculatorTab({ me }: Props) {
     } else {
       setBanner({
         type: "ok",
-        text: "Ваша заявка принята в работу, в ближайшее время с вами свяжется менеджер 🙌",
+        text: isEn ? "Your request has been accepted. A manager will contact you soon 🙌" : "Ваша заявка принята в работу, в ближайшее время с вами свяжется менеджер 🙌",
       });
     }
 
@@ -1176,11 +1195,11 @@ export default function CalculatorTab({ me }: Props) {
 
   const requestDoneModal = requestSuccessModal && typeof document !== "undefined"
     ? createPortal(
-        <div className="vx-modalOverlay vx-contactModalOverlay" role="dialog" aria-modal="true" aria-label="Заявка принята">
+        <div className="vx-modalOverlay vx-contactModalOverlay" role="dialog" aria-modal="true" aria-label={isEn ? "Request accepted" : "Заявка принята"}>
           <div className="vx-modalCard vx-contactModalCard vx-requestDoneCard" onClick={(e) => e.stopPropagation()}>
             <div className="vx-requestDoneHero" aria-hidden="true">✓</div>
             <div className="vx-requestDoneText">
-              Так как у вас отсутствует юзернейм, пожалуйста скопируйте данные заявки и свяжитесь с менеджером
+              {isEn ? "Since you do not have a username, please copy the request details and contact the manager." : "Так как у вас отсутствует юзернейм, пожалуйста скопируйте данные заявки и свяжитесь с менеджером"}
             </div>
             <div className="vx-requestIdBar">
               <span className="vx-requestIdValue">#{shortRequestId(requestSuccessModal.requestId)}</span>
@@ -1188,8 +1207,8 @@ export default function CalculatorTab({ me }: Props) {
                 type="button"
                 className="vx-copyIconBtn"
                 onClick={() => copyRequestInfo(requestSuccessModal.requestId, requestSuccessModal.copyText)}
-                aria-label="Скопировать информацию о заявке"
-                title="Скопировать данные заявки"
+                aria-label={isEn ? "Copy request data" : "Скопировать информацию о заявке"}
+                title={isEn ? "Copy request data" : "Скопировать данные заявки"}
               >
                 <CopyIcon className="vx-copyIcon" />
               </button>
@@ -1202,7 +1221,7 @@ export default function CalculatorTab({ me }: Props) {
                 setRequestSuccessModal(null);
               }}
             >
-              Связаться с менеджером
+              {isEn ? "Contact manager" : "Связаться с менеджером"}
             </button>
           </div>
         </div>,
@@ -1213,16 +1232,16 @@ export default function CalculatorTab({ me }: Props) {
   return (
     <div className="vx-calc">
       <div className="vx-calcTitle" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <div className="vx-muted">Статус: {statusLabel(clientStatus)}</div>
-        <button type="button" className="vx-conditionsBtn" title="Условия обмена" onClick={() => setShowConditions(true)}>i</button>
+        <div className="vx-muted">{isEn ? "Status" : "Статус"}: {uiStatusLabel(clientStatus)}</div>
+        <button type="button" className="vx-conditionsBtn" title={isEn ? "Exchange conditions" : "Условия обмена"} onClick={() => setShowConditions(true)}>i</button>
       </div>
 
       {showConditions ? (
         <div className="vx-modalOverlay" onClick={() => setShowConditions(false)}>
           <div className="vx-modalCard" onClick={(e) => e.stopPropagation()}>
             <div className="row vx-between vx-center">
-              <div className="vx-modalTitle">Условия обмена</div>
-              <button type="button" className="btn vx-btnSm" onClick={() => setShowConditions(false)}>Закрыть</button>
+              <div className="vx-modalTitle">{isEn ? "Exchange conditions" : "Условия обмена"}</div>
+              <button type="button" className="btn vx-btnSm" onClick={() => setShowConditions(false)}>{isEn ? "Close" : "Закрыть"}</button>
             </div>
             <div className="vx-conditionsList">
               {conditionsItems.map((item) => (
@@ -1239,26 +1258,26 @@ export default function CalculatorTab({ me }: Props) {
         <div className={banner.type === "err" ? "vx-toast vx-toastErr" : "vx-toast vx-toastOk"}>{banner.text}</div>
       ) : null}
 
-      {loading && <div className="vx-help">Загрузка курсов…</div>}
-      {!loading && (!rates || (!market && gMode)) && <div className="vx-help">Курсы не загружены.</div>}
+      {loading && <div className="vx-help">{isEn ? "Loading rates…" : "Загрузка курсов…"}</div>}
+      {!loading && (!rates || (!market && gMode)) && <div className="vx-help">{isEn ? "Rates are not loaded." : "Курсы не загружены."}</div>}
 
       <div className="vx-note" style={{ marginBottom: 10 }}>
-        <b>Время работы сервиса:</b> ежедневно с 10:00 до 22:00. С 20:00 до 22:00 возможен только дистанционный обмен.
+        <b>{isEn ? "Service hours" : "Время работы сервиса"}:</b> {isEn ? "daily from 10:00 to 22:00. From 20:00 to 22:00 only remote exchange is available." : "ежедневно с 10:00 до 22:00. С 20:00 до 22:00 возможен только дистанционный обмен."}
       </div>
 
       {managerOffline ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
-          Спасибо за обращение. Сейчас в Дананге {danangTime.label}. Оставить заявку Вы можете в рабочее время.
+          {isEn ? `Thank you for contacting us. It is now ${danangTime.label} in Da Nang. You can create a request during working hours.` : `Спасибо за обращение. Сейчас в Дананге ${danangTime.label}. Оставить заявку Вы можете в рабочее время.`}
         </div>
       ) : deliveryClosed ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
-          После 20:00 по Данангу доставка уже не работает. Сейчас в Дананге {danangTime.label}. Доступен только дистанционный обмен.
+          {isEn ? `After 20:00 in Da Nang, cash delivery is unavailable. It is now ${danangTime.label} in Da Nang. Only remote exchange is available.` : `После 20:00 по Данангу доставка уже не работает. Сейчас в Дананге ${danangTime.label}. Доступен только дистанционный обмен.`}
         </div>
       ) : null}
 
       {receiveMethodUnavailableByHours ? (
         <div className="vx-warn" style={{ marginBottom: 10 }}>
-          После 20:00 доступны только способы получения «Перевод» или «Банкомат». Для выбранной валюты выдача сейчас недоступна.
+          {isEn ? "After 20:00 only Transfer or ATM receive methods are available. Payout for the selected currency is currently unavailable." : "После 20:00 доступны только способы получения «Перевод» или «Банкомат». Для выбранной валюты выдача сейчас недоступна."}
         </div>
       ) : null}
 
@@ -1279,7 +1298,7 @@ export default function CalculatorTab({ me }: Props) {
 
               <input
                 inputMode={sellCurrency === "USDT" ? "decimal" : "numeric"}
-                placeholder={amountPlaceholder("Отдаю", sellCurrency, isVndToVnd)}
+                placeholder={uiAmountPlaceholder(isEn ? "You give" : "Отдаю", sellCurrency, isVndToVnd)}
                 value={sellText}
                 className={invalidUsdSell || invalidEurSell || invalidThbSell || invalidVndSellCash || invalidMinSell ? "vx-inputInvalid" : ""}
                 onChange={(e) => {
@@ -1291,7 +1310,7 @@ export default function CalculatorTab({ me }: Props) {
                 }}
               />
 
-              <button type="button" onClick={swapCurrencies} className="vx-iconBtn" title="Поменять местами">
+              <button type="button" onClick={swapCurrencies} className="vx-iconBtn" title={isEn ? "Swap" : "Поменять местами"}>
                 ⇄
               </button>
             </div>
@@ -1312,7 +1331,7 @@ export default function CalculatorTab({ me }: Props) {
 
               <input
                 inputMode={buyCurrency === "USDT" ? "decimal" : "numeric"}
-                placeholder={amountPlaceholder("Получаю", buyCurrency, isVndToVnd)}
+                placeholder={uiAmountPlaceholder(isEn ? "You get" : "Получаю", buyCurrency, isVndToVnd)}
                 value={buyText}
                 className={invalidUsdBuy || invalidEurBuy || invalidThbBuy || invalidVndBuyCash || invalidVndBuyAtm ? "vx-inputInvalid" : ""}
                 onChange={(e) => {
@@ -1329,7 +1348,7 @@ export default function CalculatorTab({ me }: Props) {
           </div>
 
           <div className="vx-calcSide">
-            <div className="vx-sectionTitle">Оплата</div>
+            <div className="vx-sectionTitle">{isEn ? "Payment" : "Оплата"}</div>
             <div className="vx-methods">
               {ALL_PAY.map((m) => {
                 const disabled = !allowedPay.includes(m);
@@ -1350,13 +1369,13 @@ export default function CalculatorTab({ me }: Props) {
                     role="button"
                     aria-disabled={disabled}
                   >
-                    {methodLabel(m)}
+                    {uiMethodLabel(m)}
                   </div>
                 );
               })}
             </div>
 
-            <div className="vx-sectionTitle">Получение</div>
+            <div className="vx-sectionTitle">{isEn ? "Receive" : "Получение"}</div>
             <div className="vx-methods">
               {ALL_RECEIVE.map((m) => {
                 const disabled = !allowedRecv.includes(m);
@@ -1377,7 +1396,7 @@ export default function CalculatorTab({ me }: Props) {
                     role="button"
                     aria-disabled={disabled}
                   >
-                    {methodLabel(m)}
+                    {uiMethodLabel(m)}
                   </div>
                 );
               })}
@@ -1390,16 +1409,16 @@ export default function CalculatorTab({ me }: Props) {
 
             {rateInfo ? (
               <div className="vx-rateLine">
-                Курс: <b>{fmtAmount("VND", rateInfo.base)}</b> + статус <b>{fmtAmount("VND", rateInfo.tier)}</b> + способ{" "}
+                {isEn ? "Rate" : "Курс"}: <b>{fmtAmount("VND", rateInfo.base)}</b> + {isEn ? "status" : "статус"} <b>{fmtAmount("VND", rateInfo.tier)}</b> + {isEn ? "method" : "способ"}{" "}
                 <b>{fmtAmount("VND", rateInfo.m)}</b> = <b>{fmtAmount("VND", rateInfo.eff)}</b>
               </div>
             ) : null}
 
-            {invalidUsdSell || invalidUsdBuy ? <div className="vx-warn">USD: передать и получить можно только наличными, кратно 100.</div> : null}
-            {invalidEurSell || invalidEurBuy ? <div className="vx-warn">EUR: передать и получить можно только наличными, кратно 50.</div> : null}
-            {invalidThbSell || invalidThbBuy ? <div className="vx-warn">THB: передать и получить можно только наличными, кратно 100.</div> : null}
+            {invalidUsdSell || invalidUsdBuy ? <div className="vx-warn">{isEn ? "USD: cash only, in multiples of 100." : "USD: передать и получить можно только наличными, кратно 100."}</div> : null}
+            {invalidEurSell || invalidEurBuy ? <div className="vx-warn">{isEn ? "EUR: cash only, in multiples of 50." : "EUR: передать и получить можно только наличными, кратно 50."}</div> : null}
+            {invalidThbSell || invalidThbBuy ? <div className="vx-warn">{isEn ? "THB: cash only, in multiples of 100." : "THB: передать и получить можно только наличными, кратно 100."}</div> : null}
             {minSellNote ? <div className="vx-warn">{minSellNote}</div> : null}
-            {((sellCurrency === "RUB" && sellAmount != null && sellAmount < 20_000) || (buyCurrency === "RUB" && buyAmount != null && buyAmount < 20_000)) ? <div className="vx-warn">Доставка наличных возможна при обмене от 20,000₽/100$/100USDT.</div> : null}
+            {((sellCurrency === "RUB" && sellAmount != null && sellAmount < 20_000) || (buyCurrency === "RUB" && buyAmount != null && buyAmount < 20_000)) ? <div className="vx-warn">{isEn ? "Cash delivery is available from 20,000₽ / 100$ / 100 USDT." : "Доставка наличных возможна при обмене от 20,000₽/100$/100USDT."}</div> : null}
 
             <div className="vx-sp12" />
 
@@ -1412,7 +1431,7 @@ export default function CalculatorTab({ me }: Props) {
                 ref={commentFieldRef}
                 className="input vx-in vx-requestCommentInput"
                 rows={3}
-                placeholder={requestCommentPlaceholder(receiveMethod)}
+                placeholder={uiCommentPlaceholder(receiveMethod)}
                 value={requestComment}
                 onFocus={() => {
                   window.setTimeout(() => {
@@ -1428,7 +1447,7 @@ export default function CalculatorTab({ me }: Props) {
               <div className="vx-sp12" />
 
               <button className="vx-primary" disabled={!canSend} onClick={sendRequest}>
-                Отправить заявку
+                {isEn ? "Send request" : "Отправить заявку"}
               </button>
             </div>
           </div>

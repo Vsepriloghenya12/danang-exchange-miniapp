@@ -2108,6 +2108,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                   <div>💳 Оплата: <b>{methodRu(reqSelected.payMethod)}</b></div>
                   <div>📦 Получение: <b>{methodRu(reqSelected.receiveMethod)}</b></div>
                   {reqSelected.comment ? <div>📝 Комментарий: <b>{reqSelected.comment}</b></div> : null}
+                  {reqSelected.language ? <div>🌐 Язык: <b>{reqSelected.language === "en" ? "English" : "Русский"}</b></div> : null}
                   {reqSelected.clientContact ? <div>☎️ Контакт: <b>{reqSelected.clientContact}</b></div> : null}
                 </div>
 
