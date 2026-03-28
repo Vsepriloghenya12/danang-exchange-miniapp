@@ -4511,30 +4511,53 @@ html[data-theme="dark"] .theme-client .vx-requestComposer{
   display:flex;
   flex-direction:column;
   gap:8px;
-  flex: 0 0 auto;
+  flex: 0 0 56px;
+  width:56px;
+  position:relative;
+  z-index:4;
 }
 
 .mx-langBtn{
-  min-width:44px;
-  height:32px;
-  border-radius:12px;
-  border:1px solid var(--stroke);
-  background: rgba(255,255,255,.98);
-  box-shadow: var(--shadow2);
-  display:inline-flex;
+  width:56px;
+  min-width:56px;
+  height:44px;
+  border-radius:16px;
+  border:1px solid rgba(255,179,87,.28);
+  background: linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(248,250,255,.96) 100%);
+  box-shadow: 0 14px 28px rgba(15,23,42,.14), inset 0 1px rgba(255,255,255,.92);
+  display:flex;
+  flex-direction:column;
   align-items:center;
   justify-content:center;
-  padding:0 10px;
+  gap:1px;
+  padding:4px 0;
   cursor:pointer;
-  color: rgba(0,0,0,.72);
-  font-size:12px;
-  font-weight:900;
-  letter-spacing:.04em;
+  color: rgba(0,0,0,.82);
+  line-height:1;
 }
 .mx-langBtn:active{ transform: translateY(1px); }
+.mx-langBtnLabel{
+  font-size:11px;
+  line-height:1;
+}
+.mx-langBtnText{
+  font-size:13px;
+  font-weight:950;
+  letter-spacing:.08em;
+}
+.mx-langBtnHint{
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.08em;
+  opacity:.52;
+}
 html[data-theme="dark"] .theme-client .mx-langBtn{
-  background: rgba(31,43,56,.98);
-  border-color: rgba(246,198,0,.22);
-  box-shadow: 0 0 0 1px rgba(246,198,0,.08) inset, 0 0 14px rgba(246,198,0,.06), 0 12px 28px rgba(0,0,0,.44);
+  background: linear-gradient(180deg, rgba(31,43,56,.99) 0%, rgba(22,31,41,.98) 100%);
+  border-color: rgba(246,198,0,.34);
+  box-shadow: 0 0 0 1px rgba(246,198,0,.1) inset, 0 0 18px rgba(246,198,0,.08), 0 12px 28px rgba(0,0,0,.44);
   color: rgba(246,198,0,.98);
+}
+html[data-theme="dark"] .theme-client .mx-langBtnHint{
+  color: rgba(246,198,0,.62);
+  opacity:1;
 }

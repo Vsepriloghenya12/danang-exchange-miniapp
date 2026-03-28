@@ -636,7 +636,9 @@ ${msg}`);
                     aria-label={isEn ? "Switch language" : "Переключить язык"}
                     title={isEn ? "Switch language" : "Переключить язык"}
                   >
-                    {isEn ? "EN" : "RU"}
+                    <span className="mx-langBtnLabel">🌐</span>
+                    <span className="mx-langBtnText">{isEn ? "EN" : "RU"}</span>
+                    <span className="mx-langBtnHint">{isEn ? "RU" : "EN"}</span>
                   </button>
                   <button
                     type="button"
