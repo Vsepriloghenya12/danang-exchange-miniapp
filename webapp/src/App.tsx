@@ -631,22 +631,20 @@ ${msg}`);
                 <div className="mx-topLeftStack">
                   <button
                     type="button"
-                    className="mx-langBtn"
-                    onClick={toggleLang}
-                    aria-label={isEn ? "Switch language" : "Переключить язык"}
-                    title={isEn ? "Switch language" : "Переключить язык"}
-                  >
-                    <span className="mx-langBtnLabel">{isEn ? "LANG" : "ЯЗЫК"}</span>
-                    <span className="mx-langBtnText">{isEn ? "EN" : "RU"}</span>
-                    <span className="mx-langBtnHint">{isEn ? "tap for RU" : "нажми для EN"}</span>
-                  </button>
-                  <button
-                    type="button"
                     className="mx-themeBtn"
                     onClick={toggleTheme}
                     aria-label={theme === "dark" ? (isEn ? "Dark theme" : "Тёмная тема") : (isEn ? "Light theme" : "Светлая тема")}
                   >
                     {theme === "dark" ? <IconMoon className="mx-themeI" /> : <IconSun className="mx-themeI" />}
+                  </button>
+                  <button
+                    type="button"
+                    className="mx-langMini"
+                    onClick={toggleLang}
+                    aria-label={isEn ? "Switch language" : "Переключить язык"}
+                    title={isEn ? "Switch language" : "Переключить язык"}
+                  >
+                    {isEn ? "EN" : "RU"}
                   </button>
                 </div>
 
