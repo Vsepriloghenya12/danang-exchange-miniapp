@@ -4631,3 +4631,60 @@ html[data-theme="dark"] .theme-client .mx-langBtnHint{
   .mx-langBtnText{ font-size:14px; }
   .mx-langBtnHint{ font-size:7px; }
 }
+
+
+/* language button above theme button without shifting layout */
+.theme-client .mx-topLeftRail{ display:none !important; }
+.theme-client .mx-topRowHome{
+  align-items: center;
+  gap: 12px;
+  padding-left: 0 !important;
+}
+.theme-client .mx-topLeftStack{
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+  position: relative;
+  z-index: 4;
+}
+.theme-client .mx-topCenter{
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: center;
+}
+.theme-client .mx-statusBtn{
+  flex: 0 0 44px;
+  width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  position: relative;
+  z-index: 4;
+}
+.theme-client .mx-langBtn{
+  width: 44px;
+  min-width: 44px;
+  height: 34px;
+  border-radius: 12px;
+  padding: 4px 2px;
+  gap: 1px;
+}
+.theme-client .mx-langBtnLabel{
+  font-size: 7px;
+  line-height: 1;
+  letter-spacing: .12em;
+}
+.theme-client .mx-langBtnText{
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: .08em;
+}
+.theme-client .mx-langBtnHint{ display:none; }
+@media (max-width: 380px){
+  .theme-client .mx-topRowHome{ gap: 10px; }
+  .theme-client .mx-topLeftStack,
+  .theme-client .mx-statusBtn{ flex-basis: 44px; width: 44px; min-width: 44px; }
+}

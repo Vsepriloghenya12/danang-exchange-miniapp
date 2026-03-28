@@ -628,7 +628,7 @@ ${msg}`);
           <div className="mx-homeLayout">
             <div className="mx-homeLead">
               <div className="mx-topRow mx-topRowHome">
-                <div className="mx-topLeftRail">
+                <div className="mx-topLeftStack">
                   <button
                     type="button"
                     className="mx-langBtn"
