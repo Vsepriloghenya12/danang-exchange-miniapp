@@ -77,6 +77,58 @@ function fmtAfDateTime(ev: any) {
   return time ? `${date} • ${time}` : date;
 }
 
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("file_read_failed"));
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageFromObjectUrl(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("image_load_failed"));
+    img.src = url;
+  });
+}
+
+async function buildAfishaPreviewDataUrl(file: File, maxSide = 960, quality = 0.76): Promise<string | null> {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await loadImageFromObjectUrl(objectUrl);
+    const width = Number(img.naturalWidth || img.width || 0);
+    const height = Number(img.naturalHeight || img.height || 0);
+    if (!width || !height) return null;
+
+    const scale = Math.min(1, maxSide / Math.max(width, height));
+    const targetWidth = Math.max(1, Math.round(width * scale));
+    const targetHeight = Math.max(1, Math.round(height * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+    return canvas.toDataURL("image/jpeg", quality);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function prepareAfishaUpload(file: File): Promise<{ imageDataUrl: string; previewImageDataUrl: string | null }> {
+  const [imageDataUrl, previewImageDataUrl] = await Promise.all([
+    readFileAsDataUrl(file),
+    buildAfishaPreviewDataUrl(file),
+  ]);
+
+  return { imageDataUrl, previewImageDataUrl };
+}
+
 export default function OwnerPortal() {
   // Owner portal is opened in a regular browser; keep background consistent with the miniapp.
   useEffect(() => {
@@ -322,6 +374,7 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
   const [afCreateDetailsUrl, setAfCreateDetailsUrl] = useState<string>("");
   const [afCreateLocationUrl, setAfCreateLocationUrl] = useState<string>("");
   const [afCreateImageDataUrl, setAfCreateImageDataUrl] = useState<string | null>(null);
+  const [afCreatePreviewImageDataUrl, setAfCreatePreviewImageDataUrl] = useState<string | null>(null);
 
   const [afEditId, setAfEditId] = useState<string>("");
   const [afEditCats, setAfEditCats] = useState<string[]>(["sport"]);
@@ -333,6 +386,7 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
   const [afEditLocationUrl, setAfEditLocationUrl] = useState<string>("");
   const [afEditImageUrl, setAfEditImageUrl] = useState<string>("");
   const [afEditImageDataUrl, setAfEditImageDataUrl] = useState<string | null>(null);
+  const [afEditPreviewImageDataUrl, setAfEditPreviewImageDataUrl] = useState<string | null>(null);
 
   const [afHistFrom, setAfHistFrom] = useState<string>(() => shiftISO(-14));
   const [afHistTo, setAfHistTo] = useState<string>(() => todayISO());
@@ -593,6 +647,7 @@ function moveFaq(id: string, dir: -1 | 1) {
     setAfEditLocationUrl(String(ev.locationUrl || ''));
     setAfEditImageUrl(String(ev.imageUrl || ''));
     setAfEditImageDataUrl(null);
+    setAfEditPreviewImageDataUrl(null);
   }
 
   function toggleEditAfisha(ev: any) {
@@ -616,6 +671,7 @@ function moveFaq(id: string, dir: -1 | 1) {
       detailsUrl: afCreateDetailsUrl.trim(),
       locationUrl: afCreateLocationUrl.trim(),
       imageDataUrl: afCreateImageDataUrl || undefined,
+      previewImageDataUrl: afCreatePreviewImageDataUrl || undefined,
     };
     const r = await apiAdminCreateAfisha(token, payload as any);
     if (!r?.ok) return showErr(r?.error || 'Ошибка');
@@ -626,6 +682,7 @@ function moveFaq(id: string, dir: -1 | 1) {
     setAfCreateDetailsUrl('');
     setAfCreateLocationUrl('');
     setAfCreateImageDataUrl(null);
+    setAfCreatePreviewImageDataUrl(null);
     await loadAfishaLists();
   }
 
@@ -642,6 +699,7 @@ function moveFaq(id: string, dir: -1 | 1) {
         locationUrl: afEditLocationUrl.trim(),
       };
       if (afEditImageDataUrl) payload.imageDataUrl = afEditImageDataUrl;
+      if (afEditPreviewImageDataUrl) payload.previewImageDataUrl = afEditPreviewImageDataUrl;
       const r = await apiAdminUpdateAfisha(token, afEditId, payload as any);
       if (!r?.ok) return showErr(r?.error || 'Ошибка');
       showOk('Сохранено');
@@ -710,12 +768,16 @@ function moveFaq(id: string, dir: -1 | 1) {
           <input
             type="file"
             accept="image/*"
-            onChange={(e) => {
+            onChange={async (e) => {
               const f = e.target.files?.[0];
               if (!f) return;
-              const r = new FileReader();
-              r.onload = () => setAfEditImageDataUrl(String(r.result || "") || null);
-              r.readAsDataURL(f);
+              try {
+                const prepared = await prepareAfishaUpload(f);
+                setAfEditImageDataUrl(prepared.imageDataUrl || null);
+                setAfEditPreviewImageDataUrl(prepared.previewImageDataUrl || prepared.imageDataUrl || null);
+              } catch {
+                showErr("Не удалось подготовить изображение");
+              }
             }}
           />
           {afEditImageDataUrl ? <img className="vx-pubThumb" src={afEditImageDataUrl} alt="" /> : null}
@@ -2175,16 +2237,27 @@ function moveFaq(id: string, dir: -1 | 1) {
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const f = e.target.files?.[0];
                   if (!f) return;
-                  const r = new FileReader();
-                  r.onload = () => setAfCreateImageDataUrl(String(r.result || "") || null);
-                  r.readAsDataURL(f);
+                  try {
+                    const prepared = await prepareAfishaUpload(f);
+                    setAfCreateImageDataUrl(prepared.imageDataUrl || null);
+                    setAfCreatePreviewImageDataUrl(prepared.previewImageDataUrl || prepared.imageDataUrl || null);
+                  } catch {
+                    showErr("Не удалось подготовить изображение");
+                  }
                 }}
               />
               {afCreateImageDataUrl ? (
-                <button className="btn vx-btnSm" type="button" onClick={() => setAfCreateImageDataUrl(null)}>
+                <button
+                  className="btn vx-btnSm"
+                  type="button"
+                  onClick={() => {
+                    setAfCreateImageDataUrl(null);
+                    setAfCreatePreviewImageDataUrl(null);
+                  }}
+                >
                   Убрать фото
                 </button>
               ) : null}

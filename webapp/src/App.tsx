@@ -318,6 +318,16 @@ export default function App() {
       "/brand/icons/tab-atm-256.png?v=1",
       "/brand/icons/tab-rates-256.png?v=1",
       "/brand/icons/tab-reviews-256.png?v=1",
+      "/brand/afisha-sport.png?v=afisha-cats-20260328-2",
+      "/brand/afisha-party.png?v=afisha-cats-20260328-2",
+      "/brand/afisha-culture.png?v=afisha-cats-20260328-2",
+      "/brand/afisha-food.png?v=afisha-cats-20260328-2",
+      "/brand/afisha-music.png?v=afisha-cats-20260328-2",
+      "/brand/afisha-games.png?v=afisha-cats-20260328-2",
+      "/brand/afisha-market.png?v=afisha-cats-20260328-2",
+      "/brand/afisha-learning.png?v=afisha-cats-20260328-2",
+      "/brand/afisha-misc.png?v=afisha-cats-20260328-2",
+      "/brand/afisha-all.jpg?v=afisha-cats-20260328-2",
     ];
     try {
       urls.forEach((u) => {
@@ -555,12 +565,19 @@ export default function App() {
       void warm.afisha()
         .then((r: any) => {
           const urls = Array.isArray(r?.events)
-            ? Array.from(new Set(r.events.map((ev: any) => String(ev?.imageUrl || "").trim()).filter(Boolean))).slice(0, 8)
+            ? Array.from(
+                new Set(
+                  r.events
+                    .map((ev: any) => String(ev?.previewImageUrl || ev?.imageUrl || "").trim())
+                    .filter(Boolean)
+                )
+              ).slice(0, 10)
             : [];
           urls.forEach((u) => {
             try {
               const img = new Image();
               img.decoding = "async";
+              (img as any).loading = "eager";
               img.src = u;
             } catch {
               // ignore
@@ -574,17 +591,7 @@ export default function App() {
       if (me.initData && me.initData !== "demo") void warm.myRequests(me.initData).catch(() => {});
     };
 
-    const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void, opts?: any) => number);
-    if (typeof ric === "function") {
-      const id = ric(run, { timeout: 1200 });
-      return () => {
-        try {
-          (window as any).cancelIdleCallback?.(id);
-        } catch {}
-      };
-    }
-
-    const t = window.setTimeout(run, 180);
+    const t = window.setTimeout(run, 60);
     return () => window.clearTimeout(t);
   }, [me.ok, me.initData]);
 

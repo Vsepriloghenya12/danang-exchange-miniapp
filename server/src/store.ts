@@ -43,6 +43,7 @@ export type AfishaEvent = {
   detailsUrl: string;
   locationUrl: string;
   imageUrl?: string;
+  previewImageUrl?: string;
   created_at: string;
   updated_at: string;
   clicks: { details: number; location: number };

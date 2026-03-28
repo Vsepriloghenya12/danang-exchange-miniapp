@@ -632,7 +632,7 @@ export function createApiRouter(opts: {
   }
 
   // Save a base64 data URL image into persistent afisha storage and return a public URL like /afisha/<id>.jpg
-  function saveAfishaImage(id: string, dataUrl: string): string {
+  function saveAfishaImage(id: string, dataUrl: string, suffix = ''): string {
     const m = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/i);
     if (!m) throw new Error('bad_image');
     const mime = String(m[1] || '').toLowerCase();
@@ -647,7 +647,7 @@ export function createApiRouter(opts: {
 
     const dir = getAfishaStorageDir();
     fs.mkdirSync(dir, { recursive: true });
-    const filename = `${id}${ext}`;
+    const filename = `${id}${suffix}${ext}`;
     fs.writeFileSync(path.join(dir, filename), buf);
     return `/afisha/${filename}`;
   }
@@ -774,6 +774,7 @@ export function createApiRouter(opts: {
       const detailsUrl = normUrl((req.body as any)?.detailsUrl);
       const locationUrl = normUrl((req.body as any)?.locationUrl);
       const imageDataUrl = typeof (req.body as any)?.imageDataUrl === 'string' ? String((req.body as any).imageDataUrl) : '';
+      const previewImageDataUrl = typeof (req.body as any)?.previewImageDataUrl === 'string' ? String((req.body as any).previewImageDataUrl) : '';
 
       if (!category) return res.status(400).json({ ok: false, error: 'bad_category' });
       if (catsNorm.length < 1 || catsNorm.length > 3) return res.status(400).json({ ok: false, error: 'bad_categories' });
@@ -787,6 +788,7 @@ export function createApiRouter(opts: {
       const now = new Date().toISOString();
       const id = randomUUID();
       const imageUrl = imageDataUrl && imageDataUrl.startsWith('data:') ? saveAfishaImage(id, imageDataUrl) : undefined;
+      const previewImageUrl = previewImageDataUrl && previewImageDataUrl.startsWith('data:') ? saveAfishaImage(id, previewImageDataUrl, '-preview') : imageUrl;
 
       const ev: any = {
         id,
@@ -799,6 +801,7 @@ export function createApiRouter(opts: {
         detailsUrl,
         locationUrl,
         ...(imageUrl ? { imageUrl } : {}),
+        ...(previewImageUrl ? { previewImageUrl } : {}),
         created_at: now,
         updated_at: now,
         clicks: { details: 0, location: 0 },
@@ -848,6 +851,8 @@ export function createApiRouter(opts: {
 
       const imageDataUrlRaw = (req.body as any)?.imageDataUrl;
       const imageDataUrl = typeof imageDataUrlRaw === 'string' ? String(imageDataUrlRaw) : null;
+      const previewImageDataUrlRaw = (req.body as any)?.previewImageDataUrl;
+      const previewImageDataUrl = typeof previewImageDataUrlRaw === 'string' ? String(previewImageDataUrlRaw) : null;
 
       const { result } = await mutateStore((store) => {
         const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
@@ -891,6 +896,16 @@ export function createApiRouter(opts: {
           if (imageDataUrl && imageDataUrl.startsWith('data:')) {
             ev.imageUrl = saveAfishaImage(id, imageDataUrl);
           }
+        }
+
+        if (previewImageDataUrl != null) {
+          if (previewImageDataUrl && previewImageDataUrl.startsWith('data:')) {
+            ev.previewImageUrl = saveAfishaImage(id, previewImageDataUrl, '-preview');
+          } else if (!previewImageDataUrl && ev.imageUrl) {
+            ev.previewImageUrl = ev.imageUrl;
+          }
+        } else if (imageDataUrl != null && ev.imageUrl) {
+          ev.previewImageUrl = ev.imageUrl;
         }
 
         ev.updated_at = new Date().toISOString();

@@ -68,9 +68,9 @@ function setStaticCacheHeaders(res: express.Response, filePath: string) {
   }
 
   if (isAfishaCategoryBrand) {
-    // Category covers are updated manually and often replaced with the same filename.
-    // Avoid sticky Telegram/WebView caches and always revalidate them.
-    res.setHeader("Cache-Control", "no-store, max-age=0");
+    // Category covers are versioned in the client URL query string.
+    // Keep them hot in cache for fast Afisha open; a version bump invalidates immediately.
+    res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400");
     return;
   }
 

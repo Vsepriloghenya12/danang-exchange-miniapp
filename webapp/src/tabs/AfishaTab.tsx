@@ -539,7 +539,7 @@ export default function AfishaTab({
     () =>
       filteredEvents
         .slice(0, 8)
-        .map((ev) => String(ev?.imageUrl || "").trim())
+        .map((ev) => String(ev?.previewImageUrl || ev?.imageUrl || "").trim())
         .filter(Boolean),
     [filteredEvents],
   );
@@ -678,11 +678,11 @@ ${targetUrl}`;
 
       <div className="mx-list">
         {groupedEvents.map((group) => (
-          <div key={group.date} className="mx-afGroup">
+            <div key={group.date} className="mx-afGroup">
             <div className="mx-afGroupDate">{fmtDate(group.date, lang)}</div>
             {group.items.map((ev) => {
               const timeLabel = fmtTime((ev as any)?.time);
-              const imageUrl = String(ev.imageUrl || "").trim();
+              const imageUrl = String(ev.previewImageUrl || ev.imageUrl || "").trim();
               const imageReady = imageUrl ? !!readyImageUrls[imageUrl] : false;
               return (
                 <div
