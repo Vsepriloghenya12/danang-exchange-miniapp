@@ -628,19 +628,19 @@ ${msg}`);
           <div className="mx-homeLayout">
             <div className="mx-homeLead">
               <div className="mx-topRow mx-topRowHome">
-                <div className="mx-topLeftStack">
+                <div className="mx-homeControlsStack">
                   <button
                     type="button"
-                    className="mx-langSwitchBtn"
+                    className="mx-langSwitchBtn mx-homeLangSwitchBtn"
                     onClick={toggleLang}
-                    aria-label={isEn ? "Switch language" : "Переключить язык"}
-                    title={isEn ? "Switch language" : "Переключить язык"}
+                    aria-label={isEn ? "Switch to Russian" : "Переключить на английский"}
+                    title={isEn ? "Switch to Russian" : "Переключить на английский"}
                   >
-                    {isEn ? "EN" : "RU"}
+                    {isEn ? "RU" : "EN"}
                   </button>
                   <button
                     type="button"
-                    className="mx-themeBtn"
+                    className="mx-themeBtn mx-homeThemeBtn"
                     onClick={toggleTheme}
                     aria-label={theme === "dark" ? (isEn ? "Dark theme" : "Тёмная тема") : (isEn ? "Light theme" : "Светлая тема")}
                   >
