@@ -4688,3 +4688,88 @@ html[data-theme="dark"] .theme-client .mx-langBtnHint{
   .theme-client .mx-topLeftStack,
   .theme-client .mx-statusBtn{ flex-basis: 44px; width: 44px; min-width: 44px; }
 }
+
+
+/* final hard fix: language button above theme without shifting header */
+.theme-client .mx-topRowHome{
+  display:grid !important;
+  grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+  align-items:center !important;
+  column-gap:12px !important;
+  row-gap:0 !important;
+  padding-left:0 !important;
+}
+.theme-client .mx-topLeftRail{ display:none !important; }
+.theme-client .mx-topLeftStack{
+  display:grid !important;
+  grid-template-rows: 32px 44px !important;
+  align-content:center !important;
+  justify-items:stretch !important;
+  width:44px !important;
+  min-width:44px !important;
+  flex:none !important;
+  overflow:visible !important;
+  gap:6px !important;
+  position:relative !important;
+  z-index:5 !important;
+}
+.theme-client .mx-topLeftStack > .mx-langBtn{
+  display:flex !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  width:44px !important;
+  min-width:44px !important;
+  max-width:44px !important;
+  height:32px !important;
+  border-radius:12px !important;
+  margin:0 !important;
+  padding:3px 2px !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:0 !important;
+}
+.theme-client .mx-topLeftStack > .mx-themeBtn{
+  width:44px !important;
+  min-width:44px !important;
+  height:44px !important;
+  margin:0 !important;
+}
+.theme-client .mx-topCenter{
+  min-width:0 !important;
+  width:100% !important;
+  justify-content:center !important;
+}
+.theme-client .mx-statusBtn{
+  width:44px !important;
+  min-width:44px !important;
+  justify-self:end !important;
+}
+.theme-client .mx-langBtnLabel{ display:none !important; }
+.theme-client .mx-langBtnText{
+  display:block !important;
+  font-size:12px !important;
+  line-height:1 !important;
+  font-weight:950 !important;
+  letter-spacing:.08em !important;
+}
+.theme-client .mx-langBtnHint{ display:none !important; }
+@media (max-width: 380px){
+  .theme-client .mx-topRowHome{
+    grid-template-columns: 42px minmax(0, 1fr) 42px !important;
+    column-gap:10px !important;
+  }
+  .theme-client .mx-topLeftStack{
+    width:42px !important;
+    min-width:42px !important;
+    grid-template-rows: 30px 42px !important;
+  }
+  .theme-client .mx-topLeftStack > .mx-langBtn,
+  .theme-client .mx-topLeftStack > .mx-themeBtn,
+  .theme-client .mx-statusBtn{
+    width:42px !important;
+    min-width:42px !important;
+  }
+  .theme-client .mx-topLeftStack > .mx-langBtn{ height:30px !important; }
+  .theme-client .mx-topLeftStack > .mx-themeBtn,
+  .theme-client .mx-statusBtn{ height:42px !important; }
+}
