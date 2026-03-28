@@ -238,6 +238,7 @@ export default function AfishaTab({
   const [events, setEvents] = useState<AfishaEvent[]>([]);
   const [err, setErr] = useState<string>("");
   const [flashId, setFlashId] = useState<string>("");
+  const [readyImageUrls, setReadyImageUrls] = useState<Record<string, true>>({});
 
   // Bottom sheet refs
   const sheetRef = useRef<HTMLDivElement | null>(null);
@@ -534,6 +535,44 @@ export default function AfishaTab({
     return groups;
   }, [filteredEvents]);
 
+  const preloadImageUrls = useMemo(
+    () =>
+      filteredEvents
+        .slice(0, 8)
+        .map((ev) => String(ev?.imageUrl || "").trim())
+        .filter(Boolean),
+    [filteredEvents],
+  );
+
+  function markImageReady(url: string) {
+    const key = String(url || "").trim();
+    if (!key) return;
+    setReadyImageUrls((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+  }
+
+  useEffect(() => {
+    const pending = preloadImageUrls.filter((url) => !readyImageUrls[url]);
+    if (!pending.length) return;
+
+    const imgs: HTMLImageElement[] = [];
+    pending.forEach((url) => {
+      const img = new Image();
+      img.decoding = "async";
+      img.loading = "eager";
+      img.onload = () => markImageReady(url);
+      img.onerror = () => markImageReady(url);
+      img.src = url;
+      imgs.push(img);
+    });
+
+    return () => {
+      imgs.forEach((img) => {
+        img.onload = null;
+        img.onerror = null;
+      });
+    };
+  }, [preloadImageUrls, readyImageUrls]);
+
   useEffect(() => {
     if (!focusEventId || loading) return;
     const target = filteredEvents.find((x) => String(x.id) === String(focusEventId));
@@ -643,15 +682,34 @@ ${targetUrl}`;
             <div className="mx-afGroupDate">{fmtDate(group.date, lang)}</div>
             {group.items.map((ev) => {
               const timeLabel = fmtTime((ev as any)?.time);
+              const imageUrl = String(ev.imageUrl || "").trim();
+              const imageReady = imageUrl ? !!readyImageUrls[imageUrl] : false;
               return (
                 <div
                   key={ev.id}
                   ref={(node) => {
                     cardRefs.current[ev.id] = node;
                   }}
-                  className={"mx-afEvCard" + (ev.imageUrl ? " has-img" : "") + (flashId === ev.id ? " is-flash" : "")}
+                  className={"mx-afEvCard" + (imageUrl ? " has-img" : "") + (imageReady ? " is-img-ready" : " is-img-loading") + (flashId === ev.id ? " is-flash" : "")}
                 >
-                  {ev.imageUrl ? <div className="mx-afEvBg" style={{ backgroundImage: `url(${ev.imageUrl})` } as any} aria-hidden="true" /> : null}
+                  {imageUrl ? (
+                    <>
+                      <img
+                        className={"mx-afEvBg" + (imageReady ? " is-ready" : "")}
+                        src={imageUrl}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        aria-hidden="true"
+                        onLoad={() => markImageReady(imageUrl)}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          markImageReady(imageUrl);
+                        }}
+                      />
+                      {!imageReady ? <div className="mx-afEvSkeleton" aria-hidden="true" /> : null}
+                    </>
+                  ) : null}
                   <div className="mx-afEvBody">
                     <div className="mx-afTitle">{ev.title}</div>
                     {ev.comment ? <div className="mx-afComment">{ev.comment}</div> : null}
