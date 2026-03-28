@@ -34,6 +34,7 @@ const OWNER_TG_IDS = (process.env.OWNER_TG_IDS || OWNER_TG_ID_RAW || "")
 
 console.log("ROLE:", ROLE);
 console.log("OWNER_TG_IDS parsed:", OWNER_TG_IDS, "OWNER_TG_ID:", OWNER_TG_ID);
+console.log("WEBAPP_URL:", WEBAPP_URL || "(missing)");
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
 

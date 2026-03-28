@@ -12,6 +12,16 @@ import {
 
 type ReceiveMethod = "cash" | "transfer" | "atm";
 
+const WEBAPP_OPEN_VERSION =
+  String(
+    process.env.WEBAPP_VERSION ||
+      process.env.RAILWAY_GIT_COMMIT_SHA ||
+      process.env.RAILWAY_DEPLOYMENT_ID ||
+      Date.now()
+  )
+    .trim()
+    .slice(0, 24);
+
 // Thousands separator must be a comma (1,000 / 10,000) — same as in the calculator UI
 function fmtGroupedInt(n: number): string {
   const s = String(Math.trunc(Math.abs(n)));
@@ -34,6 +44,21 @@ function fmtReqAmount(cur: string, n: number): string {
 
 function ignoreStatusForPair(a: string, b: string) {
   return (a === "THB" && b === "RUB") || (a === "RUB" && b === "THB");
+}
+
+function buildWebAppOpenUrl(rawUrl: string): string {
+  const source = String(rawUrl || "").trim();
+  if (!source) return "";
+
+  const normalized = /^https?:\/\//i.test(source) ? source : `https://${source}`;
+
+  try {
+    const url = new URL(normalized);
+    url.searchParams.set("appv", WEBAPP_OPEN_VERSION);
+    return url.toString();
+  } catch {
+    return normalized;
+  }
 }
 
 export function createBot(opts: {
@@ -82,8 +107,7 @@ export function createBot(opts: {
   bot.start(async (ctx) => {
     if (ctx.from) await upsertUserFromTelegram(ctx.from);
 
-    let webappUrl = opts.webappUrl || "";
-    if (webappUrl && !/^https?:\/\//i.test(webappUrl)) webappUrl = "https://" + webappUrl;
+    const webappUrl = buildWebAppOpenUrl(opts.webappUrl || "");
 
     if (!webappUrl) {
       return ctx.reply("WEBAPP_URL не задан. Укажи публичный HTTPS URL и снова /start.");
