@@ -350,6 +350,16 @@ export default function App() {
     }
   }, [lang]);
 
+  useEffect(() => {
+    const onRuntimeLangSwitch = (event: Event) => {
+      const next = String((event as CustomEvent<string>)?.detail || "").toLowerCase();
+      if (next === "ru" || next === "en") setLang(next);
+    };
+
+    window.addEventListener("mx:lang-runtime-switch", onRuntimeLangSwitch as EventListener);
+    return () => window.removeEventListener("mx:lang-runtime-switch", onRuntimeLangSwitch as EventListener);
+  }, []);
+
   const toggleLang = () => setLang((v) => (v === "ru" ? "en" : "ru"));
   const isEn = lang === "en";
 

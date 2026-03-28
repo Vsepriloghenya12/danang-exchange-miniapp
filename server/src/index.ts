@@ -54,6 +54,7 @@ function setStaticCacheHeaders(res: express.Response, filePath: string) {
   const normalized = filePath.replace(/\\/g, "/");
   const isHtml = ext === ".html";
   const isHashedBundle = normalized.includes("/assets/");
+  const isAfishaCategoryBrand = /\/brand\/afisha-[^/]+\.(png|jpg|jpeg|webp)$/i.test(normalized);
   const isMedia = [".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif", ".ico", ".woff", ".woff2", ".ttf", ".otf", ".mp4", ".webm"].includes(ext);
 
   if (isHtml) {
@@ -63,6 +64,13 @@ function setStaticCacheHeaders(res: express.Response, filePath: string) {
 
   if (isHashedBundle) {
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    return;
+  }
+
+  if (isAfishaCategoryBrand) {
+    // Category covers are updated manually and often replaced with the same filename.
+    // Avoid sticky Telegram/WebView caches and always revalidate them.
+    res.setHeader("Cache-Control", "no-store, max-age=0");
     return;
   }
 

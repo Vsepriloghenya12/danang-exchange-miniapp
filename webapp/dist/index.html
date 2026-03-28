@@ -295,11 +295,15 @@
           try {
             var url = new URL(window.location.href);
             url.searchParams.set("lang", next);
-            url.searchParams.set("_langv", String(Date.now()));
-            window.location.replace(url.toString());
+            url.searchParams.delete("_langv");
+            window.history.replaceState(null, "", url.toString());
           } catch (e) {
-            window.location.reload();
+            // ignore
           }
+
+          try {
+            window.dispatchEvent(new CustomEvent("mx:lang-runtime-switch", { detail: next }));
+          } catch (e) {}
         }
 
         function ensureButton() {
@@ -361,18 +365,6 @@
         };
 
         document.addEventListener("DOMContentLoaded", run);
-        document.addEventListener(
-          "click",
-          function (event) {
-            if (!(event.target instanceof Element)) return;
-            var target = event.target.closest(".mx-homeLangSwitchBtn, .mx-langSwitchBtn");
-            if (!target) return;
-            event.preventDefault();
-            event.stopPropagation();
-            applyLangSwitch(nextLang());
-          },
-          true
-        );
         window.addEventListener("load", run, { passive: true });
         window.addEventListener("resize", run, { passive: true });
         window.addEventListener("orientationchange", run, { passive: true });

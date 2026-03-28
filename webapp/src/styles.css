@@ -3092,23 +3092,23 @@ html[data-theme="dark"] .theme-client .mx-afComment{ color: var(--muted) !import
    Put files into server/public/brand (served as /brand/*).
    If you prefer .png or .webp, just change the extension here.
 */
-.mx-afCat--sport{ background-image: url('/brand/afisha-sport.jpg'); }
-.mx-afCat--party{ background-image: url('/brand/afisha-party.jpg'); }
-.mx-afCat--culture{ background-image: url('/brand/afisha-culture.jpg'); }
-.mx-afCat--food{ background-image: url('/brand/afisha-food.jpg'); }
-.mx-afCat--music{ background-image: url('/brand/afisha-music.jpg'); }
-.mx-afCat--games{ background-image: url('/brand/afisha-games.jpg'); }
-.mx-afCat--market{ background-image: url('/brand/afisha-market.jpg'); }
-.mx-afCat--learning{ background-image: url('/brand/afisha-learning.jpg'); }
-.mx-afCat--misc{ background-image: url('/brand/afisha-misc.jpg'); }
+.mx-afCat--sport{ background-image: url('/brand/afisha-sport.png?v=afisha-cats-20260328-2'); }
+.mx-afCat--party{ background-image: url('/brand/afisha-party.png?v=afisha-cats-20260328-2'); }
+.mx-afCat--culture{ background-image: url('/brand/afisha-culture.png?v=afisha-cats-20260328-2'); }
+.mx-afCat--food{ background-image: url('/brand/afisha-food.png?v=afisha-cats-20260328-2'); }
+.mx-afCat--music{ background-image: url('/brand/afisha-music.png?v=afisha-cats-20260328-2'); }
+.mx-afCat--games{ background-image: url('/brand/afisha-games.png?v=afisha-cats-20260328-2'); }
+.mx-afCat--market{ background-image: url('/brand/afisha-market.png?v=afisha-cats-20260328-2'); }
+.mx-afCat--learning{ background-image: url('/brand/afisha-learning.png?v=afisha-cats-20260328-2'); }
+.mx-afCat--misc{ background-image: url('/brand/afisha-misc.png?v=afisha-cats-20260328-2'); }
 
 /* Special category tile for "All" */
 .mx-afCat--all{
-  background-image: url('/brand/afisha-all.jpg') !important;
+background-image: url('/brand/afisha-all.jpg?v=afisha-cats-20260328-2') !important;
   background-color: rgba(255,255,255,.96);
 }
 html[data-theme="dark"] .theme-client .mx-afCat--all{
-  background-image: url('/brand/afisha-all.jpg') !important;
+background-image: url('/brand/afisha-all.jpg?v=afisha-cats-20260328-2') !important;
   background-color: #000;
 }
 
