@@ -1,4 +1,4 @@
-import type { UserStatus } from "./store.js";
+import { USER_STATUS_LABELS_RU, type UserStatus } from "./domain/status.js";
 
 type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB";
 type ReceiveMethod = "cash" | "transfer" | "atm";
@@ -55,10 +55,7 @@ export function formatRequestMessage(args: {
 }
 
 function statusLabel(s: UserStatus): string {
-  // только 3 статуса
-  if (s === "silver") return "серебро";
-  if (s === "gold") return "золото";
-  return "стандарт";
+  return USER_STATUS_LABELS_RU[s];
 }
 
 function methodLabel(m: string): string {

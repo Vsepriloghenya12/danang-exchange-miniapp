@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import AdminTab from "../tabs/AdminTab";
+import { createGFormulaDraft, DEFAULT_G_FORMULAS, G_FORMULA_KEYS } from "../domain/exchange";
+import { getUserStatusLabelRu, USER_STATUS_OPTIONS_RU } from "../domain/status";
 import {
   apiAdminGetAdmins,
   apiAdminSetAdmins,
@@ -33,34 +35,6 @@ import type { Contact, UserStatus } from "../lib/types";
 const LS_KEY = "dx_admin_key";
 const LS_CASH_DEFAULT_RATES = "dx_cash_default_rates_v1";
 const LS_CASH_OVERRIDES = "dx_cash_overrides_v1";
-
-// Cross-pair formulas (multipliers) — defaults match the current app logic.
-// BUY = G * buyMul, SELL = G * sellMul
-const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
-  "USDT/RUB": { buyMul: 0.98, sellMul: 1.08 },
-  "USD/RUB": { buyMul: 0.98, sellMul: 1.08 },
-  "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
-  "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
-  "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
-  "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
-  "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
-  "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
-  "USDT/THB": { buyMul: 0.95, sellMul: 1.07 },
-  "EUR/THB": { buyMul: 0.95, sellMul: 1.07 }
-};
-
-const G_FORMULA_KEYS = Object.keys(DEFAULT_G_FORMULAS);
-
-const STATUS_OPTIONS: Array<{ v: UserStatus; l: string }> = [
-  { v: "standard", l: "Стандарт" },
-  { v: "silver", l: "Серебро" },
-  { v: "gold", l: "Золото" },
-];
-
-function statusLabelRu(v: any) {
-  const hit = STATUS_OPTIONS.find((x) => x.v === String(v || "standard"));
-  return hit?.l || "Стандарт";
-}
 
 function normU(u: string) {
   return String(u || "").trim().replace(/^@+/, "");
@@ -246,16 +220,7 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
 
 
   // G-formulas editor (owner)
-  const [gFormulasDraft, setGFormulasDraft] = useState<Record<string, { buyMul: string; sellMul: string }>>(() => {
-    const d: any = {};
-    for (const k of G_FORMULA_KEYS) {
-      d[k] = {
-        buyMul: String(DEFAULT_G_FORMULAS[k]?.buyMul ?? ""),
-        sellMul: String(DEFAULT_G_FORMULAS[k]?.sellMul ?? "")
-      };
-    }
-    return d;
-  });
+  const [gFormulasDraft, setGFormulasDraft] = useState<Record<string, { buyMul: string; sellMul: string }>>(() => createGFormulaDraft());
   const [gFormulasLoaded, setGFormulasLoaded] = useState(false);
   const [gFormulasSaving, setGFormulasSaving] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
@@ -863,29 +828,14 @@ function moveFaq(id: string, dir: -1 | 1) {
   }
 
   function resetGFormulasToDefault() {
-    const d: any = {};
-    for (const k of G_FORMULA_KEYS) {
-      d[k] = {
-        buyMul: String(DEFAULT_G_FORMULAS[k]?.buyMul ?? ""),
-        sellMul: String(DEFAULT_G_FORMULAS[k]?.sellMul ?? "")
-      };
-    }
-    setGFormulasDraft(d);
+    setGFormulasDraft(createGFormulaDraft());
   }
 
   async function loadGFormulas() {
     try {
       const r = await apiAdminGetGFormulas(token);
       if (!r?.ok || !r?.formulas) return;
-      const next: any = {};
-      for (const k of G_FORMULA_KEYS) {
-        const v = r.formulas?.[k] || DEFAULT_G_FORMULAS[k];
-        next[k] = {
-          buyMul: String(v?.buyMul ?? DEFAULT_G_FORMULAS[k].buyMul),
-          sellMul: String(v?.sellMul ?? DEFAULT_G_FORMULAS[k].sellMul)
-        };
-      }
-      setGFormulasDraft(next);
+      setGFormulasDraft(createGFormulaDraft(r.formulas));
       setGFormulasLoaded(true);
     } catch {
       // ignore
@@ -1244,7 +1194,7 @@ function moveFaq(id: string, dir: -1 | 1) {
       const username = String(u?.username || c?.username || "").toLowerCase();
       const fullName = String(c?.fullName || [u?.first_name, u?.last_name].filter(Boolean).join(" ") || "").toLowerCase();
       const status = String((c?.status as any) || (u?.status as any) || "standard").toLowerCase();
-      const statusRu = statusLabelRu(status).toLowerCase();
+      const statusRu = getUserStatusLabelRu(status).toLowerCase();
       const banks = Array.isArray(c?.banks) ? c.banks.join(" ").toLowerCase() : "";
       const tgText = tgId ? String(tgId) : "";
       const hay = [username, fullName, status, statusRu, banks, tgText].join(" ");
@@ -1807,9 +1757,9 @@ function moveFaq(id: string, dir: -1 | 1) {
                 style={{ flex: "1 1 140px" }}
               />
               <select className="input vx-in" value={cStatus} onChange={(e) => setCStatus(e.target.value as any)}>
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s.v} value={s.v}>
-                    {s.l}
+                {USER_STATUS_OPTIONS_RU.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
                   </option>
                 ))}
               </select>
@@ -1946,7 +1896,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                       <div className="vx-sp8" />
 
                       <div className="row vx-rowWrap vx-gap6" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        <span className="vx-tag">Статус: <b>{statusLabelRu((c?.status as any) || (u?.status as any) || "standard")}</b></span>
+                        <span className="vx-tag">Статус: <b>{getUserStatusLabelRu((c?.status as any) || (u?.status as any) || "standard")}</b></span>
                         <span className="vx-tag">Нажмите для редактирования</span>
                       </div>
                     </div>

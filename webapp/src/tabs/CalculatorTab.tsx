@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { DEFAULT_G_FORMULAS } from "../domain/exchange";
+import { getUserStatusLabel, normalizeUserStatus } from "../domain/status";
 import { apiGetBonuses, apiGetGFormulas, apiGetMarketRates } from "../lib/api";
 import type { BonusesConfig, MarketRatesResponse, UserStatus } from "../lib/types";
 
@@ -29,20 +31,6 @@ type Props = {
 const CURRENCY_OPTIONS: Currency[] = ["RUB", "USDT", "USD", "EUR", "THB", "VND"];
 const ALL_PAY: PayMethod[] = ["cash", "transfer", "atm"];
 const ALL_RECEIVE: ReceiveMethod[] = ["cash", "transfer", "atm"];
-
-// Формулы с картинки (на эти пары НЕ действуют бонусы/надбавки)
-const DEFAULT_G_FORMULAS: Record<string, { buyMul: number; sellMul: number }> = {
-  "USDT/RUB": { buyMul: 0.98, sellMul: 1.08 },
-  "USD/RUB": { buyMul: 0.98, sellMul: 1.08 },
-  "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
-  "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
-  "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
-  "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
-  "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
-  "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
-  "USDT/THB": { buyMul: 0.95, sellMul: 1.07 },
-  "EUR/THB": { buyMul: 0.95, sellMul: 1.07 },
-};
 
 function getTg() {
   return (window as any).Telegram?.WebApp;
@@ -212,19 +200,6 @@ function isMultiple(n: number, step: number) {
   if (!Number.isFinite(n) || step <= 0) return false;
   const q = n / step;
   return Math.abs(q - Math.round(q)) < 1e-9;
-}
-
-function normalizeStatus(s: any): ClientStatus {
-  const v = String(s ?? "").toLowerCase().trim();
-  if (["gold", "голд", "золото"].includes(v)) return "gold";
-  if (["silver", "силвер", "сильвер", "серебро"].includes(v)) return "silver";
-  return "standard";
-}
-
-function statusLabel(s: ClientStatus) {
-  if (s === "gold") return "Голд";
-  if (s === "silver") return "Сильвер";
-  return "Стандарт";
 }
 
 function getDanangTimeInfo(nowMs: number) {
@@ -577,7 +552,7 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
   const tg = getTg();
   const isEn = lang === "en";
   const uiMethodLabel = (m: ReceiveMethod | PayMethod) => isEn ? (m === "cash" ? "Cash" : m === "transfer" ? "Transfer" : "ATM") : methodLabel(m);
-  const uiStatusLabel = (s: ClientStatus) => isEn ? (s === "gold" ? "Gold" : s === "silver" ? "Silver" : "Standard") : statusLabel(s);
+  const uiStatusLabel = (s: ClientStatus) => getUserStatusLabel(s, isEn ? "en" : "ru");
   const uiAmountPlaceholder = (prefix: string, cur: Currency, same = false) => { const min = same && cur === "VND" ? null : minSellAmountLabel(cur); return min ? `${prefix} (${isEn ? "min." : "мин."} ${min})` : prefix; };
   const uiCommentPlaceholder = (rm: ReceiveMethod) => isEn ? (rm === "cash" ? "enter the address" : rm === "transfer" ? "enter transfer details" : "") : requestCommentPlaceholder(rm);
 
@@ -603,7 +578,7 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
   const [payMethod, setPayMethod] = useState<PayMethod>("transfer");
   const [receiveMethod, setReceiveMethod] = useState<ReceiveMethod>("cash");
 
-  const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeStatus(me?.status));
+  const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeUserStatus(me?.status));
   const [requestComment, setRequestComment] = useState("");
   const [showConditions, setShowConditions] = useState(false);
   const [requestSuccessModal, setRequestSuccessModal] = useState<null | { requestId: string; copyText: string }>(null);
@@ -768,7 +743,7 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
         const res = await fetch("/api/me", { headers: { Authorization: `tma ${initData}` } });
         const json = await res.json();
         const raw = json?.data?.status ?? json?.status;
-        if (raw) setClientStatus(normalizeStatus(raw));
+        if (raw) setClientStatus(normalizeUserStatus(raw));
       } catch {
         // ignore
       }

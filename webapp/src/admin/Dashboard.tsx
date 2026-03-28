@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { getUserStatusLabelRu, USER_STATUS_OPTIONS_RU } from "../domain/status";
 import {
   apiAdminGetRequests,
   apiAdminSetRequestState,
@@ -7,8 +8,8 @@ import {
   apiAdminUsers,
   apiGetTodayRates
 } from "../lib/api";
+import type { UserStatus } from "../lib/types";
 
-type UserStatus = "standard" | "silver" | "gold";
 type RequestState = "new" | "in_progress" | "done" | "canceled";
 
 type StoredUser = {
@@ -36,12 +37,6 @@ type StoredRequest = {
   created_at: string;
 };
 
-const STATUS_OPTIONS: Array<{ value: UserStatus; label: string }> = [
-  { value: "standard", label: "Стандарт" },
-  { value: "silver", label: "Серебро" },
-  { value: "gold", label: "Золото" }
-];
-
 const STATE_OPTIONS: Array<{ value: RequestState | "all"; label: string }> = [
   { value: "all", label: "Все" },
   { value: "new", label: "Принята" },
@@ -56,13 +51,6 @@ const DATE_FILTERS: Array<{ value: "all" | "today" | "7d" | "30d"; label: string
   { value: "7d", label: "7 дней" },
   { value: "30d", label: "30 дней" }
 ];
-
-function statusRu(s: any) {
-  const v = String(s ?? "").toLowerCase().trim();
-  if (v === "gold") return "Золото";
-  if (v === "silver") return "Серебро";
-  return "Стандарт";
-}
 
 function stateRu(s: any) {
   const v = String(s ?? "").toLowerCase().trim();
@@ -511,12 +499,12 @@ export default function Dashboard({ token }: { token: string }) {
                 <div className="vx-clientCard">
                   <div className="vx-clientName">{displayName(selectedClient)}</div>
                   <div className="vx-clientMeta">
-                    id: <b>{selectedClient.tg_id}</b> • сделок: <b>{selectedClient.deals}</b> • статус: <b>{statusRu(selectedClient.status)}</b>
+                    id: <b>{selectedClient.tg_id}</b> • сделок: <b>{selectedClient.deals}</b> • статус: <b>{getUserStatusLabelRu(selectedClient.status)}</b>
                   </div>
                   <div className="vx-clientMeta">последняя: {fmtDt(selectedClient.lastDealAt)} • {stateRu(selectedClient.lastState)} • {selectedClient.lastPair}</div>
 
                   <div className="vx-clientBtns">
-                    {STATUS_OPTIONS.map((s) => (
+                    {USER_STATUS_OPTIONS_RU.map((s) => (
                       <button
                         key={s.value}
                         className={"vx-mini" + (selectedClient.status === s.value ? " vx-miniOn" : "")}
@@ -593,7 +581,7 @@ export default function Dashboard({ token }: { token: string }) {
                       <span className={`vx-badge vx-st-${c.lastState}`}>{stateRu(c.lastState)}</span>
                     </div>
                     <div className="vx-clientRowMeta">
-                      сделок: <b>{c.deals}</b> • статус: <b>{statusRu(c.status)}</b>
+                      сделок: <b>{c.deals}</b> • статус: <b>{getUserStatusLabelRu(c.status)}</b>
                     </div>
                     <div className="vx-clientRowMeta">последняя: {fmtDt(c.lastDealAt)} • {c.lastPair}</div>
                   </div>
@@ -616,11 +604,11 @@ export default function Dashboard({ token }: { token: string }) {
                 <div className="vx-clientCard">
                   <div className="vx-clientName">{displayName(selectedClient)}</div>
                   <div className="vx-clientMeta">
-                    id: <b>{selectedClient.tg_id}</b> • сделок: <b>{selectedClient.deals}</b> • статус: <b>{statusRu(selectedClient.status)}</b>
+                    id: <b>{selectedClient.tg_id}</b> • сделок: <b>{selectedClient.deals}</b> • статус: <b>{getUserStatusLabelRu(selectedClient.status)}</b>
                   </div>
 
                   <div className="vx-clientBtns">
-                    {STATUS_OPTIONS.map((s) => (
+                    {USER_STATUS_OPTIONS_RU.map((s) => (
                       <button
                         key={s.value}
                         className={"vx-mini" + (selectedClient.status === s.value ? " vx-miniOn" : "")}

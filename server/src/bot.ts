@@ -1,22 +1,16 @@
 import { Telegraf, Markup } from "telegraf";
 import { randomUUID } from "node:crypto";
+import { USER_STATUS_LABELS_RU, type UserStatus } from "./domain/status.js";
 import {
   readStore,
   mutateStore,
   upsertUserFromTelegram,
-  type UserStatus,
   type StoredRequest,
   normalizeStatus,
   parseStatusInput
 } from "./store.js";
 
 type ReceiveMethod = "cash" | "transfer" | "atm";
-
-const statusLabel: Record<UserStatus, string> = {
-  standard: "стандарт",
-  silver: "серебро",
-  gold: "золото"
-};
 
 // Thousands separator must be a comma (1,000 / 10,000) — same as in the calculator UI
 function fmtGroupedInt(n: number): string {
@@ -105,7 +99,7 @@ export function createBot(opts: {
       await ctx.reply(
         `Твой tg_id: ${u.tg_id}\n` +
           `username: ${u.username ? "@" + u.username : "(нет)"}\n` +
-          `статус: ${statusLabel[u.status]}`
+          `статус: ${USER_STATUS_LABELS_RU[u.status]}`
       );
     } else {
       await ctx.reply("Не вижу пользователя.");
@@ -230,7 +224,7 @@ export function createBot(opts: {
         }
       }
     });
-    return ctx.reply(`Готово ✅ tg_id=${tgId} → статус ${statusLabel[next]}`);
+    return ctx.reply(`Готово ✅ tg_id=${tgId} → статус ${USER_STATUS_LABELS_RU[next]}`);
   });
 
 
@@ -305,7 +299,7 @@ export function createBot(opts: {
         (ctx.from?.username
           ? `@${ctx.from.username}`
           : `${ctx.from?.first_name || ""} ${ctx.from?.last_name || ""}`.trim() || `id ${ctx.from?.id}`) +
-        ` • статус: ${statusLabel[effStatus]}`;
+        ` • статус: ${USER_STATUS_LABELS_RU[effStatus]}`;
 
       // Create a request in the store (so it appears in the miniapp admin tab instantly)
       const id = randomUUID();

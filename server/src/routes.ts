@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listCanonicalBankIcons, normalizeBankIcons, normalizeContactBanks } from "./bankIcons.js";
+import { USER_STATUS_LABELS_RU, type UserStatus } from "./domain/status.js";
 import {
   readStore,
   mutateStore,
@@ -13,7 +14,6 @@ import {
   defaultGFormulas,
   normUsername,
   findContact,
-  type UserStatus,
   type RequestState,
   type StoredRequest,
   type StoredReview,
@@ -39,12 +39,6 @@ type PublicReview = {
   displayName: string;
   anonymous: boolean;
   company_reply?: { text: string; created_at: string };
-};
-
-const statusLabel: Record<UserStatus, string> = {
-  standard: "стандарт",
-  silver: "серебро",
-  gold: "золото"
 };
 
 // Thousands separator must be a comma (1,000 / 10,000) — same as in the calculator UI
@@ -480,7 +474,7 @@ export function createApiRouter(opts: {
         ok: true,
         user,
         status,
-        statusLabel: statusLabel[status],
+        statusLabel: USER_STATUS_LABELS_RU[status],
         isOwner,
         isAdmin,
         blocked,
@@ -510,7 +504,7 @@ export function createApiRouter(opts: {
         data: {
           user,
           status,
-          statusLabel: statusLabel[normalizeStatus(status)],
+          statusLabel: USER_STATUS_LABELS_RU[normalizeStatus(status)],
           isOwner,
           isAdmin,
           blocked,
@@ -2287,7 +2281,7 @@ router.post("/admin/faq", async (req, res) => {
           (user.username
             ? `@${user.username}`
             : `${user.first_name || ""} ${user.last_name || ""}`.trim() || `id ${user.id}`) +
-	          ` • статус: ${statusLabel[effStatus]}`;
+	          ` • статус: ${USER_STATUS_LABELS_RU[effStatus]}`;
 
         const payMap: Record<string, string> = { cash: "наличные", transfer: "перевод", atm: "банкомат", other: "другое" };
 

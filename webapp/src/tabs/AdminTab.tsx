@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { getUserStatusLabelRu, normalizeUserStatus, USER_STATUS_OPTIONS_RU } from "../domain/status";
 import {
   apiAdminSetTodayRates,
   apiAdminGetRequests,
@@ -15,12 +16,6 @@ import {
   apiAdminGetRatesRange
 } from "../lib/api";
 import type { BonusesConfig, BonusesTier } from "../lib/types";
-
-const STATUS_OPTIONS = [
-  { value: "standard", label: "Стандарт" },
-  { value: "silver", label: "Серебро" },
-  { value: "gold", label: "Золото" }
-] as const;
 
 const REQUEST_STATE_OPTIONS = [
   { value: "new", label: "Принята" },
@@ -71,17 +66,11 @@ const RateRow = React.memo(function RateRow(props: RateRowProps) {
 });
 
 function statusLabelAny(s: any) {
-  const v = String(s ?? "").toLowerCase().trim();
-  if (v === "gold") return "Золото";
-  if (v === "silver") return "Серебро";
-  return "Стандарт";
+  return getUserStatusLabelRu(s);
 }
 
 function statusValueAny(s: any): "standard" | "silver" | "gold" {
-  const v = String(s ?? "").toLowerCase().trim();
-  if (v === "gold") return "gold";
-  if (v === "silver") return "silver";
-  return "standard";
+  return normalizeUserStatus(s);
 }
 
 function nStr(v: any) {
@@ -732,7 +721,7 @@ export default function AdminTab({
                 </div>
 
                 <div className="row vx-mt6 vx-rowWrap vx-gap6">
-                  {STATUS_OPTIONS.map((s) => {
+                  {USER_STATUS_OPTIONS_RU.map((s) => {
                     const isOn = statusValueAny(u.status) === s.value;
                     const activeStyle = isOn
                       ? (s.value === "standard"

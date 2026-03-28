@@ -2,11 +2,15 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { HAS_DATABASE, ensureSchema, getPool } from "./db.js";
+import type { BonusesConfig, BonusesTier, GFormula, Rates } from "./domain/exchange.js";
+import { defaultBonuses, defaultGFormulas } from "./domain/exchange.js";
+import type { RequestState, UserStatus } from "./domain/status.js";
+import { normalizeStatus, parseStatusInput } from "./domain/status.js";
 
-
-export type UserStatus = "standard" | "silver" | "gold";
-
-export type RequestState = "new" | "in_progress" | "done" | "canceled";
+export type { BonusesConfig, BonusesTier, GFormula, Rates } from "./domain/exchange.js";
+export { defaultBonuses, defaultGFormulas } from "./domain/exchange.js";
+export type { RequestState, UserStatus } from "./domain/status.js";
+export { normalizeStatus, parseStatusInput } from "./domain/status.js";
 
 export type AtmItem = {
   id: string;
@@ -53,19 +57,6 @@ export type FaqItem = {
   updated_at: string;
 };
 
-
-export type Rates = {
-  USD: { buy_vnd: number; sell_vnd: number };
-  RUB: { buy_vnd: number; sell_vnd: number };
-  USDT: { buy_vnd: number; sell_vnd: number };
-};
-
-// Multipliers for cross-pairs computed from the market snapshot "G".
-// For a pair BASE/QUOTE: BUY = G * buyMul, SELL = G * sellMul.
-export type GFormula = {
-  buyMul: number;
-  sellMul: number;
-};
 
 export type SupportDialogMessage = {
   id: string;
@@ -170,32 +161,6 @@ export type StoredReview = {
   };
 };
 
-export type BonusesTier = {
-  min: number;
-  max?: number; // если не задано — бесконечность
-  standard: number;
-  silver: number;
-  gold: number;
-};
-
-export type BonusesConfig = {
-  enabled: {
-    tiers: boolean;
-    methods: boolean;
-  };
-  // надбавки по статусам/суммам (в той же единице, что и курс: VND за 1 единицу валюты)
-  tiers: {
-    RUB: BonusesTier[];
-    USD: BonusesTier[];
-    USDT: BonusesTier[];
-  };
-  // надбавки за способ получения (для получения VND)
-  methods: {
-    transfer: { RUB: number; USD: number; USDT: number };
-    atm: { RUB: number; USD: number; USDT: number };
-  };
-};
-
 export type StoredRequest = {
   id: string;
   state: RequestState;
@@ -243,86 +208,6 @@ function defaultStore(): Store {
     contacts: [],
     faq: []
   };
-}
-
-export function defaultBonuses(): BonusesConfig {
-  // значения повторяют текущую логику калькулятора (по умолчанию)
-  const rub: BonusesTier[] = [
-    { min: 0, max: 50_000, standard: 0, silver: 1, gold: 2 },
-    { min: 50_000, max: 100_000, standard: 1, silver: 2, gold: 3 },
-    { min: 100_000, max: 200_000, standard: 2, silver: 3, gold: 4 },
-    { min: 200_000, standard: 3, silver: 4, gold: 5 }
-  ];
-
-  const usd: BonusesTier[] = [
-    { min: 0, max: 1000, standard: 0, silver: 100, gold: 150 },
-    { min: 1000, max: 3000, standard: 100, silver: 150, gold: 200 },
-    { min: 3000, standard: 150, silver: 200, gold: 250 }
-  ];
-
-  return {
-    enabled: { tiers: true, methods: true },
-    tiers: {
-      RUB: rub,
-      USD: usd,
-      USDT: usd
-    },
-    methods: {
-      transfer: { RUB: 1, USD: 100, USDT: 100 },
-      atm: { RUB: 1, USD: 100, USDT: 100 }
-    }
-  };
-}
-
-export function defaultGFormulas(): Record<string, GFormula> {
-  // Defaults match the current client multipliers.
-  return {
-    "USDT/RUB": { buyMul: 0.98, sellMul: 1.08 },
-    "USD/RUB": { buyMul: 0.98, sellMul: 1.08 },
-    "EUR/RUB": { buyMul: 0.94, sellMul: 1.08 },
-    "THB/RUB": { buyMul: 0.96, sellMul: 1.1 },
-    "USD/USDT": { buyMul: 0.965, sellMul: 1.035 },
-    "EUR/USD": { buyMul: 0.95, sellMul: 1.05 },
-    "EUR/USDT": { buyMul: 0.95, sellMul: 1.05 },
-    "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
-    "USDT/THB": { buyMul: 0.95, sellMul: 1.07 },
-    "EUR/THB": { buyMul: 0.95, sellMul: 1.07 }
-  };
-}
-
-/**
- * Строгий парсер статуса:
- * - возвращает UserStatus, если распознали
- * - возвращает null, если не распознали (мусор/пусто)
- */
-export function parseStatusInput(s: any): UserStatus | null {
-  const v = String(s ?? "").toLowerCase().trim();
-  if (!v || v === "none") return null;
-
-  // STANDARD (+ совместимость со старым bronze)
-  if (["standard", "standart", "стандарт", "bronze"].includes(v)) return "standard";
-
-  // SILVER
-  if (["silver", "серебро", "сильвер", "силвер"].includes(v)) return "silver";
-
-  // GOLD
-  if (["gold", "золото", "голд"].includes(v)) return "gold";
-
-  return null;
-}
-
-/**
- * Нормализация для хранения/миграций:
- * - мусор/пусто => standard
- */
-export function normalizeStatus(s: any): UserStatus {
-  const v = String(s ?? "").toLowerCase().trim();
-
-  // миграция старых статусов / пустых значений
-  if (v === "" || v === "none") return "standard";
-
-  return parseStatusInput(v) ?? "standard";
-
 }
 
 function ensureDir() {

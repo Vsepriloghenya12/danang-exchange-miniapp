@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { getUserStatusLabelRu, USER_STATUS_OPTIONS_RU } from "../domain/status";
 import {
   apiGetBankIcons,
   bankIconUrl,
@@ -27,19 +28,6 @@ const stateLabel: Record<string, string> = {
   canceled: "Отклонена",
   new: "В работе",
 };
-
-
-const STATUS_OPTIONS = [
-  { v: "standard", l: "Стандарт" },
-  { v: "silver", l: "Серебро" },
-  { v: "gold", l: "Золото" },
-] as const;
-
-function userStatusLabel(v: string) {
-  const hit = STATUS_OPTIONS.find((x) => x.v === String(v || "standard"));
-  return hit?.l || "Стандарт";
-}
-
 function shortId(id: string) {
   const s = String(id || "");
   return s.length > 6 ? s.slice(-6) : s;
@@ -567,18 +555,18 @@ export default function StaffTab({ me }: any) {
 
             <div className="small">Статус клиента</div>
             <div className="vx-muted" style={{ marginTop: 4 }}>
-              Текущий статус: <b>{userStatusLabel(selectedClientStatus)}</b>
+              Текущий статус: <b>{getUserStatusLabelRu(selectedClientStatus)}</b>
             </div>
             <div className="vx-sp8" />
             <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {STATUS_OPTIONS.map((s) => (
+              {USER_STATUS_OPTIONS_RU.map((s) => (
                 <button
-                  key={s.v}
+                  key={s.value}
                   type="button"
-                  className={"btn vx-btnSm " + (selectedClientStatus === s.v ? "vx-btnOn" : "")}
-                  onClick={() => changeClientStatus(s.v)}
+                  className={"btn vx-btnSm " + (selectedClientStatus === s.value ? "vx-btnOn" : "")}
+                  onClick={() => changeClientStatus(s.value)}
                 >
-                  {s.l}
+                  {s.label}
                 </button>
               ))}
             </div>
