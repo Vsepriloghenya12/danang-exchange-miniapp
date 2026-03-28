@@ -631,7 +631,7 @@ ${msg}`);
                 <div className="mx-topLeftStack">
                   <button
                     type="button"
-                    className="mx-langMini"
+                    className="mx-langSwitchBtn"
                     onClick={toggleLang}
                     aria-label={isEn ? "Switch language" : "Переключить язык"}
                     title={isEn ? "Switch language" : "Переключить язык"}
