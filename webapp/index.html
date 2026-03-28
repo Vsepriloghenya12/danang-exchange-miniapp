@@ -24,12 +24,12 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
       .theme-client.vx-page.mx-homePage {
-        padding-top: max(22px, calc(env(safe-area-inset-top, 0px) + 10px)) !important;
+        padding-top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px)) !important;
       }
 
       .theme-client .mx-topRow.mx-topRowHome {
         margin-top: 0 !important;
-        margin-bottom: 4px !important;
+        margin-bottom: 0 !important;
         padding-top: 0 !important;
         padding-left: 0 !important;
       }
@@ -45,7 +45,7 @@
       }
 
       .theme-client .mx-homeLead {
-        gap: 10px !important;
+        gap: 6px !important;
       }
 
       .theme-client .mx-homeControlsStack,
@@ -130,16 +130,19 @@
       }
 
       .theme-client .mx-mainLogoWrap {
-        height: 66px !important;
+        height: 72px !important;
       }
 
       .mx-runtimeLangFloatingBtn {
-        position: fixed;
+        position: relative;
         display: none;
         align-items: center;
         justify-content: center;
         margin: 0;
         padding: 0;
+        width: 56px;
+        min-width: 56px;
+        height: 56px;
         border: 1px solid rgba(9, 23, 33, 0.08);
         border-radius: 16px;
         background: rgba(255, 255, 255, 0.98);
@@ -163,7 +166,7 @@
 
       @media (max-width: 380px) {
         .theme-client.vx-page.mx-homePage {
-          padding-top: max(18px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
+          padding-top: max(6px, calc(env(safe-area-inset-top, 0px) + 3px)) !important;
         }
 
         .theme-client .mx-topRowHome {
@@ -194,12 +197,15 @@
         .theme-client .mx-homeLangSwitchBtn,
         .theme-client .mx-topRowHome .mx-langSwitchBtn,
         .mx-runtimeLangFloatingBtn {
+          width: 52px !important;
+          min-width: 52px !important;
+          height: 52px !important;
           font-size: 13px !important;
           border-radius: 15px !important;
         }
 
         .theme-client .mx-mainLogoWrap {
-          height: 60px !important;
+          height: 64px !important;
         }
       }
     </style>
@@ -227,6 +233,10 @@
           return document.querySelector(".theme-client.mx-homePage");
         }
 
+        function controlsStack(page) {
+          return page ? page.querySelector(".mx-homeControlsStack, .mx-topLeftStack") : null;
+        }
+
         function nativeLangButton(page) {
           return page ? page.querySelector(".mx-homeLangSwitchBtn, .mx-langSwitchBtn") : null;
         }
@@ -251,6 +261,21 @@
           return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity || "1") > 0.01;
         }
 
+        function applyLangSwitch(next) {
+          try {
+            localStorage.setItem("mx_lang", next);
+            document.documentElement.setAttribute("lang", next);
+          } catch (e) {}
+
+          try {
+            var url = new URL(window.location.href);
+            url.searchParams.set("_langv", String(Date.now()));
+            window.location.replace(url.toString());
+          } catch (e) {
+            window.location.reload();
+          }
+        }
+
         function ensureButton() {
           if (btn) return btn;
           btn = document.createElement("button");
@@ -259,20 +284,7 @@
           btn.addEventListener("click", function (event) {
             event.preventDefault();
             event.stopPropagation();
-            var page = homePage();
-            var native = nativeLangButton(page);
-            if (native instanceof HTMLElement) {
-              native.click();
-              window.requestAnimationFrame(syncButton);
-              return;
-            }
-
-            var next = nextLang();
-            try {
-              localStorage.setItem("mx_lang", next);
-              document.documentElement.setAttribute("lang", next);
-            } catch (e) {}
-            window.location.reload();
+            applyLangSwitch(nextLang());
           });
           document.body.appendChild(btn);
           return btn;
@@ -287,12 +299,13 @@
 
           var native = nativeLangButton(page);
           var themeBtn = themeButton(page);
+          var stack = controlsStack(page) || (themeBtn instanceof HTMLElement ? themeBtn.parentElement : null);
 
           if (native instanceof HTMLElement) {
             setButtonCopy(native);
           }
 
-          if (!(themeBtn instanceof HTMLElement)) {
+          if (!(themeBtn instanceof HTMLElement) || !(stack instanceof HTMLElement)) {
             if (btn) btn.style.display = "none";
             return;
           }
@@ -303,18 +316,17 @@
           }
 
           var node = ensureButton();
-          var rect = themeBtn.getBoundingClientRect();
           var mobile = window.innerWidth <= 380;
-          var size = mobile ? 52 : 56;
-          var gap = mobile ? 5 : 6;
 
           setButtonCopy(node);
+          if (node.parentElement !== stack) {
+            if (themeBtn.parentElement === stack) stack.insertBefore(node, themeBtn);
+            else stack.prepend(node);
+          }
           node.style.display = "flex";
-          node.style.top = Math.max(mobile ? 8 : 10, Math.round(rect.top - size - gap)) + "px";
-          node.style.left = Math.round(rect.left + (rect.width - size) / 2) + "px";
-          node.style.width = size + "px";
-          node.style.minWidth = size + "px";
-          node.style.height = size + "px";
+          node.style.width = (mobile ? 52 : 56) + "px";
+          node.style.minWidth = (mobile ? 52 : 56) + "px";
+          node.style.height = (mobile ? 52 : 56) + "px";
           node.style.fontSize = (mobile ? 13 : 15) + "px";
         }
 
@@ -323,6 +335,18 @@
         };
 
         document.addEventListener("DOMContentLoaded", run);
+        document.addEventListener(
+          "click",
+          function (event) {
+            if (!(event.target instanceof Element)) return;
+            var target = event.target.closest(".mx-homeLangSwitchBtn, .mx-langSwitchBtn");
+            if (!target) return;
+            event.preventDefault();
+            event.stopPropagation();
+            applyLangSwitch(nextLang());
+          },
+          true
+        );
         window.addEventListener("load", run, { passive: true });
         window.addEventListener("resize", run, { passive: true });
         window.addEventListener("orientationchange", run, { passive: true });
@@ -338,6 +362,6 @@
   </head>
   <body style="background:#17212b;">
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx?v=langbtn-20260328-2"></script>
+    <script type="module" src="/src/main.tsx?v=langbtn-20260328-3"></script>
   </body>
 </html>

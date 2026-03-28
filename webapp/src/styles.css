@@ -2212,7 +2212,7 @@ label, input, select, textarea{ color: var(--text); }
 .mx-homeLead{
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 .mx-homeNavGrid{
@@ -2231,7 +2231,7 @@ label, input, select, textarea{ color: var(--text); }
 }
 
 .mx-mainLogoWrap{
-  height: 80px;
+  height: 92px;
   width: 100%;
   max-width: none;
   box-sizing: border-box;
@@ -4025,7 +4025,7 @@ html[data-theme="dark"] .vx-miniOn{
   }
 
   .theme-client .mx-mainLogoWrap{
-    height: 66px;
+    height: 72px;
   }
 
   .theme-client .mx-card{
@@ -5085,11 +5085,11 @@ html[data-theme="dark"] .theme-client .mx-langSwitchBtn{
 
 /* FINAL v44: language button matches theme button and logo header is more compact */
 .theme-client.vx-page.mx-homePage{
-  padding-top: max(22px, calc(env(safe-area-inset-top, 0px) + 10px)) !important;
+  padding-top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px)) !important;
 }
 .theme-client .mx-topRow.mx-topRowHome{
   margin-top: 0 !important;
-  margin-bottom: 4px !important;
+  margin-bottom: 0 !important;
   padding-top: 0 !important;
 }
 .theme-client .mx-topRowHome{
@@ -5178,7 +5178,7 @@ html[data-theme="dark"] .theme-client .mx-langSwitchBtn{
   justify-self:end !important;
 }
 .theme-client .mx-mainLogoWrap{
-  height:66px !important;
+  height:72px !important;
 }
 html[data-theme="dark"] .theme-client .mx-homeLangSwitchBtn,
 html[data-theme="dark"] .theme-client .mx-topRowHome .mx-langSwitchBtn{
@@ -5189,7 +5189,7 @@ html[data-theme="dark"] .theme-client .mx-topRowHome .mx-langSwitchBtn{
 }
 @media (max-width: 380px){
   .theme-client.vx-page.mx-homePage{
-    padding-top: max(18px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
+    padding-top: max(6px, calc(env(safe-area-inset-top, 0px) + 3px)) !important;
   }
   .theme-client .mx-topRowHome{
     grid-template-columns:52px minmax(0,1fr) 52px !important;
@@ -5219,6 +5219,6 @@ html[data-theme="dark"] .theme-client .mx-topRowHome .mx-langSwitchBtn{
     border-radius:15px !important;
   }
   .theme-client .mx-mainLogoWrap{
-    height:60px !important;
+    height:64px !important;
   }
 }
