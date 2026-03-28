@@ -1919,7 +1919,7 @@ router.post("/admin/faq", async (req, res) => {
         }
       });
 
-      res.json({ ok: true, status: next, statusLabel: statusLabel[next] });
+      res.json({ ok: true, status: next, statusLabel: USER_STATUS_LABELS_RU[next] });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
