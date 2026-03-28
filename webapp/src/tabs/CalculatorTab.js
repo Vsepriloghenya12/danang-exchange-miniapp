@@ -21,6 +21,13 @@ const DEFAULT_G_FORMULAS = {
 function getTg() {
     return window.Telegram?.WebApp;
 }
+function shortRequestId(id) {
+    const s = String(id || "").trim();
+    return s.length > 6 ? s.slice(-6) : s;
+}
+function CopyIcon({ className = "" }) {
+    return (_jsxs("svg", { viewBox: "0 0 24 24", className: className, fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: [_jsx("rect", { x: "9", y: "9", width: "10", height: "10", rx: "2" }), _jsx("path", { d: "M15 9V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" })] }));
+}
 async function copyPlainText(value) {
     const text = String(value || "");
     if (!text)
