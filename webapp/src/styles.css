@@ -5081,3 +5081,21 @@ html[data-theme="dark"] .theme-client .mx-langSwitchBtn{
     height:52px !important;
   }
 }
+
+
+/* FINAL v43: keep language button inside visible Telegram viewport */
+.theme-client.vx-page.mx-homePage{
+  padding-top: max(34px, calc(env(safe-area-inset-top, 0px) + 14px)) !important;
+}
+.theme-client .mx-topRow.mx-topRowHome{
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+.theme-client .mx-topLeftStack{
+  align-self: start !important;
+}
+.theme-client .mx-langSwitchBtn{
+  display:flex !important;
+  visibility:visible !important;
+  opacity:1 !important;
+}
