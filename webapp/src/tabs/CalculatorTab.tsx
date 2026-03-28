@@ -46,6 +46,20 @@ function getTg() {
   return (window as any).Telegram?.WebApp;
 }
 
+function shortRequestId(id: string) {
+  const s = String(id || "").trim();
+  return s.length > 6 ? s.slice(-6) : s;
+}
+
+function CopyIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="9" y="9" width="10" height="10" rx="2" />
+      <path d="M15 9V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+    </svg>
+  );
+}
+
 async function copyPlainText(value: string) {
   const text = String(value || "");
   if (!text) return false;
@@ -1164,15 +1178,8 @@ export default function CalculatorTab({ me }: Props) {
     ? createPortal(
         <div className="vx-modalOverlay vx-contactModalOverlay" role="dialog" aria-modal="true" aria-label="Заявка принята" onClick={() => setRequestSuccessModal(null)}>
           <div className="vx-modalCard vx-contactModalCard vx-requestDoneCard" onClick={(e) => e.stopPropagation()}>
-            <div className="row vx-between vx-center" style={{ gap: 10 }}>
-              <div>
-                <div className="vx-modalTitle">Заявка принята</div>
-                <div className="vx-modalSub">Для уточнения деталей свяжитесь с менеджером.</div>
-              </div>
-              <button type="button" className="btn vx-btnSm" onClick={() => setRequestSuccessModal(null)}>Закрыть</button>
-            </div>
             <div className="vx-requestDoneText">
-              Ваша заявка с номером <b>#{requestSuccessModal.requestId}</b> принята, для уточнения деталей свяжитесь с менеджером.
+              Так как у вас отсутствует юзернейм, пожалуйста скопируйте данные заявки и свяжитесь с менеджером
             </div>
             <button
               type="button"
@@ -1181,15 +1188,20 @@ export default function CalculatorTab({ me }: Props) {
               aria-label="Скопировать информацию о заявке"
             >
               <span className="vx-requestIdLabel">Номер заявки</span>
-              <span className="vx-requestIdValue">#{requestSuccessModal.requestId}</span>
-              <span className="vx-copyBadge" aria-hidden="true">📋</span>
+              <span className="vx-requestIdValue">#{shortRequestId(requestSuccessModal.requestId)}</span>
+              <span className="vx-copyBadge" aria-hidden="true"><CopyIcon className="vx-copyIcon" /></span>
             </button>
-            <div className="vx-requestCopyHint">Нажмите на номер, чтобы скопировать всю информацию о заявке.</div>
-            <div className="vx-sp12" />
-            <div className="row vx-gap8" style={{ display: "grid", gap: 8 }}>
-              <button type="button" className="vx-primary" onClick={() => openManagerContactLink(me)}>Связаться с менеджером</button>
-              <button type="button" className="btn" onClick={() => copyRequestInfo(requestSuccessModal.requestId, requestSuccessModal.copyText)}>Скопировать заявку</button>
-            </div>
+            <div className="vx-sp4" />
+            <button
+              type="button"
+              className="vx-primary"
+              onClick={() => {
+                openManagerContactLink(me);
+                setRequestSuccessModal(null);
+              }}
+            >
+              Связаться с менеджером
+            </button>
           </div>
         </div>,
         document.body

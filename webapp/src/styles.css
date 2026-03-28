@@ -3256,13 +3256,21 @@ html[data-theme="dark"] .theme-client .mx-afEvCard{
     0 10px 28px rgba(0,0,0,.72),
     0 0 2px rgba(0,0,0,.96) !important;
 }
-.mx-afEvCard.has-img .mx-afComment{
-  color: rgba(255,255,255,.94);
-  text-shadow: 0 2px 8px rgba(0,0,0,.72);
+.mx-afEvCard .mx-afComment{
+  color: rgba(255,255,255,.96) !important;
+  text-shadow:
+    0 2px 6px rgba(0,0,0,.90),
+    0 4px 14px rgba(0,0,0,.84),
+    0 10px 28px rgba(0,0,0,.68),
+    0 0 2px rgba(0,0,0,.94) !important;
 }
-.mx-afEvCard.has-img .mx-afMeta{
-  color: rgba(255,255,255,.86);
-  text-shadow: 0 2px 8px rgba(0,0,0,.68);
+.mx-afEvCard .mx-afMeta{
+  color: rgba(255,255,255,.92) !important;
+  text-shadow:
+    0 2px 6px rgba(0,0,0,.88),
+    0 4px 14px rgba(0,0,0,.82),
+    0 10px 28px rgba(0,0,0,.66),
+    0 0 2px rgba(0,0,0,.92) !important;
 }
 
 /* Rates table inside the home "Курс" card (no extra card wrapper) */
@@ -3786,11 +3794,11 @@ html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afEvBody{
   -webkit-backdrop-filter: none;
   background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(7,12,18,.05) 100%);
 }
-html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afComment{
-  color: rgba(255,255,255,.92) !important;
+html[data-theme="dark"] .theme-client .mx-afEvCard .mx-afComment{
+  color: rgba(255,255,255,.96) !important;
 }
-html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afMeta{
-  color: rgba(255,255,255,.84) !important;
+html[data-theme="dark"] .theme-client .mx-afEvCard .mx-afMeta{
+  color: rgba(255,255,255,.90) !important;
 }
 
 
@@ -3823,11 +3831,21 @@ html[data-theme="dark"] .theme-client .mx-afEvCard .mx-afTitle{
     0 12px 30px rgba(0,0,0,.76),
     0 0 2px rgba(0,0,0,.98) !important;
 }
-html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afComment{
-  color: rgba(255,255,255,.95) !important;
+html[data-theme="dark"] .theme-client .mx-afEvCard .mx-afComment{
+  color: rgba(255,255,255,.96) !important;
+  text-shadow:
+    0 2px 6px rgba(0,0,0,.94),
+    0 5px 16px rgba(0,0,0,.90),
+    0 12px 30px rgba(0,0,0,.76),
+    0 0 2px rgba(0,0,0,.98) !important;
 }
-html[data-theme="dark"] .theme-client .mx-afEvCard.has-img .mx-afMeta{
-  color: rgba(255,255,255,.88) !important;
+html[data-theme="dark"] .theme-client .mx-afEvCard .mx-afMeta{
+  color: rgba(255,255,255,.90) !important;
+  text-shadow:
+    0 2px 6px rgba(0,0,0,.94),
+    0 5px 16px rgba(0,0,0,.90),
+    0 12px 30px rgba(0,0,0,.76),
+    0 0 2px rgba(0,0,0,.98) !important;
 }
 
 
@@ -4384,11 +4402,12 @@ html[data-theme="dark"] .theme-client .vx-contactModalCard{
 }
 .vx-requestDoneCard{
   display: grid;
-  gap: 10px;
+  gap: 12px;
+  text-align: center;
 }
 .vx-requestDoneText{
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--text);
 }
 .vx-requestIdRow{
@@ -4408,15 +4427,25 @@ html[data-theme="dark"] .theme-client .vx-contactModalCard{
   font-size: 12px;
   font-weight: 900;
   color: var(--muted);
+  text-align: left;
 }
 .vx-requestIdValue{
   font-size: 15px;
   font-weight: 950;
-  letter-spacing: -.01em;
+  letter-spacing: .04em;
+  white-space: nowrap;
 }
 .vx-copyBadge{
-  font-size: 18px;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
+}
+.vx-copyIcon{
+  width: 18px;
+  height: 18px;
 }
 .vx-requestCopyHint{
   font-size: 12px;
