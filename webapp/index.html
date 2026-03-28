@@ -23,46 +23,114 @@
     <title>Обмен валют — Дананг</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-      .theme-client .mx-langSwitchBtn {
-        position: fixed !important;
-        top: max(10px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
-        left: 12px !important;
+      .theme-client.vx-page.mx-homePage {
+        padding-top: max(22px, calc(env(safe-area-inset-top, 0px) + 10px)) !important;
+      }
+
+      .theme-client .mx-topRow.mx-topRowHome {
+        margin-top: 0 !important;
+        margin-bottom: 4px !important;
+        padding-top: 0 !important;
+        padding-left: 0 !important;
+      }
+
+      .theme-client .mx-topRowHome {
+        display: grid !important;
+        grid-template-columns: 56px minmax(0, 1fr) 56px !important;
+        grid-template-rows: 56px 56px !important;
+        align-items: center !important;
+        column-gap: 10px !important;
+        row-gap: 6px !important;
+        overflow: visible !important;
+      }
+
+      .theme-client .mx-homeLead {
+        gap: 10px !important;
+      }
+
+      .theme-client .mx-homeControlsStack,
+      .theme-client .mx-topLeftStack {
+        grid-column: 1 !important;
+        grid-row: 1 / span 2 !important;
+        display: grid !important;
+        grid-template-rows: 56px 56px !important;
         width: 56px !important;
         min-width: 56px !important;
-        height: 26px !important;
+        gap: 6px !important;
+        align-items: stretch !important;
+        justify-items: stretch !important;
+        align-self: start !important;
+        overflow: visible !important;
+        position: relative !important;
+        z-index: 6 !important;
+        flex: none !important;
+        height: auto !important;
+      }
+
+      .theme-client .mx-homeLangSwitchBtn,
+      .theme-client .mx-topRowHome .mx-langSwitchBtn {
+        grid-row: 1 !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
+        width: 56px !important;
+        min-width: 56px !important;
+        height: 56px !important;
         margin: 0 !important;
         padding: 0 !important;
-        border: none !important;
-        border-radius: 999px !important;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(246, 248, 252, 0.96) 100%) !important;
-        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14), inset 0 1px rgba(255, 255, 255, 0.92) !important;
+        border: 1px solid rgba(9, 23, 33, 0.08) !important;
+        border-radius: 16px !important;
+        background: rgba(255, 255, 255, 0.98) !important;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14), inset 0 1px rgba(255, 255, 255, 0.92) !important;
         color: rgba(9, 23, 33, 0.88) !important;
-        font-size: 11px !important;
+        font-size: 15px !important;
         font-weight: 900 !important;
         letter-spacing: 0.08em !important;
         line-height: 1 !important;
+        cursor: pointer !important;
         visibility: visible !important;
         opacity: 1 !important;
-        z-index: 9999 !important;
+        position: relative !important;
+        z-index: 20 !important;
       }
 
-      html[data-theme="dark"] .theme-client .mx-langSwitchBtn {
-        background: linear-gradient(180deg, rgba(31, 43, 56, 0.99) 0%, rgba(22, 31, 41, 0.98) 100%) !important;
-        box-shadow: 0 0 0 1px rgba(246, 198, 0, 0.12) inset, 0 0 16px rgba(246, 198, 0, 0.08), 0 10px 22px rgba(0, 0, 0, 0.34) !important;
-        color: rgba(246, 198, 0, 0.98) !important;
+      .theme-client .mx-homeLangSwitchBtn:active,
+      .theme-client .mx-topRowHome .mx-langSwitchBtn:active {
+        transform: translateY(1px) !important;
       }
 
-      @media (max-width: 380px) {
-        .theme-client .mx-langSwitchBtn {
-          left: 10px !important;
-          width: 52px !important;
-          min-width: 52px !important;
-          height: 24px !important;
-          font-size: 10px !important;
-        }
+      .theme-client .mx-homeThemeBtn,
+      .theme-client .mx-topRowHome .mx-themeBtn,
+      .theme-client .mx-statusBtn {
+        width: 56px !important;
+        min-width: 56px !important;
+        height: 56px !important;
+        margin: 0 !important;
+        border-radius: 16px !important;
+      }
+
+      .theme-client .mx-homeThemeBtn {
+        grid-row: 2 !important;
+      }
+
+      .theme-client .mx-topCenter {
+        grid-column: 2 !important;
+        grid-row: 1 / span 2 !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        align-self: center !important;
+        justify-self: stretch !important;
+      }
+
+      .theme-client .mx-statusBtn {
+        grid-column: 3 !important;
+        grid-row: 2 !important;
+        align-self: end !important;
+        justify-self: end !important;
+      }
+
+      .theme-client .mx-mainLogoWrap {
+        height: 66px !important;
       }
 
       .mx-runtimeLangFloatingBtn {
@@ -72,10 +140,10 @@
         justify-content: center;
         margin: 0;
         padding: 0;
-        border: none;
-        border-radius: 999px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(246, 248, 252, 0.96) 100%);
-        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14), inset 0 1px rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(9, 23, 33, 0.08);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14), inset 0 1px rgba(255, 255, 255, 0.92);
         color: rgba(9, 23, 33, 0.88);
         font-weight: 900;
         letter-spacing: 0.08em;
@@ -84,10 +152,55 @@
         z-index: 10001;
       }
 
+      html[data-theme="dark"] .theme-client .mx-homeLangSwitchBtn,
+      html[data-theme="dark"] .theme-client .mx-topRowHome .mx-langSwitchBtn,
       html[data-theme="dark"] .mx-runtimeLangFloatingBtn {
-        background: linear-gradient(180deg, rgba(31, 43, 56, 0.99) 0%, rgba(22, 31, 41, 0.98) 100%);
-        box-shadow: 0 0 0 1px rgba(246, 198, 0, 0.12) inset, 0 0 16px rgba(246, 198, 0, 0.08), 0 10px 22px rgba(0, 0, 0, 0.34);
-        color: rgba(246, 198, 0, 0.98);
+        background: rgba(31, 43, 56, 0.98) !important;
+        border-color: rgba(246, 198, 0, 0.22) !important;
+        box-shadow: 0 0 0 1px rgba(246, 198, 0, 0.08) inset, 0 0 14px rgba(246, 198, 0, 0.06), 0 12px 28px rgba(0, 0, 0, 0.44) !important;
+        color: rgba(246, 198, 0, 0.98) !important;
+      }
+
+      @media (max-width: 380px) {
+        .theme-client.vx-page.mx-homePage {
+          padding-top: max(18px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
+        }
+
+        .theme-client .mx-topRowHome {
+          grid-template-columns: 52px minmax(0, 1fr) 52px !important;
+          grid-template-rows: 52px 52px !important;
+          column-gap: 8px !important;
+          row-gap: 5px !important;
+        }
+
+        .theme-client .mx-homeControlsStack,
+        .theme-client .mx-topLeftStack {
+          grid-template-rows: 52px 52px !important;
+          width: 52px !important;
+          min-width: 52px !important;
+          gap: 5px !important;
+        }
+
+        .theme-client .mx-homeLangSwitchBtn,
+        .theme-client .mx-topRowHome .mx-langSwitchBtn,
+        .theme-client .mx-homeThemeBtn,
+        .theme-client .mx-topRowHome .mx-themeBtn,
+        .theme-client .mx-statusBtn {
+          width: 52px !important;
+          min-width: 52px !important;
+          height: 52px !important;
+        }
+
+        .theme-client .mx-homeLangSwitchBtn,
+        .theme-client .mx-topRowHome .mx-langSwitchBtn,
+        .mx-runtimeLangFloatingBtn {
+          font-size: 13px !important;
+          border-radius: 15px !important;
+        }
+
+        .theme-client .mx-mainLogoWrap {
+          height: 60px !important;
+        }
       }
     </style>
     <script>
@@ -99,11 +212,43 @@
 
         function currentLang() {
           try {
-            var raw = String(document.documentElement.getAttribute("lang") || localStorage.getItem("mx_lang") || "ru").toLowerCase();
+            var raw = String(localStorage.getItem("mx_lang") || document.documentElement.getAttribute("lang") || "ru").toLowerCase();
             return raw === "en" ? "en" : "ru";
           } catch (e) {
             return "ru";
           }
+        }
+
+        function nextLang() {
+          return currentLang() === "en" ? "ru" : "en";
+        }
+
+        function homePage() {
+          return document.querySelector(".theme-client.mx-homePage");
+        }
+
+        function nativeLangButton(page) {
+          return page ? page.querySelector(".mx-homeLangSwitchBtn, .mx-langSwitchBtn") : null;
+        }
+
+        function themeButton(page) {
+          return page ? page.querySelector(".mx-homeThemeBtn, .mx-themeBtn") : null;
+        }
+
+        function setButtonCopy(node) {
+          if (!(node instanceof HTMLElement)) return;
+          var next = nextLang();
+          var switchToEnglish = next === "en";
+          var title = switchToEnglish ? "Switch to English" : "Switch to Russian";
+          node.textContent = switchToEnglish ? "EN" : "RU";
+          node.title = title;
+          node.setAttribute("aria-label", title);
+        }
+
+        function isVisible(node) {
+          if (!(node instanceof HTMLElement)) return false;
+          var style = window.getComputedStyle(node);
+          return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity || "1") > 0.01;
         }
 
         function ensureButton() {
@@ -114,63 +259,63 @@
           btn.addEventListener("click", function (event) {
             event.preventDefault();
             event.stopPropagation();
-            var next = currentLang() === "en" ? "ru" : "en";
+            var page = homePage();
+            var native = nativeLangButton(page);
+            if (native instanceof HTMLElement) {
+              native.click();
+              window.requestAnimationFrame(syncButton);
+              return;
+            }
+
+            var next = nextLang();
             try {
               localStorage.setItem("mx_lang", next);
               document.documentElement.setAttribute("lang", next);
             } catch (e) {}
             window.location.reload();
           });
-          document.addEventListener("click", function (event) {
-            if (!(event.target instanceof Element)) return;
-            var target = event.target.closest(".mx-langSwitchBtn");
-            if (!target || target === btn) return;
-            event.preventDefault();
-            event.stopPropagation();
-          }, true);
           document.body.appendChild(btn);
           return btn;
         }
 
         function syncButton() {
-          var page = document.querySelector(".theme-client.mx-homePage");
-          var themeBtn = page ? page.querySelector(".mx-themeBtn") : null;
-          var nativeLangBtn = page ? page.querySelector(".mx-langSwitchBtn") : null;
+          var page = homePage();
+          if (!page) {
+            if (btn) btn.style.display = "none";
+            return;
+          }
+
+          var native = nativeLangButton(page);
+          var themeBtn = themeButton(page);
+
+          if (native instanceof HTMLElement) {
+            setButtonCopy(native);
+          }
 
           if (!(themeBtn instanceof HTMLElement)) {
             if (btn) btn.style.display = "none";
             return;
           }
 
-          var node = ensureButton();
-          if (nativeLangBtn instanceof HTMLElement) {
-            nativeLangBtn.style.display = "none";
-            nativeLangBtn.style.visibility = "hidden";
-            nativeLangBtn.style.opacity = "0";
-            nativeLangBtn.tabIndex = -1;
-            nativeLangBtn.setAttribute("aria-hidden", "true");
+          if (isVisible(native)) {
+            if (btn) btn.style.display = "none";
+            return;
           }
 
+          var node = ensureButton();
           var rect = themeBtn.getBoundingClientRect();
           var mobile = window.innerWidth <= 380;
-          var width = mobile ? 52 : 56;
-          var height = mobile ? 24 : 26;
-          var gap = 8;
-          var top = Math.max(10, Math.round(rect.top - height - gap));
-          var left = Math.round(rect.left + (rect.width - width) / 2);
-          var lang = currentLang();
-          var next = lang === "en" ? "ru" : "en";
+          var size = mobile ? 52 : 56;
+          var gap = mobile ? 5 : 6;
 
-          node.textContent = next === "en" ? "EN" : "RU";
-          node.title = next === "en" ? "Switch to English" : "Switch to Russian";
-          node.setAttribute("aria-label", node.title);
+          setButtonCopy(node);
           node.style.display = "flex";
-          node.style.top = top + "px";
-          node.style.left = left + "px";
-          node.style.width = width + "px";
-          node.style.minWidth = width + "px";
-          node.style.height = height + "px";
-          node.style.fontSize = (mobile ? 10 : 11) + "px";
+          node.style.top = Math.max(mobile ? 8 : 10, Math.round(rect.top - size - gap)) + "px";
+          node.style.left = Math.round(rect.left + (rect.width - size) / 2) + "px";
+          node.style.width = size + "px";
+          node.style.minWidth = size + "px";
+          node.style.height = size + "px";
+          node.style.fontSize = (mobile ? 13 : 15) + "px";
         }
 
         var run = function () {
@@ -182,12 +327,17 @@
         window.addEventListener("resize", run, { passive: true });
         window.addEventListener("orientationchange", run, { passive: true });
         var observer = new MutationObserver(run);
-        observer.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "lang", "data-theme"] });
+        observer.observe(document.documentElement, {
+          subtree: true,
+          childList: true,
+          attributes: true,
+          attributeFilter: ["class", "lang", "data-theme"],
+        });
       })();
     </script>
   </head>
   <body style="background:#17212b;">
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx?v=langbtn-20260328-1"></script>
+    <script type="module" src="/src/main.tsx?v=langbtn-20260328-2"></script>
   </body>
 </html>

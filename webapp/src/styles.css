@@ -2212,7 +2212,7 @@ label, input, select, textarea{ color: var(--text); }
 .mx-homeLead{
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .mx-homeNavGrid{
@@ -2231,7 +2231,7 @@ label, input, select, textarea{ color: var(--text); }
 }
 
 .mx-mainLogoWrap{
-  height: 92px;
+  height: 80px;
   width: 100%;
   max-width: none;
   box-sizing: border-box;
@@ -4025,7 +4025,7 @@ html[data-theme="dark"] .vx-miniOn{
   }
 
   .theme-client .mx-mainLogoWrap{
-    height: 72px;
+    height: 66px;
   }
 
   .theme-client .mx-card{
@@ -5083,54 +5083,58 @@ html[data-theme="dark"] .theme-client .mx-langSwitchBtn{
 }
 
 
-/* FINAL v43: keep language button inside visible Telegram viewport */
+/* FINAL v44: language button matches theme button and logo header is more compact */
 .theme-client.vx-page.mx-homePage{
-  padding-top: max(34px, calc(env(safe-area-inset-top, 0px) + 14px)) !important;
+  padding-top: max(22px, calc(env(safe-area-inset-top, 0px) + 10px)) !important;
 }
 .theme-client .mx-topRow.mx-topRowHome{
   margin-top: 0 !important;
+  margin-bottom: 4px !important;
   padding-top: 0 !important;
 }
 .theme-client .mx-topRowHome{
   display:grid !important;
   grid-template-columns:56px minmax(0,1fr) 56px !important;
-  grid-template-rows:24px 56px !important;
-  align-items:stretch !important;
+  grid-template-rows:56px 56px !important;
+  align-items:center !important;
   column-gap:10px !important;
-  row-gap:8px !important;
+  row-gap:6px !important;
   padding-left:0 !important;
   overflow:visible !important;
 }
-.theme-client .mx-homeControlsStack{
+.theme-client .mx-homeControlsStack,
+.theme-client .mx-topLeftStack{
   grid-column:1 !important;
   grid-row:1 / span 2 !important;
   display:grid !important;
-  grid-template-rows:24px 56px !important;
+  grid-template-rows:56px 56px !important;
   width:56px !important;
   min-width:56px !important;
-  gap:8px !important;
+  gap:6px !important;
   align-items:stretch !important;
   justify-items:stretch !important;
   align-self:start !important;
   overflow:visible !important;
+  position:relative !important;
   z-index:6 !important;
 }
-.theme-client .mx-homeLangSwitchBtn{
+.theme-client .mx-homeLangSwitchBtn,
+.theme-client .mx-topRowHome .mx-langSwitchBtn{
   grid-row:1 !important;
   display:flex !important;
   align-items:center !important;
   justify-content:center !important;
   width:56px !important;
   min-width:56px !important;
-  height:24px !important;
+  height:56px !important;
   margin:0 !important;
   padding:0 !important;
-  border:none !important;
-  border-radius:999px !important;
-  background:linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(246,248,252,.96) 100%) !important;
-  box-shadow:0 8px 18px rgba(15,23,42,.14), inset 0 1px rgba(255,255,255,.92) !important;
+  border:1px solid rgba(9,23,33,.08) !important;
+  border-radius:16px !important;
+  background:rgba(255,255,255,.98) !important;
+  box-shadow:0 10px 24px rgba(15,23,42,.14), inset 0 1px rgba(255,255,255,.92) !important;
   color:rgba(9,23,33,.88) !important;
-  font-size:11px !important;
+  font-size:15px !important;
   font-weight:900 !important;
   letter-spacing:.08em !important;
   line-height:1 !important;
@@ -5140,15 +5144,20 @@ html[data-theme="dark"] .theme-client .mx-langSwitchBtn{
   position:relative !important;
   z-index:20 !important;
 }
-.theme-client .mx-homeLangSwitchBtn:active{
+.theme-client .mx-homeLangSwitchBtn:active,
+.theme-client .mx-topRowHome .mx-langSwitchBtn:active{
   transform:translateY(1px) !important;
 }
-.theme-client .mx-homeThemeBtn{
-  grid-row:2 !important;
+.theme-client .mx-homeThemeBtn,
+.theme-client .mx-topRowHome .mx-themeBtn{
   width:56px !important;
   min-width:56px !important;
   height:56px !important;
   margin:0 !important;
+  border-radius:16px !important;
+}
+.theme-client .mx-homeThemeBtn{
+  grid-row:2 !important;
 }
 .theme-client .mx-topCenter{
   grid-column:2 !important;
@@ -5165,34 +5174,51 @@ html[data-theme="dark"] .theme-client .mx-langSwitchBtn{
   min-width:56px !important;
   height:56px !important;
   margin:0 !important;
-  align-self:start !important;
+  align-self:end !important;
   justify-self:end !important;
 }
-html[data-theme="dark"] .theme-client .mx-homeLangSwitchBtn{
-  background:linear-gradient(180deg, rgba(31,43,56,.99) 0%, rgba(22,31,41,.98) 100%) !important;
-  box-shadow:0 0 0 1px rgba(246,198,0,.12) inset, 0 0 16px rgba(246,198,0,.08), 0 10px 22px rgba(0,0,0,.34) !important;
+.theme-client .mx-mainLogoWrap{
+  height:66px !important;
+}
+html[data-theme="dark"] .theme-client .mx-homeLangSwitchBtn,
+html[data-theme="dark"] .theme-client .mx-topRowHome .mx-langSwitchBtn{
+  background:rgba(31,43,56,.98) !important;
+  border-color:rgba(246,198,0,.22) !important;
+  box-shadow:0 0 0 1px rgba(246,198,0,.08) inset, 0 0 14px rgba(246,198,0,.06), 0 12px 28px rgba(0,0,0,.44) !important;
   color:rgba(246,198,0,.98) !important;
 }
 @media (max-width: 380px){
+  .theme-client.vx-page.mx-homePage{
+    padding-top: max(18px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
+  }
   .theme-client .mx-topRowHome{
     grid-template-columns:52px minmax(0,1fr) 52px !important;
-    grid-template-rows:24px 52px !important;
+    grid-template-rows:52px 52px !important;
+    column-gap:8px !important;
+    row-gap:5px !important;
   }
-  .theme-client .mx-homeControlsStack{
-    grid-template-rows:24px 52px !important;
+  .theme-client .mx-homeControlsStack,
+  .theme-client .mx-topLeftStack{
+    grid-template-rows:52px 52px !important;
     width:52px !important;
     min-width:52px !important;
+    gap:5px !important;
   }
-  .theme-client .mx-homeLangSwitchBtn{
-    width:52px !important;
-    min-width:52px !important;
-    height:24px !important;
-    font-size:10px !important;
-  }
+  .theme-client .mx-homeLangSwitchBtn,
+  .theme-client .mx-topRowHome .mx-langSwitchBtn,
   .theme-client .mx-homeThemeBtn,
+  .theme-client .mx-topRowHome .mx-themeBtn,
   .theme-client .mx-statusBtn{
     width:52px !important;
     min-width:52px !important;
     height:52px !important;
+  }
+  .theme-client .mx-homeLangSwitchBtn,
+  .theme-client .mx-topRowHome .mx-langSwitchBtn{
+    font-size:13px !important;
+    border-radius:15px !important;
+  }
+  .theme-client .mx-mainLogoWrap{
+    height:60px !important;
   }
 }
