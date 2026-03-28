@@ -4,6 +4,11 @@ import { resolve } from "node:path";
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    // Prefer current TypeScript sources over stale compiled JS duplicates
+    // that still exist in src/ and can otherwise win extension resolution.
+    extensions: [".ts", ".tsx", ".mjs", ".js", ".jsx", ".json"],
+  },
   build: {
     rollupOptions: {
       input: {
