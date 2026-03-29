@@ -1016,9 +1016,16 @@ function cleanFaqItems(input: any) {
 }
 
 // Public: client reads FAQ
-router.get("/faq", async (_req, res) => {
+router.get("/faq", async (req, res) => {
   const store = await readStore();
-  const items = cleanFaqItems((store as any).faq);
+  const lang = String((req.query as any)?.lang || "ru").toLowerCase() === "en" ? "en" : "ru";
+  const items = cleanFaqItems((store as any).faq)
+    .map((it) => {
+      const q = lang === "en" ? String((it as any).q_en || "").trim() : String((it as any).q_ru || "").trim();
+      const a = lang === "en" ? String((it as any).a_en || "").trim() : String((it as any).a_ru || "").trim();
+      return { ...it, q, a };
+    })
+    .filter((it) => String((it as any).q || "").trim() && String((it as any).a || "").trim());
   res.json({ ok: true, items });
 });
 

@@ -16,7 +16,7 @@ export default function FaqTab({ lang = "ru" }: { lang?: Lang }) {
     (async () => {
       try {
         setLoading(true);
-        const r: any = await apiGetFaq();
+        const r: any = await apiGetFaq(lang);
         if (!mounted) return;
         if (r?.ok) {
           setItems(Array.isArray(r.items) ? r.items : []);
@@ -34,7 +34,7 @@ export default function FaqTab({ lang = "ru" }: { lang?: Lang }) {
       }
     })();
     return () => { mounted = false; };
-  }, [isEn]);
+  }, [lang, isEn]);
 
   const list = useMemo(() => {
     const a = Array.isArray(items) ? items : [];
@@ -44,8 +44,10 @@ export default function FaqTab({ lang = "ru" }: { lang?: Lang }) {
         const aRu = String(x?.a_ru || "").trim();
         const qEn = String(x?.q_en || "").trim();
         const aEn = String(x?.a_en || "").trim();
-        const q = isEn ? qEn || qRu : qRu;
-        const aText = isEn ? aEn || aRu : aRu;
+        const qResolved = String(x?.q || "").trim();
+        const aResolved = String(x?.a || "").trim();
+        const q = isEn ? qEn : (qResolved || qRu);
+        const aText = isEn ? aEn : (aResolved || aRu);
         return { ...x, q, a: aText };
       })
       .filter((x) => x && String(x.q || "").trim());

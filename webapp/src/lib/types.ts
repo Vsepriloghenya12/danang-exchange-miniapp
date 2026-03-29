@@ -170,6 +170,8 @@ export type GFormulasResponse =
 
 export type FaqItem = {
   id: string;
+  q?: string;
+  a?: string;
   q_ru: string;
   a_ru: string;
   q_en?: string;

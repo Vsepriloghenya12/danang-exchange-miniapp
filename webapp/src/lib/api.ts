@@ -135,8 +135,8 @@ export async function apiAdminSetGFormulas(token: string, formulas: any) {
 }
 
 
-export async function apiGetFaq(): Promise<FaqResponse> {
-  return getJsonCached<FaqResponse>("/api/faq", 5 * 60_000, undefined, true);
+export async function apiGetFaq(lang: "ru" | "en" = "ru"): Promise<FaqResponse> {
+  return getJsonCached<FaqResponse>(`/api/faq?lang=${lang}`, 5 * 60_000, undefined, true);
 }
 
 export async function apiAdminGetFaq(token: string): Promise<FaqResponse> {
