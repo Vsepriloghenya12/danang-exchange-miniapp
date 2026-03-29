@@ -38,8 +38,18 @@ export default function FaqTab({ lang = "ru" }: { lang?: Lang }) {
 
   const list = useMemo(() => {
     const a = Array.isArray(items) ? items : [];
-    return a.filter((x) => x && String(x.q || "").trim()).map((x) => ({ ...x, q: String(x.q || "").trim(), a: String(x.a || "").trim() }));
-  }, [items]);
+    return a
+      .map((x) => {
+        const qRu = String(x?.q_ru || "").trim();
+        const aRu = String(x?.a_ru || "").trim();
+        const qEn = String(x?.q_en || "").trim();
+        const aEn = String(x?.a_en || "").trim();
+        const q = isEn ? qEn || qRu : qRu;
+        const aText = isEn ? aEn || aRu : aRu;
+        return { ...x, q, a: aText };
+      })
+      .filter((x) => x && String(x.q || "").trim());
+  }, [items, isEn]);
 
   if (loading) return <div className="card" style={{ padding: 14 }}><div className="small">{isEn ? "Loading…" : "Загрузка…"}</div></div>;
   if (err) return <div className="card" style={{ padding: 14 }}><div className="h3" style={{ marginBottom: 6 }}>FAQ</div><div className="small">{err}</div></div>;

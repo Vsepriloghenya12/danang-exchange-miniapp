@@ -52,8 +52,10 @@ export type AfishaEvent = {
 
 export type FaqItem = {
   id: string;
-  q: string;
-  a: string;
+  q_ru: string;
+  a_ru: string;
+  q_en?: string;
+  a_en?: string;
   created_at: string;
   updated_at: string;
 };
@@ -355,12 +357,32 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
       it.id = `faq_${Date.now()}_${Math.random().toString(16).slice(2)}`;
       dirty = true;
     }
-    if (typeof it.q !== "string") {
-      it.q = String(it.q || "");
+    const qRu = typeof it.q_ru === "string" ? it.q_ru : String(it.q || "");
+    const aRu = typeof it.a_ru === "string" ? it.a_ru : String(it.a || "");
+    const qEn = typeof it.q_en === "string" ? it.q_en : "";
+    const aEn = typeof it.a_en === "string" ? it.a_en : "";
+    if (it.q_ru !== qRu) {
+      it.q_ru = qRu;
       dirty = true;
     }
-    if (typeof it.a !== "string") {
-      it.a = String(it.a || "");
+    if (it.a_ru !== aRu) {
+      it.a_ru = aRu;
+      dirty = true;
+    }
+    if (it.q_en !== qEn) {
+      it.q_en = qEn;
+      dirty = true;
+    }
+    if (it.a_en !== aEn) {
+      it.a_en = aEn;
+      dirty = true;
+    }
+    if ("q" in it) {
+      delete it.q;
+      dirty = true;
+    }
+    if ("a" in it) {
+      delete it.a;
       dirty = true;
     }
     if (!it.created_at) {

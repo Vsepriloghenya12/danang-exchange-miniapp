@@ -265,7 +265,7 @@ export default function OwnerPortal() {
   const [bankIcons, setBankIcons] = useState<string[]>([]);
 
 // FAQ editor (owner)
-const [faqItems, setFaqItems] = useState<Array<{ id: string; q: string; a: string }>>([]);
+  const [faqItems, setFaqItems] = useState<Array<{ id: string; q_ru: string; a_ru: string; q_en: string; a_en: string }>>([]);
 const [faqLoading, setFaqLoading] = useState<boolean>(false);
 const [faqSaving, setFaqSaving] = useState<boolean>(false);
 const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
@@ -441,8 +441,10 @@ async function loadFaq() {
       setFaqItems(
         arr.map((x: any) => ({
           id: String(x.id || `faq_${Date.now()}_${Math.random().toString(16).slice(2)}`),
-          q: String(x.q || "").trim(),
-          a: String(x.a || "").trim()
+          q_ru: String(x.q_ru ?? x.q ?? "").trim(),
+          a_ru: String(x.a_ru ?? x.a ?? "").trim(),
+          q_en: String(x.q_en || "").trim(),
+          a_en: String(x.a_en || "").trim()
         }))
       );
       setFaqLoaded(true);
@@ -461,13 +463,27 @@ async function saveFaq() {
   setFaqSaving(true);
   try {
     const items = (faqItems || [])
-      .map((x) => ({ ...x, q: String(x.q || "").trim(), a: String(x.a || "").trim() }))
-      .filter((x) => x.q && x.a);
+      .map((x) => ({
+        ...x,
+        q_ru: String(x.q_ru || "").trim(),
+        a_ru: String(x.a_ru || "").trim(),
+        q_en: String(x.q_en || "").trim(),
+        a_en: String(x.a_en || "").trim(),
+      }))
+      .filter((x) => x.q_ru && x.a_ru);
     const r: any = await apiAdminSetFaq(token, items);
     if (r?.ok) {
       showOk("Сохранено");
       const arr = Array.isArray(r.items) ? r.items : items;
-      setFaqItems(arr.map((x: any) => ({ id: String(x.id), q: String(x.q || ""), a: String(x.a || "") })));
+      setFaqItems(
+        arr.map((x: any) => ({
+          id: String(x.id),
+          q_ru: String(x.q_ru ?? x.q ?? ""),
+          a_ru: String(x.a_ru ?? x.a ?? ""),
+          q_en: String(x.q_en || ""),
+          a_en: String(x.a_en || ""),
+        }))
+      );
     } else {
       showErr(r?.error || "Ошибка");
     }
@@ -480,7 +496,7 @@ async function saveFaq() {
 
 function addFaqItem() {
   const id = `faq_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-  setFaqItems((prev) => [...(prev || []), { id, q: "", a: "" }]);
+  setFaqItems((prev) => [...(prev || []), { id, q_ru: "", a_ru: "", q_en: "", a_en: "" }]);
 }
 
 function moveFaq(id: string, dir: -1 | 1) {
@@ -2392,7 +2408,7 @@ function moveFaq(id: string, dir: -1 | 1) {
       <div>
         <div className="h2">FAQ</div>
         <div className="small" style={{ opacity: 0.85 }}>
-          Клиент видит эти вопросы в разделе «Прочее → FAQ».
+          Клиент видит русский FAQ в русском приложении и английский FAQ при включённом EN.
         </div>
       </div>
       <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
@@ -2444,25 +2460,51 @@ function moveFaq(id: string, dir: -1 | 1) {
         </div>
 
         <div className="vx-sp6" />
-        <input
-          className="input vx-in"
-          value={it.q}
-          onChange={(e) =>
-            setFaqItems((prev) => (prev || []).map((x) => (x.id === it.id ? { ...x, q: e.target.value } : x)))
-          }
-          placeholder="Вопрос…"
-        />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+          <div>
+            <div className="small" style={{ fontWeight: 900, marginBottom: 6 }}>Русский</div>
+            <input
+              className="input vx-in"
+              value={it.q_ru}
+              onChange={(e) =>
+                setFaqItems((prev) => (prev || []).map((x) => (x.id === it.id ? { ...x, q_ru: e.target.value } : x)))
+              }
+              placeholder="Вопрос на русском…"
+            />
+            <div className="vx-sp6" />
+            <textarea
+              className="input vx-in"
+              value={it.a_ru}
+              onChange={(e) =>
+                setFaqItems((prev) => (prev || []).map((x) => (x.id === it.id ? { ...x, a_ru: e.target.value } : x)))
+              }
+              placeholder="Ответ на русском…"
+              rows={4}
+            />
+          </div>
 
-        <div className="vx-sp6" />
-        <textarea
-          className="input vx-in"
-          value={it.a}
-          onChange={(e) =>
-            setFaqItems((prev) => (prev || []).map((x) => (x.id === it.id ? { ...x, a: e.target.value } : x)))
-          }
-          placeholder="Ответ…"
-          rows={3}
-        />
+          <div>
+            <div className="small" style={{ fontWeight: 900, marginBottom: 6 }}>English</div>
+            <input
+              className="input vx-in"
+              value={it.q_en}
+              onChange={(e) =>
+                setFaqItems((prev) => (prev || []).map((x) => (x.id === it.id ? { ...x, q_en: e.target.value } : x)))
+              }
+              placeholder="Question in English…"
+            />
+            <div className="vx-sp6" />
+            <textarea
+              className="input vx-in"
+              value={it.a_en}
+              onChange={(e) =>
+                setFaqItems((prev) => (prev || []).map((x) => (x.id === it.id ? { ...x, a_en: e.target.value } : x)))
+              }
+              placeholder="Answer in English…"
+              rows={4}
+            />
+          </div>
+        </div>
 
         <div className="vx-sp12" />
       </div>

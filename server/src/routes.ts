@@ -1001,13 +1001,15 @@ function cleanFaqItems(input: any) {
   const out: any[] = [];
   for (const x of src) {
     if (!x || typeof x !== "object") continue;
-    const q = String((x as any).q ?? (x as any).question ?? "").trim();
-    const a = String((x as any).a ?? (x as any).answer ?? "").trim();
-    if (!q || !a) continue;
+    const q_ru = String((x as any).q_ru ?? (x as any).q ?? (x as any).question ?? "").trim();
+    const a_ru = String((x as any).a_ru ?? (x as any).a ?? (x as any).answer ?? "").trim();
+    const q_en = String((x as any).q_en ?? "").trim();
+    const a_en = String((x as any).a_en ?? "").trim();
+    if (!q_ru || !a_ru) continue;
     const id = String((x as any).id || "").trim() || `faq_${Date.now()}_${Math.random().toString(16).slice(2)}`;
     const created_at = String((x as any).created_at || new Date().toISOString());
     const updated_at = String((x as any).updated_at || created_at);
-    out.push({ id, q, a, created_at, updated_at });
+    out.push({ id, q_ru, a_ru, q_en, a_en, created_at, updated_at });
     if (out.length >= 200) break;
   }
   return out;

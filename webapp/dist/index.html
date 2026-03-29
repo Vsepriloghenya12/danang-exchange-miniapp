@@ -51,11 +51,11 @@
 
       .theme-client .mx-topRowHome {
         display: grid !important;
-        grid-template-columns: 56px minmax(0, 1fr) 56px !important;
-        grid-template-rows: 56px 56px !important;
-        align-items: center !important;
+        grid-template-columns: auto minmax(0, 1fr) 56px !important;
+        grid-template-rows: 56px minmax(92px, auto) !important;
+        align-items: stretch !important;
         column-gap: 10px !important;
-        row-gap: 6px !important;
+        row-gap: 8px !important;
         overflow: visible !important;
       }
 
@@ -66,14 +66,15 @@
       .theme-client .mx-homeControlsStack,
       .theme-client .mx-topLeftStack {
         grid-column: 1 !important;
-        grid-row: 1 / span 2 !important;
-        display: grid !important;
-        grid-template-rows: 56px 56px !important;
-        width: 56px !important;
-        min-width: 56px !important;
+        grid-row: 1 !important;
+        display: flex !important;
+        flex-direction: row !important;
+        width: auto !important;
+        min-width: 0 !important;
         gap: 6px !important;
         align-items: stretch !important;
-        justify-items: stretch !important;
+        justify-content: flex-start !important;
+        justify-self: start !important;
         align-self: start !important;
         overflow: visible !important;
         position: relative !important;
@@ -84,7 +85,6 @@
 
       .theme-client .mx-homeLangSwitchBtn,
       .theme-client .mx-topRowHome .mx-langSwitchBtn {
-        grid-row: 1 !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -125,31 +125,33 @@
       }
 
       .theme-client .mx-homeThemeBtn {
-        grid-row: 2 !important;
+        grid-row: auto !important;
       }
 
       .theme-client .mx-topCenter {
-        grid-column: 2 !important;
-        grid-row: 1 / span 2 !important;
+        grid-column: 1 / span 3 !important;
+        grid-row: 2 !important;
         min-width: 0 !important;
         width: 100% !important;
         height: 100% !important;
         display: flex !important;
         align-items: stretch !important;
+        justify-content: center !important;
         align-self: stretch !important;
         justify-self: stretch !important;
       }
 
       .theme-client .mx-statusBtn {
         grid-column: 3 !important;
-        grid-row: 2 !important;
-        align-self: end !important;
+        grid-row: 1 !important;
+        align-self: start !important;
         justify-self: end !important;
       }
 
       .theme-client .mx-mainLogoWrap {
         height: 100% !important;
         min-height: 0 !important;
+        width: 100% !important;
       }
 
       .theme-client .mx-mainLogoImg {
@@ -195,17 +197,16 @@
         }
 
         .theme-client .mx-topRowHome {
-          grid-template-columns: 52px minmax(0, 1fr) 52px !important;
-          grid-template-rows: 52px 52px !important;
+          grid-template-columns: auto minmax(0, 1fr) 52px !important;
+          grid-template-rows: 52px minmax(80px, auto) !important;
           column-gap: 8px !important;
           row-gap: 5px !important;
         }
 
         .theme-client .mx-homeControlsStack,
         .theme-client .mx-topLeftStack {
-          grid-template-rows: 52px 52px !important;
-          width: 52px !important;
-          min-width: 52px !important;
+          width: auto !important;
+          min-width: 0 !important;
           gap: 5px !important;
         }
 
