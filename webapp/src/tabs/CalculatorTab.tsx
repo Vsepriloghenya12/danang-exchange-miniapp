@@ -997,7 +997,7 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
 
   const eurNote =
     sellCurrency === "EUR" || buyCurrency === "EUR"
-      ? (isEn ? "EUR: only new-series €50 cash notes without marks or defects are accepted and paid out." : "EUR: вы можете передать и получить только наличные купюры по 50€ нового образца, без надписей и дефектов.")
+      ? (isEn ? "EUR: only new-series €50/€100/€200 cash notes without marks or defects are accepted and paid out." : "EUR: вы можете передать и получить только наличные купюры по 50/100/200€ нового образца, без надписей и дефектов.")
       : null;
 
   const vndNote =
@@ -1027,7 +1027,7 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
     "Minimum THB amount — 10,000 baht.",
     "Minimum VND amount — 6,500,000 VND.",
     "USD: only new-series $100 cash notes without defects are accepted and paid out.",
-    "EUR: only new-series €50 cash notes without defects are accepted and paid out.",
+    "EUR: only new-series €50/€100/€200 cash notes without defects are accepted and paid out.",
     "THB: cash only, in multiples of 100 baht.",
     "VND → VND: fee is 2%, but at least 100,000 VND. Cash, transfer, and ATM are available.",
   ] : [
@@ -1038,7 +1038,7 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
     "Минимальная сумма THB для обмена — 10,000 бат.",
     "Минимальная сумма VND для обмена — 6,500,000 VND.",
     "USD: принимаются и выдаются только наличные купюры 100$ нового образца, без дефектов.",
-    "EUR: принимаются и выдаются только наличные купюры 50€ нового образца, без дефектов.",
+    "EUR: принимаются и выдаются только наличные купюры 50/100/200€ нового образца, без дефектов.",
     "THB: передача и получение только наличными, кратно 100 бат.",
     "VND → VND: комиссия 2%, но не меньше 100,000 VND. Доступны наличные, перевод и банкомат.",
   ]), [isEn]);
