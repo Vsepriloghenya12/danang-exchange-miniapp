@@ -297,6 +297,12 @@
           }
 
           try {
+            if (typeof window.__mxSetAppLang === "function") {
+              window.__mxSetAppLang(next);
+            }
+          } catch (e) {}
+
+          try {
             window.dispatchEvent(new CustomEvent("mx:lang-runtime-switch", { detail: next }));
           } catch (e) {}
         }

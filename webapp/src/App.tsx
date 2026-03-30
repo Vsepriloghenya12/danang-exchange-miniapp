@@ -361,13 +361,34 @@ export default function App() {
   }, [lang]);
 
   useEffect(() => {
+    const syncLang = () => setLang(readPreferredLang());
     const onRuntimeLangSwitch = (event: Event) => {
       const next = String((event as CustomEvent<string>)?.detail || "").toLowerCase();
       if (next === "ru" || next === "en") setLang(next);
     };
 
+    try {
+      (window as any).__mxSetAppLang = (next: string) => {
+        const normalized = String(next || "").toLowerCase();
+        if (normalized === "ru" || normalized === "en") setLang(normalized);
+      };
+    } catch {
+      // ignore
+    }
+
     window.addEventListener("mx:lang-runtime-switch", onRuntimeLangSwitch as EventListener);
-    return () => window.removeEventListener("mx:lang-runtime-switch", onRuntimeLangSwitch as EventListener);
+    window.addEventListener("storage", syncLang);
+    window.addEventListener("popstate", syncLang);
+    return () => {
+      window.removeEventListener("mx:lang-runtime-switch", onRuntimeLangSwitch as EventListener);
+      window.removeEventListener("storage", syncLang);
+      window.removeEventListener("popstate", syncLang);
+      try {
+        delete (window as any).__mxSetAppLang;
+      } catch {
+        // ignore
+      }
+    };
   }, []);
 
   const toggleLang = () => setLang((v) => (v === "ru" ? "en" : "ru"));

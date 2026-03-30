@@ -535,17 +535,29 @@ const EUR_STEP = 50;
 const THB_STEP = 100;
 const MIN_SELL_AMOUNTS: Record<Currency, number> = {
   RUB: 10_000,
-  USDT: 200,
-  USD: 200,
-  EUR: 200,
+  USDT: 100,
+  USD: 100,
+  EUR: 100,
   THB: 10_000,
   VND: 6_500_000,
+};
+
+const CASH_DELIVERY_MIN_AMOUNTS: Partial<Record<Currency, number>> = {
+  RUB: 20_000,
+  USD: 200,
+  USDT: 200,
 };
 
 function minSellAmountLabel(cur: Currency): string {
   const value = MIN_SELL_AMOUNTS[cur];
   if (cur === "RUB") return `${fmtAmount(cur, value)} ₽`;
   return `${fmtAmount(cur, value)} ${cur}`;
+}
+
+function needsCashDeliveryWarning(cur: Currency, amount: number): boolean {
+  const min = CASH_DELIVERY_MIN_AMOUNTS[cur];
+  if (!Number.isFinite(amount) || amount <= 0 || min == null) return false;
+  return amount < min;
 }
 
 export default function CalculatorTab({ me, lang = "ru" }: Props) {
@@ -821,8 +833,7 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
   const invalidThbBuy = buyCurrency === "THB" && buyText.trim() !== "" && !isMultiple(buyAmount, THB_STEP);
   const invalidVndSellCash =
     sellCurrency === "VND" && payMethod === "cash" && sellText.trim() !== "" && !isMultiple(sellAmount, CASH_VND_STEP);
-  const invalidVndBuyCash =
-    buyCurrency === "VND" && receiveMethod === "cash" && buyText.trim() !== "" && !isMultiple(buyAmount, CASH_VND_STEP);
+  const invalidVndBuyCash = false;
   const invalidVndBuyAtm =
     buyCurrency === "VND" && receiveMethod === "atm" && buyText.trim() !== "" && !isMultiple(buyAmount, ATM_VND_STEP);
   const invalidMinSell =
@@ -999,33 +1010,42 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
       ? (isEn ? "THB: cash only, in multiples of 100 baht." : "THB: передать и получить баты можно только наличными, кратно 100 бат.")
       : null;
 
+  const vndAtmNote =
+    buyCurrency === "VND" && receiveMethod === "atm"
+      ? (isEn ? "VND via ATM is paid out in multiples of 100,000." : "Получение VND через банкомат кратно 100,000.")
+      : null;
+
   const minSellNote = invalidMinSell
     ? (isEn ? `Minimum ${sellCurrency} amount for exchange is ${minSellAmountLabel(sellCurrency)}.` : `Минимальная сумма ${sellCurrency} для обмена — ${minSellAmountLabel(sellCurrency)}.`)
     : null;
 
   const conditionsItems = useMemo(() => (isEn ? [
     "Service hours: daily from 10:00 to 22:00. After 20:00 only remote exchange is available.",
+    "Cash delivery is available from 20,000₽ / 200$ / 200 USDT.",
     "Minimum RUB amount — 10,000 ₽.",
-    "Minimum USD / EUR / USDT amount — 200.",
+    "Minimum USD / EUR / USDT amount — 100.",
     "Minimum THB amount — 10,000 baht.",
     "Minimum VND amount — 6,500,000 VND.",
-    "Cash delivery is available from 20,000₽ / 100$ / 100 USDT.",
     "USD: only new-series $100 cash notes without defects are accepted and paid out.",
     "EUR: only new-series €50 cash notes without defects are accepted and paid out.",
     "THB: cash only, in multiples of 100 baht.",
     "VND → VND: fee is 2%, but at least 100,000 VND. Cash, transfer, and ATM are available.",
   ] : [
     "Время работы сервиса: ежедневно с 10:00 до 22:00. После 20:00 возможен только дистанционный обмен.",
+    "Доставка наличных возможна при обмене от 20,000₽/200$/200USDT.",
     "Минимальная сумма RUB для обмена — 10,000 ₽.",
-    "Минимальная сумма USD / EUR / USDT для обмена — 200.",
+    "Минимальная сумма USD / EUR / USDT для обмена — 100.",
     "Минимальная сумма THB для обмена — 10,000 бат.",
     "Минимальная сумма VND для обмена — 6,500,000 VND.",
-    "Доставка наличных возможна при обмене от 20,000₽/100$/100USDT.",
     "USD: принимаются и выдаются только наличные купюры 100$ нового образца, без дефектов.",
     "EUR: принимаются и выдаются только наличные купюры 50€ нового образца, без дефектов.",
     "THB: передача и получение только наличными, кратно 100 бат.",
     "VND → VND: комиссия 2%, но не меньше 100,000 VND. Доступны наличные, перевод и банкомат.",
   ]), [isEn]);
+
+  const showCashDeliveryNote =
+    needsCashDeliveryWarning(sellCurrency, sellAmount) ||
+    needsCashDeliveryWarning(buyCurrency, buyAmount);
 
   function swapCurrencies() {
     const nextSellCurrency = buyCurrency;
@@ -1392,8 +1412,10 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
             {invalidUsdSell || invalidUsdBuy ? <div className="vx-warn">{isEn ? "USD: cash only, in multiples of 100." : "USD: передать и получить можно только наличными, кратно 100."}</div> : null}
             {invalidEurSell || invalidEurBuy ? <div className="vx-warn">{isEn ? "EUR: cash only, in multiples of 50." : "EUR: передать и получить можно только наличными, кратно 50."}</div> : null}
             {invalidThbSell || invalidThbBuy ? <div className="vx-warn">{isEn ? "THB: cash only, in multiples of 100." : "THB: передать и получить можно только наличными, кратно 100."}</div> : null}
+            {vndAtmNote ? <div className="vx-note">{vndAtmNote}</div> : null}
+            {invalidVndBuyAtm ? <div className="vx-warn">{isEn ? "VND via ATM must be in multiples of 100,000." : "Получение VND через банкомат должно быть кратно 100,000."}</div> : null}
             {minSellNote ? <div className="vx-warn">{minSellNote}</div> : null}
-            {((sellCurrency === "RUB" && sellAmount != null && sellAmount < 20_000) || (buyCurrency === "RUB" && buyAmount != null && buyAmount < 20_000)) ? <div className="vx-warn">{isEn ? "Cash delivery is available from 20,000₽ / 100$ / 100 USDT." : "Доставка наличных возможна при обмене от 20,000₽/100$/100USDT."}</div> : null}
+            {showCashDeliveryNote ? <div className="vx-warn">{isEn ? "Cash delivery is available from 20,000₽ / 200$ / 200 USDT." : "Доставка наличных возможна при обмене от 20,000₽/200$/200USDT."}</div> : null}
 
             <div className="vx-sp12" />
 
