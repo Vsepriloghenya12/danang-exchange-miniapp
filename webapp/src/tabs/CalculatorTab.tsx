@@ -8,6 +8,8 @@ import type { BonusesConfig, MarketRatesResponse, UserStatus } from "../lib/type
 type Currency = "RUB" | "USDT" | "USD" | "EUR" | "THB" | "VND";
 type ReceiveMethod = "cash" | "transfer" | "atm";
 type PayMethod = "cash" | "transfer" | "atm";
+type SelectedReceiveMethod = ReceiveMethod | null;
+type SelectedPayMethod = PayMethod | null;
 
 type RateKey = Exclude<Currency, "VND">;
 type RateEntry = { buy_vnd: number; sell_vnd: number };
@@ -242,7 +244,8 @@ function amountPlaceholder(prefix: string, cur: Currency, isVndToVnd = false): s
   return min ? `${prefix} (мин. ${min})` : prefix;
 }
 
-function requestCommentPlaceholder(receiveMethod: ReceiveMethod): string {
+function requestCommentPlaceholder(receiveMethod: SelectedReceiveMethod): string {
+  if (!receiveMethod) return "";
   if (receiveMethod === "cash") return "укажите адрес";
   if (receiveMethod === "transfer") return "укажите реквизиты для получения";
   return "";
@@ -345,8 +348,8 @@ function tierBonusForRate(
 function methodBonusForRate(
   sellCurrency: Currency,
   buyCurrency: Currency,
-  payMethod: PayMethod,
-  receiveMethod: ReceiveMethod,
+  payMethod: SelectedPayMethod,
+  receiveMethod: SelectedReceiveMethod,
   bonuses?: BonusesConfig | null
 ): number {
   if (buyCurrency !== "VND") return 0;
@@ -382,8 +385,8 @@ function applyRateBonuses(
   buyCurrency: Currency,
   sellAmountForTier: number,
   status: ClientStatus,
-  payMethod: PayMethod,
-  receiveMethod: ReceiveMethod,
+  payMethod: SelectedPayMethod,
+  receiveMethod: SelectedReceiveMethod,
   bonuses?: BonusesConfig | null
 ): Rates {
   const next: Rates = { ...baseRates };
@@ -566,7 +569,10 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
   const uiMethodLabel = (m: ReceiveMethod | PayMethod) => isEn ? (m === "cash" ? "Cash" : m === "transfer" ? "Transfer" : "ATM") : methodLabel(m);
   const uiStatusLabel = (s: ClientStatus) => getUserStatusLabel(s, isEn ? "en" : "ru");
   const uiAmountPlaceholder = (prefix: string, cur: Currency, same = false) => { const min = same && cur === "VND" ? null : minSellAmountLabel(cur); return min ? `${prefix} (${isEn ? "min." : "мин."} ${min})` : prefix; };
-  const uiCommentPlaceholder = (rm: ReceiveMethod) => isEn ? (rm === "cash" ? "enter the address" : rm === "transfer" ? "enter transfer details" : "") : requestCommentPlaceholder(rm);
+  const uiCommentPlaceholder = (rm: SelectedReceiveMethod) =>
+    isEn
+      ? (!rm ? "select receive method first" : rm === "cash" ? "enter the address" : rm === "transfer" ? "enter transfer details" : "")
+      : requestCommentPlaceholder(rm);
 
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState<Rates | null>(null);
@@ -587,8 +593,8 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
   const sellRawRef = useRef<number | null>(null);
   const buyRawRef = useRef<number | null>(null);
 
-  const [payMethod, setPayMethod] = useState<PayMethod>("transfer");
-  const [receiveMethod, setReceiveMethod] = useState<ReceiveMethod>("cash");
+  const [payMethod, setPayMethod] = useState<SelectedPayMethod>(null);
+  const [receiveMethod, setReceiveMethod] = useState<SelectedReceiveMethod>(null);
 
   const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeUserStatus(me?.status));
   const [requestComment, setRequestComment] = useState("");
@@ -648,7 +654,7 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
   // Enforce pay-method restrictions based on SELL currency
   useEffect(() => {
     const allowed = allowedPayMethods(sellCurrency, buyCurrency, parseAmount(sellCurrency, sellText), parseAmount(buyCurrency, buyText));
-    if (!allowed.includes(payMethod)) setPayMethod(allowed[0]);
+    if (payMethod && !allowed.includes(payMethod)) setPayMethod(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sellCurrency, buyCurrency, sellText]);
 
@@ -663,7 +669,7 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
     const allowed = deliveryClosed && !(sellCurrency === "VND" && buyCurrency === "VND")
       ? baseAllowed.filter((m) => m === "transfer" || m === "atm")
       : baseAllowed;
-    if (allowed.length > 0 && !allowed.includes(receiveMethod)) setReceiveMethod(allowed[0]);
+    if (receiveMethod && !allowed.includes(receiveMethod)) setReceiveMethod(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buyCurrency, sellCurrency, buyText, sellText, deliveryClosed]);
 
@@ -988,7 +994,12 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
   const canSendBase =
     canCalc && sameCurrencyAllowed && sellText.trim() !== "" && buyText.trim() !== "" && sellAmount > 0 && buyAmount > 0;
 
-  const canSend = canSendBase && !hasInvalid && !managerOffline && !receiveMethodUnavailableByHours && allowedRecv.includes(receiveMethod);
+  const hasSelectedMethods = !!payMethod && !!receiveMethod;
+  const validPayMethod = !!payMethod && allowedPay.includes(payMethod);
+  const validReceiveMethod = !!receiveMethod && allowedRecv.includes(receiveMethod);
+  const canSend = canSendBase && !hasInvalid && !managerOffline && !receiveMethodUnavailableByHours && validPayMethod && validReceiveMethod;
+  const canShowMethodSelectionAlertOnClick = canSendBase && !hasInvalid && !managerOffline && !receiveMethodUnavailableByHours && !hasSelectedMethods;
+  const sendButtonDisabled = !canSend && !canShowMethodSelectionAlertOnClick;
 
   const usdNote =
     sellCurrency === "USD" || buyCurrency === "USD"
@@ -1064,13 +1075,13 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
 
     const nextPayMethod = swappedPayCandidate && nextAllowedPay.includes(swappedPayCandidate)
       ? swappedPayCandidate
-      : nextAllowedPay[0];
+      : null;
 
     const nextReceiveMethod = nextAllowedReceive.length === 0
-      ? receiveMethod
+      ? null
       : swappedReceiveCandidate && nextAllowedReceive.includes(swappedReceiveCandidate)
         ? swappedReceiveCandidate
-        : nextAllowedReceive[0];
+        : null;
 
     preserveSwappedValuesRef.current = true;
     skipNextRecalc.current = true;
@@ -1092,8 +1103,8 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
       `${isEn ? "Exchange" : "Обмен"}: ${sellCurrency} → ${buyCurrency}`,
       `${isEn ? "You give" : "Отдаю"}: ${fmtAmount(sellCurrency, sellAmount || 0)}`,
       `${isEn ? "You get" : "Получаю"}: ${fmtAmount(buyCurrency, buyAmount || 0)}`,
-      `${isEn ? "Payment" : "Оплата"}: ${uiMethodLabel(payMethod)}`,
-      `${isEn ? "Receive" : "Получение"}: ${uiMethodLabel(receiveMethod)}`,
+      `${isEn ? "Payment" : "Оплата"}: ${payMethod ? uiMethodLabel(payMethod) : (isEn ? "Not selected" : "Не выбрано")}`,
+      `${isEn ? "Receive" : "Получение"}: ${receiveMethod ? uiMethodLabel(receiveMethod) : (isEn ? "Not selected" : "Не выбрано")}`,
     ];
     const comment = String(requestComment || "").trim();
     if (comment) lines.push(`${isEn ? "Comment" : "Комментарий"}: ${comment}`);
@@ -1115,6 +1126,16 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
     const initData = tg?.initData || me?.initData || "";
     if (!initData) {
       tg?.showAlert?.(isEn ? "No initData. Open the mini app from Telegram (/start)." : "Нет initData. Открой мини-приложение через Telegram (/start).");
+      return null;
+    }
+
+    if (!payMethod || !receiveMethod) {
+      tg?.HapticFeedback?.notificationOccurred?.("error");
+      tg?.showAlert?.(
+        isEn
+          ? "Please select both the payment and receive methods."
+          : "Пожалуйста, выберите способ оплаты и способ получения."
+      );
       return null;
     }
 
@@ -1179,10 +1200,21 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
     setSellText("");
     setBuyText("");
     setRequestComment("");
+    setPayMethod(null);
+    setReceiveMethod(null);
     setCommentKeyboardInset(0);
   }
 
   async function sendRequest() {
+    if (!payMethod || !receiveMethod) {
+      tg?.HapticFeedback?.notificationOccurred?.("error");
+      tg?.showAlert?.(
+        isEn
+          ? "Please select both the payment and receive methods."
+          : "Пожалуйста, выберите способ оплаты и способ получения."
+      );
+      return;
+    }
     if (!canSend) return;
     const result = await createRequest();
     if (result) await afterRequestSent(result);
@@ -1443,7 +1475,13 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
 
               <div className="vx-sp12" />
 
-              <button className="vx-primary" disabled={!canSend} onClick={sendRequest}>
+              <button
+                type="button"
+                className={"vx-primary" + (!canSend ? " is-disabled" : "")}
+                disabled={sendButtonDisabled}
+                aria-disabled={!canSend}
+                onClick={sendRequest}
+              >
                 {isEn ? "Send request" : "Отправить заявку"}
               </button>
             </div>

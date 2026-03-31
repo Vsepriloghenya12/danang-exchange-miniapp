@@ -1712,6 +1712,7 @@ label, input, select, textarea{ color: var(--text); }
   background: rgba(255,179,87,.94);
   box-shadow: 0 18px 40px rgba(255,179,87,0.18);
 }
+.vx-primary.is-disabled{ opacity: 0.55; cursor: not-allowed; }
 .vx-primary:disabled{ opacity: 0.55; cursor: not-allowed; }
 
 .vx-help{ font-size: 12px; color: var(--muted); font-weight: 700; line-height: 1.35; }
