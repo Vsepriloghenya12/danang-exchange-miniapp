@@ -74,6 +74,16 @@ function methodLabel(m: string, lang: Lang) {
   return m || "—";
 }
 
+function openExternalUrl(url: string) {
+  const raw = String(url || "").trim();
+  if (!raw) return;
+  const next = /^https?:\/\//i.test(raw) ? raw : new URL(raw, window.location.href).toString();
+  if (!next) return;
+  const tg = getTg();
+  if (tg?.openLink) tg.openLink(next);
+  else window.open(next, "_blank", "noopener,noreferrer");
+}
+
 
 export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) {
   const tg = getTg();
@@ -514,6 +524,19 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
               <div>💳 {isEn ? "Payment" : "Оплата"}: <b>{methodLabel(String(selectedReq.payMethod || ""), lang)}</b></div>
               <div>📦 {isEn ? "Receiving" : "Получение"}: <b>{methodLabel(String(selectedReq.receiveMethod || ""), lang)}</b></div>
               {selectedReq.comment ? <div>📝 {isEn ? "Comment" : "Комментарий"}: <b>{selectedReq.comment}</b></div> : null}
+              {selectedReq.attachmentImageUrl ? (
+                <div className="vx-requestAttachmentBlock">
+                  <div className="vx-requestAttachmentLabel">📎 {isEn ? "Attached photo" : "Прикреплённое фото"}</div>
+                  <button
+                    type="button"
+                    className="vx-requestAttachmentViewer"
+                    onClick={() => openExternalUrl(String(selectedReq.attachmentImageUrl))}
+                    title={isEn ? "Open attached photo" : "Открыть прикреплённое фото"}
+                  >
+                    <img className="vx-requestAttachmentViewerImg" src={String(selectedReq.attachmentImageUrl)} alt="" />
+                  </button>
+                </div>
+              ) : null}
               {selectedReq.clientContact ? <div>☎️ {isEn ? "Contact" : "Контакт"}: <b>{selectedReq.clientContact}</b></div> : null}
             </div>
 

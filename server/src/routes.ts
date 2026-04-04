@@ -631,6 +631,19 @@ export function createApiRouter(opts: {
     return path.join(runtimePublic, 'afisha');
   }
 
+  function getRequestAttachmentStorageDir(): string {
+    const explicit = String(process.env.REQUEST_ATTACHMENT_STORAGE_DIR || '').trim();
+    if (explicit) return path.resolve(explicit);
+
+    const volumeRoot = String(process.env.RAILWAY_VOLUME_MOUNT_PATH || '').trim();
+    if (volumeRoot) return path.resolve(volumeRoot, 'request-attachments');
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const runtimePublic = path.resolve(__dirname, '../public');
+    return path.join(runtimePublic, 'request-attachments');
+  }
+
   // Save a base64 data URL image into persistent afisha storage and return a public URL like /afisha/<id>.jpg
   function saveAfishaImage(id: string, dataUrl: string, suffix = ''): string {
     const m = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/i);
@@ -650,6 +663,26 @@ export function createApiRouter(opts: {
     const filename = `${id}${suffix}${ext}`;
     fs.writeFileSync(path.join(dir, filename), buf);
     return `/afisha/${filename}`;
+  }
+
+  function saveRequestAttachmentImage(id: string, dataUrl: string, suffix = '-attachment'): string {
+    const m = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/i);
+    if (!m) throw new Error('bad_image');
+    const mime = String(m[1] || '').toLowerCase();
+    const b64 = String(m[2] || '');
+    const isOk = /image\/(jpeg|jpg|png|webp)/i.test(mime);
+    if (!isOk) throw new Error('bad_image');
+
+    const ext = mime.includes('png') ? '.png' : mime.includes('webp') ? '.webp' : '.jpg';
+    const buf = Buffer.from(b64, 'base64');
+    if (!buf || buf.length < 10) throw new Error('bad_image');
+    if (buf.length > 5 * 1024 * 1024) throw new Error('bad_image');
+
+    const dir = getRequestAttachmentStorageDir();
+    fs.mkdirSync(dir, { recursive: true });
+    const filename = `${id}${suffix}${ext}`;
+    fs.writeFileSync(path.join(dir, filename), buf);
+    return `/request-attachments/${filename}`;
   }
 
   // Public list (only future+today)
@@ -2211,6 +2244,7 @@ router.post("/admin/faq", async (req, res) => {
       const receiveMethod = String(p.receiveMethod || "").toLowerCase() as ReceiveMethod;
       const payMethod = String(p.payMethod || "").toLowerCase().trim();
       const comment = String(p.comment || "").trim().slice(0, 300);
+      const attachmentImageDataUrl = typeof p.attachmentImageDataUrl === "string" ? String(p.attachmentImageDataUrl).trim() : "";
       const clientContact = String(p.clientContact || "").trim().replace(/\s+/g, " ").slice(0, 250);
       const language = String(p.language || "ru").toLowerCase() === "en" ? "en" : "ru";
 
@@ -2252,6 +2286,11 @@ router.post("/admin/faq", async (req, res) => {
         hour12: false
       }).format(new Date()).replace(",", "");
 
+      const requestId = randomUUID();
+      const attachmentImageUrl = attachmentImageDataUrl
+        ? saveRequestAttachmentImage(requestId, attachmentImageDataUrl)
+        : undefined;
+
       const methodMap: Record<ReceiveMethod, string> = {
         cash: "наличные",
         transfer: "перевод",
@@ -2259,7 +2298,7 @@ router.post("/admin/faq", async (req, res) => {
       };
 
       const request: StoredRequest = {
-        id: randomUUID(),
+        id: requestId,
         // By default заявки сразу "в работе"
         state: "in_progress",
         sellCurrency,
@@ -2269,6 +2308,7 @@ router.post("/admin/faq", async (req, res) => {
         payMethod,
         receiveMethod,
         ...(comment ? { comment } : {}),
+        ...(attachmentImageUrl ? { attachmentImageUrl } : {}),
         ...(effectiveClientContact ? { clientContact: effectiveClientContact } : {}),
         language,
         from: user,
@@ -2328,6 +2368,8 @@ router.post("/admin/faq", async (req, res) => {
 ` +
           `${comment ? `📝 Комментарий: ${comment}
 ` : ""}` +
+          `${attachmentImageUrl ? `📎 Фото приложено
+` : ""}` +
           `${effectiveClientContact ? `☎️ Контакт клиента: ${effectiveClientContact}
 ` : ""}` +
           `🌐 Язык: ${language === "en" ? "English" : "Русский"}
@@ -2365,7 +2407,11 @@ router.post("/admin/faq", async (req, res) => {
 
       res.json({ ok: true, id: request.id, state: request.state, hasSavedContact, needsManualManagerContact });
     } catch (e: any) {
-      res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+      const message = String(e?.message || "auth_failed");
+      if (message === "bad_image") {
+        return res.status(400).json({ ok: false, error: "bad_image" });
+      }
+      res.status(401).json({ ok: false, error: message });
     }
   });
 

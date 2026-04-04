@@ -176,6 +176,7 @@ export type StoredRequest = {
   payMethod?: string;
   receiveMethod: string;
   comment?: string;
+  attachmentImageUrl?: string;
   clientContact?: string;
   language?: "ru" | "en";
   from: { id: number; username?: string; first_name?: string; last_name?: string };

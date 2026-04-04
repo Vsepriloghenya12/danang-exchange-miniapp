@@ -52,6 +52,14 @@ function CopyIcon({ className = "" }: { className?: string }) {
   );
 }
 
+function PaperclipIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21.44 11.05 12 20.5a6 6 0 0 1-8.49-8.49l9.9-9.9a4 4 0 0 1 5.66 5.66l-10 10a2 2 0 1 1-2.83-2.83l9.19-9.2" />
+    </svg>
+  );
+}
+
 async function copyPlainText(value: string) {
   const text = String(value || "");
   if (!text) return false;
@@ -79,6 +87,21 @@ async function copyPlainText(value: string) {
   } catch {
     return false;
   }
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read_failed"));
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function openManagerContactLink(me?: Props["me"]) {
@@ -598,12 +621,16 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
 
   const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeUserStatus(me?.status));
   const [requestComment, setRequestComment] = useState("");
+  const [requestAttachmentImageDataUrl, setRequestAttachmentImageDataUrl] = useState<string | null>(null);
+  const [requestAttachmentName, setRequestAttachmentName] = useState("");
+  const [requestAttachmentSizeLabel, setRequestAttachmentSizeLabel] = useState("");
   const [showConditions, setShowConditions] = useState(false);
   const [requestSuccessModal, setRequestSuccessModal] = useState<null | { requestId: string; copyText: string }>(null);
   const [commentKeyboardInset, setCommentKeyboardInset] = useState(0);
 
   const commentFieldRef = useRef<HTMLTextAreaElement | null>(null);
   const commentComposerRef = useRef<HTMLDivElement | null>(null);
+  const requestAttachmentInputRef = useRef<HTMLInputElement | null>(null);
 
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [danangNowMs, setDanangNowMs] = useState(() => Date.now());
@@ -1108,7 +1135,40 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
     ];
     const comment = String(requestComment || "").trim();
     if (comment) lines.push(`${isEn ? "Comment" : "Комментарий"}: ${comment}`);
+    if (requestAttachmentImageDataUrl) lines.push(isEn ? "Photo: attached to the request." : "Фото: приложено к заявке.");
     return lines.join("\n");
+  }
+
+  async function handleRequestAttachmentChange(file: File | null) {
+    if (!file) return;
+    if (!String(file.type || "").toLowerCase().startsWith("image/")) {
+      tg?.showAlert?.(isEn ? "Please attach an image file." : "Пожалуйста, прикрепите файл изображения.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      tg?.showAlert?.(isEn ? "The image must be up to 5 MB." : "Изображение должно быть не больше 5 МБ.");
+      return;
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      if (!dataUrl.startsWith("data:image/")) {
+        tg?.showAlert?.(isEn ? "Please attach an image file." : "Пожалуйста, прикрепите файл изображения.");
+        return;
+      }
+      setRequestAttachmentImageDataUrl(dataUrl);
+      setRequestAttachmentName(String(file.name || (isEn ? "image" : "изображение")));
+      setRequestAttachmentSizeLabel(formatFileSize(file.size));
+    } catch {
+      tg?.showAlert?.(isEn ? "Failed to read the image." : "Не удалось прочитать изображение.");
+    }
+  }
+
+  function clearRequestAttachment() {
+    setRequestAttachmentImageDataUrl(null);
+    setRequestAttachmentName("");
+    setRequestAttachmentSizeLabel("");
+    if (requestAttachmentInputRef.current) requestAttachmentInputRef.current.value = "";
   }
 
   async function copyRequestInfo(requestId: string, readyText?: string) {
@@ -1147,6 +1207,7 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
       payMethod,
       receiveMethod,
       comment: requestComment.trim(),
+      attachmentImageDataUrl: requestAttachmentImageDataUrl || undefined,
       language: lang,
     };
 
@@ -1200,6 +1261,7 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
     setSellText("");
     setBuyText("");
     setRequestComment("");
+    clearRequestAttachment();
     setPayMethod(null);
     setReceiveMethod(null);
     setCommentKeyboardInset(0);
@@ -1473,17 +1535,63 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
                 onChange={(e) => setRequestComment(e.target.value.slice(0, 300))}
               />
 
+              <input
+                ref={requestAttachmentInputRef}
+                type="file"
+                accept="image/*"
+                className="vx-requestAttachInput"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0] || null;
+                  await handleRequestAttachmentChange(file);
+                  e.currentTarget.value = "";
+                }}
+              />
+
+              {requestAttachmentImageDataUrl ? (
+                <>
+                  <div className="vx-sp10" />
+                  <div className="vx-requestAttachmentPreview">
+                    <img className="vx-requestAttachmentThumb" src={requestAttachmentImageDataUrl} alt="" />
+                    <div className="vx-requestAttachmentInfo">
+                      <div className="vx-requestAttachmentTitle">{requestAttachmentName || (isEn ? "Attached image" : "Прикреплённое фото")}</div>
+                      <div className="vx-requestAttachmentMeta">{requestAttachmentSizeLabel || (isEn ? "Image attached" : "Фото прикреплено")}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="vx-requestAttachmentRemove"
+                      onClick={clearRequestAttachment}
+                      aria-label={isEn ? "Remove attached image" : "Убрать прикреплённое фото"}
+                      title={isEn ? "Remove image" : "Убрать фото"}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </>
+              ) : null}
+
               <div className="vx-sp12" />
 
-              <button
-                type="button"
-                className={"vx-primary" + (!canSend ? " is-disabled" : "")}
-                disabled={sendButtonDisabled}
-                aria-disabled={!canSend}
-                onClick={sendRequest}
-              >
-                {isEn ? "Send request" : "Отправить заявку"}
-              </button>
+              <div className="vx-requestActionRow">
+                <button
+                  type="button"
+                  className={"vx-primary vx-requestSendBtn" + (!canSend ? " is-disabled" : "")}
+                  disabled={sendButtonDisabled}
+                  aria-disabled={!canSend}
+                  onClick={sendRequest}
+                >
+                  {isEn ? "Send request" : "Отправить заявку"}
+                </button>
+
+                <button
+                  type="button"
+                  className={"vx-requestAttachBtn" + (requestAttachmentImageDataUrl ? " is-active" : "")}
+                  onClick={() => requestAttachmentInputRef.current?.click()}
+                  aria-label={isEn ? "Attach image" : "Прикрепить фото"}
+                  title={isEn ? "Attach image" : "Прикрепить фото"}
+                >
+                  <PaperclipIcon className="vx-requestAttachIcon" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

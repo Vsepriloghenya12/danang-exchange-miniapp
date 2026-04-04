@@ -4435,6 +4435,121 @@ html[data-theme="dark"] .theme-client .vx-contactModalCard{
 .vx-requestCommentInput{
   resize: none;
 }
+.vx-requestAttachInput{
+  display:none;
+}
+.vx-requestActionRow{
+  display:flex;
+  align-items:stretch;
+  gap:10px;
+}
+.vx-requestSendBtn{
+  flex:1 1 auto;
+  min-width:0;
+}
+.vx-requestAttachBtn{
+  flex:0 0 auto;
+  width:52px;
+  min-width:52px;
+  height:52px;
+  padding:0;
+  border-radius:18px;
+  border:1px solid rgba(15,23,42,.12);
+  background:rgba(255,255,255,.92);
+  color:var(--text);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  box-shadow:0 12px 24px rgba(15,23,42,.08);
+}
+.vx-requestAttachBtn.is-active{
+  border-color:rgba(246,198,0,.44);
+  background:rgba(255,244,210,.92);
+}
+.vx-requestAttachBtn:active{
+  transform:translateY(1px);
+}
+.vx-requestAttachIcon{
+  width:20px;
+  height:20px;
+}
+.vx-requestAttachmentPreview{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+  padding:8px 10px;
+  border-radius:16px;
+  border:1px solid rgba(15,23,42,.08);
+  background:rgba(248,250,252,.92);
+}
+.vx-requestAttachmentThumb{
+  width:46px;
+  height:46px;
+  border-radius:12px;
+  object-fit:cover;
+  display:block;
+  box-shadow:0 8px 18px rgba(15,23,42,.10);
+}
+.vx-requestAttachmentInfo{
+  min-width:0;
+}
+.vx-requestAttachmentTitle{
+  font-size:13px;
+  font-weight:800;
+  color:var(--text);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.vx-requestAttachmentMeta{
+  margin-top:2px;
+  font-size:11px;
+  color:var(--muted);
+  font-weight:700;
+}
+.vx-requestAttachmentRemove{
+  width:30px;
+  height:30px;
+  border-radius:999px;
+  border:1px solid rgba(15,23,42,.08);
+  background:rgba(255,255,255,.92);
+  color:var(--text);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  font-size:18px;
+  line-height:1;
+}
+.vx-requestAttachmentBlock{
+  display:grid;
+  gap:8px;
+}
+.vx-requestAttachmentLabel{
+  font-size:12px;
+  font-weight:800;
+  color:var(--muted);
+}
+.vx-requestAttachmentViewer{
+  display:block;
+  width:min(100%, 240px);
+  padding:0;
+  border:0;
+  background:transparent;
+  text-decoration:none;
+  cursor:pointer;
+}
+.vx-requestAttachmentViewerImg{
+  width:100%;
+  max-height:240px;
+  object-fit:cover;
+  border-radius:16px;
+  display:block;
+  border:1px solid rgba(15,23,42,.08);
+  box-shadow:0 12px 24px rgba(15,23,42,.10);
+}
 .vx-requestDoneCard{
   display: grid;
   gap: 14px;
@@ -4536,6 +4651,29 @@ html[data-theme="dark"] .theme-client .vx-requestComposer{
   background: rgba(21,30,39,.985);
   border-color: rgba(246,198,0,.18);
   box-shadow: 0 18px 36px rgba(0,0,0,.34);
+}
+html[data-theme="dark"] .theme-client .vx-requestAttachBtn,
+html[data-theme="dark"] .theme-client .vx-requestAttachmentPreview,
+html[data-theme="dark"] .theme-client .vx-requestAttachmentRemove,
+html[data-theme="dark"] .theme-client .vx-requestAttachmentViewerImg,
+html[data-theme="dark"] .theme-owner .vx-requestAttachmentPreview,
+html[data-theme="dark"] .theme-owner .vx-requestAttachmentRemove,
+html[data-theme="dark"] .theme-owner .vx-requestAttachmentViewerImg{
+  border-color: rgba(246,198,0,.16);
+}
+html[data-theme="dark"] .theme-client .vx-requestAttachBtn,
+html[data-theme="dark"] .theme-client .vx-requestAttachmentRemove,
+html[data-theme="dark"] .theme-owner .vx-requestAttachmentRemove{
+  background: rgba(31,43,56,.96);
+  color: var(--text);
+}
+html[data-theme="dark"] .theme-client .vx-requestAttachBtn.is-active{
+  background: rgba(58,48,18,.92);
+  border-color: rgba(246,198,0,.34);
+}
+html[data-theme="dark"] .theme-client .vx-requestAttachmentPreview,
+html[data-theme="dark"] .theme-owner .vx-requestAttachmentPreview{
+  background: rgba(31,43,56,.74);
 }
 
 .mx-topLeftStack{
