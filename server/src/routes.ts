@@ -685,6 +685,82 @@ export function createApiRouter(opts: {
     return `/request-attachments/${filename}`;
   }
 
+  function resolveRequestAttachmentFile(attachmentImageUrl: string): { filePath: string; filename: string; mime: string } | null {
+    const raw = String(attachmentImageUrl || '').trim();
+    if (!raw) return null;
+
+    let pathname = raw;
+    if (/^https?:\/\//i.test(raw)) {
+      try {
+        pathname = new URL(raw).pathname || raw;
+      } catch {
+        pathname = raw;
+      }
+    }
+
+    const match = pathname.match(/\/request-attachments\/([^/?#]+)/i);
+    const safeName = match?.[1] ? path.basename(match[1]) : '';
+    if (!safeName) return null;
+
+    const filePath = path.join(getRequestAttachmentStorageDir(), safeName);
+    if (!fs.existsSync(filePath)) return null;
+
+    const ext = path.extname(safeName).toLowerCase();
+    const mime = ext === '.png'
+      ? 'image/png'
+      : ext === '.webp'
+      ? 'image/webp'
+      : 'image/jpeg';
+
+    return { filePath, filename: safeName, mime };
+  }
+
+  function trimTelegramCaption(text: string, maxLen = 1024): string {
+    const raw = String(text || '');
+    if (raw.length <= maxLen) return raw;
+    return `${raw.slice(0, Math.max(0, maxLen - 1)).trimEnd()}…`;
+  }
+
+  async function sendTelegramRequestNotification(chatId: number, text: string, attachmentImageUrl?: string): Promise<any> {
+    const sendText = async () => {
+      const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true })
+      });
+      return await tgRes.json();
+    };
+
+    if (!attachmentImageUrl) {
+      return await sendText();
+    }
+
+    const file = resolveRequestAttachmentFile(attachmentImageUrl);
+    if (!file) {
+      return await sendText();
+    }
+
+    try {
+      const buf = fs.readFileSync(file.filePath);
+      const isPhoto = /image\/(jpeg|jpg|png)/i.test(file.mime);
+      const method = isPhoto ? 'sendPhoto' : 'sendDocument';
+      const field = isPhoto ? 'photo' : 'document';
+      const form = new FormData();
+      form.append('chat_id', String(chatId));
+      form.append('caption', trimTelegramCaption(text));
+      form.append(field, new Blob([buf], { type: file.mime }), file.filename);
+
+      const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/${method}`, {
+        method: 'POST',
+        body: form as any
+      });
+      const tgJson: any = await tgRes.json();
+      if (tgJson?.ok) return tgJson;
+    } catch {}
+
+    return await sendText();
+  }
+
   // Public list (only future+today)
   router.get('/afisha', async (req, res) => {
     try {
@@ -2382,25 +2458,17 @@ router.post("/admin/faq", async (req, res) => {
 	          Number(configSnapshot?.requestsGroupChatId) || envReqGroup || Number(configSnapshot?.groupChatId) || envGroup;
 
         if (reqGroupChatId && Number.isFinite(reqGroupChatId)) {
-          await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ chat_id: reqGroupChatId, text, disable_web_page_preview: true })
-          });
+          await sendTelegramRequestNotification(reqGroupChatId, text, attachmentImageUrl);
         } else {
           const recipients = (Array.isArray(opts.ownerTgIds) && opts.ownerTgIds.length)
             ? opts.ownerTgIds
             : opts.ownerTgId
-            ? [opts.ownerTgId]
+	            ? [opts.ownerTgId]
 	            : Array.isArray(configSnapshot?.adminTgIds)
 	            ? (configSnapshot.adminTgIds as number[])
             : [];
           for (const rid of recipients) {
-            await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ chat_id: rid, text, disable_web_page_preview: true })
-            });
+            await sendTelegramRequestNotification(rid, text, attachmentImageUrl);
           }
         }
       } catch {}
