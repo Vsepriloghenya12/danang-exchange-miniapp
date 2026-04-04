@@ -4532,6 +4532,17 @@ html[data-theme="dark"] .theme-client .vx-contactModalCard{
   font-weight:800;
   color:var(--muted);
 }
+.vx-requestAttachmentLabelLink{
+  display:inline-flex;
+  align-items:center;
+  width:max-content;
+  text-decoration:none;
+  cursor:pointer;
+  color:var(--accent);
+}
+.vx-requestAttachmentLabelLink:hover{
+  text-decoration:underline;
+}
 .vx-requestAttachmentViewer{
   display:block;
   width:min(100%, 240px);

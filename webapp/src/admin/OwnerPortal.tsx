@@ -2138,15 +2138,14 @@ function moveFaq(id: string, dir: -1 | 1) {
                   {reqSelected.comment ? <div>📝 Комментарий: <b>{reqSelected.comment}</b></div> : null}
                   {reqSelected.attachmentImageUrl ? (
                     <div className="vx-requestAttachmentBlock">
-                      <div className="vx-requestAttachmentLabel">📎 Прикреплённое фото</div>
                       <a
-                        className="vx-requestAttachmentViewer"
+                        className="vx-requestAttachmentLabel vx-requestAttachmentLabelLink"
                         href={String(reqSelected.attachmentImageUrl)}
                         target="_blank"
                         rel="noreferrer"
                         title="Открыть прикреплённое фото"
                       >
-                        <img className="vx-requestAttachmentViewerImg" src={String(reqSelected.attachmentImageUrl)} alt="" />
+                        📎 Прикреплённое фото
                       </a>
                     </div>
                   ) : null}
