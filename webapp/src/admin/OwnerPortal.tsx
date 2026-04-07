@@ -1625,6 +1625,17 @@ function moveFaq(id: string, dir: -1 | 1) {
               <button className="btn vx-btnSm" type="button" onClick={installOwnerApp} disabled={installDone}>
                 {installDone ? "Установлено" : "Установить"}
               </button>
+              <button
+                className={"btn vx-btnSm " + (adminCalcOpen ? "vx-btnOn" : "")}
+                type="button"
+                onClick={() => {
+                  setTab("requests");
+                  setReqView("active");
+                  setAdminCalcOpen((v) => !v);
+                }}
+              >
+                Калькулятор
+              </button>
               <button className="btn vx-btnSm" type="button" onClick={loadAll}>
                 Обновить
               </button>
