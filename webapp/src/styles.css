@@ -4576,9 +4576,30 @@ html[data-theme="dark"] .theme-client .vx-contactModalCard{
   display:flex;
   flex-wrap:nowrap;
   gap:6px;
+  align-items:center;
 }
 .vx-adminCalcStatusBtns .btn{
+  background:transparent !important;
+  border:1px solid transparent !important;
+  box-shadow:none !important;
+  color:var(--muted) !important;
   white-space:nowrap;
+}
+.vx-adminCalcStatusBtns .btn::before,
+.vx-adminCalcStatusBtns .btn::after{
+  opacity:0 !important;
+}
+.vx-adminCalcStatusBtns .btn.vx-btnOn{
+  background:rgba(9,23,33,.94) !important;
+  border:1px solid rgba(9,23,33,.24) !important;
+  color:rgba(255,255,255,.98) !important;
+  box-shadow:0 10px 22px rgba(9,23,33,.20) !important;
+}
+html[data-theme="dark"] .vx-adminCalcStatusBtns .btn.vx-btnOn{
+  background:rgba(246,198,0,.96) !important;
+  border-color:rgba(246,198,0,.70) !important;
+  color:rgba(12,16,22,.98) !important;
+  box-shadow:0 10px 24px rgba(246,198,0,.22) !important;
 }
 .theme-owner .vx-adminCalcPanel .vx-calc{
   gap:10px;
