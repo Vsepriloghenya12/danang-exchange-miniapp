@@ -2024,15 +2024,18 @@ function moveFaq(id: string, dir: -1 | 1) {
             <>
               <div className="vx-adminCalcPanel">
                 <div className="row vx-between vx-center vx-rowWrap vx-gap8">
-                  <label className="vx-adminCalcStatus" aria-label="Статус клиента">
-                    <select className="input vx-in" value={adminCalcStatus} onChange={(e) => setAdminCalcStatus(e.target.value as UserStatus)}>
-                      {USER_STATUS_OPTIONS_RU.map((s) => (
-                        <option key={s.value} value={s.value}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <div className="vx-adminCalcStatusBtns" aria-label="Статус клиента">
+                    {USER_STATUS_OPTIONS_RU.map((s) => (
+                      <button
+                        key={s.value}
+                        type="button"
+                        className={"btn vx-btnSm " + (adminCalcStatus === s.value ? "vx-btnOn" : "")}
+                        onClick={() => setAdminCalcStatus(s.value)}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="vx-sp10" />
                 <CalculatorTab

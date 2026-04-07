@@ -4572,6 +4572,14 @@ html[data-theme="dark"] .theme-client .vx-contactModalCard{
   gap:5px;
   min-width:190px;
 }
+.vx-adminCalcStatusBtns{
+  display:flex;
+  flex-wrap:nowrap;
+  gap:6px;
+}
+.vx-adminCalcStatusBtns .btn{
+  white-space:nowrap;
+}
 .theme-owner .vx-adminCalcPanel .vx-calc{
   gap:10px;
 }

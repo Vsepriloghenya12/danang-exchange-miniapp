@@ -417,19 +417,18 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
           <div className="vx-sp10" />
           <div className="vx-adminCalcPanel">
             <div className="row vx-between vx-center vx-rowWrap vx-gap8">
-              <label className="vx-adminCalcStatus" aria-label={isEn ? "Client status" : "Статус клиента"}>
-                <select
-                  className="input vx-in"
-                  value={adminCalcStatus}
-                  onChange={(e) => setAdminCalcStatus(e.target.value as UserStatus)}
-                >
-                  {userStatusOptions.map((s) => (
-                    <option key={s.value} value={s.value}>
+              <div className="vx-adminCalcStatusBtns" aria-label={isEn ? "Client status" : "Статус клиента"}>
+                {userStatusOptions.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    className={"btn vx-btnSm " + (adminCalcStatus === s.value ? "vx-btnOn" : "")}
+                    onClick={() => setAdminCalcStatus(s.value)}
+                  >
                       {s.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="vx-sp10" />
             <CalculatorTab
