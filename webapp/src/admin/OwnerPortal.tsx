@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import AdminTab from "../tabs/AdminTab";
+import CalculatorTab from "../tabs/CalculatorTab";
 import { createGFormulaDraft, DEFAULT_G_FORMULAS, G_FORMULA_KEYS } from "../domain/exchange";
 import { getUserStatusLabelRu, USER_STATUS_OPTIONS_RU } from "../domain/status";
 import {
@@ -279,6 +280,8 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
   const [requests, setRequests] = useState<any[]>([]);
   const [clientsLoading, setClientsLoading] = useState<boolean>(false);
   const [clientSearch, setClientSearch] = useState<string>("");
+  const [adminCalcOpen, setAdminCalcOpen] = useState<boolean>(false);
+  const [adminCalcStatus, setAdminCalcStatus] = useState<UserStatus>("standard");
   const [cUsername, setCUsername] = useState<string>("");
   const [cTgId, setCTgId] = useState<string>("");
   const [cFullName, setCFullName] = useState<string>("");
@@ -1990,12 +1993,52 @@ function moveFaq(id: string, dir: -1 | 1) {
         <div className="card">
           <div className="row vx-between vx-center">
             <div className="h3 vx-m0">Заявки</div>
-            <button className="btn vx-btnSm" type="button" onClick={loadClients} disabled={clientsLoading}>
-              {clientsLoading ? "Обновляю…" : "Обновить"}
-            </button>
+            <div className="row vx-rowWrap vx-gap6">
+              <button
+                className={"btn vx-btnSm " + (adminCalcOpen ? "vx-btnOn" : "")}
+                type="button"
+                onClick={() => setAdminCalcOpen((v) => !v)}
+              >
+                Калькулятор
+              </button>
+              <button className="btn vx-btnSm" type="button" onClick={loadClients} disabled={clientsLoading}>
+                {clientsLoading ? "Обновляю…" : "Обновить"}
+              </button>
+            </div>
           </div>
 
           <div className="vx-sp10" />
+
+          {adminCalcOpen ? (
+            <>
+              <div className="vx-adminCalcPanel">
+                <div className="row vx-between vx-center vx-rowWrap vx-gap8">
+                  <div>
+                    <div className="small"><b>Ручной расчёт сделки</b></div>
+                    <div className="vx-muted">Калькулятор использует те же курсы, надбавки, формулы G и ограничения, что и клиентское приложение.</div>
+                  </div>
+                  <label className="vx-adminCalcStatus">
+                    <span className="vx-muted">Статус клиента</span>
+                    <select className="input vx-in" value={adminCalcStatus} onChange={(e) => setAdminCalcStatus(e.target.value as UserStatus)}>
+                      {USER_STATUS_OPTIONS_RU.map((s) => (
+                        <option key={s.value} value={s.value}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="vx-sp10" />
+                <CalculatorTab
+                  mode="admin"
+                  forcedStatus={adminCalcStatus}
+                  lang="ru"
+                  me={{ ok: true, initData: "", status: adminCalcStatus }}
+                />
+              </div>
+              <div className="vx-sp10" />
+            </>
+          ) : null}
 
           {reqView !== "detail" ? (
             <div className="row vx-rowWrap vx-gap6">

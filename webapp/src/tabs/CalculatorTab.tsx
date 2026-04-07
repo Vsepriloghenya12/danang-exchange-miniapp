@@ -20,6 +20,8 @@ type Lang = "ru" | "en";
 
 type Props = {
   lang?: Lang;
+  mode?: "client" | "admin";
+  forcedStatus?: UserStatus;
   me: {
     ok: boolean;
     initData: string;
@@ -586,9 +588,10 @@ function needsCashDeliveryWarning(cur: Currency, amount: number): boolean {
   return amount < min;
 }
 
-export default function CalculatorTab({ me, lang = "ru" }: Props) {
+export default function CalculatorTab({ me, lang = "ru", mode = "client", forcedStatus }: Props) {
   const tg = getTg();
   const isEn = lang === "en";
+  const isAdminMode = mode === "admin";
   const uiMethodLabel = (m: ReceiveMethod | PayMethod) => isEn ? (m === "cash" ? "Cash" : m === "transfer" ? "Transfer" : "ATM") : methodLabel(m);
   const uiStatusLabel = (s: ClientStatus) => getUserStatusLabel(s, isEn ? "en" : "ru");
   const uiAmountPlaceholder = (prefix: string, cur: Currency, same = false) => { const min = same && cur === "VND" ? null : minSellAmountLabel(cur); return min ? `${prefix} (${isEn ? "min." : "мин."} ${min})` : prefix; };
@@ -619,7 +622,7 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
   const [payMethod, setPayMethod] = useState<SelectedPayMethod>(null);
   const [receiveMethod, setReceiveMethod] = useState<SelectedReceiveMethod>(null);
 
-  const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeUserStatus(me?.status));
+  const [clientStatus, setClientStatus] = useState<ClientStatus>(normalizeUserStatus(forcedStatus ?? me?.status));
   const [requestComment, setRequestComment] = useState("");
   const [requestAttachmentImageDataUrl, setRequestAttachmentImageDataUrl] = useState<string | null>(null);
   const [requestAttachmentName, setRequestAttachmentName] = useState("");
@@ -645,6 +648,11 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
     const t = window.setInterval(() => setDanangNowMs(Date.now()), 60000);
     return () => window.clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (!forcedStatus) return;
+    setClientStatus(normalizeUserStatus(forcedStatus));
+  }, [forcedStatus]);
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -780,6 +788,7 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
 
   // Refresh status from server (in case it changed)
   useEffect(() => {
+    if (isAdminMode || forcedStatus) return;
     const initData = tg?.initData || "";
     if (!initData) return;
 
@@ -793,7 +802,7 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
         // ignore
       }
     })();
-  }, [tg]);
+  }, [tg, isAdminMode, forcedStatus]);
 
   const sellAmount = useMemo(() => parseAmount(sellCurrency, sellText), [sellCurrency, sellText]);
   const buyAmount = useMemo(() => parseAmount(buyCurrency, buyText), [buyCurrency, buyText]);
@@ -1511,88 +1520,92 @@ export default function CalculatorTab({ me, lang = "ru" }: Props) {
             {minSellNote ? <div className="vx-warn">{minSellNote}</div> : null}
             {showCashDeliveryNote ? <div className="vx-warn">{isEn ? "Cash delivery is available from 20,000₽ / 200$ / 200 USDT." : "Доставка наличных возможна при обмене от 20,000₽/200$/200USDT."}</div> : null}
 
-            <div className="vx-sp12" />
+            {!isAdminMode ? (
+              <>
+                <div className="vx-sp12" />
 
-            <div
-              ref={commentComposerRef}
-              className={"vx-requestComposer" + (commentKeyboardInset > 0 ? " is-lifted" : "")}
-              style={commentKeyboardInset > 0 ? { bottom: `${commentKeyboardInset}px` } : undefined}
-            >
-              <textarea
-                ref={commentFieldRef}
-                className="input vx-in vx-requestCommentInput"
-                rows={3}
-                placeholder={uiCommentPlaceholder(receiveMethod)}
-                value={requestComment}
-                onFocus={() => {
-                  window.setTimeout(() => {
-                    commentComposerRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-                  }, 140);
-                }}
-                onBlur={() => {
-                  window.setTimeout(() => setCommentKeyboardInset(0), 120);
-                }}
-                onChange={(e) => setRequestComment(e.target.value.slice(0, 300))}
-              />
+                <div
+                  ref={commentComposerRef}
+                  className={"vx-requestComposer" + (commentKeyboardInset > 0 ? " is-lifted" : "")}
+                  style={commentKeyboardInset > 0 ? { bottom: `${commentKeyboardInset}px` } : undefined}
+                >
+                  <textarea
+                    ref={commentFieldRef}
+                    className="input vx-in vx-requestCommentInput"
+                    rows={3}
+                    placeholder={uiCommentPlaceholder(receiveMethod)}
+                    value={requestComment}
+                    onFocus={() => {
+                      window.setTimeout(() => {
+                        commentComposerRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                      }, 140);
+                    }}
+                    onBlur={() => {
+                      window.setTimeout(() => setCommentKeyboardInset(0), 120);
+                    }}
+                    onChange={(e) => setRequestComment(e.target.value.slice(0, 300))}
+                  />
 
-              <input
-                ref={requestAttachmentInputRef}
-                type="file"
-                accept="image/*"
-                className="vx-requestAttachInput"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0] || null;
-                  await handleRequestAttachmentChange(file);
-                  e.currentTarget.value = "";
-                }}
-              />
+                  <input
+                    ref={requestAttachmentInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="vx-requestAttachInput"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0] || null;
+                      await handleRequestAttachmentChange(file);
+                      e.currentTarget.value = "";
+                    }}
+                  />
 
-              {requestAttachmentImageDataUrl ? (
-                <>
-                  <div className="vx-sp10" />
-                  <div className="vx-requestAttachmentPreview">
-                    <img className="vx-requestAttachmentThumb" src={requestAttachmentImageDataUrl} alt="" />
-                    <div className="vx-requestAttachmentInfo">
-                      <div className="vx-requestAttachmentTitle">{requestAttachmentName || (isEn ? "Attached image" : "Прикреплённое фото")}</div>
-                      <div className="vx-requestAttachmentMeta">{requestAttachmentSizeLabel || (isEn ? "Image attached" : "Фото прикреплено")}</div>
-                    </div>
+                  {requestAttachmentImageDataUrl ? (
+                    <>
+                      <div className="vx-sp10" />
+                      <div className="vx-requestAttachmentPreview">
+                        <img className="vx-requestAttachmentThumb" src={requestAttachmentImageDataUrl} alt="" />
+                        <div className="vx-requestAttachmentInfo">
+                          <div className="vx-requestAttachmentTitle">{requestAttachmentName || (isEn ? "Attached image" : "Прикреплённое фото")}</div>
+                          <div className="vx-requestAttachmentMeta">{requestAttachmentSizeLabel || (isEn ? "Image attached" : "Фото прикреплено")}</div>
+                        </div>
+                        <button
+                          type="button"
+                          className="vx-requestAttachmentRemove"
+                          onClick={clearRequestAttachment}
+                          aria-label={isEn ? "Remove attached image" : "Убрать прикреплённое фото"}
+                          title={isEn ? "Remove image" : "Убрать фото"}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </>
+                  ) : null}
+
+                  <div className="vx-sp12" />
+
+                  <div className="vx-requestActionRow">
                     <button
                       type="button"
-                      className="vx-requestAttachmentRemove"
-                      onClick={clearRequestAttachment}
-                      aria-label={isEn ? "Remove attached image" : "Убрать прикреплённое фото"}
-                      title={isEn ? "Remove image" : "Убрать фото"}
+                      className={"vx-primary vx-requestSendBtn" + (!canSend ? " is-disabled" : "")}
+                      disabled={sendButtonDisabled}
+                      aria-disabled={!canSend}
+                      onClick={sendRequest}
                     >
-                      ×
+                      {isEn ? "Send request" : "Отправить заявку"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className={"vx-requestAttachBtn" + (requestAttachmentImageDataUrl ? " is-active" : "")}
+                      onClick={() => requestAttachmentInputRef.current?.click()}
+                      aria-label={isEn ? "Attach image" : "Прикрепить фото"}
+                      title={isEn ? "Attach image" : "Прикрепить фото"}
+                    >
+                      <PaperclipIcon className="vx-requestAttachIcon" />
                     </button>
                   </div>
-                </>
-              ) : null}
-
-              <div className="vx-sp12" />
-
-              <div className="vx-requestActionRow">
-                <button
-                  type="button"
-                  className={"vx-primary vx-requestSendBtn" + (!canSend ? " is-disabled" : "")}
-                  disabled={sendButtonDisabled}
-                  aria-disabled={!canSend}
-                  onClick={sendRequest}
-                >
-                  {isEn ? "Send request" : "Отправить заявку"}
-                </button>
-
-                <button
-                  type="button"
-                  className={"vx-requestAttachBtn" + (requestAttachmentImageDataUrl ? " is-active" : "")}
-                  onClick={() => requestAttachmentInputRef.current?.click()}
-                  aria-label={isEn ? "Attach image" : "Прикрепить фото"}
-                  title={isEn ? "Attach image" : "Прикрепить фото"}
-                >
-                  <PaperclipIcon className="vx-requestAttachIcon" />
-                </button>
-              </div>
-            </div>
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
       </div>

@@ -4561,6 +4561,38 @@ html[data-theme="dark"] .theme-client .vx-contactModalCard{
   border:1px solid rgba(15,23,42,.08);
   box-shadow:0 12px 24px rgba(15,23,42,.10);
 }
+.vx-adminCalcPanel{
+  border:1px solid var(--stroke);
+  border-radius:18px;
+  background:rgba(255,255,255,.52);
+  padding:12px;
+}
+.vx-adminCalcStatus{
+  display:grid;
+  gap:5px;
+  min-width:190px;
+}
+.theme-owner .vx-adminCalcPanel .vx-calc{
+  gap:10px;
+}
+.theme-owner .vx-adminCalcPanel .vx-calcBox{
+  background:rgba(255,255,255,.62);
+}
+@media (min-width: 860px){
+  .theme-owner .vx-adminCalcPanel .vx-calcGrid{
+    grid-template-columns:minmax(0, 1.2fr) minmax(280px, .95fr);
+    gap:14px;
+    align-items:start;
+  }
+  .theme-owner .vx-adminCalcPanel .vx-calcMain,
+  .theme-owner .vx-adminCalcPanel .vx-calcSide{
+    gap:12px;
+    min-width:0;
+  }
+  .theme-owner .vx-adminCalcPanel .vx-calcSide .vx-sectionTitle:first-child{
+    margin-top:0;
+  }
+}
 .vx-requestDoneCard{
   display: grid;
   gap: 14px;
@@ -4685,6 +4717,11 @@ html[data-theme="dark"] .theme-client .vx-requestAttachBtn.is-active{
 html[data-theme="dark"] .theme-client .vx-requestAttachmentPreview,
 html[data-theme="dark"] .theme-owner .vx-requestAttachmentPreview{
   background: rgba(31,43,56,.74);
+}
+html[data-theme="dark"] .theme-owner .vx-adminCalcPanel,
+html[data-theme="dark"] .theme-owner .vx-adminCalcPanel .vx-calcBox{
+  background: rgba(31,43,56,.72);
+  border-color: rgba(246,198,0,.16);
 }
 
 .mx-topLeftStack{
