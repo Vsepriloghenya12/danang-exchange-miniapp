@@ -683,6 +683,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   const danangTime = useMemo(() => getDanangTimeInfo(danangNowMs), [danangNowMs]);
   const managerOffline = danangTime.hour >= 22 || danangTime.hour < 10;
   const deliveryClosed = danangTime.hour >= 20 && danangTime.hour < 22;
+  const deliveryClosedForRules = !isAdminMode && deliveryClosed;
 
   const gMode = useMemo(() => isGModePair(formulas, sellCurrency, buyCurrency), [formulas, sellCurrency, buyCurrency]);
 
@@ -701,12 +702,12 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       parseAmount(buyCurrency, buyText),
       parseAmount(sellCurrency, sellText)
     );
-    const allowed = deliveryClosed && !(sellCurrency === "VND" && buyCurrency === "VND")
+    const allowed = deliveryClosedForRules && !(sellCurrency === "VND" && buyCurrency === "VND")
       ? baseAllowed.filter((m) => m === "transfer" || m === "atm")
       : baseAllowed;
     if (receiveMethod && !allowed.includes(receiveMethod)) setReceiveMethod(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buyCurrency, sellCurrency, buyText, sellText, deliveryClosed]);
+  }, [buyCurrency, sellCurrency, buyText, sellText, deliveryClosedForRules]);
 
   // Load rates (VND) + market (G)
   useEffect(() => {
@@ -835,11 +836,11 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   const allowedPay = useMemo(() => allowedPayMethods(sellCurrency, buyCurrency, sellAmount, buyAmount), [sellCurrency, buyCurrency, sellAmount, buyAmount]);
   const allowedRecv = useMemo(() => {
     const baseAllowed = allowedReceiveMethods(buyCurrency, sellCurrency, buyAmount, sellAmount);
-    return deliveryClosed && !(sellCurrency === "VND" && buyCurrency === "VND")
+    return deliveryClosedForRules && !(sellCurrency === "VND" && buyCurrency === "VND")
       ? baseAllowed.filter((m) => m === "transfer" || m === "atm")
       : baseAllowed;
-  }, [buyCurrency, sellCurrency, buyAmount, sellAmount, deliveryClosed]);
-  const receiveMethodUnavailableByHours = deliveryClosed && allowedRecv.length === 0;
+  }, [buyCurrency, sellCurrency, buyAmount, sellAmount, deliveryClosedForRules]);
+  const receiveMethodUnavailableByHours = deliveryClosedForRules && allowedRecv.length === 0;
 
   // Missing data check
   const missingRates = useMemo(() => {
@@ -1105,7 +1106,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
     const nextAllowedPay = allowedPayMethods(nextSellCurrency, nextBuyCurrency, currentBuyRaw ?? undefined, currentSellRaw ?? undefined);
     const nextAllowedReceiveBase = allowedReceiveMethods(nextBuyCurrency, nextSellCurrency, currentSellRaw ?? undefined, currentBuyRaw ?? undefined);
-    const nextAllowedReceive = deliveryClosed && !(nextSellCurrency === "VND" && nextBuyCurrency === "VND")
+    const nextAllowedReceive = deliveryClosedForRules && !(nextSellCurrency === "VND" && nextBuyCurrency === "VND")
       ? nextAllowedReceiveBase.filter((m) => m === "transfer" || m === "atm")
       : nextAllowedReceiveBase;
 
@@ -1329,10 +1330,12 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
   return (
     <div className="vx-calc">
-      <div className="vx-calcTitle" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <div className="vx-muted">{isEn ? "Status" : "Статус"}: {uiStatusLabel(clientStatus)}</div>
-        <button type="button" className="vx-conditionsBtn" title={isEn ? "Exchange conditions" : "Условия обмена"} onClick={() => setShowConditions(true)}>i</button>
-      </div>
+      {!isAdminMode ? (
+        <div className="vx-calcTitle" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div className="vx-muted">{isEn ? "Status" : "Статус"}: {uiStatusLabel(clientStatus)}</div>
+          <button type="button" className="vx-conditionsBtn" title={isEn ? "Exchange conditions" : "Условия обмена"} onClick={() => setShowConditions(true)}>i</button>
+        </div>
+      ) : null}
 
       {showConditions ? (
         <div className="vx-modalOverlay" onClick={() => setShowConditions(false)}>
@@ -1359,15 +1362,17 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       {loading && <div className="vx-help">{isEn ? "Loading rates…" : "Загрузка курсов…"}</div>}
       {!loading && (!rates || (!market && gMode)) && <div className="vx-help">{isEn ? "Rates are not loaded." : "Курсы не загружены."}</div>}
 
-      <div className="vx-note" style={{ marginBottom: 10 }}>
-        <b>{isEn ? "Service hours" : "Время работы сервиса"}:</b> {isEn ? "daily from 10:00 to 22:00. From 20:00 to 22:00 only remote exchange is available." : "ежедневно с 10:00 до 22:00. С 20:00 до 22:00 возможен только дистанционный обмен."}
-      </div>
+      {!isAdminMode ? (
+        <div className="vx-note" style={{ marginBottom: 10 }}>
+          <b>{isEn ? "Service hours" : "Время работы сервиса"}:</b> {isEn ? "daily from 10:00 to 22:00. From 20:00 to 22:00 only remote exchange is available." : "ежедневно с 10:00 до 22:00. С 20:00 до 22:00 возможен только дистанционный обмен."}
+        </div>
+      ) : null}
 
-      {managerOffline ? (
+      {!isAdminMode && managerOffline ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
           {isEn ? `Thank you for contacting us. It is now ${danangTime.label} in Da Nang. You can create a request during working hours.` : `Спасибо за обращение. Сейчас в Дананге ${danangTime.label}. Оставить заявку Вы можете в рабочее время.`}
         </div>
-      ) : deliveryClosed ? (
+      ) : !isAdminMode && deliveryClosed ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
           {isEn ? `After 20:00 in Da Nang, cash delivery is unavailable. It is now ${danangTime.label} in Da Nang. Only remote exchange is available.` : `После 20:00 по Данангу доставка уже не работает. Сейчас в Дананге ${danangTime.label}. Доступен только дистанционный обмен.`}
         </div>

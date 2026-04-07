@@ -417,16 +417,7 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
           <div className="vx-sp10" />
           <div className="vx-adminCalcPanel">
             <div className="row vx-between vx-center vx-rowWrap vx-gap8">
-              <div>
-                <div className="small"><b>{isEn ? "Manual deal calculator" : "Ручной расчёт сделки"}</b></div>
-                <div className="vx-muted">
-                  {isEn
-                    ? "Uses the same rates, bonuses, G formulas, and limits as the client calculator."
-                    : "Использует те же курсы, надбавки, формулы G и ограничения, что и клиентский калькулятор."}
-                </div>
-              </div>
-              <label className="vx-adminCalcStatus">
-                <span className="vx-muted">{isEn ? "Client status" : "Статус клиента"}</span>
+              <label className="vx-adminCalcStatus" aria-label={isEn ? "Client status" : "Статус клиента"}>
                 <select
                   className="input vx-in"
                   value={adminCalcStatus}

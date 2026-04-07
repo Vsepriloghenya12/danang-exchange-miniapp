@@ -2024,12 +2024,7 @@ function moveFaq(id: string, dir: -1 | 1) {
             <>
               <div className="vx-adminCalcPanel">
                 <div className="row vx-between vx-center vx-rowWrap vx-gap8">
-                  <div>
-                    <div className="small"><b>Ручной расчёт сделки</b></div>
-                    <div className="vx-muted">Калькулятор использует те же курсы, надбавки, формулы G и ограничения, что и клиентское приложение.</div>
-                  </div>
-                  <label className="vx-adminCalcStatus">
-                    <span className="vx-muted">Статус клиента</span>
+                  <label className="vx-adminCalcStatus" aria-label="Статус клиента">
                     <select className="input vx-in" value={adminCalcStatus} onChange={(e) => setAdminCalcStatus(e.target.value as UserStatus)}>
                       {USER_STATUS_OPTIONS_RU.map((s) => (
                         <option key={s.value} value={s.value}>
