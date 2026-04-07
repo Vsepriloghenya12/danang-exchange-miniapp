@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import CalculatorTab from "./CalculatorTab";
 import { getUserStatusLabel, USER_STATUS_OPTIONS_RU } from "../domain/status";
 import {
   apiGetBankIcons,
@@ -105,6 +106,8 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
   const [usersMap, setUsersMap] = useState<Record<string, { tg_id: number; username?: string; first_name?: string; last_name?: string; status?: UserStatus }>>({});
 
   const [selectedId, setSelectedId] = useState<string>("");
+  const [adminCalcOpen, setAdminCalcOpen] = useState<boolean>(false);
+  const [adminCalcStatus, setAdminCalcStatus] = useState<UserStatus>("standard");
 
   const [view, setView] = useState<"list" | "detail" | "history">("list");
 
@@ -395,6 +398,13 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
           <div className="vx-meta">{isEn ? "Requests • status • client card" : "Заявки • статус • карточка клиента"}</div>
         </div>
         <div className="row vx-rowWrap vx-gap6" style={{ justifyContent: "flex-end" }}>
+          <button
+            type="button"
+            className={"btn vx-btnSm " + (adminCalcOpen ? "vx-btnOn" : "")}
+            onClick={() => setAdminCalcOpen((v) => !v)}
+          >
+            {isEn ? "Calculator" : "Калькулятор"}
+          </button>
           <button type="button" className="btn vx-btnSm" onClick={loadAll}>
             {isEn ? "Refresh" : "Обновить"}
           </button>
@@ -402,6 +412,44 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
       </div>
 
       {loading ? <div className="vx-help">{isEn ? "Loading…" : "Загрузка…"}</div> : null}
+      {adminCalcOpen ? (
+        <>
+          <div className="vx-sp10" />
+          <div className="vx-adminCalcPanel">
+            <div className="row vx-between vx-center vx-rowWrap vx-gap8">
+              <div>
+                <div className="small"><b>{isEn ? "Manual deal calculator" : "Ручной расчёт сделки"}</b></div>
+                <div className="vx-muted">
+                  {isEn
+                    ? "Uses the same rates, bonuses, G formulas, and limits as the client calculator."
+                    : "Использует те же курсы, надбавки, формулы G и ограничения, что и клиентский калькулятор."}
+                </div>
+              </div>
+              <label className="vx-adminCalcStatus">
+                <span className="vx-muted">{isEn ? "Client status" : "Статус клиента"}</span>
+                <select
+                  className="input vx-in"
+                  value={adminCalcStatus}
+                  onChange={(e) => setAdminCalcStatus(e.target.value as UserStatus)}
+                >
+                  {userStatusOptions.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="vx-sp10" />
+            <CalculatorTab
+              mode="admin"
+              forcedStatus={adminCalcStatus}
+              lang={lang}
+              me={{ ...(me || {}), ok: true, initData, status: adminCalcStatus }}
+            />
+          </div>
+        </>
+      ) : null}
       <div className="vx-sp12" />
     </>
   );

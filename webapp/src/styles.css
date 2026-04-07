@@ -4579,16 +4579,20 @@ html[data-theme="dark"] .theme-client .vx-contactModalCard{
   background:rgba(255,255,255,.62);
 }
 @media (min-width: 860px){
+  .theme-client .vx-adminCalcPanel .vx-calcGrid,
   .theme-owner .vx-adminCalcPanel .vx-calcGrid{
     grid-template-columns:minmax(0, 1.2fr) minmax(280px, .95fr);
     gap:14px;
     align-items:start;
   }
+  .theme-client .vx-adminCalcPanel .vx-calcMain,
+  .theme-client .vx-adminCalcPanel .vx-calcSide,
   .theme-owner .vx-adminCalcPanel .vx-calcMain,
   .theme-owner .vx-adminCalcPanel .vx-calcSide{
     gap:12px;
     min-width:0;
   }
+  .theme-client .vx-adminCalcPanel .vx-calcSide .vx-sectionTitle:first-child,
   .theme-owner .vx-adminCalcPanel .vx-calcSide .vx-sectionTitle:first-child{
     margin-top:0;
   }
@@ -4718,6 +4722,8 @@ html[data-theme="dark"] .theme-client .vx-requestAttachmentPreview,
 html[data-theme="dark"] .theme-owner .vx-requestAttachmentPreview{
   background: rgba(31,43,56,.74);
 }
+html[data-theme="dark"] .theme-client .vx-adminCalcPanel,
+html[data-theme="dark"] .theme-client .vx-adminCalcPanel .vx-calcBox,
 html[data-theme="dark"] .theme-owner .vx-adminCalcPanel,
 html[data-theme="dark"] .theme-owner .vx-adminCalcPanel .vx-calcBox{
   background: rgba(31,43,56,.72);
