@@ -924,12 +924,10 @@ export default function CalculatorTab({ me }) {
     function swapCurrencies() {
         const nextSellCurrency = buyCurrency;
         const nextBuyCurrency = sellCurrency;
-        const currentSellRaw = sellText.trim() !== "" ? (sellRawRef.current ?? sellAmount) : null;
-        const currentBuyRaw = buyText.trim() !== "" ? (buyRawRef.current ?? buyAmount) : null;
         const swappedPayCandidate = receiveMethod === "cash" || receiveMethod === "transfer" || receiveMethod === "atm" ? receiveMethod : null;
         const swappedReceiveCandidate = payMethod === "cash" || payMethod === "transfer" || payMethod === "atm" ? payMethod : null;
-        const nextAllowedPay = allowedPayMethods(nextSellCurrency, nextBuyCurrency, currentBuyRaw ?? undefined, currentSellRaw ?? undefined);
-        const nextAllowedReceiveBase = allowedReceiveMethods(nextBuyCurrency, nextSellCurrency, currentSellRaw ?? undefined, currentBuyRaw ?? undefined);
+        const nextAllowedPay = allowedPayMethods(nextSellCurrency, nextBuyCurrency);
+        const nextAllowedReceiveBase = allowedReceiveMethods(nextBuyCurrency, nextSellCurrency);
         const nextAllowedReceive = deliveryClosed && !(nextSellCurrency === "VND" && nextBuyCurrency === "VND")
             ? nextAllowedReceiveBase.filter((m) => m === "transfer" || m === "atm")
             : nextAllowedReceiveBase;
@@ -941,18 +939,18 @@ export default function CalculatorTab({ me }) {
             : swappedReceiveCandidate && nextAllowedReceive.includes(swappedReceiveCandidate)
                 ? swappedReceiveCandidate
                 : nextAllowedReceive[0];
-        preserveSwappedValuesRef.current = true;
+        preserveSwappedValuesRef.current = false;
         skipNextRecalc.current = true;
         skipNextCurrencyNormalizeCount.current = 2;
         lastEdited.current = "sell";
-        sellRawRef.current = currentBuyRaw;
-        buyRawRef.current = currentSellRaw;
+        sellRawRef.current = null;
+        buyRawRef.current = null;
         setSellCurrency(nextSellCurrency);
         setBuyCurrency(nextBuyCurrency);
         setPayMethod(nextPayMethod);
         setReceiveMethod(nextReceiveMethod);
-        setSellText(currentBuyRaw != null && Number.isFinite(currentBuyRaw) ? formatExact(nextSellCurrency, currentBuyRaw) : "");
-        setBuyText(currentSellRaw != null && Number.isFinite(currentSellRaw) ? formatExact(nextBuyCurrency, currentSellRaw) : "");
+        setSellText("");
+        setBuyText("");
     }
     function buildRequestCopyText(requestId) {
         const lines = [
