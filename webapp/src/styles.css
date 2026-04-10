@@ -5488,3 +5488,98 @@ html[data-theme="dark"] .theme-client .mx-topRowHome .mx-langSwitchBtn{
     height:100% !important;
   }
 }
+
+/* FINAL v45: compact home screen so rates are visible under the calculator */
+.theme-client.vx-page.mx-homePage{
+  padding-top: max(6px, calc(env(safe-area-inset-top, 0px) + 3px)) !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead{
+  gap: 2px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-topRowHome{
+  min-height: 70px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-topCenter{
+  height: 70px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-mainLogoImg{
+  transform: scale(0.98) !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calc{
+  gap: 10px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calcBox{
+  padding: 10px !important;
+  border-radius: 20px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calcGrid{
+  gap: 10px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-sectionTitle{
+  margin-top: 8px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-methods{
+  margin-top: 6px !important;
+  gap: 6px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-pill{
+  min-height: 40px !important;
+  padding: 8px 11px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-primary{
+  height: 48px !important;
+  border-radius: 16px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card{
+  padding: 12px !important;
+  border-radius: 20px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-cardHead{
+  margin-bottom: 8px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-cardSub{
+  margin-top: 2px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-btnRow{
+  margin-top: 10px !important;
+  gap: 8px !important;
+}
+html[data-theme="dark"] .theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calcBox{
+  padding: 10px 10px 12px !important;
+}
+html[data-theme="dark"] .theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-exRow select,
+html[data-theme="dark"] .theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-exRow input{
+  height: 38px !important;
+  border-radius: 15px !important;
+}
+html[data-theme="dark"] .theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-iconBtn,
+html[data-theme="dark"] .theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-blankBtn{
+  height: 38px !important;
+  min-width: 42px !important;
+}
+@media (min-width: 381px){
+  .theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-exRow select,
+  .theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-exRow input{
+    height: 44px !important;
+    border-radius: 16px !important;
+  }
+  .theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-iconBtn,
+  .theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-blankBtn{
+    height: 44px !important;
+    min-width: 48px !important;
+  }
+}
+@media (max-width: 380px){
+  .theme-client.vx-page.mx-homePage .mx-topRowHome{
+    min-height: 62px !important;
+  }
+  .theme-client.vx-page.mx-homePage .mx-topCenter{
+    height: 62px !important;
+  }
+  .theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calcBox{
+    padding: 9px !important;
+  }
+  .theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card{
+    padding: 11px !important;
+  }
+}
