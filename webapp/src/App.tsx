@@ -32,6 +32,7 @@ type Me = {
 
 type ScreenKey = "home" | "calc" | "afisha" | "atm" | "reviews" | "staff" | "pay" | "history" | "other" | "faq" | "about" | "contacts";
 type Lang = "ru" | "en";
+type HomeSection = "calc" | "afisha" | "atm" | "reviews";
 
 type LaunchTarget = {
   screen?: ScreenKey;
@@ -93,28 +94,10 @@ function IconMoon({ className = "" }: { className?: string }) {
   );
 }
 
-function IconArrowLeft({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
-
-function IconChevron({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 18l6-6-6-6" />
-    </svg>
-  );
-}
-
-function ScreenHeader({ title, onBack, lang = "ru" }: { title: string; onBack: () => void; lang?: Lang }) {
+function ScreenHeader({ title }: { title: string }) {
   return (
     <div className="mx-header">
-      <button type="button" className="mx-backBtn" onClick={onBack} aria-label={lang === "en" ? "Back" : "Назад"}>
-        <IconArrowLeft className="mx-i" />
-      </button>
+      <div style={{ width: 40 }} />
       <div className="mx-hTitle">{title}</div>
       <div style={{ width: 40 }} />
     </div>
@@ -123,29 +106,6 @@ function ScreenHeader({ title, onBack, lang = "ru" }: { title: string; onBack: (
 
 function ScreenPane({ active, children }: { active: boolean; children: React.ReactNode }) {
   return <div className={"mx-screenPane " + (active ? "is-active" : "is-hidden")}>{children}</div>;
-}
-
-function NavCard({
-  title,
-  subtitle,
-  iconSrc,
-  onClick,
-}: {
-  title: string;
-  subtitle?: string;
-  iconSrc: string;
-  onClick: () => void;
-}) {
-  return (
-    <button type="button" className="mx-navCard" onClick={onClick}>
-      <img className="mx-navIcon" src={iconSrc} alt="" />
-      <div className="mx-navText">
-        <div className="mx-navTitle">{title}</div>
-        {subtitle ? <div className="mx-navSub">{subtitle}</div> : null}
-      </div>
-      <IconChevron className="mx-i mx-chev" />
-    </button>
-  );
 }
 
 function StatusIcon({ status }: { status?: UserStatus }) {
@@ -394,9 +354,6 @@ export default function App() {
   const toggleLang = () => setLang((v) => (v === "ru" ? "en" : "ru"));
   const isEn = lang === "en";
 
-  // Allow Afisha screen to override the back button (e.g. return from list -> categories).
-  const afishaBackRef = useRef<null | (() => boolean)>(null);
-
   useEffect(() => {
     try {
       document.body.classList.add("vx-body-client");
@@ -447,6 +404,7 @@ export default function App() {
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
   const [screen, setScreen] = useState<ScreenKey>("home");
   const [launchAfishaEventId, setLaunchAfishaEventId] = useState<string>("");
+  const [homeSection, setHomeSection] = useState<HomeSection>("calc");
   const [courseExpanded, setCourseExpanded] = useState(false);
   const [visited, setVisited] = useState<Record<string, boolean>>({ home: true });
   const homeCalcRef = useRef<HTMLDivElement | null>(null);
@@ -501,7 +459,8 @@ export default function App() {
 
     const launchTarget = parseLaunchTarget(tg);
     if (launchTarget.screen === "afisha") {
-      setScreen("afisha");
+      setScreen("home");
+      setHomeSection("afisha");
       if (launchTarget.eventId) setLaunchAfishaEventId(launchTarget.eventId);
     }
 
@@ -617,19 +576,29 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [me.ok, me.initData]);
 
-  const goHome = () => {
-    setScreen("home");
-  };
+  useEffect(() => {
+    if (screen === "calc" || screen === "afisha" || screen === "atm" || screen === "reviews") {
+      setHomeSection(screen === "calc" ? "calc" : screen);
+      setScreen("home");
+    }
+  }, [screen]);
 
-  const scrollToHomeCalc = () => {
-    trackClick("home_calc_btn", { to: "home_calc" });
+  const openHomeSection = (next: HomeSection, target: string) => {
+    trackClick(target, { to: next, surface: "home_tabs" });
+    setHomeSection(next);
     if (screen !== "home") setScreen("home");
+    if (next !== "calc") {
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+      return;
+    }
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         homeCalcRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     });
   };
+
+  const scrollToHomeCalc = () => openHomeSection("calc", "home_calc_btn");
 
   const trackClick = (target: string, props: any = {}) => {
     try {
@@ -725,123 +694,104 @@ ${msg}`);
               <div className="mx-homeTabs" role="tablist" aria-label={isEn ? "Home sections" : "Разделы главной"}>
                 <button
                   type="button"
-                  className="mx-homeTab is-active"
+                  className={"mx-homeTab " + (homeSection === "calc" ? "is-active" : "")}
                   onClick={scrollToHomeCalc}
-                  aria-current="page"
+                  aria-current={homeSection === "calc" ? "page" : undefined}
                 >
                   {isEn ? "Calculator" : "Калькулятор"}
                 </button>
                 <button
                   type="button"
-                  className="mx-homeTab"
-                  onClick={() => goTo("afisha", "home_tab_afisha")}
+                  className={"mx-homeTab " + (homeSection === "afisha" ? "is-active" : "")}
+                  onClick={() => openHomeSection("afisha", "home_tab_afisha")}
+                  aria-current={homeSection === "afisha" ? "page" : undefined}
                 >
                   {isEn ? "Events" : "Афиша"}
                 </button>
                 <button
                   type="button"
-                  className="mx-homeTab"
-                  onClick={() => goTo("atm", "home_tab_atm")}
+                  className={"mx-homeTab " + (homeSection === "atm" ? "is-active" : "")}
+                  onClick={() => openHomeSection("atm", "home_tab_atm")}
+                  aria-current={homeSection === "atm" ? "page" : undefined}
                 >
                   {isEn ? "ATMs" : "Банкоматы"}
                 </button>
                 <button
                   type="button"
-                  className="mx-homeTab"
-                  onClick={() => goTo("reviews", "home_tab_reviews")}
+                  className={"mx-homeTab " + (homeSection === "reviews" ? "is-active" : "")}
+                  onClick={() => openHomeSection("reviews", "home_tab_reviews")}
+                  aria-current={homeSection === "reviews" ? "page" : undefined}
                 >
                   {isEn ? "Reviews" : "Отзывы"}
                 </button>
               </div>
 
-              <div ref={homeCalcRef} className="mx-homeCalcSection">
-                <CalculatorTab me={me} lang={lang} />
-              </div>
-
-              <div className="mx-card">
-                <div className="mx-cardHead">
-                  <div>
-                    <div className="mx-cardTitle">{isEn ? "Rates" : "Курс"}</div>
-                    <div className="mx-cardSub">{me.ok ? (isEn ? "Currency exchange — Da Nang" : UI.title) : me.error ?? (isEn ? "Authorizing…" : "Авторизация…")}</div>
+              {homeSection === "calc" ? (
+                <>
+                  <div ref={homeCalcRef} className="mx-homeCalcSection">
+                    <CalculatorTab me={me} lang={lang} />
                   </div>
-                </div>
 
-                <div className="mx-courseBody">
-                  <RatesTab embedded limit={courseExpanded ? undefined : 3} lang={lang} />
-                </div>
+                  <div className="mx-card">
+                    <div className="mx-cardHead">
+                      <div>
+                        <div className="mx-cardTitle">{isEn ? "Rates" : "Курс"}</div>
+                        <div className="mx-cardSub">{me.ok ? (isEn ? "Currency exchange — Da Nang" : UI.title) : me.error ?? (isEn ? "Authorizing…" : "Авторизация…")}</div>
+                      </div>
+                    </div>
 
-                <div className="mx-btnRow">
-                  <button type="button" className="mx-btn" onClick={() => setCourseExpanded((v) => !v)}>
-                    {courseExpanded ? (isEn ? "Collapse" : "Свернуть") : (isEn ? "All rates" : "Все курсы")}
-                  </button>
-                  {me.isAdmin ? (
-                    <button type="button" className="mx-btn mx-btnPrimary" onClick={() => goTo("staff", "home_admin_btn")}>
-                      {isEn ? "Admin" : "Админ"}
-                    </button>
-                  ) : (
-                    <button type="button" className="mx-btn mx-btnPrimary" onClick={scrollToHomeCalc}>
-                      {isEn ? "Calculator" : "Калькулятор"}
-                    </button>
-                  )}
+                    <div className="mx-courseBody">
+                      <RatesTab embedded limit={courseExpanded ? undefined : 3} lang={lang} />
+                    </div>
+
+                    <div className="mx-btnRow">
+                      <button type="button" className="mx-btn" onClick={() => setCourseExpanded((v) => !v)}>
+                        {courseExpanded ? (isEn ? "Collapse" : "Свернуть") : (isEn ? "All rates" : "Все курсы")}
+                      </button>
+                      {me.isAdmin ? (
+                        <button type="button" className="mx-btn mx-btnPrimary" onClick={() => goTo("staff", "home_admin_btn")}>
+                          {isEn ? "Admin" : "Админ"}
+                        </button>
+                      ) : (
+                        <button type="button" className="mx-btn mx-btnPrimary" onClick={scrollToHomeCalc}>
+                          {isEn ? "Calculator" : "Калькулятор"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              {homeSection === "afisha" ? (
+                <div className="mx-homePanel">
+                  <AfishaTab
+                    lang={lang}
+                    focusEventId={launchAfishaEventId}
+                    onFocusHandled={(id) => setLaunchAfishaEventId((prev) => (prev === id ? "" : prev))}
+                  />
                 </div>
-              </div>
+              ) : null}
+
+              {homeSection === "atm" ? (
+                <div className="mx-homePanel">
+                  <AtmTab isActive={screen === "home" && homeSection === "atm"} lang={lang} />
+                </div>
+              ) : null}
+
+              {homeSection === "reviews" ? (
+                <div className="mx-homePanel">
+                  <ReviewsTab lang={lang} />
+                </div>
+              ) : null}
             </div>
           </div>
         </ScreenPane>
 
-        {visited.calc ? (
-          <ScreenPane active={screen === "calc"}>
-            <>
-              <ScreenHeader title={isEn ? "Create request" : "Оставить заявку"} onBack={goHome} lang={lang} />
-              <CalculatorTab me={me} lang={lang} />
-            </>
-          </ScreenPane>
-        ) : null}
-
         {visited.pay ? (
           <ScreenPane active={screen === "pay"}>
             <>
-              <ScreenHeader title={isEn ? "Payments and booking" : "Оплаты и бронирование"} onBack={goHome} lang={lang} />
+              <ScreenHeader title={isEn ? "Payments and booking" : "Оплаты и бронирование"} />
               <PaymentsTab lang={lang} />
-            </>
-          </ScreenPane>
-        ) : null}
-
-        {visited.afisha ? (
-          <ScreenPane active={screen === "afisha"}>
-            <>
-              <ScreenHeader
-                title={isEn ? "Events" : "Афиша"}
-                lang={lang}
-                onBack={() => {
-                  const handled = afishaBackRef.current?.() ?? false;
-                  if (!handled) goHome();
-                }}
-              />
-              <AfishaTab
-                lang={lang}
-                registerBack={(fn) => (afishaBackRef.current = fn)}
-                focusEventId={launchAfishaEventId}
-                onFocusHandled={(id) => setLaunchAfishaEventId((prev) => (prev === id ? "" : prev))}
-              />
-            </>
-          </ScreenPane>
-        ) : null}
-
-        {visited.atm ? (
-          <ScreenPane active={screen === "atm"}>
-            <>
-              <ScreenHeader title={isEn ? "ATMs" : "Банкоматы"} onBack={goHome} lang={lang} />
-              <AtmTab isActive={screen === "atm"} lang={lang} />
-            </>
-          </ScreenPane>
-        ) : null}
-
-        {visited.reviews ? (
-          <ScreenPane active={screen === "reviews"}>
-            <>
-              <ScreenHeader title={isEn ? "Reviews" : "Отзывы"} onBack={goHome} lang={lang} />
-              <ReviewsTab lang={lang} />
             </>
           </ScreenPane>
         ) : null}
@@ -849,7 +799,7 @@ ${msg}`);
         {visited.staff ? (
           <ScreenPane active={screen === "staff"}>
             <>
-              <ScreenHeader title={isEn ? "Admin" : "Админ"} onBack={goHome} lang={lang} />
+              <ScreenHeader title={isEn ? "Admin" : "Админ"} />
               <StaffTab me={me} lang={lang} />
             </>
           </ScreenPane>
@@ -858,7 +808,7 @@ ${msg}`);
         {visited.history ? (
           <ScreenPane active={screen === "history"}>
             <>
-              <ScreenHeader title={isEn ? "My history" : "Моя история"} onBack={goHome} lang={lang} />
+              <ScreenHeader title={isEn ? "My history" : "Моя история"} />
               <HistoryTab me={me} lang={lang} />
             </>
           </ScreenPane>
@@ -867,7 +817,7 @@ ${msg}`);
         {visited.other ? (
           <ScreenPane active={screen === "other"}>
             <>
-              <ScreenHeader title={isEn ? "More" : "Прочее"} onBack={goHome} lang={lang} />
+              <ScreenHeader title={isEn ? "More" : "Прочее"} />
               <OtherTab
                 lang={lang}
                 onFaq={() => goTo("faq", "other_faq")}
@@ -882,7 +832,7 @@ ${msg}`);
         {visited.faq ? (
           <ScreenPane active={screen === "faq"}>
             <>
-              <ScreenHeader title="FAQ" onBack={() => goTo("other", "faq_back")} lang={lang} />
+              <ScreenHeader title="FAQ" />
               <FaqTab lang={lang} />
             </>
           </ScreenPane>
@@ -891,7 +841,7 @@ ${msg}`);
         {visited.contacts ? (
           <ScreenPane active={screen === "contacts"}>
             <>
-              <ScreenHeader title={isEn ? "Contacts" : "Контакты"} onBack={() => goTo("other", "contacts_back")} lang={lang} />
+              <ScreenHeader title={isEn ? "Contacts" : "Контакты"} />
               <ContactsTab lang={lang} />
             </>
           </ScreenPane>
@@ -900,7 +850,7 @@ ${msg}`);
         {visited.about ? (
           <ScreenPane active={screen === "about"}>
             <>
-              <ScreenHeader title={isEn ? "About app" : "О приложении"} onBack={() => goTo("other", "about_back")} lang={lang} />
+              <ScreenHeader title={isEn ? "About app" : "О приложении"} />
               <AboutTab lang={lang} />
             </>
           </ScreenPane>
