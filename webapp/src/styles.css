@@ -5588,3 +5588,102 @@ html[data-theme="dark"] .theme-client.vx-page.mx-homePage .mx-homeCalcSection .v
     padding: 11px !important;
   }
 }
+
+/* FINAL v46: extra compact spacing on the home screen */
+.theme-client.vx-page.mx-homePage .mx-homeLead{
+  gap: 5px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calc{
+  gap: 8px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calcBox{
+  padding: 9px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calcGrid{
+  gap: 8px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-sectionTitle{
+  margin-top: 6px !important;
+  font-size: 11.5px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-methods{
+  margin-top: 4px !important;
+  gap: 5px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-pill{
+  min-height: 36px !important;
+  padding: 7px 10px !important;
+  font-size: 11.5px !important;
+  line-height: 1.08 !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-note,
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-help{
+  margin-top: 1px !important;
+  line-height: 1.22 !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calc .vx-rateLine{
+  margin-top: 8px !important;
+  padding: 8px 10px !important;
+  line-height: 1.18 !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card{
+  padding: 10px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-cardHead{
+  margin-bottom: 6px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-cardSub{
+  line-height: 1.15 !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-btnRow{
+  margin-top: 8px !important;
+  gap: 6px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-rateHero{
+  padding-top: 2px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-rateHeroHead{
+  gap: 6px !important;
+  margin-bottom: 8px !important;
+  font-size: 12px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-rateHeroList{
+  border-top-width: 1px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-rateHeroRow{
+  gap: 6px !important;
+  padding: 9px 0 !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-rateHeroFrom{
+  gap: 6px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-rateHeroMark{
+  font-size: 14px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-rateHeroGive,
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-rateHeroGet{
+  font-size: 13px !important;
+  line-height: 1.04 !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-rateHeroArrow{
+  min-width: 14px !important;
+  height: 14px !important;
+  font-size: 12px !important;
+}
+html[data-theme="dark"] .theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calcBox{
+  padding: 9px 9px 10px !important;
+}
+@media (max-width: 380px){
+  .theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calc{
+    gap: 7px !important;
+  }
+  .theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calcBox{
+    padding: 8px !important;
+  }
+  .theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card{
+    padding: 9px !important;
+  }
+  .theme-client.vx-page.mx-homePage .mx-homeLead > .mx-card .mx-rateHeroRow{
+    padding: 8px 0 !important;
+  }
+}
