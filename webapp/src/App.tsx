@@ -94,10 +94,30 @@ function IconMoon({ className = "" }: { className?: string }) {
   );
 }
 
-function ScreenHeader({ title }: { title: string }) {
+function IconArrowLeft({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
+  );
+}
+
+function ScreenHeader({ title, onBack, lang }: { title: string; onBack?: () => void; lang?: Lang }) {
   return (
     <div className="mx-header">
-      <div style={{ width: 40 }} />
+      {onBack ? (
+        <button
+          type="button"
+          className="mx-backBtn"
+          onClick={onBack}
+          aria-label={lang === "en" ? "Back" : "Назад"}
+          title={lang === "en" ? "Back" : "Назад"}
+        >
+          <IconArrowLeft className="mx-i" />
+        </button>
+      ) : (
+        <div style={{ width: 40 }} />
+      )}
       <div className="mx-hTitle">{title}</div>
       <div style={{ width: 40 }} />
     </div>
@@ -599,6 +619,8 @@ export default function App() {
   };
 
   const scrollToHomeCalc = () => openHomeSection("calc", "home_calc_btn");
+  const goHome = () => setScreen("home");
+  const isOtherBranch = screen === "other" || screen === "faq" || screen === "about" || screen === "contacts";
 
   const trackClick = (target: string, props: any = {}) => {
     try {
@@ -790,7 +812,7 @@ ${msg}`);
         {visited.pay ? (
           <ScreenPane active={screen === "pay"}>
             <>
-              <ScreenHeader title={isEn ? "Payments and booking" : "Оплаты и бронирование"} />
+              <ScreenHeader title={isEn ? "Payments and booking" : "Оплаты и бронирование"} onBack={goHome} lang={lang} />
               <PaymentsTab lang={lang} />
             </>
           </ScreenPane>
@@ -799,7 +821,7 @@ ${msg}`);
         {visited.staff ? (
           <ScreenPane active={screen === "staff"}>
             <>
-              <ScreenHeader title={isEn ? "Admin" : "Админ"} />
+              <ScreenHeader title={isEn ? "Admin" : "Админ"} onBack={goHome} lang={lang} />
               <StaffTab me={me} lang={lang} />
             </>
           </ScreenPane>
@@ -808,7 +830,7 @@ ${msg}`);
         {visited.history ? (
           <ScreenPane active={screen === "history"}>
             <>
-              <ScreenHeader title={isEn ? "My history" : "Моя история"} />
+              <ScreenHeader title={isEn ? "My history" : "Моя история"} onBack={goHome} lang={lang} />
               <HistoryTab me={me} lang={lang} />
             </>
           </ScreenPane>
@@ -817,7 +839,7 @@ ${msg}`);
         {visited.other ? (
           <ScreenPane active={screen === "other"}>
             <>
-              <ScreenHeader title={isEn ? "More" : "Прочее"} />
+              <ScreenHeader title={isEn ? "More" : "Прочее"} onBack={goHome} lang={lang} />
               <OtherTab
                 lang={lang}
                 onFaq={() => goTo("faq", "other_faq")}
@@ -832,7 +854,7 @@ ${msg}`);
         {visited.faq ? (
           <ScreenPane active={screen === "faq"}>
             <>
-              <ScreenHeader title="FAQ" />
+              <ScreenHeader title="FAQ" onBack={() => setScreen("other")} lang={lang} />
               <FaqTab lang={lang} />
             </>
           </ScreenPane>
@@ -841,7 +863,7 @@ ${msg}`);
         {visited.contacts ? (
           <ScreenPane active={screen === "contacts"}>
             <>
-              <ScreenHeader title={isEn ? "Contacts" : "Контакты"} />
+              <ScreenHeader title={isEn ? "Contacts" : "Контакты"} onBack={() => setScreen("other")} lang={lang} />
               <ContactsTab lang={lang} />
             </>
           </ScreenPane>
@@ -850,7 +872,7 @@ ${msg}`);
         {visited.about ? (
           <ScreenPane active={screen === "about"}>
             <>
-              <ScreenHeader title={isEn ? "About app" : "О приложении"} />
+              <ScreenHeader title={isEn ? "About app" : "О приложении"} onBack={() => setScreen("other")} lang={lang} />
               <AboutTab lang={lang} />
             </>
           </ScreenPane>
@@ -874,7 +896,7 @@ ${msg}`);
         </button>
         <button
           type="button"
-          className={"mx-bottomBtn " + (screen === "other" ? "is-on" : "")}
+          className={"mx-bottomBtn " + (isOtherBranch ? "is-on" : "")}
           onClick={() => goTo("other", "bottom_other")}
         >
           {isEn ? "More" : "Прочее"}
