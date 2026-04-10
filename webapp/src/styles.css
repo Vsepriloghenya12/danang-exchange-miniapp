@@ -2216,6 +2216,11 @@ label, input, select, textarea{ color: var(--text); }
   gap: 6px;
 }
 
+.mx-homeCalcSection{
+  position: relative;
+  z-index: 1;
+}
+
 .mx-homeNavGrid{
   display: flex;
   flex-direction: column;

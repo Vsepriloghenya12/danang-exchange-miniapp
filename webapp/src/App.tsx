@@ -449,6 +449,7 @@ export default function App() {
   const [launchAfishaEventId, setLaunchAfishaEventId] = useState<string>("");
   const [courseExpanded, setCourseExpanded] = useState(false);
   const [visited, setVisited] = useState<Record<string, boolean>>({ home: true });
+  const homeCalcRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setVisited((prev) => (prev[screen] ? prev : { ...prev, [screen]: true }));
@@ -620,6 +621,16 @@ export default function App() {
     setScreen("home");
   };
 
+  const scrollToHomeCalc = () => {
+    trackClick("home_calc_btn", { to: "home_calc" });
+    if (screen !== "home") setScreen("home");
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        homeCalcRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  };
+
   const trackClick = (target: string, props: any = {}) => {
     try {
       if (!me.ok || !me.initData || isDemo) return;
@@ -711,6 +722,10 @@ ${msg}`);
                 </button>
               </div>
 
+              <div ref={homeCalcRef} className="mx-homeCalcSection">
+                <CalculatorTab me={me} lang={lang} />
+              </div>
+
               <div className="mx-card">
                 <div className="mx-cardHead">
                   <div>
@@ -727,7 +742,7 @@ ${msg}`);
                   <button type="button" className="mx-btn" onClick={() => setCourseExpanded((v) => !v)}>
                     {courseExpanded ? (isEn ? "Collapse" : "Свернуть") : (isEn ? "All rates" : "Все курсы")}
                   </button>
-                  <button type="button" className="mx-btn mx-btnPrimary" onClick={() => goTo("calc", "home_calc_btn")}>
+                  <button type="button" className="mx-btn mx-btnPrimary" onClick={scrollToHomeCalc}>
                     {isEn ? "Create request" : "Оставить заявку"}
                   </button>
                 </div>
