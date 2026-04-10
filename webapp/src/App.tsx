@@ -722,6 +722,38 @@ ${msg}`);
                 </button>
               </div>
 
+              <div className="mx-homeTabs" role="tablist" aria-label={isEn ? "Home sections" : "Разделы главной"}>
+                <button
+                  type="button"
+                  className="mx-homeTab is-active"
+                  onClick={scrollToHomeCalc}
+                  aria-current="page"
+                >
+                  {isEn ? "Calculator" : "Калькулятор"}
+                </button>
+                <button
+                  type="button"
+                  className="mx-homeTab"
+                  onClick={() => goTo("afisha", "home_tab_afisha")}
+                >
+                  {isEn ? "Events" : "Афиша"}
+                </button>
+                <button
+                  type="button"
+                  className="mx-homeTab"
+                  onClick={() => goTo("atm", "home_tab_atm")}
+                >
+                  {isEn ? "ATMs" : "Банкоматы"}
+                </button>
+                <button
+                  type="button"
+                  className="mx-homeTab"
+                  onClick={() => goTo("reviews", "home_tab_reviews")}
+                >
+                  {isEn ? "Reviews" : "Отзывы"}
+                </button>
+              </div>
+
               <div ref={homeCalcRef} className="mx-homeCalcSection">
                 <CalculatorTab me={me} lang={lang} />
               </div>
@@ -742,41 +774,17 @@ ${msg}`);
                   <button type="button" className="mx-btn" onClick={() => setCourseExpanded((v) => !v)}>
                     {courseExpanded ? (isEn ? "Collapse" : "Свернуть") : (isEn ? "All rates" : "Все курсы")}
                   </button>
-                  <button type="button" className="mx-btn mx-btnPrimary" onClick={scrollToHomeCalc}>
-                    {isEn ? "Create request" : "Оставить заявку"}
-                  </button>
+                  {me.isAdmin ? (
+                    <button type="button" className="mx-btn mx-btnPrimary" onClick={() => goTo("staff", "home_admin_btn")}>
+                      {isEn ? "Admin" : "Админ"}
+                    </button>
+                  ) : (
+                    <button type="button" className="mx-btn mx-btnPrimary" onClick={scrollToHomeCalc}>
+                      {isEn ? "Calculator" : "Калькулятор"}
+                    </button>
+                  )}
                 </div>
               </div>
-            </div>
-
-            <div className="mx-homeNavGrid">
-              <NavCard
-                title={isEn ? "Events" : "Афиша"}
-                subtitle={isEn ? "Events, sports, parties" : "События, спорт, вечеринки"}
-                iconSrc="/brand/icons/tab-afisha-256.png?v=1"
-                onClick={() => goTo("afisha", "nav_afisha")}
-              />
-              <NavCard
-                title={isEn ? "ATMs" : "Банкоматы"}
-                subtitle={isEn ? "VIETCOMBANK and BIDV" : "VIETCOMBANK и BIDV"}
-                iconSrc="/brand/icons/tab-atm-256.png?v=1"
-                onClick={() => goTo("atm", "nav_atm")}
-              />
-              <NavCard
-                title={isEn ? "Reviews" : "Отзывы"}
-                subtitle={isEn ? "Customer reviews" : "Отзывы клиентов"}
-                iconSrc="/brand/icons/tab-reviews-256.png?v=1"
-                onClick={() => goTo("reviews", "nav_reviews")}
-              />
-
-              {me.isAdmin ? (
-                <NavCard
-                  title={isEn ? "Admin" : "Админ"}
-                  subtitle={isEn ? "Requests" : "Заявки"}
-                  iconSrc="/brand/icons/tab-rates-256.png?v=1"
-                  onClick={() => goTo("staff", "nav_staff")}
-                />
-              ) : null}
             </div>
           </div>
         </ScreenPane>

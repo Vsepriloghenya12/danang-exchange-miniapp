@@ -5687,3 +5687,76 @@ html[data-theme="dark"] .theme-client.vx-page.mx-homePage .mx-homeCalcSection .v
     padding: 8px 0 !important;
   }
 }
+
+/* FINAL v47: home tabs under logo + flat calculator on the first screen */
+.theme-client.vx-page.mx-homePage .mx-homeLayout{
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeTabs{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  position: relative;
+  z-index: 2;
+}
+.theme-client.vx-page.mx-homePage .mx-homeTab{
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(9,23,33,.08);
+  background: rgba(255,255,255,.82);
+  color: rgba(9,23,33,.84);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -.01em;
+  box-shadow: 0 8px 18px rgba(15,23,42,.08);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.theme-client.vx-page.mx-homePage .mx-homeTab.is-active{
+  background: rgba(255,179,87,.24);
+  border-color: rgba(255,179,87,.42);
+  color: rgba(9,23,33,.96);
+  box-shadow: 0 10px 20px rgba(255,179,87,.14);
+}
+.theme-client.vx-page.mx-homePage .mx-homeTab:active{
+  transform: translateY(1px);
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calcTitle{
+  margin-bottom: 2px !important;
+}
+.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calcBox{
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+}
+html[data-theme="dark"] .theme-client.vx-page.mx-homePage .mx-homeTab{
+  background: rgba(31,43,56,.94);
+  border-color: rgba(246,198,0,.16);
+  color: rgba(246,198,0,.88);
+  box-shadow: 0 10px 20px rgba(0,0,0,.24), 0 0 10px rgba(246,198,0,.04);
+}
+html[data-theme="dark"] .theme-client.vx-page.mx-homePage .mx-homeTab.is-active{
+  background: rgba(246,198,0,.18);
+  border-color: rgba(246,198,0,.40);
+  color: rgba(255,237,176,.98);
+  box-shadow: 0 10px 20px rgba(0,0,0,.24), 0 0 12px rgba(246,198,0,.10);
+}
+@media (max-width: 380px){
+  .theme-client.vx-page.mx-homePage .mx-homeTabs{
+    gap: 5px;
+  }
+  .theme-client.vx-page.mx-homePage .mx-homeTab{
+    height: 32px;
+    padding: 0 6px;
+    border-radius: 12px;
+    font-size: 10px;
+  }
+}
