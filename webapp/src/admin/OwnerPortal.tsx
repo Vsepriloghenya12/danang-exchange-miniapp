@@ -206,7 +206,9 @@ export default function OwnerPortal() {
     showOk('Открой меню браузера и выбери «Установить приложение»');
   }
 
-  const [key, setKey] = useState<string>(() => {
+  const [key, setKey] = useState<string>("");
+
+  const [draftKey, setDraftKey] = useState<string>(() => {
     try {
       return localStorage.getItem(LS_KEY) || "";
     } catch {
@@ -214,8 +216,13 @@ export default function OwnerPortal() {
     }
   });
 
-  // keep a draft input so we don't treat partial/incorrect values as a "logged in" session
-  const [draftKey, setDraftKey] = useState<string>(key);
+  const [authLoading, setAuthLoading] = useState<boolean>(() => {
+    try {
+      return Boolean(localStorage.getItem(LS_KEY) || "");
+    } catch {
+      return false;
+    }
+  });
 
   const [installPrompt, setInstallPrompt] = useState<DeferredInstallPromptEvent | null>(null);
   const [installSupported, setInstallSupported] = useState(false);
@@ -256,6 +263,53 @@ export default function OwnerPortal() {
     setBanner({ type: "ok", text });
     window.setTimeout(() => setBanner(null), 1800);
   }
+
+  useEffect(() => {
+    const savedKey = String(draftKey || "").trim();
+    if (!savedKey) {
+      setAuthLoading(false);
+      return;
+    }
+
+    let alive = true;
+
+    (async () => {
+      setAuthLoading(true);
+      setBanner(null);
+      try {
+        const r = await apiAdminGetAdmins(`adminkey:${savedKey}`);
+        if (!alive) return;
+        if (!r?.ok) {
+          try {
+            localStorage.removeItem(LS_KEY);
+          } catch {
+            // ignore
+          }
+          setKey("");
+          showErr(r?.error || "Ошибка");
+          return;
+        }
+        setKey(savedKey);
+      } catch (e: any) {
+        if (!alive) return;
+        try {
+          localStorage.removeItem(LS_KEY);
+        } catch {
+          // ignore
+        }
+        setKey("");
+        showErr(e?.message || "Ошибка");
+      } finally {
+        if (alive) setAuthLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+    // draftKey is initialized from localStorage once; we only auto-check on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [adminsText, setAdminsText] = useState<string>("");
   const [blacklistText, setBlacklistText] = useState<string>("");
@@ -855,12 +909,35 @@ function moveFaq(id: string, dir: -1 | 1) {
   }, [tpl, token]);
 
   async function onLogin() {
-    try {
-      localStorage.setItem(LS_KEY, draftKey);
-    } catch {
-      // ignore
+    const candidate = String(draftKey || "").trim();
+    if (!candidate) {
+      showErr("Введите ключ");
+      return;
     }
-    setKey(draftKey);
+
+    setAuthLoading(true);
+    setBanner(null);
+    try {
+      const r = await apiAdminGetAdmins(`adminkey:${candidate}`);
+      if (!r?.ok) {
+        setKey("");
+        showErr(r?.error || "Ошибка");
+        return;
+      }
+
+      try {
+        localStorage.setItem(LS_KEY, candidate);
+      } catch {
+        // ignore
+      }
+      setKey(candidate);
+      setDraftKey(candidate);
+    } catch (e: any) {
+      setKey("");
+      showErr(e?.message || "Ошибка");
+    } finally {
+      setAuthLoading(false);
+    }
   }
 
   function logout() {
@@ -1584,19 +1661,31 @@ function moveFaq(id: string, dir: -1 | 1) {
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap');`}</style>
         {/* background removed (old Danang/beach style is no longer used) */}
         <div className="container">
+          {banner ? (
+            <div className={banner.type === "err" ? "vx-toast vx-toastErr" : "vx-toast vx-toastOk"}>
+              {banner.text}
+            </div>
+          ) : null}
           <div className="card">
             <div className="h1">Управление владельца</div>
             <div className="vx-sp12" />
             <input
               className="input vx-in"
               value={draftKey}
-              onChange={(e) => setDraftKey(e.target.value)}
+              onChange={(e) => {
+                setDraftKey(e.target.value);
+                if (banner?.type === "err") setBanner(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !authLoading) void onLogin();
+              }}
               placeholder="ADMIN_WEB_KEY"
               type="password"
+              disabled={authLoading}
             />
             <div className="vx-sp10" />
-            <button className="btn" type="button" onClick={onLogin}>
-              Войти
+            <button className="btn" type="button" onClick={onLogin} disabled={authLoading}>
+              {authLoading ? "Проверяю…" : "Войти"}
             </button>
             <div className="vx-installRow">
               <button className="btn vx-btnSm" type="button" onClick={installOwnerApp} disabled={installDone}>
