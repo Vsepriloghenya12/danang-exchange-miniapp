@@ -7,7 +7,7 @@ import type { BonusesConfig, MarketRatesResponse, UserStatus } from "../lib/type
 
 type Currency = "RUB" | "USDT" | "USD" | "EUR" | "THB" | "VND";
 type ReceiveMethod = "cash" | "transfer" | "atm";
-type PayMethod = "cash" | "transfer" | "atm";
+type PayMethod = "cash" | "transfer";
 type SelectedReceiveMethod = ReceiveMethod | null;
 type SelectedPayMethod = PayMethod | null;
 
@@ -33,8 +33,6 @@ type Props = {
 };
 
 const CURRENCY_OPTIONS: Currency[] = ["RUB", "USDT", "USD", "EUR", "THB", "VND"];
-const ALL_PAY: PayMethod[] = ["cash", "transfer", "atm"];
-const ALL_RECEIVE: ReceiveMethod[] = ["cash", "transfer", "atm"];
 
 function getTg() {
   return (window as any).Telegram?.WebApp;
@@ -264,6 +262,39 @@ function methodLabel(m: ReceiveMethod | PayMethod) {
   return "Банкомат";
 }
 
+function normalizeMethodSelection<T extends string>(
+  allowed: T[],
+  selected: T | null,
+  selectedByDefault: boolean
+): { value: T | null; selectedByDefault: boolean } {
+  if (allowed.length === 1) {
+    const only = allowed[0];
+    return {
+      value: only,
+      selectedByDefault: selected !== only || selectedByDefault
+    };
+  }
+
+  if (!selected || !allowed.includes(selected) || selectedByDefault) {
+    return { value: null, selectedByDefault: false };
+  }
+
+  return { value: selected, selectedByDefault: false };
+}
+
+function initialMethodSelection<T extends string>(
+  allowed: T[],
+  preferred: T | null
+): { value: T | null; selectedByDefault: boolean } {
+  if (preferred && allowed.includes(preferred)) {
+    return { value: preferred, selectedByDefault: false };
+  }
+  if (allowed.length === 1) {
+    return { value: allowed[0], selectedByDefault: true };
+  }
+  return { value: null, selectedByDefault: false };
+}
+
 function amountPlaceholder(prefix: string, cur: Currency, isVndToVnd = false): string {
   const min = isVndToVnd && cur === "VND" ? null : minSellAmountLabel(cur);
   return min ? `${prefix} (мин. ${min})` : prefix;
@@ -290,7 +321,7 @@ function getRate(rates: Rates | null, c: Currency): RateEntry | null {
 // ======= Способы оплаты (что клиент ОТДАЁТ) =======
 // RUB / USDT -> только перевод
 // USD / EUR / THB -> только наличные
-// VND -> наличные или перевод, а для VND -> VND доступны все способы
+// VND -> наличные или перевод. Через банкомат клиент ничего не передаёт.
 function rubCashAllowed(
   sellCurrency: Currency,
   buyCurrency: Currency,
@@ -303,7 +334,7 @@ function rubCashAllowed(
 }
 
 function allowedPayMethods(sellCurrency: Currency, buyCurrency: Currency, sellAmount?: number, buyAmount?: number): PayMethod[] {
-  if (sellCurrency === "VND" && buyCurrency === "VND") return ["cash", "transfer", "atm"];
+  if (sellCurrency === "VND" && buyCurrency === "VND") return ["cash", "transfer"];
   const rubCashOk = rubCashAllowed(sellCurrency, buyCurrency, sellAmount, buyAmount);
   if (sellCurrency === "USDT") return ["transfer"];
   if (sellCurrency === "RUB") return ["transfer"];
@@ -618,6 +649,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   const skipNextCurrencyNormalizeCount = useRef(0);
   const sellRawRef = useRef<number | null>(null);
   const buyRawRef = useRef<number | null>(null);
+  const payMethodAutoSelectedRef = useRef(false);
+  const receiveMethodAutoSelectedRef = useRef(false);
 
   const [payMethod, setPayMethod] = useState<SelectedPayMethod>(null);
   const [receiveMethod, setReceiveMethod] = useState<SelectedReceiveMethod>(null);
@@ -690,9 +723,11 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   // Enforce pay-method restrictions based on SELL currency
   useEffect(() => {
     const allowed = allowedPayMethods(sellCurrency, buyCurrency, parseAmount(sellCurrency, sellText), parseAmount(buyCurrency, buyText));
-    if (payMethod && !allowed.includes(payMethod)) setPayMethod(null);
+    const next = normalizeMethodSelection(allowed, payMethod, payMethodAutoSelectedRef.current);
+    payMethodAutoSelectedRef.current = next.selectedByDefault;
+    if (payMethod !== next.value) setPayMethod(next.value);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sellCurrency, buyCurrency, sellText]);
+  }, [sellCurrency, buyCurrency, sellText, buyText, payMethod]);
 
   // Enforce receive-method restrictions based on BUY currency and service hours
   useEffect(() => {
@@ -705,9 +740,11 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     const allowed = deliveryClosedForRules && !(sellCurrency === "VND" && buyCurrency === "VND")
       ? baseAllowed.filter((m) => m === "transfer" || m === "atm")
       : baseAllowed;
-    if (receiveMethod && !allowed.includes(receiveMethod)) setReceiveMethod(null);
+    const next = normalizeMethodSelection(allowed, receiveMethod, receiveMethodAutoSelectedRef.current);
+    receiveMethodAutoSelectedRef.current = next.selectedByDefault;
+    if (receiveMethod !== next.value) setReceiveMethod(next.value);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buyCurrency, sellCurrency, buyText, sellText, deliveryClosedForRules]);
+  }, [buyCurrency, sellCurrency, buyText, sellText, deliveryClosedForRules, receiveMethod]);
 
   // Load rates (VND) + market (G)
   useEffect(() => {
@@ -1050,7 +1087,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
   const vndNote =
     isVndToVnd
-      ? (isEn ? "VND → VND: all methods are available. Fee is 2%, but at least 100,000 VND." : "VND → VND: доступна выдача и получение всеми способами. Комиссия 2%, но не меньше 100,000 VND.")
+      ? (isEn ? "VND → VND: payment is available by cash or transfer; receive is available by cash, transfer, or ATM. Fee is 2%, but at least 100,000 VND." : "VND → VND: оплатить можно наличными или переводом; получить — наличными, переводом или через банкомат. Комиссия 2%, но не меньше 100,000 VND.")
       : null;
 
   const thbNote =
@@ -1077,7 +1114,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     "USD: only new-series $100 cash notes without defects are accepted and paid out.",
     "EUR: only new-series €50/€100/€200 cash notes without defects are accepted and paid out.",
     "THB: cash only, in multiples of 100 baht.",
-    "VND → VND: fee is 2%, but at least 100,000 VND. Cash, transfer, and ATM are available.",
+    "VND → VND: fee is 2%, but at least 100,000 VND. Payment is cash or transfer; receive is cash, transfer, or ATM.",
   ] : [
     "Время работы сервиса: ежедневно с 10:00 до 22:00. После 20:00 возможен только дистанционный обмен.",
     "Доставка наличных возможна при обмене от 20,000₽/200$/200USDT.",
@@ -1088,7 +1125,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     "USD: принимаются и выдаются только наличные купюры 100$ нового образца, без дефектов.",
     "EUR: принимаются и выдаются только наличные купюры 50/100/200€ нового образца, без дефектов.",
     "THB: передача и получение только наличными, кратно 100 бат.",
-    "VND → VND: комиссия 2%, но не меньше 100,000 VND. Доступны наличные, перевод и банкомат.",
+    "VND → VND: комиссия 2%, но не меньше 100,000 VND. Оплата наличными или переводом; получение наличными, переводом или через банкомат.",
   ]), [isEn]);
 
   const showCashDeliveryNote =
@@ -1099,8 +1136,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     const nextSellCurrency = buyCurrency;
     const nextBuyCurrency = sellCurrency;
 
-    const swappedPayCandidate: PayMethod | null = receiveMethod === "cash" || receiveMethod === "transfer" || receiveMethod === "atm" ? receiveMethod : null;
-    const swappedReceiveCandidate: ReceiveMethod | null = payMethod === "cash" || payMethod === "transfer" || payMethod === "atm" ? payMethod : null;
+    const swappedPayCandidate: PayMethod | null = receiveMethod === "cash" || receiveMethod === "transfer" ? receiveMethod : null;
+    const swappedReceiveCandidate: ReceiveMethod | null = payMethod === "cash" || payMethod === "transfer" ? payMethod : null;
 
     const nextAllowedPay = allowedPayMethods(nextSellCurrency, nextBuyCurrency);
     const nextAllowedReceiveBase = allowedReceiveMethods(nextBuyCurrency, nextSellCurrency);
@@ -1108,15 +1145,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       ? nextAllowedReceiveBase.filter((m) => m === "transfer" || m === "atm")
       : nextAllowedReceiveBase;
 
-    const nextPayMethod = swappedPayCandidate && nextAllowedPay.includes(swappedPayCandidate)
-      ? swappedPayCandidate
-      : null;
-
-    const nextReceiveMethod = nextAllowedReceive.length === 0
-      ? null
-      : swappedReceiveCandidate && nextAllowedReceive.includes(swappedReceiveCandidate)
-        ? swappedReceiveCandidate
-        : null;
+    const nextPayMethod = initialMethodSelection(nextAllowedPay, swappedPayCandidate);
+    const nextReceiveMethod = initialMethodSelection(nextAllowedReceive, swappedReceiveCandidate);
 
     preserveSwappedValuesRef.current = false;
     skipNextRecalc.current = true;
@@ -1126,8 +1156,10 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     buyRawRef.current = null;
     setSellCurrency(nextSellCurrency);
     setBuyCurrency(nextBuyCurrency);
-    setPayMethod(nextPayMethod);
-    setReceiveMethod(nextReceiveMethod);
+    payMethodAutoSelectedRef.current = nextPayMethod.selectedByDefault;
+    receiveMethodAutoSelectedRef.current = nextReceiveMethod.selectedByDefault;
+    setPayMethod(nextPayMethod.value);
+    setReceiveMethod(nextReceiveMethod.value);
     setSellText("");
     setBuyText("");
   }
@@ -1272,6 +1304,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     clearRequestAttachment();
     setPayMethod(null);
     setReceiveMethod(null);
+    payMethodAutoSelectedRef.current = false;
+    receiveMethodAutoSelectedRef.current = false;
     setCommentKeyboardInset(0);
   }
 
@@ -1451,24 +1485,20 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
           <div className="vx-calcSide">
             <div className="vx-sectionTitle">{isEn ? "Payment" : "Оплата"}</div>
             <div className="vx-methods">
-              {ALL_PAY.map((m) => {
-                const disabled = !allowedPay.includes(m);
+              {allowedPay.map((m) => {
                 return (
                   <div
                     key={m}
                     className={
                       "vx-pill " +
-                      (payMethod === m ? "vx-pillActive " : "") +
-                      (disabled ? "vx-pillDisabled" : "")
+                      (payMethod === m ? "vx-pillActive " : "")
                     }
                     onClick={() => {
-                      if (!disabled) {
-                        preserveSwappedValuesRef.current = false;
-                        setPayMethod(m);
-                      }
+                      preserveSwappedValuesRef.current = false;
+                      payMethodAutoSelectedRef.current = false;
+                      setPayMethod(m);
                     }}
                     role="button"
-                    aria-disabled={disabled}
                   >
                     {uiMethodLabel(m)}
                   </div>
@@ -1478,24 +1508,20 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
             <div className="vx-sectionTitle">{isEn ? "Receive" : "Получение"}</div>
             <div className="vx-methods">
-              {ALL_RECEIVE.map((m) => {
-                const disabled = !allowedRecv.includes(m);
+              {allowedRecv.map((m) => {
                 return (
                   <div
                     key={m}
                     className={
                       "vx-pill " +
-                      (receiveMethod === m ? "vx-pillActive " : "") +
-                      (disabled ? "vx-pillDisabled" : "")
+                      (receiveMethod === m ? "vx-pillActive " : "")
                     }
                     onClick={() => {
-                      if (!disabled) {
-                        preserveSwappedValuesRef.current = false;
-                        setReceiveMethod(m);
-                      }
+                      preserveSwappedValuesRef.current = false;
+                      receiveMethodAutoSelectedRef.current = false;
+                      setReceiveMethod(m);
                     }}
                     role="button"
-                    aria-disabled={disabled}
                   >
                     {uiMethodLabel(m)}
                   </div>

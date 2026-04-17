@@ -146,7 +146,7 @@ function rubRequestCashAllowed(sellCurrency: Currency, buyCurrency: Currency, se
 }
 
 function allowedRequestPayMethods(sellCurrency: Currency, buyCurrency: Currency, sellAmount?: number, buyAmount?: number) {
-  if (isSameCurrencyVndPair(sellCurrency, buyCurrency)) return new Set(["cash", "transfer", "atm"]);
+  if (isSameCurrencyVndPair(sellCurrency, buyCurrency)) return new Set(["cash", "transfer"]);
   const rubCashOk = rubRequestCashAllowed(sellCurrency, buyCurrency, sellAmount, buyAmount);
   if (sellCurrency === "USDT") return new Set(["transfer"]);
   if (sellCurrency === "RUB") return new Set(["transfer"]);
