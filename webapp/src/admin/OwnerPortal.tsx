@@ -680,23 +680,26 @@ function moveFaq(id: string, dir: -1 | 1) {
             <b>Афиша</b>
             <span>{afCatsLabel(ev)}</span>
           </div>
-          <div className={"vx-afOwnerEventCard" + (hasImage ? " has-img" : "")}>
-            {hasImage ? (
-              <img
-                className="vx-afOwnerEventImg"
-                src={imageUrl}
-                alt=""
-                onError={() => setAfPreviewFailedImageUrls((prev) => (prev[imageUrl] ? prev : { ...prev, [imageUrl]: true }))}
-              />
-            ) : null}
-            <div className="vx-afOwnerEventBody">
-              <div className="vx-afOwnerEventTitle">{String(ev?.title || "Название мероприятия")}</div>
-              {ev?.comment ? <div className="vx-afOwnerEventComment">{String(ev.comment)}</div> : null}
-              <div className="vx-afOwnerEventMeta">{metaLabel}</div>
-              <div className="vx-afOwnerPreviewActions">
-                <button type="button">Подробнее</button>
-                <button type="button">Локация</button>
-                <button type="button" aria-label="Поделиться">↗</button>
+          <div className="theme-client vx-afOwnerClientPreview">
+            <div className={"mx-afEvCard" + (hasImage ? " has-img is-img-ready" : "")}>
+              {hasImage ? (
+                <img
+                  className="mx-afEvBg is-ready"
+                  src={imageUrl}
+                  alt=""
+                  aria-hidden="true"
+                  onError={() => setAfPreviewFailedImageUrls((prev) => (prev[imageUrl] ? prev : { ...prev, [imageUrl]: true }))}
+                />
+              ) : null}
+              <div className="mx-afEvBody">
+                <div className="mx-afTitle">{String(ev?.title || "Название мероприятия")}</div>
+                {ev?.comment ? <div className="mx-afComment">{String(ev.comment)}</div> : null}
+                <div className="mx-afMeta">{metaLabel}</div>
+                <div className="mx-btnRow mx-afBtnRow" style={{ marginTop: 10 }}>
+                  <button type="button" className="mx-btn mx-afLinkBtn mx-afActionBtn" style={{ opacity: 0.8 }}>Подробнее</button>
+                  <button type="button" className="mx-btn mx-btnPrimary mx-afLinkBtn mx-afActionBtn" style={{ opacity: 0.8 }}>Локация</button>
+                  <button type="button" className="mx-btn mx-afShareBtn" aria-label="Поделиться">↗</button>
+                </div>
               </div>
             </div>
           </div>
