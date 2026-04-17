@@ -631,6 +631,96 @@ export function createApiRouter(opts: {
     return path.join(runtimePublic, 'afisha');
   }
 
+  function getBundledAfishaStorageDir(): string {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    return path.resolve(__dirname, '../public/afisha');
+  }
+
+  function getAfishaPublicFilename(rawUrl: string): string {
+    const raw = String(rawUrl || '').trim();
+    if (!raw) return '';
+
+    let pathname = raw;
+    if (/^https?:\/\//i.test(raw)) {
+      try {
+        pathname = new URL(raw).pathname || raw;
+      } catch {
+        pathname = raw;
+      }
+    }
+
+    const match = pathname.match(/\/afisha\/([^/?#]+)/i);
+    if (!match?.[1]) return '';
+
+    try {
+      return path.basename(decodeURIComponent(match[1]));
+    } catch {
+      return path.basename(match[1]);
+    }
+  }
+
+  function afishaPublicUrlExists(rawUrl: string): boolean {
+    const filename = getAfishaPublicFilename(rawUrl);
+    if (!filename) return true;
+
+    const dirs = Array.from(new Set([getAfishaStorageDir(), getBundledAfishaStorageDir()]));
+    return dirs.some((dir) => fs.existsSync(path.join(dir, filename)));
+  }
+
+  function afishaPublicUrlBelongsToEvent(rawUrl: string, eventId: any): boolean {
+    const filename = getAfishaPublicFilename(rawUrl);
+    const id = String(eventId || '').trim();
+    if (!filename || !id) return true;
+    return filename.startsWith(`${id}.`) || filename.startsWith(`${id}-`);
+  }
+
+  function addAfishaCacheBust(rawUrl: string, updatedAt?: string): string {
+    const raw = String(rawUrl || '').trim();
+    if (!raw || !getAfishaPublicFilename(raw)) return raw;
+
+    const versionSeed = String(updatedAt || '').trim() || String(Date.now());
+    const version = encodeURIComponent(versionSeed.replace(/[^a-zA-Z0-9_.-]/g, ''));
+
+    if (/^https?:\/\//i.test(raw)) {
+      try {
+        const u = new URL(raw);
+        u.searchParams.set('v', version);
+        return u.toString();
+      } catch {
+        // fall through to relative handling
+      }
+    }
+
+    const hashIndex = raw.indexOf('#');
+    const beforeHash = hashIndex >= 0 ? raw.slice(0, hashIndex) : raw;
+    const hash = hashIndex >= 0 ? raw.slice(hashIndex) : '';
+    const base = beforeHash.split('?')[0];
+    return `${base}?v=${version}${hash}`;
+  }
+
+  function afishaImageUrlForResponse(rawUrl: any, updatedAt?: string, eventId?: any): string {
+    const raw = String(rawUrl || '').trim();
+    if (!raw || !afishaPublicUrlExists(raw) || !afishaPublicUrlBelongsToEvent(raw, eventId)) return '';
+    return addAfishaCacheBust(raw, updatedAt);
+  }
+
+  function afishaEventForResponse(ev: any): any {
+    const out = { ...(ev || {}) };
+    const imageUrl = afishaImageUrlForResponse(out.imageUrl, out.updated_at, out.id);
+    const previewImageUrl = afishaImageUrlForResponse(out.previewImageUrl, out.updated_at, out.id);
+    const finalImageUrl = imageUrl || previewImageUrl;
+    const finalPreviewImageUrl = previewImageUrl || imageUrl;
+
+    if (finalImageUrl) out.imageUrl = finalImageUrl;
+    else delete out.imageUrl;
+
+    if (finalPreviewImageUrl) out.previewImageUrl = finalPreviewImageUrl;
+    else delete out.previewImageUrl;
+
+    return out;
+  }
+
   function getRequestAttachmentStorageDir(): string {
     const explicit = String(process.env.REQUEST_ATTACHMENT_STORAGE_DIR || '').trim();
     if (explicit) return path.resolve(explicit);
@@ -660,7 +750,7 @@ export function createApiRouter(opts: {
 
     const dir = getAfishaStorageDir();
     fs.mkdirSync(dir, { recursive: true });
-    const filename = `${id}${suffix}${ext}`;
+    const filename = `${id}${suffix}-${Date.now()}${ext}`;
     fs.writeFileSync(path.join(dir, filename), buf);
     return `/afisha/${filename}`;
   }
@@ -794,7 +884,7 @@ export function createApiRouter(opts: {
 
       const outWithShare = await Promise.all(
         out.map(async (ev) => ({
-          ...ev,
+          ...afishaEventForResponse(ev),
           shareUrl: await buildMiniAppLink(`afisha_${String(ev?.id || '').trim()}`, {
             screen: 'afisha',
             event: String(ev?.id || '').trim(),
@@ -859,7 +949,7 @@ export function createApiRouter(opts: {
       if (scope === 'active') items.sort((a, b) => afishaSortKey(a).localeCompare(afishaSortKey(b)));
       else items.sort((a, b) => afishaSortKey(b).localeCompare(afishaSortKey(a)));
 
-      return res.json({ ok: true, today, events: items });
+      return res.json({ ok: true, today, events: items.map((ev) => afishaEventForResponse(ev)) });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
     }
@@ -922,7 +1012,7 @@ export function createApiRouter(opts: {
         items.push(ev);
         (store as any).afisha = items;
       });
-      return res.json({ ok: true, event: ev });
+      return res.json({ ok: true, event: afishaEventForResponse(ev) });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
     }
@@ -1023,7 +1113,7 @@ export function createApiRouter(opts: {
       });
       if (result.error === 'not_found') return res.status(404).json({ ok: false, error: 'not_found' });
       if (result.error) return res.status(400).json({ ok: false, error: result.error });
-      return res.json({ ok: true, event: result.event });
+      return res.json({ ok: true, event: afishaEventForResponse(result.event) });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
     }

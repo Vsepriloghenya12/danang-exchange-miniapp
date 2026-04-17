@@ -239,6 +239,7 @@ export default function AfishaTab({
   const [err, setErr] = useState<string>("");
   const [flashId, setFlashId] = useState<string>("");
   const [readyImageUrls, setReadyImageUrls] = useState<Record<string, true>>({});
+  const [failedImageUrls, setFailedImageUrls] = useState<Record<string, true>>({});
 
   // Bottom sheet refs
   const sheetRef = useRef<HTMLDivElement | null>(null);
@@ -536,11 +537,19 @@ export default function AfishaTab({
   }, [filteredEvents]);
 
   const preloadImageUrls = useMemo(
-    () =>
-      filteredEvents
-        .slice(0, 8)
-        .map((ev) => String(ev?.previewImageUrl || ev?.imageUrl || "").trim())
-        .filter(Boolean),
+    () => {
+      const seen = new Set<string>();
+      const urls: string[] = [];
+      filteredEvents.slice(0, 8).forEach((ev) => {
+        [ev?.previewImageUrl, ev?.imageUrl].forEach((raw) => {
+          const url = String(raw || "").trim();
+          if (!url || seen.has(url)) return;
+          seen.add(url);
+          urls.push(url);
+        });
+      });
+      return urls;
+    },
     [filteredEvents],
   );
 
@@ -550,8 +559,20 @@ export default function AfishaTab({
     setReadyImageUrls((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
   }
 
+  function markImageFailed(url: string) {
+    const key = String(url || "").trim();
+    if (!key) return;
+    setFailedImageUrls((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+    setReadyImageUrls((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
+
   useEffect(() => {
-    const pending = preloadImageUrls.filter((url) => !readyImageUrls[url]);
+    const pending = preloadImageUrls.filter((url) => !readyImageUrls[url] && !failedImageUrls[url]);
     if (!pending.length) return;
 
     const imgs: HTMLImageElement[] = [];
@@ -560,7 +581,7 @@ export default function AfishaTab({
       img.decoding = "async";
       img.loading = "eager";
       img.onload = () => markImageReady(url);
-      img.onerror = () => markImageReady(url);
+      img.onerror = () => markImageFailed(url);
       img.src = url;
       imgs.push(img);
     });
@@ -571,7 +592,7 @@ export default function AfishaTab({
         img.onerror = null;
       });
     };
-  }, [preloadImageUrls, readyImageUrls]);
+  }, [preloadImageUrls, readyImageUrls, failedImageUrls]);
 
   useEffect(() => {
     if (!focusEventId || loading) return;
@@ -682,17 +703,21 @@ ${targetUrl}`;
             <div className="mx-afGroupDate">{fmtDate(group.date, lang)}</div>
             {group.items.map((ev) => {
               const timeLabel = fmtTime((ev as any)?.time);
-              const imageUrl = String(ev.previewImageUrl || ev.imageUrl || "").trim();
-              const imageReady = imageUrl ? !!readyImageUrls[imageUrl] : false;
+              const imageUrl = [ev.previewImageUrl, ev.imageUrl]
+                .map((raw) => String(raw || "").trim())
+                .filter(Boolean)
+                .find((url) => !failedImageUrls[url]) || "";
+              const hasImage = Boolean(imageUrl);
+              const imageReady = hasImage ? !!readyImageUrls[imageUrl] : false;
               return (
                 <div
                   key={ev.id}
                   ref={(node) => {
                     cardRefs.current[ev.id] = node;
                   }}
-                  className={"mx-afEvCard" + (imageUrl ? " has-img" : "") + (imageReady ? " is-img-ready" : " is-img-loading") + (flashId === ev.id ? " is-flash" : "")}
+                  className={"mx-afEvCard" + (hasImage ? " has-img" : "") + (imageReady ? " is-img-ready" : " is-img-loading") + (flashId === ev.id ? " is-flash" : "")}
                 >
-                  {imageUrl ? (
+                  {hasImage ? (
                     <>
                       <img
                         className={"mx-afEvBg" + (imageReady ? " is-ready" : "")}
@@ -704,7 +729,7 @@ ${targetUrl}`;
                         onLoad={() => markImageReady(imageUrl)}
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
-                          markImageReady(imageUrl);
+                          markImageFailed(imageUrl);
                         }}
                       />
                       {!imageReady ? <div className="mx-afEvSkeleton" aria-hidden="true" /> : null}

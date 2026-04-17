@@ -442,8 +442,10 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
   const [afEditDetailsUrl, setAfEditDetailsUrl] = useState<string>("");
   const [afEditLocationUrl, setAfEditLocationUrl] = useState<string>("");
   const [afEditImageUrl, setAfEditImageUrl] = useState<string>("");
+  const [afEditPreviewImageUrl, setAfEditPreviewImageUrl] = useState<string>("");
   const [afEditImageDataUrl, setAfEditImageDataUrl] = useState<string | null>(null);
   const [afEditPreviewImageDataUrl, setAfEditPreviewImageDataUrl] = useState<string | null>(null);
+  const [afPreviewFailedImageUrls, setAfPreviewFailedImageUrls] = useState<Record<string, true>>({});
 
   const [afHistFrom, setAfHistFrom] = useState<string>(() => shiftISO(-14));
   const [afHistTo, setAfHistTo] = useState<string>(() => todayISO());
@@ -621,6 +623,88 @@ function moveFaq(id: string, dir: -1 | 1) {
     return cats.length ? cats.map((c) => afCatLabel(c)).join(", ") : "—";
   }
 
+  function pickAfishaPreviewImage(ev: any) {
+    return [ev?.previewImageUrl, ev?.imageUrl]
+      .map((raw) => String(raw || "").trim())
+      .filter(Boolean)
+      .find((url) => !afPreviewFailedImageUrls[url]) || "";
+  }
+
+  function getAfishaActivePreviewEvent() {
+    const selected = afEditId ? afActive.find((ev) => String(ev?.id || "") === afEditId) : null;
+    const base = selected || afActive[0] || null;
+    if (!base) return null;
+
+    if (selected && afEditId) {
+      const imageUrl = afEditImageDataUrl || afEditImageUrl;
+      const previewImageUrl = afEditPreviewImageDataUrl || afEditImageDataUrl || afEditPreviewImageUrl || afEditImageUrl;
+      return {
+        ...base,
+        categories: afEditCats,
+        category: afEditCats[0] || base.category,
+        date: afEditDate || base.date,
+        time: fmtAfTime(afEditTime),
+        title: afEditTitle || "Название мероприятия",
+        comment: afEditComment,
+        detailsUrl: afEditDetailsUrl,
+        locationUrl: afEditLocationUrl,
+        ...(imageUrl ? { imageUrl } : {}),
+        ...(previewImageUrl ? { previewImageUrl } : {}),
+      };
+    }
+
+    return base;
+  }
+
+  function renderAfishaOwnerPreview() {
+    const ev = getAfishaActivePreviewEvent();
+    if (!ev) {
+      return (
+        <aside className="vx-afOwnerPreview">
+          <div className="vx-afOwnerPreviewLabel">Предпросмотр</div>
+          <div className="vx-afOwnerEmptyPreview">Активных афиш пока нет.</div>
+        </aside>
+      );
+    }
+
+    const imageUrl = pickAfishaPreviewImage(ev);
+    const hasImage = Boolean(imageUrl);
+    const timeLabel = fmtAfTime(ev?.time);
+    const metaLabel = timeLabel ? `${String(ev?.date || "")} • ${timeLabel}` : String(ev?.date || "");
+
+    return (
+      <aside className="vx-afOwnerPreview">
+        <div className="vx-afOwnerPreviewLabel">Предпросмотр в приложении</div>
+        <div className="vx-afOwnerPhone">
+          <div className="vx-afOwnerAppTop">
+            <b>Афиша</b>
+            <span>{afCatsLabel(ev)}</span>
+          </div>
+          <div className={"vx-afOwnerEventCard" + (hasImage ? " has-img" : "")}>
+            {hasImage ? (
+              <img
+                className="vx-afOwnerEventImg"
+                src={imageUrl}
+                alt=""
+                onError={() => setAfPreviewFailedImageUrls((prev) => (prev[imageUrl] ? prev : { ...prev, [imageUrl]: true }))}
+              />
+            ) : null}
+            <div className="vx-afOwnerEventBody">
+              <div className="vx-afOwnerEventTitle">{String(ev?.title || "Название мероприятия")}</div>
+              {ev?.comment ? <div className="vx-afOwnerEventComment">{String(ev.comment)}</div> : null}
+              <div className="vx-afOwnerEventMeta">{metaLabel}</div>
+              <div className="vx-afOwnerPreviewActions">
+                <button type="button">Подробнее</button>
+                <button type="button">Локация</button>
+                <button type="button" aria-label="Поделиться">↗</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
 
   async function loadAfishaLists() {
     if (!token || afLoading) return;
@@ -719,6 +803,7 @@ function moveFaq(id: string, dir: -1 | 1) {
     setAfEditDetailsUrl(String(ev.detailsUrl || ''));
     setAfEditLocationUrl(String(ev.locationUrl || ''));
     setAfEditImageUrl(String(ev.imageUrl || ''));
+    setAfEditPreviewImageUrl(String(ev.previewImageUrl || ev.imageUrl || ''));
     setAfEditImageDataUrl(null);
     setAfEditPreviewImageDataUrl(null);
   }
@@ -776,6 +861,13 @@ function moveFaq(id: string, dir: -1 | 1) {
       const r = await apiAdminUpdateAfisha(token, afEditId, payload as any);
       if (!r?.ok) return showErr(r?.error || 'Ошибка');
       showOk('Сохранено');
+      if ((r as any)?.event) {
+        const saved = (r as any).event;
+        setAfEditImageUrl(String(saved.imageUrl || ''));
+        setAfEditPreviewImageUrl(String(saved.previewImageUrl || saved.imageUrl || ''));
+        setAfEditImageDataUrl(null);
+        setAfEditPreviewImageDataUrl(null);
+      }
       await loadAfishaLists();
     } catch (e: any) {
       showErr(e?.message || 'Ошибка сохранения');
@@ -836,6 +928,9 @@ function moveFaq(id: string, dir: -1 | 1) {
         <div className="vx-sp10" />
         <div className="vx-muted">Фото мероприятия</div>
         {afEditImageUrl ? <div className="vx-muted">Текущее: <a href={afEditImageUrl} target="_blank" rel="noreferrer">{afEditImageUrl}</a></div> : null}
+        {afEditPreviewImageUrl && afEditPreviewImageUrl !== afEditImageUrl ? (
+          <div className="vx-muted">Preview: <a href={afEditPreviewImageUrl} target="_blank" rel="noreferrer">{afEditPreviewImageUrl}</a></div>
+        ) : null}
         <div className="vx-sp6" />
         <div className="vx-rowWrap" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <input
@@ -2458,39 +2553,44 @@ function moveFaq(id: string, dir: -1 | 1) {
 
             <div className="vx-sp10" />
 
-            {afActive.length === 0 ? (
-              <div className="vx-muted">Активных мероприятий нет.</div>
-            ) : (
-              <div className="vx-reqList">
-                {afActive.map((ev) => {
-                  const clicks = ev?.clicks || { details: 0, location: 0 };
-                  const total = Number(clicks.details || 0) + Number(clicks.location || 0);
-                  const isOn = afEditId === String(ev.id);
-                  return (
-                    <div key={ev.id}>
-                      <button
-                        type="button"
-                        className={"vx-reqRow " + (isOn ? "is-active" : "")}
-                        onClick={() => toggleEditAfisha(ev)}
-                      >
-                        <div className="vx-reqTop">
-                          <b>{fmtAfDateTime(ev)}</b>
-                          <span className="vx-muted">{afCatsLabel(ev)}</span>
-                        </div>
-                        <div><b>{String(ev.title || "")}</b></div>
-                        <div className="vx-muted">Клики: {total} (Подробнее {Number(clicks.details || 0)}, Локация {Number(clicks.location || 0)})</div>
-                      </button>
+            <div className="vx-afOwnerActiveGrid">
+              <div className="vx-afOwnerListCol">
+                {afActive.length === 0 ? (
+                  <div className="vx-muted">Активных мероприятий нет.</div>
+                ) : (
+                  <div className="vx-reqList">
+                    {afActive.map((ev) => {
+                      const clicks = ev?.clicks || { details: 0, location: 0 };
+                      const total = Number(clicks.details || 0) + Number(clicks.location || 0);
+                      const isOn = afEditId === String(ev.id);
+                      return (
+                        <div key={ev.id}>
+                          <button
+                            type="button"
+                            className={"vx-reqRow " + (isOn ? "is-active" : "")}
+                            onClick={() => toggleEditAfisha(ev)}
+                          >
+                            <div className="vx-reqTop">
+                              <b>{fmtAfDateTime(ev)}</b>
+                              <span className="vx-muted">{afCatsLabel(ev)}</span>
+                            </div>
+                            <div><b>{String(ev.title || "")}</b></div>
+                            <div className="vx-muted">Клики: {total} (Подробнее {Number(clicks.details || 0)}, Локация {Number(clicks.location || 0)})</div>
+                          </button>
 
-                      {isOn ? (
-                        <div className="vx-reqExpand">
-                          {renderAfishaEditForm()}
+                          {isOn ? (
+                            <div className="vx-reqExpand">
+                              {renderAfishaEditForm()}
+                            </div>
+                          ) : null}
                         </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
+              {renderAfishaOwnerPreview()}
+            </div>
           </div>
 
           <div className="vx-sp12" />
