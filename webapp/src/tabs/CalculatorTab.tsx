@@ -413,12 +413,12 @@ function methodBonusForRate(
   // If bonuses config is present and method markups are disabled, do not apply any method markup
   if (bonuses && bonuses.enabled && bonuses.enabled.methods === false) return 0;
 
-  // Надбавка зависит от СПОСОБА ПОЛУЧЕНИЯ (перевод/банкомат).
+  // Надбавка зависит от СПОСОБА ПОЛУЧЕНИЯ.
   // Оплата (нал/перевод) на неё не влияет.
-  // Наличными (cash) надбавка не применяется.
+  // Наличными и переводом VND надбавка не применяется.
   void payMethod;
-  if (receiveMethod === "cash") return 0;
-  if (receiveMethod !== "transfer" && receiveMethod !== "atm") return 0;
+  if (receiveMethod === "cash" || receiveMethod === "transfer") return 0;
+  if (receiveMethod !== "atm") return 0;
 
   // configurable bonuses from server
   if (bonuses?.enabled?.methods) {
