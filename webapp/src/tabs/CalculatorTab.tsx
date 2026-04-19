@@ -352,13 +352,18 @@ function allowedReceiveMethods(buyCurrency: Currency, sellCurrency?: Currency, b
   return rubCashOk ? ["cash"] : []; // USD/EUR/THB
 }
 
-// ======= Бонусы лояльности (только * -> VND и только RUB/USD/USDT) =======
+function hasVndRateMarkup(sellCurrency: Currency, buyCurrency: Currency) {
+  return buyCurrency === "VND" && (sellCurrency === "RUB" || sellCurrency === "USDT");
+}
+
+// ======= Бонусы лояльности (только RUB/USDT -> VND) =======
 function tierBonusForRate(
   sellCurrency: Currency,
   sellAmount: number,
   status: ClientStatus,
   bonuses?: BonusesConfig | null
 ): number {
+  if (sellCurrency !== "RUB" && sellCurrency !== "USDT") return 0;
   if (sellAmount <= 0) return 0;
 
   // If bonuses config is present and tiers are disabled, do not apply any status/tier markup
@@ -408,22 +413,22 @@ function methodBonusForRate(
   receiveMethod: SelectedReceiveMethod,
   bonuses?: BonusesConfig | null
 ): number {
-  if (buyCurrency !== "VND") return 0;
+  if (!hasVndRateMarkup(sellCurrency, buyCurrency)) return 0;
 
   // If bonuses config is present and method markups are disabled, do not apply any method markup
   if (bonuses && bonuses.enabled && bonuses.enabled.methods === false) return 0;
 
-  // Надбавка зависит от СПОСОБА ПОЛУЧЕНИЯ.
+  // Надбавка применяется только для RUB/USDT -> VND и зависит от способа получения.
   // Оплата (нал/перевод) на неё не влияет.
-  // Наличными и переводом VND надбавка не применяется.
+  // Наличными (cash) надбавка не применяется.
   void payMethod;
-  if (receiveMethod === "cash" || receiveMethod === "transfer") return 0;
-  if (receiveMethod !== "atm") return 0;
+  if (receiveMethod === "cash") return 0;
+  if (receiveMethod !== "transfer" && receiveMethod !== "atm") return 0;
 
   // configurable bonuses from server
   if (bonuses?.enabled?.methods) {
     const row = (bonuses.methods as any)?.[receiveMethod];
-    if (row && (sellCurrency === "RUB" || sellCurrency === "USD" || sellCurrency === "USDT")) {
+    if (row && (sellCurrency === "RUB" || sellCurrency === "USDT")) {
       const v = Number(row?.[sellCurrency]);
       return Number.isFinite(v) ? v : 0;
     }
@@ -431,7 +436,7 @@ function methodBonusForRate(
   }
 
   if (sellCurrency === "RUB") return 1;
-  if (sellCurrency === "USD" || sellCurrency === "USDT") return 100;
+  if (sellCurrency === "USDT") return 100;
   return 0;
 }
 
@@ -447,7 +452,7 @@ function applyRateBonuses(
 ): Rates {
   const next: Rates = { ...baseRates };
 
-  if (buyCurrency === "VND" && (sellCurrency === "RUB" || sellCurrency === "USD" || sellCurrency === "USDT")) {
+  if (hasVndRateMarkup(sellCurrency, buyCurrency)) {
     const r = getRate(baseRates, sellCurrency);
     if (!r) return next;
 
@@ -1048,11 +1053,10 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   ]);
 
   const rateInfo = useMemo(() => {
-    // бонусы показываем только для * -> VND, и только если НЕ gMode
+    // бонусы показываем только для RUB/USDT -> VND, и только если НЕ gMode
     if (gMode) return null;
     if (!rates) return null;
-    if (buyCurrency !== "VND") return null;
-    if (!(sellCurrency === "RUB" || sellCurrency === "USD" || sellCurrency === "USDT")) return null;
+    if (!hasVndRateMarkup(sellCurrency, buyCurrency)) return null;
 
     const base = getRate(rates, sellCurrency)?.buy_vnd ?? null;
     if (!base) return null;
