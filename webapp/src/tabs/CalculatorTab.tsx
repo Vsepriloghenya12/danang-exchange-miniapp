@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DEFAULT_G_FORMULAS } from "../domain/exchange";
 import { getUserStatusLabel, normalizeUserStatus } from "../domain/status";
@@ -17,6 +17,13 @@ type Rates = Partial<Record<RateKey, RateEntry>>;
 
 type ClientStatus = "standard" | "silver" | "gold";
 type Lang = "ru" | "en";
+type AmountFieldKey = "sell" | "buy";
+type PendingCaret = {
+  field: AmountFieldKey;
+  start: number;
+  end: number;
+  direction: "forward" | "backward" | "none";
+};
 
 type Props = {
   lang?: Lang;
@@ -219,6 +226,52 @@ function fmtFromInput(cur: Currency, v: string): string {
   if (!norm.intPart && !norm.decPart) return "";
   if (norm.hasSep) return norm.text;
   return norm.text.replace(/\.$/, "");
+}
+
+function caretAfterDigits(value: string, digitsToKeep: number): number {
+  if (digitsToKeep <= 0) return 0;
+  let seen = 0;
+  for (let i = 0; i < value.length; i++) {
+    if (/\d/.test(value[i])) {
+      seen += 1;
+      if (seen >= digitsToKeep) return i + 1;
+    }
+  }
+  return value.length;
+}
+
+function mapCaretToFormattedValue(cur: Currency, rawValue: string, formattedValue: string, caret: number | null): number {
+  const next = String(formattedValue ?? "");
+  if (!next) return 0;
+
+  const raw = String(rawValue ?? "");
+  const safeCaret = Math.max(0, Math.min(caret ?? 0, raw.length));
+  const maxDecimals = amountMaxDecimals(cur);
+  const beforeRaw = raw.slice(0, safeCaret).replace(/\s+/g, "").replace(/[^\d.,-]/g, "");
+  const fullRaw = raw.replace(/\s+/g, "").replace(/[^\d.,-]/g, "");
+  const unsignedBefore = beforeRaw.replace(/-/g, "");
+  const unsignedFull = fullRaw.replace(/-/g, "");
+  const signOffset = next.startsWith("-") ? 1 : 0;
+  const unsignedNext = signOffset ? next.slice(1) : next;
+  const dotIndex = unsignedNext.indexOf(".");
+  const sepInfo = maxDecimals > 0 ? detectDecimalSeparator(unsignedFull, maxDecimals) : { index: -1, char: null as "." | "," | null };
+
+  if (maxDecimals > 0) {
+    if (sepInfo.index >= 0 && unsignedBefore.length > sepInfo.index) {
+      const fractionDigitsBefore = countDigits(unsignedBefore.slice(sepInfo.index + 1));
+      if (dotIndex >= 0) {
+        return Math.min(next.length, signOffset + dotIndex + 1 + fractionDigitsBefore);
+      }
+    }
+  }
+
+  const integerDigitsSource =
+    maxDecimals > 0 && sepInfo.index >= 0
+      ? unsignedBefore.slice(0, Math.min(unsignedBefore.length, sepInfo.index))
+      : unsignedBefore;
+  const digitsBefore = countDigits(integerDigitsSource);
+  const integerPart = dotIndex >= 0 ? unsignedNext.slice(0, dotIndex) : unsignedNext;
+  return Math.min(next.length, signOffset + caretAfterDigits(integerPart, digitsBefore));
 }
 
 function isMultiple(n: number, step: number) {
@@ -656,6 +709,9 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   const buyRawRef = useRef<number | null>(null);
   const payMethodAutoSelectedRef = useRef(false);
   const receiveMethodAutoSelectedRef = useRef(false);
+  const sellInputRef = useRef<HTMLInputElement | null>(null);
+  const buyInputRef = useRef<HTMLInputElement | null>(null);
+  const pendingCaretRef = useRef<PendingCaret | null>(null);
 
   const [payMethod, setPayMethod] = useState<SelectedPayMethod>(null);
   const [receiveMethod, setReceiveMethod] = useState<SelectedReceiveMethod>(null);
@@ -717,6 +773,26 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       window.removeEventListener("orientationchange", updateInset);
     };
   }, []);
+
+  useLayoutEffect(() => {
+    const pending = pendingCaretRef.current;
+    if (!pending) return;
+
+    const input = pending.field === "sell" ? sellInputRef.current : buyInputRef.current;
+    if (!input) {
+      pendingCaretRef.current = null;
+      return;
+    }
+    if (document.activeElement !== input) {
+      pendingCaretRef.current = null;
+      return;
+    }
+
+    const start = Math.max(0, Math.min(pending.start, input.value.length));
+    const end = Math.max(start, Math.min(pending.end, input.value.length));
+    input.setSelectionRange(start, end, pending.direction);
+    pendingCaretRef.current = null;
+  }, [sellText, buyText]);
 
   const danangTime = useMemo(() => getDanangTimeInfo(danangNowMs), [danangNowMs]);
   const managerOffline = danangTime.hour >= 22 || danangTime.hour < 10;
@@ -1436,6 +1512,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
               </select>
 
               <input
+                ref={sellInputRef}
                 inputMode={sellCurrency === "USDT" ? "decimal" : "numeric"}
                 placeholder={uiAmountPlaceholder(isEn ? "You give" : "Отдаю", sellCurrency, isVndToVnd)}
                 value={sellText}
@@ -1443,7 +1520,14 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                 onChange={(e) => {
                   preserveSwappedValuesRef.current = false;
                   lastEdited.current = "sell";
-                  const next = fmtFromInput(sellCurrency, e.target.value);
+                  const rawValue = e.target.value;
+                  const next = fmtFromInput(sellCurrency, rawValue);
+                  pendingCaretRef.current = {
+                    field: "sell",
+                    start: mapCaretToFormattedValue(sellCurrency, rawValue, next, e.target.selectionStart),
+                    end: mapCaretToFormattedValue(sellCurrency, rawValue, next, e.target.selectionEnd),
+                    direction: e.target.selectionDirection ?? "none",
+                  };
                   sellRawRef.current = next.trim() ? parseAmount(sellCurrency, next) : null;
                   setSellText(next);
                 }}
@@ -1469,6 +1553,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
               </select>
 
               <input
+                ref={buyInputRef}
                 inputMode={buyCurrency === "USDT" ? "decimal" : "numeric"}
                 placeholder={uiAmountPlaceholder(isEn ? "You get" : "Получаю", buyCurrency, isVndToVnd)}
                 value={buyText}
@@ -1476,7 +1561,14 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                 onChange={(e) => {
                   preserveSwappedValuesRef.current = false;
                   lastEdited.current = "buy";
-                  const next = fmtFromInput(buyCurrency, e.target.value);
+                  const rawValue = e.target.value;
+                  const next = fmtFromInput(buyCurrency, rawValue);
+                  pendingCaretRef.current = {
+                    field: "buy",
+                    start: mapCaretToFormattedValue(buyCurrency, rawValue, next, e.target.selectionStart),
+                    end: mapCaretToFormattedValue(buyCurrency, rawValue, next, e.target.selectionEnd),
+                    direction: e.target.selectionDirection ?? "none",
+                  };
                   buyRawRef.current = next.trim() ? parseAmount(buyCurrency, next) : null;
                   setBuyText(next);
                 }}
