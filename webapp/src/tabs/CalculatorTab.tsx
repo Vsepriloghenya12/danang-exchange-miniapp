@@ -23,6 +23,7 @@ type PendingCaret = {
   start: number;
   end: number;
   direction: "forward" | "backward" | "none";
+  restoreUntil: number;
 };
 
 type Props = {
@@ -272,6 +273,25 @@ function mapCaretToFormattedValue(cur: Currency, rawValue: string, formattedValu
   const digitsBefore = countDigits(integerDigitsSource);
   const integerPart = dotIndex >= 0 ? unsignedNext.slice(0, dotIndex) : unsignedNext;
   return Math.min(next.length, signOffset + caretAfterDigits(integerPart, digitsBefore));
+}
+
+function selectionIndex(value: string, index: number | null): number {
+  return typeof index === "number" && Number.isFinite(index)
+    ? index
+    : String(value ?? "").length;
+}
+
+function makePendingCaret(field: AmountFieldKey, cur: Currency, input: HTMLInputElement, formattedValue: string): PendingCaret {
+  const rawValue = input.value;
+  const start = selectionIndex(rawValue, input.selectionStart);
+  const end = selectionIndex(rawValue, input.selectionEnd);
+  return {
+    field,
+    start: mapCaretToFormattedValue(cur, rawValue, formattedValue, start),
+    end: mapCaretToFormattedValue(cur, rawValue, formattedValue, end),
+    direction: input.selectionDirection ?? "none",
+    restoreUntil: Date.now() + 150,
+  };
 }
 
 function isMultiple(n: number, step: number) {
@@ -787,11 +807,19 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       pendingCaretRef.current = null;
       return;
     }
+    if (Date.now() > pending.restoreUntil) {
+      pendingCaretRef.current = null;
+      return;
+    }
 
     const start = Math.max(0, Math.min(pending.start, input.value.length));
     const end = Math.max(start, Math.min(pending.end, input.value.length));
-    input.setSelectionRange(start, end, pending.direction);
-    pendingCaretRef.current = null;
+    try {
+      input.setSelectionRange(start, end, pending.direction);
+    } catch {
+      // Some mobile WebViews can temporarily reject selection updates while the keyboard is resizing.
+    }
+    pendingCaretRef.current = pending;
   }, [sellText, buyText]);
 
   const danangTime = useMemo(() => getDanangTimeInfo(danangNowMs), [danangNowMs]);
@@ -1522,12 +1550,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                   lastEdited.current = "sell";
                   const rawValue = e.target.value;
                   const next = fmtFromInput(sellCurrency, rawValue);
-                  pendingCaretRef.current = {
-                    field: "sell",
-                    start: mapCaretToFormattedValue(sellCurrency, rawValue, next, e.target.selectionStart),
-                    end: mapCaretToFormattedValue(sellCurrency, rawValue, next, e.target.selectionEnd),
-                    direction: e.target.selectionDirection ?? "none",
-                  };
+                  pendingCaretRef.current = makePendingCaret("sell", sellCurrency, e.currentTarget, next);
                   sellRawRef.current = next.trim() ? parseAmount(sellCurrency, next) : null;
                   setSellText(next);
                 }}
@@ -1563,12 +1586,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                   lastEdited.current = "buy";
                   const rawValue = e.target.value;
                   const next = fmtFromInput(buyCurrency, rawValue);
-                  pendingCaretRef.current = {
-                    field: "buy",
-                    start: mapCaretToFormattedValue(buyCurrency, rawValue, next, e.target.selectionStart),
-                    end: mapCaretToFormattedValue(buyCurrency, rawValue, next, e.target.selectionEnd),
-                    direction: e.target.selectionDirection ?? "none",
-                  };
+                  pendingCaretRef.current = makePendingCaret("buy", buyCurrency, e.currentTarget, next);
                   buyRawRef.current = next.trim() ? parseAmount(buyCurrency, next) : null;
                   setBuyText(next);
                 }}
