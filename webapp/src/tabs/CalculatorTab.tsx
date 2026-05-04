@@ -742,7 +742,11 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   const [requestAttachmentName, setRequestAttachmentName] = useState("");
   const [requestAttachmentSizeLabel, setRequestAttachmentSizeLabel] = useState("");
   const [showConditions, setShowConditions] = useState(false);
-  const [requestSuccessModal, setRequestSuccessModal] = useState<null | { requestId: string; copyText: string }>(null);
+  const [requestSuccessModal, setRequestSuccessModal] = useState<null | {
+    requestId: string;
+    copyText: string;
+    needsManualManagerContact: boolean;
+  }>(null);
   const [commentKeyboardInset, setCommentKeyboardInset] = useState(0);
 
   const commentFieldRef = useRef<HTMLTextAreaElement | null>(null);
@@ -1394,10 +1398,11 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     const serverDecision = typeof result?.needsManualManagerContact === "boolean" ? result.needsManualManagerContact : undefined;
     const fallbackNeedsManualManagerContact = !String(me?.user?.username || "").trim();
     const needsManualManagerContact = serverDecision ?? fallbackNeedsManualManagerContact;
-    if (needsManualManagerContact && requestId) {
+    if (requestId) {
       setRequestSuccessModal({
         requestId,
         copyText: buildRequestCopyText(requestId),
+        needsManualManagerContact,
       });
     } else {
       setBanner({
@@ -1437,8 +1442,17 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
         <div className="vx-modalOverlay vx-contactModalOverlay" role="dialog" aria-modal="true" aria-label={isEn ? "Request accepted" : "Заявка принята"}>
           <div className="vx-modalCard vx-contactModalCard vx-requestDoneCard" onClick={(e) => e.stopPropagation()}>
             <div className="vx-requestDoneHero" aria-hidden="true">✓</div>
+            <div className="vx-modalTitle">
+              {isEn ? "Request accepted" : "Заявка принята"}
+            </div>
             <div className="vx-requestDoneText">
-              {isEn ? "Since you do not have a username, please copy the request details and contact the manager." : "Так как у вас отсутствует юзернейм, пожалуйста скопируйте данные заявки и свяжитесь с менеджером"}
+              {requestSuccessModal.needsManualManagerContact
+                ? (isEn
+                  ? "Since you do not have a username, please copy the request details and contact the manager."
+                  : "Так как у вас отсутствует юзернейм, пожалуйста скопируйте данные заявки и свяжитесь с менеджером")
+                : (isEn
+                  ? "A manager will contact you soon."
+                  : "В ближайшее время с вами свяжется менеджер.")}
             </div>
             <div className="vx-requestIdBar">
               <span className="vx-requestIdValue">#{shortRequestId(requestSuccessModal.requestId)}</span>
@@ -1452,16 +1466,26 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                 <CopyIcon className="vx-copyIcon" />
               </button>
             </div>
-            <button
-              type="button"
-              className="vx-primary vx-requestManagerBtn"
-              onClick={() => {
-                openManagerContactLink(me);
-                setRequestSuccessModal(null);
-              }}
-            >
-              {isEn ? "Contact manager" : "Связаться с менеджером"}
-            </button>
+            {requestSuccessModal.needsManualManagerContact ? (
+              <button
+                type="button"
+                className="vx-primary vx-requestManagerBtn"
+                onClick={() => {
+                  openManagerContactLink(me);
+                  setRequestSuccessModal(null);
+                }}
+              >
+                {isEn ? "Contact manager" : "Связаться с менеджером"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="vx-primary vx-requestManagerBtn"
+                onClick={() => setRequestSuccessModal(null)}
+              >
+                {isEn ? "OK" : "Понятно"}
+              </button>
+            )}
           </div>
         </div>,
         document.body
