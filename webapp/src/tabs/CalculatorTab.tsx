@@ -46,20 +46,6 @@ function getTg() {
   return (window as any).Telegram?.WebApp;
 }
 
-function shortRequestId(id: string) {
-  const s = String(id || "").trim();
-  return s.length > 6 ? s.slice(-6) : s;
-}
-
-function CopyIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="9" y="9" width="10" height="10" rx="2" />
-      <path d="M15 9V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
-    </svg>
-  );
-}
-
 function PaperclipIcon({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1454,29 +1440,26 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                   ? "A manager will contact you soon."
                   : "В ближайшее время с вами свяжется менеджер.")}
             </div>
-            <div className="vx-requestIdBar">
-              <span className="vx-requestIdValue">#{shortRequestId(requestSuccessModal.requestId)}</span>
-              <button
-                type="button"
-                className="vx-copyIconBtn"
-                onClick={() => copyRequestInfo(requestSuccessModal.requestId, requestSuccessModal.copyText)}
-                aria-label={isEn ? "Copy request data" : "Скопировать информацию о заявке"}
-                title={isEn ? "Copy request data" : "Скопировать данные заявки"}
-              >
-                <CopyIcon className="vx-copyIcon" />
-              </button>
-            </div>
             {requestSuccessModal.needsManualManagerContact ? (
-              <button
-                type="button"
-                className="vx-primary vx-requestManagerBtn"
-                onClick={() => {
-                  openManagerContactLink(me);
-                  setRequestSuccessModal(null);
-                }}
-              >
-                {isEn ? "Contact manager" : "Связаться с менеджером"}
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="vx-primary vx-requestManagerBtn"
+                  onClick={() => copyRequestInfo(requestSuccessModal.requestId, requestSuccessModal.copyText)}
+                >
+                  {isEn ? "Copy request data" : "Скопировать данные заявки"}
+                </button>
+                <button
+                  type="button"
+                  className="vx-primary vx-requestManagerBtn"
+                  onClick={() => {
+                    openManagerContactLink(me);
+                    setRequestSuccessModal(null);
+                  }}
+                >
+                  {isEn ? "Contact manager" : "Связаться с менеджером"}
+                </button>
+              </>
             ) : (
               <button
                 type="button"
