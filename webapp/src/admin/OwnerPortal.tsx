@@ -451,6 +451,7 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
 
   const [afHistFrom, setAfHistFrom] = useState<string>(() => shiftISO(-180));
   const [afHistTo, setAfHistTo] = useState<string>(() => todayISO());
+  const [afHistSearch, setAfHistSearch] = useState<string>("");
 
 
   const saveTplTimer = useRef<number | null>(null);
@@ -740,6 +741,12 @@ function moveFaq(id: string, dir: -1 | 1) {
       setAnLoading(false);
     }
   }
+
+  const afHistoryFiltered = useMemo(() => {
+    const q = String(afHistSearch || "").trim().toLowerCase();
+    if (!q) return afHistory;
+    return (afHistory || []).filter((ev) => String(ev?.title || "").toLowerCase().includes(q));
+  }, [afHistory, afHistSearch]);
 
   const screenRu: Record<string, string> = {
     home: 'Главная',
@@ -2655,15 +2662,26 @@ function moveFaq(id: string, dir: -1 | 1) {
                 <div className="vx-muted">По</div>
                 <input className="input vx-in" type="date" value={afHistTo} onChange={(e) => setAfHistTo(e.target.value)} />
               </div>
+              <div style={{ flex: "2 1 260px" }}>
+                <div className="vx-muted">Поиск по названию</div>
+                <input
+                  className="input vx-in"
+                  value={afHistSearch}
+                  onChange={(e) => setAfHistSearch(e.target.value)}
+                  placeholder="Название мероприятия"
+                />
+              </div>
             </div>
 
             <div className="vx-sp10" />
 
             {afHistory.length === 0 ? (
               <div className="vx-muted">В выбранном диапазоне нет мероприятий.</div>
+            ) : afHistoryFiltered.length === 0 ? (
+              <div className="vx-muted">По этому названию ничего не найдено.</div>
             ) : (
               <div className="vx-reqList">
-                {afHistory.map((ev) => {
+                {afHistoryFiltered.map((ev) => {
                   const clicks = ev?.clicks || { details: 0, location: 0 };
                   const total = Number(clicks.details || 0) + Number(clicks.location || 0);
                   const isOn = afEditId === String(ev.id);
