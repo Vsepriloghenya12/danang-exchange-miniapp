@@ -20,6 +20,7 @@ import {
   apiAdminGetAfisha,
   apiAdminCreateAfisha,
   apiAdminUpdateAfisha,
+  apiAdminRepublishAfisha,
   apiAdminEventsSummary,
   apiGetBankIcons,
   bankIconUrl,
@@ -251,6 +252,7 @@ export default function OwnerPortal() {
     if (t === "not_owner") return "Только владелец";
     if (t === "tg_send_failed") return "Telegram: не удалось отправить";
     if (t === "bad_image") return "Неверная картинка";
+    if (t === "bad_date_past") return "Для повторной публикации выбери сегодняшнюю или будущую дату";
     if (t === "No initData") return "Нет авторизации";
     return t || "Ошибка";
   }
@@ -447,7 +449,7 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
   const [afEditPreviewImageDataUrl, setAfEditPreviewImageDataUrl] = useState<string | null>(null);
   const [afPreviewFailedImageUrls, setAfPreviewFailedImageUrls] = useState<Record<string, true>>({});
 
-  const [afHistFrom, setAfHistFrom] = useState<string>(() => shiftISO(-14));
+  const [afHistFrom, setAfHistFrom] = useState<string>(() => shiftISO(-180));
   const [afHistTo, setAfHistTo] = useState<string>(() => todayISO());
 
 
@@ -847,18 +849,22 @@ function moveFaq(id: string, dir: -1 | 1) {
     await loadAfishaLists();
   }
 
+  function buildAfishaEditPayload() {
+    return {
+      categories: afEditCats,
+      date: afEditDate,
+      time: fmtAfTime(afEditTime) || '',
+      title: afEditTitle.trim(),
+      comment: afEditComment.trim(),
+      detailsUrl: afEditDetailsUrl.trim(),
+      locationUrl: afEditLocationUrl.trim(),
+    };
+  }
+
   async function saveAfisha() {
     if (!token || !afEditId) return;
     try {
-      const payload: any = {
-        categories: afEditCats,
-        date: afEditDate,
-        time: fmtAfTime(afEditTime) || '',
-        title: afEditTitle.trim(),
-        comment: afEditComment.trim(),
-        detailsUrl: afEditDetailsUrl.trim(),
-        locationUrl: afEditLocationUrl.trim(),
-      };
+      const payload: any = buildAfishaEditPayload();
       if (afEditImageDataUrl) payload.imageDataUrl = afEditImageDataUrl;
       if (afEditPreviewImageDataUrl) payload.previewImageDataUrl = afEditPreviewImageDataUrl;
       const r = await apiAdminUpdateAfisha(token, afEditId, payload as any);
@@ -877,11 +883,40 @@ function moveFaq(id: string, dir: -1 | 1) {
     }
   }
 
+  async function republishAfisha() {
+    if (!token || !afEditId) return;
+    if (afEditDate && afEditDate < todayISO()) {
+      showErr('bad_date_past');
+      return;
+    }
+
+    try {
+      const payload: any = buildAfishaEditPayload();
+      if (afEditImageDataUrl) payload.imageDataUrl = afEditImageDataUrl;
+      if (afEditPreviewImageDataUrl) payload.previewImageDataUrl = afEditPreviewImageDataUrl;
+      const r = await apiAdminRepublishAfisha(token, afEditId, payload as any);
+      if (!r?.ok) return showErr(r?.error || 'Ошибка');
+      showOk('Опубликовано повторно');
+      setAfEditId('');
+      setAfEditImageDataUrl(null);
+      setAfEditPreviewImageDataUrl(null);
+      await loadAfishaLists();
+    } catch (e: any) {
+      showErr(e?.message || 'Ошибка публикации');
+    }
+  }
+
   function renderAfishaEditForm() {
     if (!afEditId) return null;
+    const isHistoryEdit = afHistory.some((ev) => String(ev?.id || '') === afEditId);
     return (
       <>
         <div className="small"><b>Редактирование</b></div>
+        {isHistoryEdit ? (
+          <div className="vx-muted" style={{ marginTop: 6 }}>
+            Повторная публикация создаст новую афишу. Старая запись останется в истории.
+          </div>
+        ) : null}
         <div className="vx-sp10" />
 
         <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -966,7 +1001,10 @@ function moveFaq(id: string, dir: -1 | 1) {
 
         <div className="vx-sp10" />
         <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
-          <button className="btn" type="button" onClick={saveAfisha}>Сохранить</button>
+          {isHistoryEdit ? (
+            <button className="btn" type="button" onClick={republishAfisha}>Опубликовать повторно</button>
+          ) : null}
+          <button className="btn" type="button" onClick={saveAfisha}>{isHistoryEdit ? "Сохранить в истории" : "Сохранить"}</button>
           <button className="btn vx-btnSm" type="button" onClick={() => setAfEditId("")}>Свернуть</button>
         </div>
       </>

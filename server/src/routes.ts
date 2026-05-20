@@ -755,6 +755,33 @@ export function createApiRouter(opts: {
     return `/afisha/${filename}`;
   }
 
+  function resolveAfishaImageFile(rawUrl: string): { filePath: string; ext: string } | null {
+    const filename = getAfishaPublicFilename(rawUrl);
+    if (!filename) return null;
+
+    const ext = path.extname(filename).toLowerCase();
+    if (!['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) return null;
+
+    const dirs = Array.from(new Set([getAfishaStorageDir(), getBundledAfishaStorageDir()]));
+    for (const dir of dirs) {
+      const filePath = path.join(dir, filename);
+      if (fs.existsSync(filePath)) return { filePath, ext };
+    }
+
+    return null;
+  }
+
+  function copyAfishaImage(id: string, rawUrl: string, suffix = ''): string {
+    const source = resolveAfishaImageFile(rawUrl);
+    if (!source) return '';
+
+    const dir = getAfishaStorageDir();
+    fs.mkdirSync(dir, { recursive: true });
+    const filename = `${id}${suffix}-${Date.now()}${source.ext}`;
+    fs.copyFileSync(source.filePath, path.join(dir, filename));
+    return `/afisha/${filename}`;
+  }
+
   function saveRequestAttachmentImage(id: string, dataUrl: string, suffix = '-attachment'): string {
     const m = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/i);
     if (!m) throw new Error('bad_image');
@@ -1013,6 +1040,99 @@ export function createApiRouter(opts: {
         (store as any).afisha = items;
       });
       return res.json({ ok: true, event: afishaEventForResponse(ev) });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
+    }
+  });
+
+  router.post('/admin/afisha/:id/republish', async (req, res) => {
+    try {
+      const { isOwner, user } = await requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: 'not_owner' });
+
+      const sourceId = String((req.params as any)?.id || '').trim();
+      if (!sourceId) return res.status(400).json({ ok: false, error: 'bad_id' });
+
+      const categoriesRaw: any = (req.body as any)?.categories;
+      const categoryRaw: any = (req.body as any)?.category;
+      const catsSrc: any[] = categoriesRaw != null ? (Array.isArray(categoriesRaw) ? categoriesRaw : [categoriesRaw]) : (categoryRaw != null ? (Array.isArray(categoryRaw) ? categoryRaw : [categoryRaw]) : []);
+      const catsNormFromBody = catsSrc.length ? Array.from(new Set(catsSrc.map((x) => normCategory(x)).filter(Boolean))) : [];
+
+      const date = String((req.body as any)?.date || '').slice(0, 10);
+      const title = String((req.body as any)?.title || '').trim();
+      const timeRaw = (req.body as any)?.time;
+      const timeText = timeRaw != null ? String(timeRaw || '').trim() : '';
+      const time = timeText ? normEventTime(timeText) : '';
+      const comment = String((req.body as any)?.comment || '').trim();
+      const detailsUrl = normUrl((req.body as any)?.detailsUrl);
+      const locationUrl = normUrl((req.body as any)?.locationUrl);
+      const imageDataUrl = typeof (req.body as any)?.imageDataUrl === 'string' ? String((req.body as any).imageDataUrl) : '';
+      const previewImageDataUrl = typeof (req.body as any)?.previewImageDataUrl === 'string' ? String((req.body as any).previewImageDataUrl) : '';
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ ok: false, error: 'bad_date' });
+      if (date < todayISOInVN()) return res.status(400).json({ ok: false, error: 'bad_date_past' });
+      if (title.length < 2) return res.status(400).json({ ok: false, error: 'bad_title' });
+      if (timeText && !time) return res.status(400).json({ ok: false, error: 'bad_time' });
+      if (comment && comment.length > 300) return res.status(400).json({ ok: false, error: 'bad_comment' });
+      if (!detailsUrl) return res.status(400).json({ ok: false, error: 'bad_details_url' });
+      if (!locationUrl) return res.status(400).json({ ok: false, error: 'bad_location_url' });
+
+      const { result } = await mutateStore((store) => {
+        const items = Array.isArray((store as any).afisha) ? ((store as any).afisha as any[]) : [];
+        const source = items.find((x) => String(x?.id || '') === sourceId);
+        if (!source) return { error: 'not_found' as const };
+
+        const sourceCats = Array.isArray((source as any).categories)
+          ? (source as any).categories
+          : source.category
+          ? [source.category]
+          : [];
+        const catsNorm = catsNormFromBody.length
+          ? catsNormFromBody
+          : Array.from(new Set(sourceCats.map((x: any) => normCategory(x)).filter(Boolean)));
+        const category = catsNorm[0] || null;
+
+        if (!category) return { error: 'bad_category' as const };
+        if (catsNorm.length < 1 || catsNorm.length > 3) return { error: 'bad_categories' as const };
+
+        const now = new Date().toISOString();
+        const id = randomUUID();
+        const imageUrl = imageDataUrl && imageDataUrl.startsWith('data:')
+          ? saveAfishaImage(id, imageDataUrl)
+          : copyAfishaImage(id, String(source.imageUrl || source.previewImageUrl || ''));
+        const previewImageUrl = previewImageDataUrl && previewImageDataUrl.startsWith('data:')
+          ? saveAfishaImage(id, previewImageDataUrl, '-preview')
+          : copyAfishaImage(id, String(source.previewImageUrl || source.imageUrl || ''), '-preview') || imageUrl;
+
+        const ev: any = {
+          id,
+          category,
+          categories: catsNorm,
+          date,
+          ...(time ? { time } : {}),
+          title,
+          ...(comment ? { comment } : {}),
+          detailsUrl,
+          locationUrl,
+          ...(imageUrl ? { imageUrl } : {}),
+          ...(previewImageUrl ? { previewImageUrl } : {}),
+          created_at: now,
+          updated_at: now,
+          clicks: { details: 0, location: 0 },
+          created_by: user?.id || 0,
+          republished_from: sourceId,
+          original_date: String(source.date || '')
+        };
+
+        items.push(ev);
+        (store as any).afisha = items;
+        return { event: ev };
+      });
+
+      const out: any = result;
+      if (out.error === 'not_found') return res.status(404).json({ ok: false, error: 'not_found' });
+      if (out.error) return res.status(400).json({ ok: false, error: out.error });
+      return res.json({ ok: true, event: afishaEventForResponse(out.event) });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || 'auth_failed' });
     }

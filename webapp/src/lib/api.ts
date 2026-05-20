@@ -494,7 +494,7 @@ export async function apiAdminGetAfisha(token: string, params: { scope?: 'active
 
 export async function apiAdminCreateAfisha(
   token: string,
-  payload: { category: string; date: string; title: string; comment?: string; detailsUrl: string; locationUrl: string; imageDataUrl?: string | null; previewImageDataUrl?: string | null }
+  payload: { category?: string; categories?: string[]; date: string; time?: string; title: string; comment?: string; detailsUrl: string; locationUrl: string; imageDataUrl?: string | null; previewImageDataUrl?: string | null }
 ): Promise<any> {
   const r = await fetch('/api/admin/afisha', {
     method: 'POST',
@@ -507,10 +507,23 @@ export async function apiAdminCreateAfisha(
 export async function apiAdminUpdateAfisha(
   token: string,
   id: string,
-  payload: Partial<{ category: string; date: string; title: string; comment?: string; detailsUrl: string; locationUrl: string; imageDataUrl?: string | null; previewImageDataUrl?: string | null }>
+  payload: Partial<{ category: string; categories: string[]; date: string; time: string; title: string; comment?: string; detailsUrl: string; locationUrl: string; imageDataUrl?: string | null; previewImageDataUrl?: string | null }>
 ): Promise<any> {
   const r = await fetch(`/api/admin/afisha/${encodeURIComponent(id)}`, {
     method: 'PUT',
+    headers: { 'content-type': 'application/json', ...adminAuthHeaders(token) },
+    body: JSON.stringify(payload)
+  });
+  return readJsonSafe(r);
+}
+
+export async function apiAdminRepublishAfisha(
+  token: string,
+  id: string,
+  payload: Partial<{ category: string; categories: string[]; date: string; time: string; title: string; comment?: string; detailsUrl: string; locationUrl: string; imageDataUrl?: string | null; previewImageDataUrl?: string | null }>
+): Promise<any> {
+  const r = await fetch(`/api/admin/afisha/${encodeURIComponent(id)}/republish`, {
+    method: 'POST',
     headers: { 'content-type': 'application/json', ...adminAuthHeaders(token) },
     body: JSON.stringify(payload)
   });
