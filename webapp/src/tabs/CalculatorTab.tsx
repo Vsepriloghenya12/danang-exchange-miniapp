@@ -412,17 +412,17 @@ function allowedReceiveMethods(buyCurrency: Currency, sellCurrency?: Currency, b
 }
 
 function hasVndRateMarkup(sellCurrency: Currency, buyCurrency: Currency) {
-  return buyCurrency === "VND" && (sellCurrency === "RUB" || sellCurrency === "USDT");
+  return buyCurrency === "VND" && (sellCurrency === "RUB" || sellCurrency === "USD" || sellCurrency === "USDT");
 }
 
-// ======= Бонусы лояльности (только RUB/USDT -> VND) =======
+// ======= Бонусы лояльности (только RUB/USD/USDT -> VND) =======
 function tierBonusForRate(
   sellCurrency: Currency,
   sellAmount: number,
   status: ClientStatus,
   bonuses?: BonusesConfig | null
 ): number {
-  if (sellCurrency !== "RUB" && sellCurrency !== "USDT") return 0;
+  if (sellCurrency !== "RUB" && sellCurrency !== "USD" && sellCurrency !== "USDT") return 0;
   if (sellAmount <= 0) return 0;
 
   // If bonuses config is present and tiers are disabled, do not apply any status/tier markup
@@ -477,7 +477,7 @@ function methodBonusForRate(
   // If bonuses config is present and method markups are disabled, do not apply any method markup
   if (bonuses && bonuses.enabled && bonuses.enabled.methods === false) return 0;
 
-  // Надбавка применяется только для RUB/USDT -> VND и зависит от способа получения.
+  // Надбавка применяется только для RUB/USD/USDT -> VND и зависит от способа получения.
   // Оплата (нал/перевод) на неё не влияет.
   // Наличными (cash) надбавка не применяется.
   void payMethod;
@@ -487,7 +487,7 @@ function methodBonusForRate(
   // configurable bonuses from server
   if (bonuses?.enabled?.methods) {
     const row = (bonuses.methods as any)?.[receiveMethod];
-    if (row && (sellCurrency === "RUB" || sellCurrency === "USDT")) {
+    if (row && (sellCurrency === "RUB" || sellCurrency === "USD" || sellCurrency === "USDT")) {
       const v = Number(row?.[sellCurrency]);
       return Number.isFinite(v) ? v : 0;
     }
@@ -495,6 +495,7 @@ function methodBonusForRate(
   }
 
   if (sellCurrency === "RUB") return 1;
+  if (sellCurrency === "USD") return 100;
   if (sellCurrency === "USDT") return 100;
   return 0;
 }
@@ -1147,7 +1148,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   ]);
 
   const rateInfo = useMemo(() => {
-    // бонусы показываем только для RUB/USDT -> VND, и только если НЕ gMode
+    // бонусы показываем только для RUB/USD/USDT -> VND, и только если НЕ gMode
     if (gMode) return null;
     if (!rates) return null;
     if (!hasVndRateMarkup(sellCurrency, buyCurrency)) return null;
