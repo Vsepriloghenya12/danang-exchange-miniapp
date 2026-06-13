@@ -5,7 +5,6 @@ import type { UserStatus } from "./lib/types";
 
 import RatesTab from "./tabs/RatesTab";
 import CalculatorTab from "./tabs/CalculatorTab";
-import AfishaTab from "./tabs/AfishaTab";
 import AtmTab from "./tabs/AtmTab";
 import ReviewsTab from "./tabs/ReviewsTab";
 import StaffTab from "./tabs/StaffTab";
@@ -30,14 +29,9 @@ type Me = {
   error?: string;
 };
 
-type ScreenKey = "home" | "calc" | "afisha" | "atm" | "reviews" | "staff" | "pay" | "history" | "other" | "faq" | "about" | "contacts";
+type ScreenKey = "home" | "calc" | "atm" | "reviews" | "staff" | "pay" | "history" | "other" | "faq" | "about" | "contacts";
 type Lang = "ru" | "en";
-type HomeSection = "calc" | "afisha" | "atm" | "reviews";
-
-type LaunchTarget = {
-  screen?: ScreenKey;
-  eventId?: string;
-};
+type HomeSection = "calc" | "atm" | "reviews";
 
 function readPreferredLang(): Lang {
   try {
@@ -241,24 +235,6 @@ function statusTitle(s: UserStatus) {
   return "Стандарт";
 }
 
-function parseLaunchTarget(tg: any): LaunchTarget {
-  try {
-    const q = new URLSearchParams(window.location.search || "");
-    const rawEventId = String(q.get("event") || q.get("afisha") || "").trim();
-    const rawScreen = String(q.get("screen") || "").toLowerCase().trim();
-    if (rawEventId) return { screen: "afisha", eventId: rawEventId };
-    if (rawScreen === "afisha") return { screen: "afisha" };
-
-    const startParam = String(tg?.initDataUnsafe?.start_param || q.get("startapp") || "").trim();
-    if (!startParam) return {};
-
-    const m = startParam.match(/^afisha[:_\/-](.+)$/i);
-    if (m?.[1]) return { screen: "afisha", eventId: decodeURIComponent(m[1]) };
-    if (/^afisha$/i.test(startParam)) return { screen: "afisha" };
-  } catch {}
-  return {};
-}
-
 export default function App() {
   // Owner portal is a separate browser page (/admin), not inside the miniapp UI.
   if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) {
@@ -294,20 +270,9 @@ export default function App() {
       "/brand/status-standard.svg?v48-standard",
       "/brand/status-silver.svg?v48-silver",
       "/brand/status-gold.svg?v48-gold",
-      "/brand/icons/tab-afisha-256.png?v=1",
       "/brand/icons/tab-atm-256.png?v=1",
       "/brand/icons/tab-rates-256.png?v=1",
       "/brand/icons/tab-reviews-256.png?v=1",
-      "/brand/afisha-sport.png?v=afisha-cats-20260328-2",
-      "/brand/afisha-party.png?v=afisha-cats-20260328-2",
-      "/brand/afisha-culture.png?v=afisha-cats-20260328-2",
-      "/brand/afisha-food.png?v=afisha-cats-20260328-2",
-      "/brand/afisha-music.png?v=afisha-cats-20260328-2",
-      "/brand/afisha-games.png?v=afisha-cats-20260328-2",
-      "/brand/afisha-market.png?v=afisha-cats-20260328-2",
-      "/brand/afisha-learning.png?v=afisha-cats-20260328-2",
-      "/brand/afisha-misc.png?v=afisha-cats-20260328-2",
-      "/brand/afisha-all.jpg?v=afisha-cats-20260328-2",
     ];
     try {
       urls.forEach((u) => {
@@ -423,7 +388,6 @@ export default function App() {
 
   const [me, setMe] = useState<Me>({ ok: false, initData: "" });
   const [screen, setScreen] = useState<ScreenKey>("home");
-  const [launchAfishaEventId, setLaunchAfishaEventId] = useState<string>("");
   const [homeSection, setHomeSection] = useState<HomeSection>("calc");
   const [courseExpanded, setCourseExpanded] = useState(false);
   const [visited, setVisited] = useState<Record<string, boolean>>({ home: true });
@@ -476,13 +440,6 @@ export default function App() {
   useEffect(() => {
     tg?.ready?.();
     tg?.expand?.();
-
-    const launchTarget = parseLaunchTarget(tg);
-    if (launchTarget.screen === "afisha") {
-      setScreen("home");
-      setHomeSection("afisha");
-      if (launchTarget.eventId) setLaunchAfishaEventId(launchTarget.eventId);
-    }
 
     const initData = tg?.initData || "";
     if (!initData && !isDemo) {
@@ -563,29 +520,6 @@ export default function App() {
       void warm.marketRates().catch(() => {});
       void warm.gFormulas().catch(() => {});
       void warm.bonuses().catch(() => {});
-      void warm.afisha()
-        .then((r: any) => {
-          const urls = Array.isArray(r?.events)
-            ? Array.from(
-                new Set(
-                  r.events
-                    .map((ev: any) => String(ev?.previewImageUrl || ev?.imageUrl || "").trim())
-                    .filter(Boolean)
-                )
-              ).slice(0, 10)
-            : [];
-          urls.forEach((u) => {
-            try {
-              const img = new Image();
-              img.decoding = "async";
-              (img as any).loading = "eager";
-              img.src = u;
-            } catch {
-              // ignore
-            }
-          });
-        })
-        .catch(() => {});
       void warm.atms().catch(() => {});
       void warm.faq().catch(() => {});
       void warm.reviews().catch(() => {});
@@ -597,7 +531,7 @@ export default function App() {
   }, [me.ok, me.initData]);
 
   useEffect(() => {
-    if (screen === "calc" || screen === "afisha" || screen === "atm" || screen === "reviews") {
+    if (screen === "calc" || screen === "atm" || screen === "reviews") {
       setHomeSection(screen === "calc" ? "calc" : screen);
       setScreen("home");
     }
@@ -724,14 +658,6 @@ ${msg}`);
                 </button>
                 <button
                   type="button"
-                  className={"mx-homeTab " + (homeSection === "afisha" ? "is-active" : "")}
-                  onClick={() => openHomeSection("afisha", "home_tab_afisha")}
-                  aria-current={homeSection === "afisha" ? "page" : undefined}
-                >
-                  {isEn ? "Events" : "Афиша"}
-                </button>
-                <button
-                  type="button"
                   className={"mx-homeTab " + (homeSection === "atm" ? "is-active" : "")}
                   onClick={() => openHomeSection("atm", "home_tab_atm")}
                   aria-current={homeSection === "atm" ? "page" : undefined}
@@ -782,16 +708,6 @@ ${msg}`);
                     </div>
                   </div>
                 </>
-              ) : null}
-
-              {homeSection === "afisha" ? (
-                <div className="mx-homePanel">
-                  <AfishaTab
-                    lang={lang}
-                    focusEventId={launchAfishaEventId}
-                    onFocusHandled={(id) => setLaunchAfishaEventId((prev) => (prev === id ? "" : prev))}
-                  />
-                </div>
               ) : null}
 
               {homeSection === "atm" ? (
