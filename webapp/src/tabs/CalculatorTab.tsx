@@ -666,10 +666,12 @@ const MIN_SELL_AMOUNTS: Record<Currency, number> = {
   VND: 6_500_000,
 };
 
-const CASH_DELIVERY_MIN_AMOUNTS: Partial<Record<Currency, number>> = {
+const CASH_DELIVERY_MIN_AMOUNTS: Record<string, number> = {
   RUB: 20_000,
   USD: 200,
+  EUR: 200,
   USDT: 200,
+  THB: 100_000,
 };
 
 function minSellAmountLabel(cur: Currency): string {
@@ -1205,7 +1207,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
   const conditionsItems = useMemo(() => (isEn ? [
     "Service hours: daily from 10:00 to 22:00. After 20:00 only remote exchange is available.",
-    "Cash delivery is available from 20,000₽ / 200$ / 200 USDT.",
+    "For exchanges below 20,000 RUB / 200 USD / 200 EUR / 200 USDT / 100,000 THB, delivery costs from 70,000 VND.",
     "Minimum RUB amount — 10,000 ₽.",
     "Minimum USD / EUR / USDT amount — 100.",
     "Minimum THB amount — 10,000 baht.",
@@ -1216,7 +1218,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     "VND → VND: fee is 2%, but at least 100,000 VND. Payment is cash or transfer; receive is cash, transfer, or ATM.",
   ] : [
     "Время работы сервиса: ежедневно с 10:00 до 22:00. После 20:00 возможен только дистанционный обмен.",
-    "Доставка наличных возможна при обмене от 20,000₽/200$/200USDT.",
+    "При обмене менее 20,000₽ / 200$ / 200€ / 200 USDT / 100,000 THB стоимость доставки составит от 70,000 VND.",
     "Минимальная сумма RUB для обмена — 10,000 ₽.",
     "Минимальная сумма USD / EUR / USDT для обмена — 100.",
     "Минимальная сумма THB для обмена — 10,000 бат.",
@@ -1669,7 +1671,11 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
             {vndAtmNote ? <div className="vx-note">{vndAtmNote}</div> : null}
             {invalidVndBuyAtm ? <div className="vx-warn">{isEn ? "VND via ATM must be in multiples of 100,000." : "Получение VND через банкомат должно быть кратно 100,000."}</div> : null}
             {minSellNote ? <div className="vx-warn">{minSellNote}</div> : null}
-            {showCashDeliveryNote ? <div className="vx-warn">{isEn ? "Cash delivery is available from 20,000₽ / 200$ / 200 USDT." : "Доставка наличных возможна при обмене от 20,000₽/200$/200USDT."}</div> : null}
+            {showCashDeliveryNote ? (
+              <div className="vx-warn" role="alert">
+                {isEn ? "Delivery will cost from 70,000 VND." : "Стоимость доставки составит от 70,000 VND."}
+              </div>
+            ) : null}
 
             {!isAdminMode ? (
               <>
