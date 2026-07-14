@@ -54,6 +54,52 @@ function PaperclipIcon({ className = "" }: { className?: string }) {
   );
 }
 
+function ChevronDownIcon() {
+  return (
+    <svg className="cx-curChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+function SwapIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M7 4v15M7 4L4 7.5M7 4l3 3.5M17 20V5M17 20l3-3.5M17 20l-3-3.5" />
+    </svg>
+  );
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+function currencySymbol(c: Currency): string {
+  switch (c) {
+    case "RUB": return "₽";
+    case "USDT": return "₮";
+    case "USD": return "$";
+    case "EUR": return "€";
+    case "THB": return "฿";
+    case "VND": return "₫";
+    default: return c;
+  }
+}
+
+function fmtUnitRate(value: number, isEn: boolean): string {
+  if (!Number.isFinite(value)) return "—";
+  const decimals = value < 10 ? 3 : value < 1000 ? 1 : 0;
+  const text = new Intl.NumberFormat(isEn ? "en-US" : "ru-RU", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+  }).format(value);
+  return isEn ? text.replace(/,/g, " ") : text;
+}
+
 async function copyPlainText(value: string) {
   const text = String(value || "");
   if (!text) return false;
@@ -700,6 +746,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState<Rates | null>(null);
+  const [ratesUpdatedAt, setRatesUpdatedAt] = useState<string | null>(null);
   const [market, setMarket] = useState<MarketRatesResponse | null>(null);
   const [bonuses, setBonuses] = useState<BonusesConfig | null>(null);
   const [formulas, setFormulas] = useState<Record<string, { buyMul: number; sellMul: number }>>(DEFAULT_G_FORMULAS);
@@ -860,9 +907,15 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
         const res = await fetch(`/api/rates/today?_=${Date.now()}`, { cache: "no-store" });
         const json = await res.json();
         const r: Rates | null = json?.data?.rates ?? null;
-        if (alive) setRates(r);
+        if (alive) {
+          setRates(r);
+          setRatesUpdatedAt(json?.data?.updated_at ? String(json.data.updated_at) : null);
+        }
       } catch {
-        if (alive) setRates(null);
+        if (alive) {
+          setRates(null);
+          setRatesUpdatedAt(null);
+        }
       }
     };
 
@@ -1162,6 +1215,45 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     const m = methodBonusForRate(sellCurrency, buyCurrency, payMethod, receiveMethod, bonuses);
     return { base, tier, m, eff: base + tier + m };
   }, [gMode, rates, buyCurrency, sellCurrency, sellAmount, clientStatus, payMethod, receiveMethod, bonuses]);
+
+  // "1 ₽ = 300 ₫" line under the amount cards (redesign). Uses the effective rate when bonuses apply.
+  const unitRate = useMemo(() => {
+    if (sellCurrency === buyCurrency) return null;
+
+    if (gMode) {
+      const direct = getGPairRates(market, formulas, sellCurrency, buyCurrency);
+      if (direct) return { unitCur: sellCurrency, quoteCur: buyCurrency, rate: direct.buy };
+      const inverse = getGPairRates(market, formulas, buyCurrency, sellCurrency);
+      if (inverse && inverse.sell > 0) return { unitCur: buyCurrency, quoteCur: sellCurrency, rate: inverse.sell };
+      return null;
+    }
+
+    if (!rates) return null;
+    if (buyCurrency === "VND" && sellCurrency !== "VND") {
+      const base = getRate(rates, sellCurrency)?.buy_vnd;
+      if (!base) return null;
+      const eff = rateInfo ? rateInfo.eff : base;
+      return { unitCur: sellCurrency, quoteCur: "VND" as Currency, rate: eff };
+    }
+    if (sellCurrency === "VND" && buyCurrency !== "VND") {
+      const sell = getRate(rates, buyCurrency)?.sell_vnd;
+      if (!sell) return null;
+      return { unitCur: buyCurrency, quoteCur: "VND" as Currency, rate: sell };
+    }
+    return null;
+  }, [gMode, market, formulas, rates, sellCurrency, buyCurrency, rateInfo]);
+
+  const rateUpdatedLabel = useMemo(() => {
+    const iso = gMode ? (market?.ok ? market.updated_at : null) : ratesUpdatedAt;
+    if (!iso) return null;
+    const t = new Date(iso).getTime();
+    if (!Number.isFinite(t)) return null;
+    const mins = Math.max(0, Math.round((danangNowMs - t) / 60_000));
+    if (mins < 1) return isEn ? "updated just now" : "обновлён только что";
+    if (mins < 60) return isEn ? `updated ${mins} min ago` : `обновлён ${mins} мин назад`;
+    const hours = Math.floor(mins / 60);
+    return isEn ? `updated ${hours} h ago` : `обновлён ${hours} ч назад`;
+  }, [gMode, market, ratesUpdatedAt, danangNowMs, isEn]);
 
   const sameCurrencyAllowed = sellCurrency === buyCurrency ? sellCurrency === "VND" && buyCurrency === "VND" : true;
   const isVndToVnd = sellCurrency === "VND" && buyCurrency === "VND";
@@ -1479,11 +1571,11 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     : null;
 
   return (
-    <div className="vx-calc">
+    <div className="vx-calc cx-calc">
       {!isAdminMode ? (
-        <div className="vx-calcTitle" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-          <div className="vx-muted">{isEn ? "Status" : "Статус"}: {uiStatusLabel(clientStatus)}</div>
-          <button type="button" className="vx-conditionsBtn" title={isEn ? "Exchange conditions" : "Условия обмена"} onClick={() => setShowConditions(true)}>i</button>
+        <div className="cx-statusLine">
+          <span>{isEn ? "Status" : "Статус"}: {uiStatusLabel(clientStatus)}</span>
+          <button type="button" className="cx-infoBtn" title={isEn ? "Exchange conditions" : "Условия обмена"} onClick={() => setShowConditions(true)}>i</button>
         </div>
       ) : null}
 
@@ -1534,27 +1626,43 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
         </div>
       ) : null}
 
-      <div className="vx-calcBox">
-        <div className="vx-calcGrid">
-          <div className="vx-calcMain">
-            <div className="vx-exRow">
-              <select value={sellCurrency} onChange={(e) => {
-                preserveSwappedValuesRef.current = false;
-                setSellCurrency(e.target.value as Currency);
-              }}>
-                {CURRENCY_OPTIONS.map((c) => (
-                  <option key={"sell-" + c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+      <div className="cx-calcBody">
+        <div className="cx-amountCards">
+          <div className="cx-amtCard">
+            <div className="cx-amtLabel">
+              <span>{isEn ? "You give" : "Вы отдаёте"}</span>
+              {!(isVndToVnd && sellCurrency === "VND") ? (
+                <span className="cx-amtLabelHint">{isEn ? "min." : "мин."} {minSellAmountLabel(sellCurrency)}</span>
+              ) : null}
+            </div>
+            <div className="cx-amtRow">
+              <span className="cx-curChip">
+                <span className="cx-curCircle" data-cur={sellCurrency} aria-hidden="true">{currencySymbol(sellCurrency)}</span>
+                <span className="cx-curCode">{sellCurrency}</span>
+                <ChevronDownIcon />
+                <select
+                  className="cx-curSelect"
+                  aria-label={isEn ? "Currency you give" : "Валюта, которую отдаёте"}
+                  value={sellCurrency}
+                  onChange={(e) => {
+                    preserveSwappedValuesRef.current = false;
+                    setSellCurrency(e.target.value as Currency);
+                  }}
+                >
+                  {CURRENCY_OPTIONS.map((c) => (
+                    <option key={"sell-" + c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </span>
 
               <input
                 ref={sellInputRef}
                 inputMode={sellCurrency === "USDT" ? "decimal" : "numeric"}
-                placeholder={uiAmountPlaceholder(isEn ? "You give" : "Отдаю", sellCurrency, isVndToVnd)}
+                placeholder="0"
                 value={sellText}
-                className={invalidUsdSell || invalidEurSell || invalidThbSell || invalidVndSellCash || invalidMinSell ? "vx-inputInvalid" : ""}
+                className={"cx-amtInput" + (invalidUsdSell || invalidEurSell || invalidThbSell || invalidVndSellCash || invalidMinSell ? " cx-amtInvalid" : "")}
                 onChange={(e) => {
                   preserveSwappedValuesRef.current = false;
                   lastEdited.current = "sell";
@@ -1565,32 +1673,41 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                   setSellText(next);
                 }}
               />
-
-              <button type="button" onClick={swapCurrencies} className="vx-iconBtn" title={isEn ? "Swap" : "Поменять местами"}>
-                ⇄
-              </button>
             </div>
+          </div>
 
-            <div className="vx-sp10" />
-
-            <div className="vx-exRow">
-              <select value={buyCurrency} onChange={(e) => {
-                preserveSwappedValuesRef.current = false;
-                setBuyCurrency(e.target.value as Currency);
-              }}>
-                {CURRENCY_OPTIONS.map((c) => (
-                  <option key={"buy-" + c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+          <div className="cx-amtCard cx-amtCardGet">
+            <div className="cx-amtLabel">
+              <span>{isEn ? "You get" : "Вы получаете"}</span>
+            </div>
+            <div className="cx-amtRow">
+              <span className="cx-curChip">
+                <span className="cx-curCircle" data-cur={buyCurrency} aria-hidden="true">{currencySymbol(buyCurrency)}</span>
+                <span className="cx-curCode">{buyCurrency}</span>
+                <ChevronDownIcon />
+                <select
+                  className="cx-curSelect"
+                  aria-label={isEn ? "Currency you get" : "Валюта, которую получаете"}
+                  value={buyCurrency}
+                  onChange={(e) => {
+                    preserveSwappedValuesRef.current = false;
+                    setBuyCurrency(e.target.value as Currency);
+                  }}
+                >
+                  {CURRENCY_OPTIONS.map((c) => (
+                    <option key={"buy-" + c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </span>
 
               <input
                 ref={buyInputRef}
                 inputMode={buyCurrency === "USDT" ? "decimal" : "numeric"}
-                placeholder={uiAmountPlaceholder(isEn ? "You get" : "Получаю", buyCurrency, isVndToVnd)}
+                placeholder="0"
                 value={buyText}
-                className={invalidUsdBuy || invalidEurBuy || invalidThbBuy || invalidVndBuyCash || invalidVndBuyAtm ? "vx-inputInvalid" : ""}
+                className={"cx-amtInput" + (invalidUsdBuy || invalidEurBuy || invalidThbBuy || invalidVndBuyCash || invalidVndBuyAtm ? " cx-amtInvalid" : "")}
                 onChange={(e) => {
                   preserveSwappedValuesRef.current = false;
                   lastEdited.current = "buy";
@@ -1601,69 +1718,88 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                   setBuyText(next);
                 }}
               />
-
-              <div className="vx-iconBtnGhost" aria-hidden="true" />
             </div>
           </div>
 
-          <div className="vx-calcSide">
-            <div className="vx-sectionTitle">{isEn ? "Payment" : "Оплата"}</div>
-            <div className="vx-methods">
-              {allowedPay.map((m) => {
-                return (
-                  <div
+          <button type="button" className="cx-swapFab" onClick={swapCurrencies} title={isEn ? "Swap" : "Поменять местами"} aria-label={isEn ? "Swap currencies" : "Поменять валюты местами"}>
+            <SwapIcon />
+          </button>
+        </div>
+
+        {unitRate || rateUpdatedLabel ? (
+          <div className="cx-rateNote">
+            {unitRate ? (
+              <span className="cx-rateValue">
+                1&nbsp;{currencySymbol(unitRate.unitCur)}&nbsp;=&nbsp;{fmtUnitRate(unitRate.rate, isEn)}&nbsp;{currencySymbol(unitRate.quoteCur)}
+              </span>
+            ) : null}
+            {unitRate && rateUpdatedLabel ? <span className="cx-rateNoteDot">•</span> : null}
+            {rateUpdatedLabel ? (
+              <>
+                <span className="cx-freshDot" aria-hidden="true" />
+                <span>{rateUpdatedLabel}</span>
+              </>
+            ) : null}
+          </div>
+        ) : (
+          <div style={{ height: 13 }} />
+        )}
+
+        {rateInfo && (rateInfo.tier > 0 || rateInfo.m > 0) ? (
+          <div className="cx-bonusLine">
+            {isEn ? "Rate" : "Курс"}: {fmtAmount("VND", rateInfo.base)} + {isEn ? "status" : "статус"} {fmtAmount("VND", rateInfo.tier)} + {isEn ? "method" : "способ"} {fmtAmount("VND", rateInfo.m)} = {fmtAmount("VND", rateInfo.eff)}
+          </div>
+        ) : null}
+
+        <div className="cx-calcSide">
+          {allowedPay.length ? (
+            <>
+              <div className="cx-methodsLabel">{isEn ? "Payment" : "Оплата"}</div>
+              <div className="cx-methods">
+                {allowedPay.map((m) => (
+                  <button
                     key={m}
-                    className={
-                      "vx-pill " +
-                      (payMethod === m ? "vx-pillActive " : "")
-                    }
+                    type="button"
+                    className={"cx-methodBtn" + (payMethod === m ? " is-active" : "")}
                     onClick={() => {
                       preserveSwappedValuesRef.current = false;
                       payMethodAutoSelectedRef.current = false;
                       setPayMethod(m);
                     }}
-                    role="button"
                   >
                     {uiMethodLabel(m)}
-                  </div>
-                );
-              })}
-            </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
 
-            <div className="vx-sectionTitle">{isEn ? "Receive" : "Получение"}</div>
-            <div className="vx-methods">
-              {allowedRecv.map((m) => {
-                return (
-                  <div
+          {allowedRecv.length ? (
+            <>
+              <div className="cx-methodsLabel">{isEn ? "Receive" : "Получение"}</div>
+              <div className="cx-methods">
+                {allowedRecv.map((m) => (
+                  <button
                     key={m}
-                    className={
-                      "vx-pill " +
-                      (receiveMethod === m ? "vx-pillActive " : "")
-                    }
+                    type="button"
+                    className={"cx-methodBtn" + (receiveMethod === m ? " is-active" : "")}
                     onClick={() => {
                       preserveSwappedValuesRef.current = false;
                       receiveMethodAutoSelectedRef.current = false;
                       setReceiveMethod(m);
                     }}
-                    role="button"
                   >
                     {uiMethodLabel(m)}
-                  </div>
-                );
-              })}
-            </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
 
             {usdNote ? <div className="vx-note">{usdNote}</div> : null}
             {eurNote ? <div className="vx-note">{eurNote}</div> : null}
             {vndNote ? <div className="vx-note">{vndNote}</div> : null}
             {thbNote ? <div className="vx-note">{thbNote}</div> : null}
-
-            {rateInfo ? (
-              <div className="vx-rateLine">
-                {isEn ? "Rate" : "Курс"}: <b>{fmtAmount("VND", rateInfo.base)}</b> + {isEn ? "status" : "статус"} <b>{fmtAmount("VND", rateInfo.tier)}</b> + {isEn ? "method" : "способ"}{" "}
-                <b>{fmtAmount("VND", rateInfo.m)}</b> = <b>{fmtAmount("VND", rateInfo.eff)}</b>
-              </div>
-            ) : null}
 
             {invalidUsdSell || invalidUsdBuy ? <div className="vx-warn">{isEn ? "USD: cash only, in multiples of 100." : "USD: передать и получить можно только наличными, кратно 100."}</div> : null}
             {invalidEurSell || invalidEurBuy ? <div className="vx-warn">{isEn ? "EUR: cash only, in multiples of 50." : "EUR: передать и получить можно только наличными, кратно 50."}</div> : null}
@@ -1739,20 +1875,21 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
                   <div className="vx-sp12" />
 
-                  <div className="vx-requestActionRow">
+                  <div className="cx-ctaRow">
                     <button
                       type="button"
-                      className={"vx-primary vx-requestSendBtn" + (!canSend ? " is-disabled" : "")}
+                      className={"cx-cta" + (!canSend ? " is-disabled" : "")}
                       disabled={sendButtonDisabled}
                       aria-disabled={!canSend}
                       onClick={sendRequest}
                     >
                       {isEn ? "Send request" : "Отправить заявку"}
+                      <ArrowRightIcon />
                     </button>
 
                     <button
                       type="button"
-                      className={"vx-requestAttachBtn" + (requestAttachmentImageDataUrl ? " is-active" : "")}
+                      className={"cx-attachBtn" + (requestAttachmentImageDataUrl ? " is-active" : "")}
                       onClick={() => requestAttachmentInputRef.current?.click()}
                       aria-label={isEn ? "Attach image" : "Прикрепить фото"}
                       title={isEn ? "Attach image" : "Прикрепить фото"}
@@ -1763,7 +1900,6 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                 </div>
               </>
             ) : null}
-          </div>
         </div>
       </div>
     </div>

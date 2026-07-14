@@ -91,51 +91,69 @@ export default function AtmTab({ isActive = true, lang = "ru" }: { isActive?: bo
   }
 
   return (
-    <div className="vx-atm">
-      <div className="vx-atmHintBox">
-        <div className="vx-atmHint">
-          {isEn ? "You can withdraw cash from " : "Вы можете получить наличные в банкоматах "}
-          <span className="vx-bankBrand vx-bankBrandVcb">VIETCOMBANK</span>
+    <div className="vx-atm cx-atm">
+      <div className="cx-card cx-atmInfo">
+        <span className="cx-atmInfoIcon" aria-hidden="true">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="2.5" width="14" height="19" rx="2" />
+            <path d="M8 6h8M8 10h8M9 21v-4h6v4" />
+          </svg>
+        </span>
+        <div className="cx-atmInfoText">
+          {isEn ? "Withdraw cash without commission from " : "Снимайте наличные без комиссии в банкоматах "}
+          <b className="cx-bankVcb">Vietcombank</b>
           {isEn ? " and " : " и "}
-          <span className="vx-bankBrand vx-bankBrandBidv">BIDV</span>
-          {isEn ? " in any city of Vietnam." : " в любом городе Вьетнама."}
+          <b className="cx-bankBidv">BIDV</b>
+          {isEn ? " ATMs across Vietnam." : " по всему Вьетнаму."}
         </div>
       </div>
 
-      <div className="vx-sp14" />
+      <div className="cx-sectionLabel">{isEn ? "Video guides" : "Видео-инструкции"}</div>
 
-      <div className="vx-atmBtnGrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <button type="button" className={"btn vx-atmBtn " + (active === "vietcombank" ? "vx-btnOn" : "")} onClick={() => setActive((p) => (p === "vietcombank" ? null : "vietcombank"))}>
-          {isEn ? "Video " : "Видео "}
-          <span className="vx-bankBrand vx-bankBrandVcb">Vietcombank</span>
+      <div className="cx-videoList">
+        <button type="button" className="cx-videoCard" onClick={() => setActive((p) => (p === "vietcombank" ? null : "vietcombank"))}>
+          <span className="cx-videoThumb is-vcb" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+          </span>
+          <span className="cx-videoBody">
+            <span className="cx-videoName">Vietcombank</span>
+            <span className="cx-videoSub">{isEn ? "How to withdraw cash" : "Как снять наличные"}</span>
+          </span>
+          <span className="cx-videoTag">{isEn ? "video" : "видео"}</span>
         </button>
-        <button type="button" className={"btn vx-atmBtn " + (active === "bidv" ? "vx-btnOn" : "")} onClick={() => setActive((p) => (p === "bidv" ? null : "bidv"))}>
-          {isEn ? "Video " : "Видео "}
-          <span className="vx-bankBrand vx-bankBrandBidv">BIDV</span>
+        <button type="button" className="cx-videoCard" onClick={() => setActive((p) => (p === "bidv" ? null : "bidv"))}>
+          <span className="cx-videoThumb is-bidv" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+          </span>
+          <span className="cx-videoBody">
+            <span className="cx-videoName">BIDV</span>
+            <span className="cx-videoSub">{isEn ? "How to withdraw cash" : "Как снять наличные"}</span>
+          </span>
+          <span className="cx-videoTag">{isEn ? "video" : "видео"}</span>
         </button>
       </div>
 
-      <div className="vx-sp14" />
-
-      <button className="btn vx-atmFindBtn" type="button" onClick={() => openLink(FIND_ATM_URL)}>
-        {isEn ? "Find the nearest ATM on the map" : "Найти ближайший ко мне банкомат"}
+      <button className="cx-cta" type="button" onClick={() => openLink(FIND_ATM_URL)}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 21s-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-7 11-7 11z" />
+          <circle cx="12" cy="10" r="2.6" />
+        </svg>
+        {isEn ? "Find on the map" : "Найти на карте"}
       </button>
 
-      <div className="vx-sp14" />
-
-      <div className="vx-atmNote">
-        {isEn ? "If you see a nearby " : "Если вы видите рядом с собой банкомат "}
-        <span className="vx-bankBrand vx-bankBrandVcb">Vietcombank</span>
-        {isEn ? " or " : " или "}
-        <span className="vx-bankBrand vx-bankBrandBidv">BIDV</span>
-        {isEn ? ", which is not marked on our map, please send its location to our manager." : ", который не отмечен на нашей карте, пожалуйста, отправьте его локацию нашему менеджеру."}
+      <div className="cx-suggestBox">
+        <div className="cx-suggestText">
+          {isEn
+            ? "Found a Vietcombank or BIDV ATM that is not on the map?"
+            : "Нашли банкомат Vietcombank или BIDV, которого нет на карте?"}
+        </div>
+        <button className="cx-suggestBtn" type="button" onClick={() => setSuggestOpen(true)}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          {isEn ? "Suggest a location" : "Предложить точку"}
+        </button>
       </div>
-
-      <div className="vx-sp10" />
-
-      <button className="btn vx-atmSuggestBtn" type="button" onClick={() => setSuggestOpen(true)}>
-        {isEn ? "Add location" : "Добавить локацию"}
-      </button>
 
       {active ? (
         <div className="vx-modalOverlay" role="dialog" aria-modal="true" onClick={() => setActive(null)}>

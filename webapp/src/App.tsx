@@ -98,74 +98,79 @@ function IconArrowLeft({ className = "" }: { className?: string }) {
 
 function ScreenHeader({ title, onBack, lang }: { title: string; onBack?: () => void; lang?: Lang }) {
   return (
-    <div className="mx-header">
+    <div className="cx-screenHeader">
       {onBack ? (
         <button
           type="button"
-          className="mx-backBtn"
+          className="cx-backChip"
           onClick={onBack}
           aria-label={lang === "en" ? "Back" : "Назад"}
           title={lang === "en" ? "Back" : "Назад"}
         >
-          <IconArrowLeft className="mx-i" />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
         </button>
-      ) : (
-        <div style={{ width: 40 }} />
-      )}
-      <div className="mx-hTitle">{title}</div>
-      <div style={{ width: 40 }} />
+      ) : null}
+      <div className="cx-screenTitle">{title}</div>
     </div>
   );
+}
+
+function IconStar({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2l2.9 6.3 6.9.7-5.1 4.7 1.4 6.8L12 17.8 5.9 21.3l1.4-6.8L2.2 9l6.9-.7z" />
+    </svg>
+  );
+}
+
+function IconNavCard() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2.5" y="5.5" width="19" height="13" rx="2.5" />
+      <path d="M2.5 10h19" />
+    </svg>
+  );
+}
+
+function IconNavReceipt() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 3h12v18l-2.4-1.4L13.2 21 12 20l-1.2 1-2.4-1.4L6 21z" />
+      <path d="M9.5 8h5M9.5 12h5" />
+    </svg>
+  );
+}
+
+function IconNavGrid() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3.5" y="3.5" width="7" height="7" rx="2" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="2" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="2" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="2" />
+    </svg>
+  );
+}
+
+function getDanangHour(nowMs: number): number {
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date(nowMs));
+    const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+    return Number.isFinite(hour) ? hour : 0;
+  } catch {
+    return new Date(nowMs).getHours();
+  }
 }
 
 function ScreenPane({ active, children }: { active: boolean; children: React.ReactNode }) {
   return <div className={"mx-screenPane " + (active ? "is-active" : "is-hidden")}>{children}</div>;
 }
-
-function StatusIcon({ status }: { status?: UserStatus }) {
-  // Telegram WebView can be slow to paint images after navigation.
-  // Use real existing files first, otherwise Telegram spends time trying missing assets.
-  const bust = `v48-${String(status || "").toLowerCase() || "x"}`;
-  const candidates = useMemo(() => {
-    const s = String(status || "").toLowerCase();
-    const list: string[] = [];
-    if (s) list.push(`/brand/status-${s}.svg`);
-    list.push("/brand/status.svg");
-    return list;
-  }, [status]);
-
-  const [idx, setIdx] = useState(0);
-  const [ok, setOk] = useState(false);
-
-  useEffect(() => {
-    setIdx(0);
-    setOk(false);
-  }, [status]);
-
-  const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
-
-  return (
-    <div className="mx-statusWrap" aria-label="Статус">
-      {!ok ? <div className="mx-statusSkeleton" aria-hidden="true" /> : null}
-      <img
-        key={src}
-        className="mx-statusImg"
-        src={src}
-        alt=""
-        loading="eager"
-        decoding="async"
-        style={{ opacity: ok ? 1 : 0 }}
-        onLoad={() => setOk(true)}
-        onError={() => {
-          setOk(false);
-          setIdx((x) => (x < candidates.length - 1 ? x + 1 : x));
-        }}
-      />
-    </div>
-  );
-}
-
-
 
 function MainLogo({ theme }: { theme: "light" | "dark" }) {
   // Separate logo files for light/dark themes. Easy to replace later.
@@ -265,14 +270,6 @@ export default function App() {
     const urls = [
       "/brand/main-logo-light.png?v31-light",
       "/brand/main-logo-dark.png?v31-dark",
-      "/brand/header-logo-light.png?v31-light",
-      "/brand/header-logo-dark.png?v31-dark",
-      "/brand/status-standard.svg?v48-standard",
-      "/brand/status-silver.svg?v48-silver",
-      "/brand/status-gold.svg?v48-gold",
-      "/brand/icons/tab-atm-256.png?v=1",
-      "/brand/icons/tab-rates-256.png?v=1",
-      "/brand/icons/tab-reviews-256.png?v=1",
     ];
     try {
       urls.forEach((u) => {
@@ -348,23 +345,16 @@ export default function App() {
     }
   }, []);
 
-  // Preload status icons to avoid a visible "loading" placeholder when returning to the home screen.
-  useEffect(() => {
-    try {
-      const sts = ["standard", "silver", "gold"];
-      const exts = [".svg", ".png", ".webp"];
-      for (const s of sts) {
-        for (const ext of exts) {
-          const img = new Image();
-          img.src = `/brand/status-${s}${ext}`;
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
   const tg = getTg();
+
+  // Da Nang local hour — drives the "online / offline" trust strip on the home screen.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(t);
+  }, []);
+  const danangHour = getDanangHour(nowMs);
+  const serviceOnline = danangHour >= 10 && danangHour < 22;
 
   // Haptic feedback for buttons only (no vibration while typing/entering data).
   useEffect(() => {
@@ -611,17 +601,22 @@ ${msg}`);
     }
   };
 
+  const statusKey = normalizeStatus(me.status);
+  const statusChipLabel = isEn
+    ? statusKey === "gold" ? "Gold" : statusKey === "silver" ? "Silver" : "Standard"
+    : statusTitle(statusKey);
+
   return (
-    <div className={`vx-page theme-client ${screen === "home" ? "mx-homePage" : ""}`}>
+    <div className={`vx-page theme-client cx-app ${screen === "home" ? "mx-homePage" : ""}`}>
       <div className="container">
         <ScreenPane active={screen === "home"}>
           <div className="mx-homeLayout">
             <div className="mx-homeLead">
-              <div className="mx-topRow mx-topRowHome">
-                <div className="mx-homeControlsStack">
+              <div className="cx-header">
+                <div className="cx-headerSide">
                   <button
                     type="button"
-                    className="mx-langSwitchBtn mx-homeLangSwitchBtn"
+                    className="cx-chip"
                     onClick={toggleLang}
                     aria-label={isEn ? "Switch to Russian" : "Переключить на английский"}
                     title={isEn ? "Switch to Russian" : "Переключить на английский"}
@@ -630,27 +625,38 @@ ${msg}`);
                   </button>
                   <button
                     type="button"
-                    className="mx-themeBtn mx-homeThemeBtn"
+                    className="cx-chip cx-chipIcon"
                     onClick={toggleTheme}
                     aria-label={theme === "dark" ? (isEn ? "Dark theme" : "Тёмная тема") : (isEn ? "Light theme" : "Светлая тема")}
                   >
-                    {theme === "dark" ? <IconMoon className="mx-themeI" /> : <IconSun className="mx-themeI" />}
+                    {theme === "dark" ? <IconMoon className="cx-themeIcon" /> : <IconSun className="cx-themeIcon" />}
                   </button>
                 </div>
 
-                <div className="mx-topCenter">
-                  <MainLogo theme={theme} />
-                </div>
+                <MainLogo theme={theme} />
 
-                <button type="button" className="mx-statusBtn" onClick={showStatusInfo} aria-label={isEn ? "Your status" : "Ваш статус"}>
-                  <StatusIcon status={me.status} />
+                <button
+                  type="button"
+                  className={`cx-statusChip is-${statusKey}`}
+                  onClick={showStatusInfo}
+                  aria-label={isEn ? "Your status" : "Ваш статус"}
+                >
+                  <IconStar />
+                  <span>{statusChipLabel}</span>
                 </button>
               </div>
 
-              <div className="mx-homeTabs" role="tablist" aria-label={isEn ? "Home sections" : "Разделы главной"}>
+              <div className="cx-trust">
+                <span className={"cx-liveDot" + (serviceOnline ? "" : " is-off")} aria-hidden="true" />
+                {serviceOnline
+                  ? (isEn ? "Online · open 10:00–22:00 · Da Nang" : "Онлайн · работаем 10:00–22:00 · Дананг")
+                  : (isEn ? "Offline · open 10:00–22:00 · Da Nang" : "Офлайн · работаем 10:00–22:00 · Дананг")}
+              </div>
+
+              <div className="cx-segment" role="tablist" aria-label={isEn ? "Home sections" : "Разделы главной"}>
                 <button
                   type="button"
-                  className={"mx-homeTab " + (homeSection === "calc" ? "is-active" : "")}
+                  className={"cx-segmentBtn " + (homeSection === "calc" ? "is-active" : "")}
                   onClick={scrollToHomeCalc}
                   aria-current={homeSection === "calc" ? "page" : undefined}
                 >
@@ -658,7 +664,7 @@ ${msg}`);
                 </button>
                 <button
                   type="button"
-                  className={"mx-homeTab " + (homeSection === "atm" ? "is-active" : "")}
+                  className={"cx-segmentBtn " + (homeSection === "atm" ? "is-active" : "")}
                   onClick={() => openHomeSection("atm", "home_tab_atm")}
                   aria-current={homeSection === "atm" ? "page" : undefined}
                 >
@@ -666,7 +672,7 @@ ${msg}`);
                 </button>
                 <button
                   type="button"
-                  className={"mx-homeTab " + (homeSection === "reviews" ? "is-active" : "")}
+                  className={"cx-segmentBtn " + (homeSection === "reviews" ? "is-active" : "")}
                   onClick={() => openHomeSection("reviews", "home_tab_reviews")}
                   aria-current={homeSection === "reviews" ? "page" : undefined}
                 >
@@ -680,32 +686,26 @@ ${msg}`);
                     <CalculatorTab me={me} lang={lang} />
                   </div>
 
-                  <div className="mx-card">
-                    <div className="mx-cardHead">
-                      <div>
-                        <div className="mx-cardTitle">{isEn ? "Rates" : "Курс"}</div>
-                        <div className="mx-cardSub">{me.ok ? (isEn ? "Currency exchange — Da Nang" : UI.title) : me.error ?? (isEn ? "Authorizing…" : "Авторизация…")}</div>
-                      </div>
-                    </div>
-
-                    <div className="mx-courseBody">
-                      <RatesTab embedded limit={courseExpanded ? undefined : 3} lang={lang} />
-                    </div>
-
-                    <div className="mx-btnRow">
-                      <button type="button" className="mx-btn" onClick={() => setCourseExpanded((v) => !v)}>
+                  <div className="cx-card cx-rateCard" style={{ marginTop: 15 }}>
+                    <div className="cx-rateCardHead">
+                      <span className="cx-rateCardTitle">{isEn ? "Rates today" : "Курс сегодня"}</span>
+                      <button type="button" className="cx-linkBtn" onClick={() => setCourseExpanded((v) => !v)}>
                         {courseExpanded ? (isEn ? "Collapse" : "Свернуть") : (isEn ? "All rates" : "Все курсы")}
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M9 6l6 6-6 6" />
+                        </svg>
                       </button>
-                      {me.isAdmin ? (
-                        <button type="button" className="mx-btn mx-btnPrimary" onClick={() => goTo("staff", "home_admin_btn")}>
+                    </div>
+
+                    <RatesTab embedded limit={courseExpanded ? undefined : 3} lang={lang} />
+
+                    {me.isAdmin ? (
+                      <div className="cx-adminRow">
+                        <button type="button" className="cx-adminBtn" onClick={() => goTo("staff", "home_admin_btn")}>
                           {isEn ? "Admin" : "Админ"}
                         </button>
-                      ) : (
-                        <button type="button" className="mx-btn mx-btnPrimary" onClick={scrollToHomeCalc}>
-                          {isEn ? "Calculator" : "Калькулятор"}
-                        </button>
-                      )}
-                    </div>
+                      </div>
+                    ) : null}
                   </div>
                 </>
               ) : null}
@@ -795,27 +795,33 @@ ${msg}`);
         ) : null}
       </div>
 
-      <div className="mx-bottomNav" role="navigation" aria-label={isEn ? "Bottom menu" : "Нижнее меню"}>
+      <div className="mx-bottomNav cx-nav" role="navigation" aria-label={isEn ? "Bottom menu" : "Нижнее меню"}>
         <button
           type="button"
-          className={"mx-bottomBtn " + (screen === "pay" ? "is-on" : "")}
+          className={"cx-navBtn " + (screen === "pay" ? "is-on" : "")}
           onClick={() => goTo("pay", "bottom_pay")}
+          title={isEn ? "Payments and booking" : "Оплаты и бронирование"}
         >
-          {isEn ? "Payments and booking" : "Оплаты и бронирование"}
+          <IconNavCard />
+          <span>{isEn ? "Payments" : "Оплаты"}</span>
         </button>
         <button
           type="button"
-          className={"mx-bottomBtn " + (screen === "history" ? "is-on" : "")}
+          className={"cx-navBtn " + (screen === "history" ? "is-on" : "")}
           onClick={() => goTo("history", "bottom_history")}
+          title={isEn ? "My history" : "Моя история"}
         >
-          {isEn ? "My history" : "Моя история"}
+          <IconNavReceipt />
+          <span>{isEn ? "History" : "История"}</span>
         </button>
         <button
           type="button"
-          className={"mx-bottomBtn " + (isOtherBranch ? "is-on" : "")}
+          className={"cx-navBtn " + (isOtherBranch ? "is-on" : "")}
           onClick={() => goTo("other", "bottom_other")}
+          title={isEn ? "More" : "Прочее"}
         >
-          {isEn ? "More" : "Прочее"}
+          <IconNavGrid />
+          <span>{isEn ? "More" : "Ещё"}</span>
         </button>
       </div>
     </div>

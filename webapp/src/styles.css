@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800;900&family=Inter:wght@500;600;700;800;900&family=DM+Sans:wght@700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&family=Inter:wght@500;600;700;800;900&family=DM+Sans:wght@700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap");
 
 /* Circular Std Bold (user-provided font files).
    Put files here (optional): webapp/public/fonts/CircularStd-Bold.woff2 + .woff */
@@ -5826,3 +5826,1141 @@ html[data-theme="dark"] .theme-client.vx-page.mx-homePage .mx-homeTab.is-active{
     font-size: 10px;
   }
 }
+
+/* ==========================================================================
+   REDESIGN 2026 — "cx" visual layer (design handoff: Cash a Lot dark theme)
+   Tokens first (light base + dark overrides), then components.
+   Old mx-/vx- rules above stay for non-redesigned screens.
+   ========================================================================== */
+
+:root{
+  /* accent (brand) — same in both themes */
+  --cxAccent: #F6C600;
+  --cxAccentTop: #FFD83F;
+  --cxOnAccent: #14202B;
+
+  /* light theme surfaces */
+  --cxPageBg:
+    radial-gradient(130% 62% at 50% -10%, #dfe7f2 0%, rgba(223,231,242,0) 56%),
+    radial-gradient(90% 40% at 90% 0%, rgba(246,198,0,.10) 0%, rgba(246,198,0,0) 60%),
+    linear-gradient(180deg,#f4f6fa 0%,#eaeef5 100%);
+  --cxCardBg: linear-gradient(180deg,#ffffff 0%,#f8fafd 100%);
+  --cxCardBorder: rgba(9,23,33,.09);
+  --cxCardShadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 10px 26px rgba(15,23,42,.10);
+  --cxChipBg: linear-gradient(180deg, rgba(9,23,33,.05), rgba(9,23,33,.025));
+  --cxChipBorder: rgba(9,23,33,.10);
+
+  --cxText: #101C28;
+  --cxText2: #5D6B79;
+  --cxText3: #8B96A2;
+
+  /* money numbers: readable gold on light */
+  --cxMoney: #9A7B00;
+  --cxMoneyGlow: none;
+  --cxAccentBorder: rgba(178,143,0,.34);
+  --cxAccentSoftBg: linear-gradient(180deg, rgba(246,198,0,.22), rgba(246,198,0,.10));
+  --cxAccentText: #8F7200;
+
+  --cxGreen: #17A45B;
+  --cxGreenText: #128A4C;
+  --cxGreenBg: rgba(23,164,91,.10);
+  --cxGreenBorder: rgba(23,164,91,.26);
+
+  --cxSell: #5D6B79;
+  --cxNavBg: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,253,.96));
+  --cxNavBorder: rgba(9,23,33,.09);
+  --cxNavShadow: 0 1px 0 rgba(255,255,255,.85) inset, 0 14px 34px rgba(15,23,42,.16);
+  --cxFabRing: #eef1f7;
+
+  --cxCtaShadow: 0 12px 26px rgba(246,198,0,.34), 0 1px 0 rgba(255,255,255,.4) inset;
+
+  --cxMonoFont: "Space Grotesk", "DM Sans", "Manrope", ui-sans-serif, system-ui, sans-serif;
+}
+
+html[data-theme="dark"]{
+  --cxPageBg:
+    radial-gradient(130% 62% at 50% -10%, #21303F 0%, rgba(33,48,63,0) 56%),
+    radial-gradient(90% 40% at 90% 0%, rgba(246,198,0,.08) 0%, rgba(246,198,0,0) 60%),
+    linear-gradient(180deg,#121A24 0%,#0C1218 100%);
+  --cxCardBg: linear-gradient(180deg,#1B2531 0%,#161E28 100%);
+  --cxCardBorder: rgba(255,255,255,.07);
+  --cxCardShadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 10px 26px rgba(0,0,0,.34);
+  --cxChipBg: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
+  --cxChipBorder: rgba(255,255,255,.09);
+
+  --cxText: #EAF0F6;
+  --cxText2: #8A97A6;
+  --cxText3: #66717D;
+
+  --cxMoney: #F6C600;
+  --cxMoneyGlow: 0 0 22px rgba(246,198,0,.28);
+  --cxAccentBorder: rgba(246,198,0,.28);
+  --cxAccentSoftBg: linear-gradient(180deg, rgba(246,198,0,.16), rgba(246,198,0,.07));
+  --cxAccentText: #F6C600;
+
+  --cxGreen: #37D67A;
+  --cxGreenText: #7EE6A6;
+  --cxGreenBg: rgba(55,214,122,.10);
+  --cxGreenBorder: rgba(55,214,122,.24);
+
+  --cxSell: #AEB9C5;
+  --cxNavBg: linear-gradient(180deg, rgba(28,38,50,.96), rgba(20,28,38,.96));
+  --cxNavBorder: rgba(255,255,255,.08);
+  --cxNavShadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 14px 34px rgba(0,0,0,.45);
+  --cxFabRing: #0F1620;
+}
+
+/* ------------ page chrome ------------ */
+
+html, body{ background: #0C1218; }
+body.vx-body-client{ background: #0C1218; }
+body.vx-body-client #root{ background: #0C1218; }
+html[data-theme="light"] body.vx-body-client,
+html[data-theme="light"] body.vx-body-client #root{ background: #eaeef5; }
+
+.theme-client.vx-page.cx-app{
+  background: var(--cxPageBg);
+  color: var(--cxText);
+  padding: 10px 16px 14px;
+  padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+}
+html[data-theme="dark"] .theme-client.vx-page.cx-app{
+  background: var(--cxPageBg);
+  color: var(--cxText);
+}
+.theme-client.vx-page.cx-app.mx-homePage{
+  padding-top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px));
+}
+
+/* ------------ shared primitives ------------ */
+
+.cx-card{
+  background: var(--cxCardBg);
+  border: 1px solid var(--cxCardBorder);
+  box-shadow: var(--cxCardShadow);
+  border-radius: 20px;
+}
+
+.cx-chip{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 13px;
+  border-radius: 11px;
+  background: var(--cxChipBg);
+  border: 1px solid var(--cxChipBorder);
+  color: var(--cxText2);
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  cursor: pointer;
+  line-height: 1;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.cx-chip:active{ transform: translateY(1px); }
+.cx-chipIcon{ width: 34px; padding: 0; }
+.cx-chip svg{ display: block; }
+
+@keyframes cxPulse{
+  0%,100%{ opacity: 1; transform: scale(1); }
+  50%{ opacity: .45; transform: scale(.82); }
+}
+
+.cx-liveDot{
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cxGreen);
+  box-shadow: 0 0 8px rgba(55,214,122,.8);
+  animation: cxPulse 2.4s ease-in-out infinite;
+}
+.cx-liveDot.is-off{
+  background: var(--cxText3);
+  box-shadow: none;
+  animation: none;
+}
+
+/* ------------ home header ------------ */
+
+.cx-header{
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 58px;
+}
+.cx-headerSide{
+  display: flex;
+  gap: 8px;
+  position: relative;
+  z-index: 2;
+}
+.cx-header .mx-mainLogoWrap{
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  height: 44px;
+  width: 60%;
+  max-width: 220px;
+  z-index: 1;
+  padding: 0;
+}
+.cx-header .mx-mainLogoImg{
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+  transform: none;
+}
+
+.cx-statusChip{
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px 0 9px;
+  border-radius: 11px;
+  background: var(--cxAccentSoftBg);
+  border: 1px solid var(--cxAccentBorder);
+  color: var(--cxAccentText);
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+  line-height: 1;
+  box-shadow: 0 4px 14px rgba(246,198,0,.14);
+}
+.cx-statusChip:active{ transform: translateY(1px); }
+.cx-statusChip svg{ display: block; }
+
+.cx-statusChip.is-silver{
+  background: var(--cxChipBg);
+  border-color: var(--cxChipBorder);
+  color: var(--cxSell);
+  box-shadow: none;
+}
+.cx-statusChip.is-standard{
+  background: var(--cxChipBg);
+  border-color: var(--cxChipBorder);
+  color: var(--cxText2);
+  box-shadow: none;
+}
+
+/* ------------ trust strip ------------ */
+
+.cx-trust{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 2px 14px;
+  font-size: 11.5px;
+  color: var(--cxText2);
+  font-weight: 600;
+}
+
+/* ------------ segmented control ------------ */
+
+.cx-segment{
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 15px;
+  background: var(--cxChipBg);
+  border: 1px solid var(--cxChipBorder);
+  margin-bottom: 16px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.03) inset;
+}
+.cx-segmentBtn{
+  flex: 1;
+  text-align: center;
+  padding: 9px 0;
+  border: 0;
+  border-radius: 11px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--cxText2);
+  background: transparent;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.cx-segmentBtn.is-active{
+  font-weight: 800;
+  background: linear-gradient(180deg, var(--cxAccentTop), var(--cxAccent));
+  color: var(--cxOnAccent);
+  box-shadow: 0 5px 14px rgba(246,198,0,.28);
+}
+
+/* ------------ calculator ------------ */
+
+.cx-calc{ display: flex; flex-direction: column; }
+
+.cx-statusLine{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 2px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cxText2);
+}
+.cx-infoBtn{
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  border: 1px solid var(--cxChipBorder);
+  background: var(--cxChipBg);
+  color: var(--cxText2);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  line-height: 1;
+}
+.cx-infoBtn:active{ transform: translateY(1px); }
+
+.cx-amountCards{ position: relative; }
+
+.cx-amtCard{
+  background: var(--cxCardBg);
+  border: 1px solid var(--cxCardBorder);
+  box-shadow: var(--cxCardShadow);
+  border-radius: 20px;
+  padding: 15px 17px;
+}
+.cx-amtCard + .cx-amtCard{ margin-top: 9px; }
+
+.cx-amtCardGet{
+  border-color: var(--cxAccentBorder);
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(246,198,0,.10) 0%, rgba(246,198,0,0) 55%),
+    var(--cxCardBg);
+  box-shadow: 0 0 0 1px rgba(246,198,0,.06) inset, 0 10px 26px rgba(0,0,0,.14);
+}
+html[data-theme="dark"] .cx-amtCardGet{
+  box-shadow: 0 0 0 1px rgba(246,198,0,.06) inset, 0 10px 26px rgba(0,0,0,.34);
+}
+
+.cx-amtLabel{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--cxText2);
+  margin-bottom: 8px;
+}
+.cx-amtLabelHint{
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--cxText3);
+}
+
+.cx-amtRow{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* currency chip with a real <select> stretched invisibly on top */
+.cx-curChip{
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 12px 6px 7px;
+  border-radius: 13px;
+  background: var(--cxChipBg);
+  border: 1px solid var(--cxChipBorder);
+  cursor: pointer;
+  flex: none;
+}
+.cx-curChip:active{ transform: translateY(1px); }
+.cx-curCode{
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--cxText);
+  line-height: 1;
+}
+.cx-curChevron{ color: var(--cxText2); display: block; }
+.cx-curSelect{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  font-size: 16px;
+}
+
+.cx-curCircle{
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  flex: none;
+  background: linear-gradient(160deg,#37455A,#28313F);
+  color: #EAF0F6;
+}
+.cx-curCircle[data-cur="USDT"]{ background: linear-gradient(160deg,#2F5648,#204035); color: #5FE0B0; }
+.cx-curCircle[data-cur="USD"]{ background: linear-gradient(160deg,#2B5236,#1E3A28); color: #6FD88A; }
+.cx-curCircle[data-cur="EUR"]{ background: linear-gradient(160deg,#334066,#232F4E); color: #8FB4FF; }
+.cx-curCircle[data-cur="THB"]{ background: linear-gradient(160deg,#54432F,#3E3121); color: #F0B57A; }
+.cx-curCircle[data-cur="VND"]{ background: linear-gradient(160deg,#3A3A24,#2C2C1A); color: #F6C600; }
+html[data-theme="light"] .cx-curCircle{ background: linear-gradient(160deg,#e5eaf2,#d5dce8); color: #33404E; }
+html[data-theme="light"] .cx-curCircle[data-cur="USDT"]{ background: linear-gradient(160deg,#d9f2e8,#c2e8d8); color: #0E7A57; }
+html[data-theme="light"] .cx-curCircle[data-cur="USD"]{ background: linear-gradient(160deg,#dcf1e0,#c8e7cf); color: #1D7A34; }
+html[data-theme="light"] .cx-curCircle[data-cur="EUR"]{ background: linear-gradient(160deg,#dfe7fb,#ccd8f5); color: #33549E; }
+html[data-theme="light"] .cx-curCircle[data-cur="THB"]{ background: linear-gradient(160deg,#f4e7d6,#ecd9bd); color: #8A5E23; }
+html[data-theme="light"] .cx-curCircle[data-cur="VND"]{ background: linear-gradient(160deg,#f6ecc4,#efe0a2); color: #8F7200; }
+
+.theme-client.vx-page .cx-amtInput,
+.theme-client.vx-page.cx-app .cx-amtInput{
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  text-align: right;
+  font-family: var(--cxMonoFont);
+  font-variant-numeric: tabular-nums;
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--cxText);
+  border-radius: 0;
+}
+html[data-theme="dark"] .theme-client.vx-page .cx-amtInput,
+html[data-theme="dark"] .theme-client.vx-page.cx-app .cx-amtInput{
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--cxText);
+}
+.theme-client.vx-page.cx-app .cx-amtInput::placeholder{ color: var(--cxText3); opacity: .7; }
+.theme-client.vx-page.cx-app .cx-amtCardGet .cx-amtInput{
+  font-size: 29px;
+  font-weight: 700;
+  color: var(--cxMoney);
+  text-shadow: var(--cxMoneyGlow);
+}
+html[data-theme="dark"] .theme-client.vx-page.cx-app .cx-amtCardGet .cx-amtInput{
+  color: var(--cxMoney);
+}
+.theme-client.vx-page.cx-app .cx-amtInput.cx-amtInvalid,
+html[data-theme="dark"] .theme-client.vx-page.cx-app .cx-amtInput.cx-amtInvalid{
+  color: #E25555;
+  text-shadow: none;
+}
+
+.cx-swapFab{
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, var(--cxAccentTop), var(--cxAccent));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cxOnAccent);
+  box-shadow: 0 8px 18px rgba(246,198,0,.32);
+  border: 4px solid var(--cxFabRing);
+  cursor: pointer;
+  z-index: 2;
+  padding: 0;
+}
+.cx-swapFab svg{ display: block; transition: transform .2s ease; }
+.cx-swapFab:active svg{ transform: rotate(180deg); }
+
+.cx-rateNote{
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 13px 2px;
+  font-size: 11.5px;
+  color: var(--cxText2);
+  font-weight: 600;
+}
+.cx-rateNote .cx-rateValue{
+  font-family: var(--cxMonoFont);
+  font-variant-numeric: tabular-nums;
+  color: var(--cxText);
+  font-weight: 600;
+}
+.cx-rateNoteDot{ opacity: .4; }
+.cx-rateNote .cx-freshDot{
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cxGreen);
+  flex: none;
+}
+
+.cx-bonusLine{
+  margin: -6px 2px 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--cxText3);
+}
+
+.cx-methodsLabel{
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--cxText2);
+  margin: 4px 2px 8px;
+}
+.cx-methods{
+  display: flex;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+.cx-methodBtn{
+  flex: 1;
+  text-align: center;
+  padding: 10px 0;
+  border-radius: 13px;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--cxChipBg);
+  border: 1px solid var(--cxChipBorder);
+  color: var(--cxText2);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.cx-methodBtn.is-active{
+  font-weight: 800;
+  background: var(--cxAccentSoftBg);
+  border-color: var(--cxAccentBorder);
+  color: var(--cxAccentText);
+}
+.cx-methodBtn:active{ transform: translateY(1px); }
+
+.cx-cta{
+  width: 100%;
+  height: 52px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--cxAccentTop), var(--cxAccent));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--cxOnAccent);
+  box-shadow: var(--cxCtaShadow);
+  cursor: pointer;
+  transition: filter .15s ease, box-shadow .15s ease;
+}
+.cx-cta svg{ display: block; }
+.cx-cta:active{ transform: translateY(1px); }
+.cx-cta.is-disabled,
+.cx-cta:disabled{
+  opacity: .5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.cx-ctaRow{
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.cx-ctaRow .cx-cta{ flex: 1; }
+
+.cx-attachBtn{
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  border: 1px solid var(--cxChipBorder);
+  background: var(--cxChipBg);
+  color: var(--cxText2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.cx-attachBtn.is-active{
+  border-color: var(--cxAccentBorder);
+  color: var(--cxAccentText);
+  background: var(--cxAccentSoftBg);
+}
+.cx-attachBtn svg{ width: 20px; height: 20px; display: block; }
+
+/* notes & warnings inside redesigned areas — quiet, layered */
+.cx-app .vx-note{
+  background: var(--cxChipBg);
+  border: 1px solid var(--cxChipBorder);
+  border-radius: 13px;
+  color: var(--cxText2);
+  box-shadow: none;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.cx-app .vx-note b{ color: var(--cxText); }
+.cx-app .vx-warn{
+  border-radius: 13px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.cx-app .cx-calc textarea.vx-requestCommentInput{
+  background: var(--cxChipBg);
+  border: 1px solid var(--cxChipBorder);
+  border-radius: 13px;
+  color: var(--cxText);
+  box-shadow: none;
+}
+.cx-app .cx-calc textarea.vx-requestCommentInput:focus{
+  border-color: var(--cxAccentBorder);
+  box-shadow: 0 0 0 3px rgba(246,198,0,.14);
+}
+
+/* ------------ rates card (home) + full table ------------ */
+
+.cx-rateCard{ padding: 14px 16px; }
+
+.cx-rateCardHead{
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+  gap: 10px;
+}
+.cx-rateCardTitle{
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--cxText);
+}
+.cx-linkBtn{
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font);
+  font-size: 11px;
+  color: var(--cxAccentText);
+  font-weight: 700;
+  cursor: pointer;
+}
+.cx-linkBtn svg{ display: block; }
+
+.cx-miniRates{
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 12.5px;
+}
+.cx-miniRateRow{
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cx-miniRateRow .cx-miniPair{
+  color: var(--cxText2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cx-miniRateRow .cx-miniVal{
+  font-family: var(--cxMonoFont);
+  font-variant-numeric: tabular-nums;
+  color: var(--cxText);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cx-rateUpdated{
+  font-size: 11.5px;
+  color: var(--cxText2);
+  font-weight: 600;
+  margin: 2px 2px 12px;
+}
+
+.cx-rateHero{
+  border-radius: 18px;
+  padding: 15px 17px;
+  margin-bottom: 12px;
+  border: 1px solid var(--cxAccentBorder);
+  background:
+    radial-gradient(130% 130% at 100% 0%, rgba(246,198,0,.10) 0%, rgba(246,198,0,0) 55%),
+    var(--cxCardBg);
+  box-shadow: var(--cxCardShadow);
+}
+.cx-rateHeroRow{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cx-rateHeroLeft{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.cx-rateHeroLeft .cx-curCircle{ width: 34px; height: 34px; font-size: 16px; }
+.cx-rateHeroName{
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--cxText);
+}
+.cx-rateHeroSub{
+  font-size: 11px;
+  color: var(--cxText2);
+}
+.cx-rateHeroVal{
+  font-family: var(--cxMonoFont);
+  font-variant-numeric: tabular-nums;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--cxMoney);
+  line-height: 1;
+  text-align: right;
+}
+.cx-rateHeroValSub{
+  font-size: 10.5px;
+  color: var(--cxText2);
+  margin-top: 3px;
+  text-align: right;
+}
+
+.cx-rateCols{
+  display: grid;
+  grid-template-columns: 1fr 72px 72px;
+  gap: 14px;
+  padding: 0 4px 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--cxText2);
+}
+.cx-rateCols span:nth-child(2),
+.cx-rateCols span:nth-child(3){ text-align: right; }
+
+.cx-rateList{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cx-rateItem{
+  display: grid;
+  grid-template-columns: 1fr 72px 72px;
+  gap: 14px;
+  align-items: center;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--cxCardBg);
+  border: 1px solid var(--cxCardBorder);
+  box-shadow: var(--cxCardShadow);
+}
+.cx-ratePairCell{
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.cx-rateTicker{
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--cxText);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cx-rateBuyVal,
+.cx-rateSellVal{
+  font-family: var(--cxMonoFont);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cx-rateBuyVal{ color: var(--cxMoney); }
+.cx-rateSellVal{ color: var(--cxSell); }
+
+.cx-rateFoot{
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--cxText3);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.cx-adminRow{
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+.cx-adminBtn{
+  border: 1px solid var(--cxChipBorder);
+  background: var(--cxChipBg);
+  color: var(--cxText2);
+  border-radius: 11px;
+  height: 34px;
+  padding: 0 14px;
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* ------------ bottom navigation ------------ */
+
+.cx-nav.mx-bottomNav,
+html[data-theme="dark"] .theme-client .cx-nav.mx-bottomNav{
+  position: fixed;
+  left: 14px;
+  right: 14px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  top: auto;
+  height: 64px;
+  border-radius: 22px;
+  background: var(--cxNavBg);
+  border: 1px solid var(--cxNavBorder);
+  border-top: 1px solid var(--cxNavBorder);
+  display: flex;
+  gap: 0;
+  padding: 7px;
+  box-shadow: var(--cxNavShadow);
+}
+.cx-navBtn{
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--cxText2);
+  font-family: var(--font);
+  font-size: 9.5px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.cx-navBtn svg{ display: block; }
+.cx-navBtn.is-on{
+  font-weight: 800;
+  background: var(--cxAccentSoftBg);
+  border-color: var(--cxAccentBorder);
+  color: var(--cxAccentText);
+}
+.cx-navBtn:active{ transform: translateY(1px); }
+
+/* ------------ inner screen header ------------ */
+
+.cx-screenHeader{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  margin-bottom: 6px;
+}
+.cx-backChip{
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  border: 1px solid var(--cxChipBorder);
+  background: var(--cxChipBg);
+  color: var(--cxText2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.cx-backChip svg{ display: block; }
+.cx-backChip:active{ transform: translateY(1px); }
+.cx-screenTitle{
+  flex: 1;
+  font-family: var(--fontTitle);
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--cxText);
+  letter-spacing: -.01em;
+  text-align: left;
+}
+.cx-livePill{
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--cxGreenBg);
+  border: 1px solid var(--cxGreenBorder);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--cxGreenText);
+}
+.cx-livePill .cx-liveDot{ width: 5px; height: 5px; }
+
+/* ------------ ATM screen ------------ */
+
+.cx-atm{ display: flex; flex-direction: column; }
+
+.cx-atmInfo{
+  border-radius: 16px;
+  padding: 15px 16px;
+  margin: 4px 0 18px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.cx-atmInfoIcon{
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--cxAccentSoftBg);
+  border: 1px solid var(--cxAccentBorder);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cxAccentText);
+}
+.cx-atmInfoIcon svg{ display: block; }
+.cx-atmInfoText{
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--cxText2);
+}
+.cx-atmInfoText b{ font-weight: 800; }
+.cx-bankVcb{ color: #3FD6A4; }
+.cx-bankBidv{ color: #7DB4FF; }
+html[data-theme="light"] .cx-bankVcb{ color: #0E8A66; }
+html[data-theme="light"] .cx-bankBidv{ color: #2D62BE; }
+
+.cx-sectionLabel{
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--cxText2);
+  margin: 0 2px 10px;
+}
+
+.cx-videoList{
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.cx-videoCard{
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  border-radius: 15px;
+  padding: 11px 13px 11px 11px;
+  background: var(--cxCardBg);
+  border: 1px solid var(--cxCardBorder);
+  box-shadow: var(--cxCardShadow);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-family: var(--font);
+}
+.cx-videoCard:active{ transform: translateY(1px); }
+.cx-videoThumb{
+  flex: none;
+  width: 48px;
+  height: 40px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+.cx-videoThumb svg{ display: block; }
+.cx-videoThumb.is-vcb{
+  background: radial-gradient(120% 120% at 30% 20%, #16A884 0%, #0C5F4A 100%);
+  box-shadow: 0 6px 14px rgba(22,168,132,.3);
+}
+.cx-videoThumb.is-bidv{
+  background: radial-gradient(120% 120% at 30% 20%, #4B8EF0 0%, #1B4FA0 100%);
+  box-shadow: 0 6px 14px rgba(75,142,240,.3);
+}
+.cx-videoBody{ flex: 1; min-width: 0; }
+.cx-videoName{
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--cxText);
+}
+.cx-videoSub{
+  font-size: 11.5px;
+  color: var(--cxText2);
+}
+.cx-videoTag{
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--cxText2);
+  background: var(--cxChipBg);
+  border: 1px solid var(--cxChipBorder);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.cx-atm .cx-cta{ margin-top: 18px; }
+
+.cx-suggestBox{
+  margin-top: 20px;
+  background: transparent;
+  border: 1px dashed var(--cxChipBorder);
+  border-radius: 15px;
+  padding: 14px 15px;
+}
+html[data-theme="dark"] .cx-suggestBox{ border-color: rgba(255,255,255,.15); }
+html[data-theme="light"] .cx-suggestBox{ border-color: rgba(9,23,33,.18); }
+.cx-suggestText{
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--cxText2);
+  margin-bottom: 11px;
+}
+.cx-suggestBtn{
+  width: 100%;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--cxChipBg);
+  border: 1px solid var(--cxChipBorder);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--cxText);
+  cursor: pointer;
+}
+.cx-suggestBtn svg{ display: block; }
+.cx-suggestBtn:active{ transform: translateY(1px); }
+
+/* small screens */
+@media (max-width: 380px){
+  .cx-header{ height: 52px; }
+  .cx-header .mx-mainLogoWrap{ height: 38px; }
+  .cx-chip{ height: 32px; padding: 0 11px; font-size: 10px; }
+  .cx-chipIcon{ width: 32px; }
+  .cx-statusChip{ height: 32px; }
+  .theme-client.vx-page.cx-app .cx-amtInput{ font-size: 23px; }
+  .theme-client.vx-page.cx-app .cx-amtCardGet .cx-amtInput{ font-size: 25px; }
+  .cx-rateCols,
+  .cx-rateItem{ grid-template-columns: 1fr 64px 64px; gap: 10px; }
+}
+
+/* redesign: misc small bits */
+.cx-themeIcon{ width: 17px; height: 17px; display: block; }
+.cx-videoName, .cx-videoSub{ display: block; }
+
+/* ---- redesign specificity fixes ----
+   Older global rules (`.vx-page button *{color:inherit}`, hotfix blocks with
+   !important) out-rank the base cx-* declarations, so re-assert the critical
+   colors and the header logo geometry here with matching or higher specificity. */
+
+.vx-page .cx-chip{ color: var(--cxText2); }
+.vx-page .cx-statusChip{ color: var(--cxAccentText); }
+.vx-page .cx-statusChip.is-silver{ color: var(--cxSell); }
+.vx-page .cx-statusChip.is-standard{ color: var(--cxText2); }
+.vx-page .cx-segmentBtn{ color: var(--cxText2); }
+.vx-page .cx-segmentBtn.is-active{ color: var(--cxOnAccent); }
+.vx-page .cx-methodBtn{ color: var(--cxText2); }
+.vx-page .cx-methodBtn.is-active{ color: var(--cxAccentText); }
+.vx-page .cx-cta{ color: var(--cxOnAccent); }
+.vx-page .cx-attachBtn{ color: var(--cxText2); }
+.vx-page .cx-attachBtn.is-active{ color: var(--cxAccentText); }
+.vx-page .cx-navBtn{ color: var(--cxText2); }
+.vx-page .cx-navBtn.is-on{ color: var(--cxAccentText); }
+.vx-page .cx-backChip{ color: var(--cxText2); }
+.vx-page .cx-infoBtn{ color: var(--cxText2); }
+.vx-page .cx-linkBtn{ color: var(--cxAccentText); }
+.vx-page .cx-adminBtn{ color: var(--cxText2); }
+.vx-page .cx-swapFab{ color: var(--cxOnAccent); }
+.vx-page .cx-suggestBtn{ color: var(--cxText); }
+.vx-page .cx-videoName{ color: var(--cxText); }
+.vx-page .cx-videoSub{ color: var(--cxText2); }
+.vx-page .cx-videoTag{ color: var(--cxText2); }
+.vx-page .cx-videoThumb{ color: #fff; }
+.vx-page .cx-curCode{ color: var(--cxText); }
+.vx-page .cx-curChevron{ color: var(--cxText2); }
+
+html[data-theme="dark"] .theme-client .cx-chip{ color: var(--cxText2); }
+html[data-theme="dark"] .theme-client .cx-statusChip{ color: var(--cxAccentText); }
+html[data-theme="dark"] .theme-client .cx-statusChip.is-silver{ color: var(--cxSell); }
+html[data-theme="dark"] .theme-client .cx-statusChip.is-standard{ color: var(--cxText2); }
+html[data-theme="dark"] .theme-client .cx-segmentBtn{ color: var(--cxText2); }
+html[data-theme="dark"] .theme-client .cx-segmentBtn.is-active{ color: var(--cxOnAccent); }
+html[data-theme="dark"] .theme-client .cx-methodBtn{ color: var(--cxText2); }
+html[data-theme="dark"] .theme-client .cx-methodBtn.is-active{ color: var(--cxAccentText); }
+html[data-theme="dark"] .theme-client .cx-cta{ color: var(--cxOnAccent); }
+html[data-theme="dark"] .theme-client .cx-navBtn{ color: var(--cxText2); }
+html[data-theme="dark"] .theme-client .cx-navBtn.is-on{ color: var(--cxAccentText); }
+
+/* header logo: beat legacy `height:100% !important` hotfix rules */
+.theme-client .cx-header .mx-mainLogoWrap{
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%,-50%) !important;
+  height: 44px !important;
+  min-height: 0 !important;
+  width: 60% !important;
+  max-width: 220px !important;
+}
+.theme-client .cx-header .mx-mainLogoImg{
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  transform: none !important;
+}
+@media (max-width: 380px){
+  .theme-client .cx-header .mx-mainLogoWrap{ height: 38px !important; }
+}
+
+/* notes inside the redesigned app: keep quiet neutral text in dark theme too */
+html[data-theme="dark"] .theme-client.cx-app .vx-note,
+html[data-theme="dark"] .theme-client.cx-app .vx-help{
+  color: var(--cxText2) !important;
+  background: var(--cxChipBg);
+  border-color: var(--cxChipBorder);
+  box-shadow: none;
+}
+html[data-theme="dark"] .theme-client.cx-app .vx-note b{ color: var(--cxText); }
