@@ -356,6 +356,32 @@ export default function App() {
   const danangHour = getDanangHour(nowMs);
   const serviceOnline = danangHour >= 10 && danangHour < 22;
 
+  // Exchange conditions modal, opened from the "i" chip in the header.
+  const [showConditions, setShowConditions] = useState(false);
+  const conditionsItems = useMemo(() => (lang === "en" ? [
+    "Service hours: daily from 10:00 to 22:00. After 20:00 only remote exchange is available.",
+    "For exchanges below 20,000 RUB / 200 USD / 200 EUR / 200 USDT / 100,000 THB, delivery costs from 70,000 VND.",
+    "Minimum RUB amount — 10,000 ₽.",
+    "Minimum USD / EUR / USDT amount — 100.",
+    "Minimum THB amount — 10,000 baht.",
+    "Minimum VND amount — 6,500,000 VND.",
+    "USD: only new-series $100 cash notes without defects are accepted and paid out.",
+    "EUR: only new-series €50/€100/€200 cash notes without defects are accepted and paid out.",
+    "THB: cash only, in multiples of 100 baht.",
+    "VND → VND: fee is 2%, but at least 100,000 VND. Payment is cash or transfer; receive is cash, transfer, or ATM.",
+  ] : [
+    "Время работы сервиса: ежедневно с 10:00 до 22:00. После 20:00 возможен только дистанционный обмен.",
+    "При обмене менее 20,000₽ / 200$ / 200€ / 200 USDT / 100,000 THB стоимость доставки составит от 70,000 VND.",
+    "Минимальная сумма RUB для обмена — 10,000 ₽.",
+    "Минимальная сумма USD / EUR / USDT для обмена — 100.",
+    "Минимальная сумма THB для обмена — 10,000 бат.",
+    "Минимальная сумма VND для обмена — 6,500,000 VND.",
+    "USD: принимаются и выдаются только наличные купюры 100$ нового образца, без дефектов.",
+    "EUR: принимаются и выдаются только наличные купюры 50/100/200€ нового образца, без дефектов.",
+    "THB: передача и получение только наличными, кратно 100 бат.",
+    "VND → VND: комиссия 2%, но не меньше 100,000 VND. Оплата наличными или переводом; получение наличными, переводом или через банкомат.",
+  ]), [lang]);
+
   // Haptic feedback for buttons only (no vibration while typing/entering data).
   useEffect(() => {
     const handler = (e: any) => {
@@ -635,16 +661,43 @@ ${msg}`);
 
                 <MainLogo theme={theme} />
 
-                <button
-                  type="button"
-                  className={`cx-statusChip is-${statusKey}`}
-                  onClick={showStatusInfo}
-                  aria-label={isEn ? "Your status" : "Ваш статус"}
-                >
-                  <IconStar />
-                  <span>{statusChipLabel}</span>
-                </button>
+                <div className="cx-headerSide">
+                  <button
+                    type="button"
+                    className="cx-chip cx-chipIcon"
+                    onClick={() => setShowConditions(true)}
+                    aria-label={isEn ? "Exchange conditions" : "Условия обмена"}
+                    title={isEn ? "Exchange conditions" : "Условия обмена"}
+                  >
+                    i
+                  </button>
+                  <button
+                    type="button"
+                    className={`cx-statusChip is-${statusKey}`}
+                    onClick={showStatusInfo}
+                    aria-label={isEn ? "Your status" : "Ваш статус"}
+                  >
+                    <IconStar />
+                    <span>{statusChipLabel}</span>
+                  </button>
+                </div>
               </div>
+
+              {showConditions ? (
+                <div className="vx-modalOverlay" onClick={() => setShowConditions(false)}>
+                  <div className="vx-modalCard" onClick={(e) => e.stopPropagation()}>
+                    <div className="row vx-between vx-center">
+                      <div className="vx-modalTitle">{isEn ? "Exchange conditions" : "Условия обмена"}</div>
+                      <button type="button" className="btn vx-btnSm" onClick={() => setShowConditions(false)}>{isEn ? "Close" : "Закрыть"}</button>
+                    </div>
+                    <div className="vx-conditionsList">
+                      {conditionsItems.map((item) => (
+                        <div key={item} className="vx-conditionsItem">• {item}</div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="cx-trust">
                 <span className={"cx-liveDot" + (serviceOnline ? "" : " is-off")} aria-hidden="true" />
@@ -686,7 +739,7 @@ ${msg}`);
                     <CalculatorTab me={me} lang={lang} />
                   </div>
 
-                  <div className="cx-card cx-rateCard" style={{ marginTop: 15 }}>
+                  <div className="cx-card cx-rateCard" style={{ marginTop: 10 }}>
                     <div className="cx-rateCardHead">
                       <span className="cx-rateCardTitle">{isEn ? "Rates today" : "Курс сегодня"}</span>
                       <button type="button" className="cx-linkBtn" onClick={() => setCourseExpanded((v) => !v)}>

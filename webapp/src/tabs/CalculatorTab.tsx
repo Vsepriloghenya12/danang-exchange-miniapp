@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DEFAULT_G_FORMULAS } from "../domain/exchange";
-import { getUserStatusLabel, normalizeUserStatus } from "../domain/status";
+import { normalizeUserStatus } from "../domain/status";
 import { apiGetBonuses, apiGetGFormulas, apiGetMarketRates } from "../lib/api";
 import type { BonusesConfig, MarketRatesResponse, UserStatus } from "../lib/types";
 
@@ -737,7 +737,6 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   const isEn = lang === "en";
   const isAdminMode = mode === "admin";
   const uiMethodLabel = (m: ReceiveMethod | PayMethod) => isEn ? (m === "cash" ? "Cash" : m === "transfer" ? "Transfer" : "ATM") : methodLabel(m);
-  const uiStatusLabel = (s: ClientStatus) => getUserStatusLabel(s, isEn ? "en" : "ru");
   const uiAmountPlaceholder = (prefix: string, cur: Currency, same = false) => { const min = same && cur === "VND" ? null : minSellAmountLabel(cur); return min ? `${prefix} (${isEn ? "min." : "мин."} ${min})` : prefix; };
   const uiCommentPlaceholder = (rm: SelectedReceiveMethod) =>
     isEn
@@ -777,7 +776,6 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   const [requestAttachmentImageDataUrl, setRequestAttachmentImageDataUrl] = useState<string | null>(null);
   const [requestAttachmentName, setRequestAttachmentName] = useState("");
   const [requestAttachmentSizeLabel, setRequestAttachmentSizeLabel] = useState("");
-  const [showConditions, setShowConditions] = useState(false);
   const [requestSuccessModal, setRequestSuccessModal] = useState<null | {
     requestId: string;
     copyText: string;
@@ -1297,30 +1295,6 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     ? (isEn ? `Minimum ${sellCurrency} amount for exchange is ${minSellAmountLabel(sellCurrency)}.` : `Минимальная сумма ${sellCurrency} для обмена — ${minSellAmountLabel(sellCurrency)}.`)
     : null;
 
-  const conditionsItems = useMemo(() => (isEn ? [
-    "Service hours: daily from 10:00 to 22:00. After 20:00 only remote exchange is available.",
-    "For exchanges below 20,000 RUB / 200 USD / 200 EUR / 200 USDT / 100,000 THB, delivery costs from 70,000 VND.",
-    "Minimum RUB amount — 10,000 ₽.",
-    "Minimum USD / EUR / USDT amount — 100.",
-    "Minimum THB amount — 10,000 baht.",
-    "Minimum VND amount — 6,500,000 VND.",
-    "USD: only new-series $100 cash notes without defects are accepted and paid out.",
-    "EUR: only new-series €50/€100/€200 cash notes without defects are accepted and paid out.",
-    "THB: cash only, in multiples of 100 baht.",
-    "VND → VND: fee is 2%, but at least 100,000 VND. Payment is cash or transfer; receive is cash, transfer, or ATM.",
-  ] : [
-    "Время работы сервиса: ежедневно с 10:00 до 22:00. После 20:00 возможен только дистанционный обмен.",
-    "При обмене менее 20,000₽ / 200$ / 200€ / 200 USDT / 100,000 THB стоимость доставки составит от 70,000 VND.",
-    "Минимальная сумма RUB для обмена — 10,000 ₽.",
-    "Минимальная сумма USD / EUR / USDT для обмена — 100.",
-    "Минимальная сумма THB для обмена — 10,000 бат.",
-    "Минимальная сумма VND для обмена — 6,500,000 VND.",
-    "USD: принимаются и выдаются только наличные купюры 100$ нового образца, без дефектов.",
-    "EUR: принимаются и выдаются только наличные купюры 50/100/200€ нового образца, без дефектов.",
-    "THB: передача и получение только наличными, кратно 100 бат.",
-    "VND → VND: комиссия 2%, но не меньше 100,000 VND. Оплата наличными или переводом; получение наличными, переводом или через банкомат.",
-  ]), [isEn]);
-
   const showCashDeliveryNote =
     needsCashDeliveryWarning(sellCurrency, sellAmount) ||
     needsCashDeliveryWarning(buyCurrency, buyAmount);
@@ -1572,29 +1546,6 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
   return (
     <div className="vx-calc cx-calc">
-      {!isAdminMode ? (
-        <div className="cx-statusLine">
-          <span>{isEn ? "Status" : "Статус"}: {uiStatusLabel(clientStatus)}</span>
-          <button type="button" className="cx-infoBtn" title={isEn ? "Exchange conditions" : "Условия обмена"} onClick={() => setShowConditions(true)}>i</button>
-        </div>
-      ) : null}
-
-      {showConditions ? (
-        <div className="vx-modalOverlay" onClick={() => setShowConditions(false)}>
-          <div className="vx-modalCard" onClick={(e) => e.stopPropagation()}>
-            <div className="row vx-between vx-center">
-              <div className="vx-modalTitle">{isEn ? "Exchange conditions" : "Условия обмена"}</div>
-              <button type="button" className="btn vx-btnSm" onClick={() => setShowConditions(false)}>{isEn ? "Close" : "Закрыть"}</button>
-            </div>
-            <div className="vx-conditionsList">
-              {conditionsItems.map((item) => (
-                <div key={item} className="vx-conditionsItem">• {item}</div>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {requestDoneModal}
 
       {banner ? (
