@@ -565,8 +565,10 @@ async function readStoreFile(): Promise<Store> {
     return s;
   }
 
-  const { store, dirty } = normalizeStore(parsed);
-  if (dirty) await writeStoreFile(store);
+  // Read must never write: a write-back here races with concurrent mutateStore
+  // commits and can silently erase them. Normalization is applied in memory;
+  // it persists on the next mutateStore, which writes under proper locking.
+  const { store } = normalizeStore(parsed);
   return store;
 }
 
@@ -580,8 +582,10 @@ async function readStoreDb(): Promise<Store> {
   const pool = getPool();
   const r = await pool.query("SELECT data FROM app_store WHERE id=1");
   const parsed = r.rows?.[0]?.data || {};
-  const { store, dirty } = normalizeStore(parsed);
-  if (dirty) await writeStoreDb(store);
+  // Read must never write: the SELECT above is unlocked, so writing "dirty"
+  // data back would overwrite any request committed in between (lost update).
+  // JSONB also reorders object keys, which made `dirty` true on every read.
+  const { store } = normalizeStore(parsed);
   return store;
 }
 
