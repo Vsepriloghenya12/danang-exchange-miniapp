@@ -11,6 +11,7 @@ import StaffTab from "./tabs/StaffTab";
 import HistoryTab from "./tabs/HistoryTab";
 import AboutTab from "./tabs/AboutTab";
 import OtherTab from "./tabs/OtherTab";
+import DocsTab from "./tabs/DocsTab";
 import FaqTab from "./tabs/FaqTab";
 import ContactsTab from "./tabs/ContactsTab";
 import PaymentsTab from "./tabs/PaymentsTab";
@@ -29,7 +30,7 @@ type Me = {
   error?: string;
 };
 
-type ScreenKey = "home" | "calc" | "atm" | "reviews" | "staff" | "pay" | "history" | "other" | "faq" | "about" | "contacts";
+type ScreenKey = "home" | "calc" | "atm" | "reviews" | "staff" | "pay" | "history" | "other" | "faq" | "about" | "contacts" | "privacy" | "terms";
 type Lang = "ru" | "en";
 type HomeSection = "calc" | "atm" | "reviews";
 
@@ -358,6 +359,10 @@ export default function App() {
 
   // Exchange conditions modal, opened from the "i" chip in the header.
   const [showConditions, setShowConditions] = useState(false);
+
+  // Where the privacy/terms screens should return on Back: the "More" menu
+  // or the home calculator (when opened via the consent links).
+  const [docsReturnTo, setDocsReturnTo] = useState<"home" | "other">("other");
   const conditionsItems = useMemo(() => (lang === "en" ? [
     "Service hours: daily from 10:00 to 22:00. After 20:00 only remote exchange is available.",
     "For exchanges below 20,000 RUB / 200 USD / 200 EUR / 200 USDT / 100,000 THB, delivery costs from 70,000 VND.",
@@ -570,7 +575,9 @@ export default function App() {
 
   const scrollToHomeCalc = () => openHomeSection("calc", "home_calc_btn");
   const goHome = () => setScreen("home");
-  const isOtherBranch = screen === "other" || screen === "faq" || screen === "about" || screen === "contacts";
+  const isOtherBranch =
+    screen === "other" || screen === "faq" || screen === "about" || screen === "contacts" ||
+    ((screen === "privacy" || screen === "terms") && docsReturnTo === "other");
 
   const trackClick = (target: string, props: any = {}) => {
     try {
@@ -736,29 +743,32 @@ ${msg}`);
               {homeSection === "calc" ? (
                 <>
                   <div ref={homeCalcRef} className="mx-homeCalcSection">
-                    <CalculatorTab me={me} lang={lang} />
+                    <CalculatorTab
+                      me={me}
+                      lang={lang}
+                      onOpenDoc={(doc) => { setDocsReturnTo("home"); goTo(doc, doc === "privacy" ? "calc_privacy_link" : "calc_terms_link"); }}
+                    />
                   </div>
 
-                  <div className="cx-card cx-rateCard" style={{ marginTop: 10 }}>
+                  <div className="cx-card cx-rateCard" style={{ marginTop: 4 }}>
                     <div className="cx-rateCardHead">
                       <span className="cx-rateCardTitle">{isEn ? "Rates today" : "Курс сегодня"}</span>
-                      <button type="button" className="cx-linkBtn" onClick={() => setCourseExpanded((v) => !v)}>
-                        {courseExpanded ? (isEn ? "Collapse" : "Свернуть") : (isEn ? "All rates" : "Все курсы")}
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M9 6l6 6-6 6" />
-                        </svg>
-                      </button>
+                      <div className="cx-rateCardLinks">
+                        {me.isAdmin ? (
+                          <button type="button" className="cx-linkBtn" onClick={() => goTo("staff", "home_admin_btn")}>
+                            {isEn ? "Admin" : "Админ"}
+                          </button>
+                        ) : null}
+                        <button type="button" className="cx-linkBtn" onClick={() => setCourseExpanded((v) => !v)}>
+                          {courseExpanded ? (isEn ? "Collapse" : "Свернуть") : (isEn ? "All rates" : "Все курсы")}
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M9 6l6 6-6 6" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
 
                     <RatesTab embedded limit={courseExpanded ? undefined : 3} lang={lang} />
-
-                    {me.isAdmin ? (
-                      <div className="cx-adminRow">
-                        <button type="button" className="cx-adminBtn" onClick={() => goTo("staff", "home_admin_btn")}>
-                          {isEn ? "Admin" : "Админ"}
-                        </button>
-                      </div>
-                    ) : null}
                   </div>
                 </>
               ) : null}
@@ -814,6 +824,8 @@ ${msg}`);
                 onFaq={() => goTo("faq", "other_faq")}
                 onAbout={() => goTo("about", "other_about")}
                 onContacts={() => goTo("contacts", "other_contacts")}
+                onPrivacy={() => { setDocsReturnTo("other"); goTo("privacy", "other_privacy"); }}
+                onTerms={() => { setDocsReturnTo("other"); goTo("terms", "other_terms"); }}
                 onOrderApp={() => openExternal("https://t.me/Tutenhaman")}
               />
             </>
@@ -843,6 +855,24 @@ ${msg}`);
             <>
               <ScreenHeader title={isEn ? "About app" : "О приложении"} onBack={() => setScreen("other")} lang={lang} />
               <AboutTab lang={lang} />
+            </>
+          </ScreenPane>
+        ) : null}
+
+        {visited.privacy ? (
+          <ScreenPane active={screen === "privacy"}>
+            <>
+              <ScreenHeader title={isEn ? "Privacy policy" : "Политика конфиденциальности"} onBack={() => setScreen(docsReturnTo)} lang={lang} />
+              <DocsTab kind="privacy" lang={lang} />
+            </>
+          </ScreenPane>
+        ) : null}
+
+        {visited.terms ? (
+          <ScreenPane active={screen === "terms"}>
+            <>
+              <ScreenHeader title={isEn ? "Terms of service" : "Пользовательское соглашение"} onBack={() => setScreen(docsReturnTo)} lang={lang} />
+              <DocsTab kind="terms" lang={lang} />
             </>
           </ScreenPane>
         ) : null}

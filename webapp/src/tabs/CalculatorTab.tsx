@@ -30,6 +30,7 @@ type Props = {
   lang?: Lang;
   mode?: "client" | "admin";
   forcedStatus?: UserStatus;
+  onOpenDoc?: (doc: "privacy" | "terms") => void;
   me: {
     ok: boolean;
     initData: string;
@@ -732,7 +733,7 @@ function needsCashDeliveryWarning(cur: Currency, amount: number): boolean {
   return amount < min;
 }
 
-export default function CalculatorTab({ me, lang = "ru", mode = "client", forcedStatus }: Props) {
+export default function CalculatorTab({ me, lang = "ru", mode = "client", forcedStatus, onOpenDoc }: Props) {
   const tg = getTg();
   const isEn = lang === "en";
   const isAdminMode = mode === "admin";
@@ -1555,12 +1556,6 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       {loading && <div className="vx-help">{isEn ? "Loading rates…" : "Загрузка курсов…"}</div>}
       {!loading && (!rates || (!market && gMode)) && <div className="vx-help">{isEn ? "Rates are not loaded." : "Курсы не загружены."}</div>}
 
-      {!isAdminMode ? (
-        <div className="vx-note" style={{ marginBottom: 10 }}>
-          <b>{isEn ? "Service hours" : "Время работы сервиса"}:</b> {isEn ? "daily from 10:00 to 22:00. From 20:00 to 22:00 only remote exchange is available." : "ежедневно с 10:00 до 22:00. С 20:00 до 22:00 возможен только дистанционный обмен."}
-        </div>
-      ) : null}
-
       {!isAdminMode && managerOffline ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
           {isEn ? `Thank you for contacting us. It is now ${danangTime.label} in Da Nang. You can create a request during working hours.` : `Спасибо за обращение. Сейчас в Дананге ${danangTime.label}. Оставить заявку Вы можете в рабочее время.`}
@@ -1696,17 +1691,11 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
           <div style={{ height: 13 }} />
         )}
 
-        {rateInfo && (rateInfo.tier > 0 || rateInfo.m > 0) ? (
-          <div className="cx-bonusLine">
-            {isEn ? "Rate" : "Курс"}: {fmtAmount("VND", rateInfo.base)} + {isEn ? "status" : "статус"} {fmtAmount("VND", rateInfo.tier)} + {isEn ? "method" : "способ"} {fmtAmount("VND", rateInfo.m)} = {fmtAmount("VND", rateInfo.eff)}
-          </div>
-        ) : null}
-
         <div className="cx-calcSide">
           {allowedPay.length ? (
-            <>
-              <div className="cx-methodsLabel">{isEn ? "Payment" : "Оплата"}</div>
-              <div className="cx-methods">
+            <div className="cx-methodRow">
+              <span className="cx-methodRowLabel">{isEn ? "Payment" : "Оплата"}</span>
+              <div className="cx-methodRowChips">
                 {allowedPay.map((m) => (
                   <button
                     key={m}
@@ -1722,13 +1711,13 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                   </button>
                 ))}
               </div>
-            </>
+            </div>
           ) : null}
 
           {allowedRecv.length ? (
-            <>
-              <div className="cx-methodsLabel">{isEn ? "Receive" : "Получение"}</div>
-              <div className="cx-methods">
+            <div className="cx-methodRow">
+              <span className="cx-methodRowLabel">{isEn ? "Receive" : "Получение"}</span>
+              <div className="cx-methodRowChips">
                 {allowedRecv.map((m) => (
                   <button
                     key={m}
@@ -1744,7 +1733,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                   </button>
                 ))}
               </div>
-            </>
+            </div>
           ) : null}
 
             {usdNote ? <div className="vx-note">{usdNote}</div> : null}
@@ -1776,7 +1765,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                   <textarea
                     ref={commentFieldRef}
                     className="input vx-in vx-requestCommentInput"
-                    rows={3}
+                    rows={1}
                     placeholder={uiCommentPlaceholder(receiveMethod)}
                     value={requestComment}
                     onFocus={() => {
@@ -1847,6 +1836,24 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                     >
                       <PaperclipIcon className="vx-requestAttachIcon" />
                     </button>
+                  </div>
+
+                  <div className="cx-consent">
+                    {isEn ? (
+                      <>
+                        By sending a request you consent to the{" "}
+                        <button type="button" className="cx-consentLink" onClick={() => onOpenDoc?.("privacy")}>processing of personal data</button>
+                        {" "}and accept the{" "}
+                        <button type="button" className="cx-consentLink" onClick={() => onOpenDoc?.("terms")}>terms of service</button>.
+                      </>
+                    ) : (
+                      <>
+                        Отправляя заявку, вы даёте согласие на{" "}
+                        <button type="button" className="cx-consentLink" onClick={() => onOpenDoc?.("privacy")}>обработку персональных данных</button>
+                        {" "}и принимаете{" "}
+                        <button type="button" className="cx-consentLink" onClick={() => onOpenDoc?.("terms")}>пользовательское соглашение</button>.
+                      </>
+                    )}
                   </div>
                 </div>
               </>
