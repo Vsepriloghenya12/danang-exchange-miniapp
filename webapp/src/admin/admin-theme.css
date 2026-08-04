@@ -608,16 +608,15 @@ body:has(.adx) #root {
   border-radius: var(--r-card);
 }
 
-/* ── Диапазоны: секция шириной с таблицу, две колонки на широком экране ──── */
+/* ── Диапазоны: masonry-колонки — высокая таблица не двигает соседнюю ────── */
 .adx .adx-tiersWrap {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px 28px;
-  align-items: flex-start;
+  columns: 640px;      /* ширина колонки ≈ ширине таблицы: 1 колонка на узком, 2 на широком */
+  column-gap: 28px;
   margin-top: 14px;
 }
 .adx .adx-tierGroup {
-  margin-top: 0;
+  break-inside: avoid;
+  margin: 0 0 22px;
   width: fit-content;
   max-width: 100%;
 }
