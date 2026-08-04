@@ -699,3 +699,25 @@ body:has(.adx) #root {
   gap: 12px;
   align-items: start;
 }
+
+/* ── Вкладка «Курс»: карточки в две masonry-колонки ──────────────────────── */
+.adx .adx-cols {
+  columns: 660px;
+  column-gap: 12px;
+}
+.adx .adx-cols > .card {
+  break-inside: avoid;
+  margin: 0 0 12px !important;
+  width: auto;
+}
+.adx .adx-cols > .vx-sp12, .adx .adx-cols > .vx-sp10 { display: none; }
+
+/* Статистика/отчёты: цифры метрик моно, подписи приглушённые */
+.adx .vx-metricVal {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--tx) !important;
+}
+.adx .vx-metricLine { color: var(--tx-muted) !important; font-size: 12.5px; }
+.adx .vx-chipRow { background: none !important; border: 0 !important; }

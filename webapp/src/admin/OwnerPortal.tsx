@@ -1452,7 +1452,7 @@ function moveFaq(id: string, dir: -1 | 1) {
         <div className="vx-mt10" />
 
       {tab === "rates" ? (
-        <>
+        <div className="adx-cols">
           <div className="card"><AdminTab me={me} forcedSection="rates" hideHeader hideSeg /></div>
 
           <div className="vx-sp12" />
@@ -1599,7 +1599,7 @@ function moveFaq(id: string, dir: -1 | 1) {
               Сохранить
             </button>
           </div>
-        </>
+        </div>
       ) : null}
 
       {tab === "bonuses" ? <AdminTab me={me} forcedSection="bonuses" hideHeader hideSeg /> : null}
