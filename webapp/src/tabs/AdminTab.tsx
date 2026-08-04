@@ -555,122 +555,130 @@ export default function AdminTab({
               <div className="vx-sp12" />
 
               <div className="h3">Надбавки за способ получения</div>
-              <div className="small">Прибавляется к курсу покупки при обмене валюты на VND. Указана валюта, которую отдаёт клиент.</div>
+              <div className="small">Прибавляется к курсу покупки при обмене валюты на VND. Колонка — валюта, которую отдаёт клиент.</div>
 
-              <div className="row vx-rowWrap vx-gap8 vx-mt10">
-                {BONUS_CURRENCIES.map((cur) => (
-                  <div key={"tr-" + cur} className="vx-field">
-                    <div className="vx-lbl">Перевод — {cur}</div>
-                    <input
-                      className="input vx-in"
-                      inputMode="decimal"
-                      value={String(bonuses.methods.transfer[cur] ?? 0)}
-                      onChange={(e) => updMethodBonus("transfer", cur, numInput(e.target.value))}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <div className="row vx-rowWrap vx-gap8 vx-mt10">
-                {BONUS_CURRENCIES.map((cur) => (
-                  <div key={"atm-" + cur} className="vx-field">
-                    <div className="vx-lbl">Банкомат — {cur}</div>
-                    <input
-                      className="input vx-in"
-                      inputMode="decimal"
-                      value={String(bonuses.methods.atm[cur] ?? 0)}
-                      onChange={(e) => updMethodBonus("atm", cur, numInput(e.target.value))}
-                    />
-                  </div>
-                ))}
+              <div className="vx-tableWrap vx-mt10">
+                <table className="adx-table adx-matrix">
+                  <thead>
+                    <tr>
+                      <th>Способ</th>
+                      {BONUS_CURRENCIES.map((cur) => (
+                        <th key={cur}>{cur}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(["transfer", "atm"] as const).map((method) => (
+                      <tr key={method}>
+                        <td className="adx-rowLbl">{method === "transfer" ? "Перевод" : "Банкомат"}</td>
+                        {BONUS_CURRENCIES.map((cur) => (
+                          <td key={cur}>
+                            <input
+                              className="input vx-in"
+                              inputMode="decimal"
+                              value={String(bonuses.methods[method][cur] ?? 0)}
+                              onChange={(e) => updMethodBonus(method, cur, numInput(e.target.value))}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
 
               <div className="hr" />
 
               <div className="h3">Надбавки по статусам и сумме</div>
-              <div className="small">Формат: min ≤ сумма &lt; max (max можно оставить пустым для последнего диапазона). Для EUR/THB пустой список = надбавка по статусу не применяется; для RUB/USD/USDT при пустом списке сервер вернёт стандартные диапазоны.</div>
+              <div className="small">Диапазон действует при min ≤ сумма &lt; max; max последнего диапазона можно оставить пустым. Для EUR/THB пустой список = надбавка не применяется; для RUB/USD/USDT при пустом списке сервер вернёт стандартные диапазоны.</div>
 
-              {BONUS_CURRENCIES.map((cur) => (
-                <div key={cur} className="vx-mt10">
-                  <div className="row vx-between vx-center">
-                    <div className="vx-title18">{cur}</div>
-                    <button className="btn vx-btnSm" type="button" onClick={() => addTier(cur)} disabled={bonusesBusy}>
-                      Добавить диапазон
-                    </button>
-                  </div>
-
-                  <div className="hr" />
-
-                  {(bonuses.tiers as any)[cur].map((t: BonusesTier, idx: number) => (
-                    <div key={idx} className="vx-mb10">
-                      <div className="row vx-rowWrap vx-gap8">
-                        <div className="vx-field">
-                          <div className="vx-lbl">min</div>
-                          <input
-                            className="input vx-in"
-                            inputMode="numeric"
-                            value={String(t.min ?? 0)}
-                            onChange={(e) => updTier(cur, idx, { min: Math.max(0, Math.floor(numInput(e.target.value))) })}
-                          />
-                        </div>
-
-                        <div className="vx-field">
-                          <div className="vx-lbl">max</div>
-                          <input
-                            className="input vx-in"
-                            inputMode="numeric"
-                            value={t.max == null ? "" : String(t.max)}
-                            onChange={(e) => {
-                              const raw = e.target.value.trim();
-                              updTier(cur, idx, { max: raw === "" ? undefined : Math.max(0, Math.floor(numInput(raw))) });
-                            }}
-                            placeholder="(пусто)"
-                          />
-                        </div>
-
-                        <div className="vx-field">
-                          <div className="vx-lbl">стандарт</div>
-                          <input
-                            className="input vx-in"
-                            inputMode="decimal"
-                            value={String(t.standard ?? 0)}
-                            onChange={(e) => updTier(cur, idx, { standard: numInput(e.target.value) })}
-                          />
-                        </div>
-
-                        <div className="vx-field">
-                          <div className="vx-lbl">серебро</div>
-                          <input
-                            className="input vx-in"
-                            inputMode="decimal"
-                            value={String(t.silver ?? 0)}
-                            onChange={(e) => updTier(cur, idx, { silver: numInput(e.target.value) })}
-                          />
-                        </div>
-
-                        <div className="vx-field">
-                          <div className="vx-lbl">золото</div>
-                          <input
-                            className="input vx-in"
-                            inputMode="decimal"
-                            value={String(t.gold ?? 0)}
-                            onChange={(e) => updTier(cur, idx, { gold: numInput(e.target.value) })}
-                          />
-                        </div>
-
-                        <div className="vx-field" style={{ flex: "0 0 auto" } as any}>
-                          <div className="vx-lbl">&nbsp;</div>
-                          <button className="btn vx-btnSm" type="button" onClick={() => delTier(cur, idx)} disabled={bonusesBusy}>
-                            Удалить
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="hr" />
+              {BONUS_CURRENCIES.map((cur) => {
+                const list = (bonuses.tiers as any)[cur] as BonusesTier[];
+                return (
+                  <div key={cur} className="adx-tierGroup">
+                    <div className="adx-tierHead">
+                      <span className="adx-tierCur">{cur}</span>
+                      <button className="btn vx-btnSm" type="button" onClick={() => addTier(cur)} disabled={bonusesBusy}>
+                        Добавить диапазон
+                      </button>
                     </div>
-                  ))}
-                </div>
-              ))}
+
+                    {list.length === 0 ? (
+                      <div className="vx-muted">Диапазонов нет — надбавка по статусу для {cur} не применяется.</div>
+                    ) : (
+                      <div className="vx-tableWrap">
+                        <table className="adx-table">
+                          <thead>
+                            <tr>
+                              <th>Мин</th>
+                              <th>Макс</th>
+                              <th>Стандарт</th>
+                              <th>Серебро</th>
+                              <th>Золото</th>
+                              <th aria-label="Действия" />
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {list.map((t: BonusesTier, idx: number) => (
+                              <tr key={idx}>
+                                <td>
+                                  <input
+                                    className="input vx-in"
+                                    inputMode="numeric"
+                                    value={String(t.min ?? 0)}
+                                    onChange={(e) => updTier(cur, idx, { min: Math.max(0, Math.floor(numInput(e.target.value))) })}
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="input vx-in"
+                                    inputMode="numeric"
+                                    value={t.max == null ? "" : String(t.max)}
+                                    onChange={(e) => {
+                                      const raw = e.target.value.trim();
+                                      updTier(cur, idx, { max: raw === "" ? undefined : Math.max(0, Math.floor(numInput(raw))) });
+                                    }}
+                                    placeholder="∞"
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="input vx-in"
+                                    inputMode="decimal"
+                                    value={String(t.standard ?? 0)}
+                                    onChange={(e) => updTier(cur, idx, { standard: numInput(e.target.value) })}
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="input vx-in"
+                                    inputMode="decimal"
+                                    value={String(t.silver ?? 0)}
+                                    onChange={(e) => updTier(cur, idx, { silver: numInput(e.target.value) })}
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="input vx-in"
+                                    inputMode="decimal"
+                                    value={String(t.gold ?? 0)}
+                                    onChange={(e) => updTier(cur, idx, { gold: numInput(e.target.value) })}
+                                  />
+                                </td>
+                                <td>
+                                  <button className="btn vx-btnSm" type="button" onClick={() => delTier(cur, idx)} disabled={bonusesBusy}>
+                                    Удалить
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </>
           )}
         </div>
