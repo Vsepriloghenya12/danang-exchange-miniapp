@@ -592,6 +592,7 @@ export default function AdminTab({
               <div className="h3">Надбавки по статусам и сумме</div>
               <div className="small">Диапазон действует при min ≤ сумма &lt; max; max последнего диапазона можно оставить пустым. Для EUR/THB пустой список = надбавка не применяется; для RUB/USD/USDT при пустом списке сервер вернёт стандартные диапазоны.</div>
 
+              <div className="adx-tiersWrap">
               {BONUS_CURRENCIES.map((cur) => {
                 const list = (bonuses.tiers as any)[cur] as BonusesTier[];
                 return (
@@ -679,6 +680,7 @@ export default function AdminTab({
                   </div>
                 );
               })}
+              </div>
             </>
           )}
         </div>

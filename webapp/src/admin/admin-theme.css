@@ -607,3 +607,23 @@ body:has(.adx) #root {
   max-width: 100%;
   border-radius: var(--r-card);
 }
+
+/* ── Диапазоны: секция шириной с таблицу, две колонки на широком экране ──── */
+.adx .adx-tiersWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 28px;
+  align-items: flex-start;
+  margin-top: 14px;
+}
+.adx .adx-tierGroup {
+  margin-top: 0;
+  width: fit-content;
+  max-width: 100%;
+}
+.adx .adx-tierHead { width: 100%; }
+/* мин/макс шире (суммы), статусы уже (надбавки) — таблица компактнее */
+.adx .adx-table input { width: 84px; max-width: 84px; }
+.adx .adx-table td:nth-child(1) input,
+.adx .adx-table td:nth-child(2) input { width: 112px; max-width: 112px; }
+.adx .adx-matrix td:nth-child(n) input { width: 88px; max-width: 88px; }
