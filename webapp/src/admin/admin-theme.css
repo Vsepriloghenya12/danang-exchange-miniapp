@@ -691,3 +691,11 @@ body:has(.adx) #root {
   border-radius: var(--r-inner);
 }
 .adx .vx-admin { background: none !important; border: 0 !important; box-shadow: none !important; }
+
+/* Клиенты: две колонки на широком экране, одна на узком */
+.adx .vx-contactList {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(560px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
