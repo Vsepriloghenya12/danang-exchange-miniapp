@@ -504,3 +504,15 @@ body:has(.adx) #root {
 /* Формулы курса: числовые поля фиксированной ширины, а не на полэкрана */
 .adx .vx-fields { flex: 0 1 auto; }
 .adx .vx-fields .vx-field { flex: 0 0 140px; }
+
+/* ── Касса: легаси-таблица и чекбоксы ────────────────────────────────────── */
+.adx label, .adx .vx-checkRow { color: var(--tx) !important; }
+.adx .vx-table th {
+  background: var(--surface-elevated) !important;
+  color: var(--tx-muted) !important;
+  font-weight: 500;
+  font-size: 12px;
+}
+.adx .vx-tableWrap { overflow-x: auto; scrollbar-width: thin; }
+.adx .vx-table input { max-width: 160px; font-family: var(--font-mono); }
+.adx .vx-table td { color: var(--tx); }
