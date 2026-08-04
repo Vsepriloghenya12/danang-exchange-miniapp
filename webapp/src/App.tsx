@@ -810,7 +810,7 @@ ${msg}`);
           <ScreenPane active={screen === "history"}>
             <>
               <ScreenHeader title={isEn ? "My history" : "Моя история"} onBack={goHome} lang={lang} />
-              <HistoryTab me={me} lang={lang} />
+              <HistoryTab me={me} lang={lang} onExchange={() => openHomeSection("calc", "hist_empty_cta")} />
             </>
           </ScreenPane>
         ) : null}

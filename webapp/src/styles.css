@@ -7132,3 +7132,322 @@ html[data-theme="dark"] .theme-client.cx-app .cx-calc .vx-requestComposer.is-lif
   .cx-nav.mx-bottomNav,
   html[data-theme="dark"] .theme-client .cx-nav.mx-bottomNav{ height: 52px; }
 }
+
+/* ==========================================================================
+   History screen (cx-hist*) — status progress scale + grouped operations,
+   styled after the "Моя история" design handoff.
+   ========================================================================== */
+
+.cx-hist{
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 6px;
+}
+
+.cx-histCaps{
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--cxText2);
+}
+
+.cx-histMuted{
+  font-size: 12.5px;
+  color: var(--cxText2);
+  margin: 0 2px;
+}
+
+/* --- status card with the progress scale --- */
+
+.cx-histStatusCard{
+  padding: 16px 18px;
+  border-radius: 20px;
+}
+
+.cx-histStatusTop{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.cx-histTotalRow{
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.cx-histTotal{
+  font-family: var(--cxMonoFont);
+  font-variant-numeric: tabular-nums;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--cxMoney);
+  text-shadow: var(--cxMoneyGlow);
+}
+.cx-histTotalSub{
+  font-size: 12px;
+  color: var(--cxText2);
+}
+
+.cx-histBar{
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.06);
+  overflow: visible;
+}
+html[data-theme="light"] .cx-histBar{
+  background: rgba(9,23,33,.08);
+  border-color: rgba(9,23,33,.06);
+}
+.cx-histBarFill{
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--cxAccentTop), var(--cxAccent));
+  box-shadow: 0 0 12px rgba(246,198,0,.35);
+  transition: width .4s ease;
+}
+.cx-histBarMark{
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: rgba(255,255,255,.28);
+}
+html[data-theme="light"] .cx-histBarMark{ background: rgba(9,23,33,.28); }
+
+.cx-histBarLabels{
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--cxText3);
+}
+.cx-histBarLabels .is-on{ color: var(--cxAccentText); }
+
+.cx-histNext{
+  margin-top: 11px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--cxText2);
+}
+.cx-histNext b{
+  font-family: var(--cxMonoFont);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--cxText);
+}
+
+/* --- month summary --- */
+
+.cx-histSummary{
+  padding: 14px 18px;
+  border-radius: 20px;
+}
+.cx-histSummaryRow{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cx-histSumCol{ min-width: 0; }
+.cx-histSumVal{
+  font-family: var(--cxMonoFont);
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--cxText);
+  white-space: nowrap;
+}
+.cx-histSumVal.is-money{ color: var(--cxMoney); }
+.cx-histSumSub{
+  font-size: 12px;
+  color: var(--cxText2);
+  margin-top: 6px;
+}
+.cx-histSumDiv{
+  width: 1px;
+  height: 34px;
+  background: rgba(255,255,255,.08);
+  flex: none;
+}
+html[data-theme="light"] .cx-histSumDiv{ background: rgba(9,23,33,.10); }
+
+/* --- grouped list --- */
+
+.cx-histGroup{ margin-top: 2px; }
+.cx-histGroupHead{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 2px 9px;
+}
+.cx-histGroupCount{
+  font-family: var(--cxMonoFont);
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  color: var(--cxText3);
+}
+.cx-histList{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cx-histItem{
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  border-radius: 18px;
+  padding: 13px 14px;
+  background: var(--cxCardBg);
+  border: 1px solid var(--cxCardBorder);
+  box-shadow: var(--cxCardShadow);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-family: var(--font);
+}
+.cx-histItem:active{ transform: translateY(1px); }
+
+.cx-histIco{
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--cxChipBg);
+  border: 1px solid var(--cxChipBorder);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cxText2);
+}
+.vx-page .cx-histIco{ color: var(--cxText2); }
+
+.cx-histBody{
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.cx-histRow1{
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.cx-histTitle{
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  color: var(--cxText);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vx-page .cx-histTitle{ color: var(--cxText); }
+.cx-histAmount{
+  flex: none;
+  font-family: var(--cxMonoFont);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cxText);
+  white-space: nowrap;
+}
+.vx-page .cx-histAmount{ color: var(--cxText); }
+.cx-histRow2{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cx-histSub{
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--cxText2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vx-page .cx-histSub{ color: var(--cxText2); }
+
+.cx-histPill{
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.vx-page .cx-histPill.is-pending{
+  color: var(--cxAccentText);
+  background: rgba(246,198,0,.12);
+  border: 1px solid rgba(246,198,0,.3);
+}
+.vx-page .cx-histPill.is-done{
+  color: var(--cxGreenText);
+  background: var(--cxGreenBg);
+  border: 1px solid var(--cxGreenBorder);
+}
+.vx-page .cx-histPill.is-cancelled{
+  color: var(--cxText2);
+  background: var(--cxChipBg);
+  border: 1px solid var(--cxChipBorder);
+}
+
+/* --- empty state --- */
+
+.cx-histEmpty{
+  padding: 40px 24px 24px;
+  text-align: center;
+}
+.cx-histEmptyIco{
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 18px;
+  border-radius: 24px;
+  background: var(--cxChipBg);
+  border: 1px solid var(--cxChipBorder);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cxText3);
+}
+.cx-histEmptyTitle{
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--cxText);
+  margin-bottom: 8px;
+}
+.cx-histEmptyText{
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--cxText2);
+  max-width: 250px;
+  margin: 0 auto 20px;
+}
+.cx-histEmptyCta{
+  display: inline-flex;
+  width: auto;
+  padding: 0 24px;
+}
