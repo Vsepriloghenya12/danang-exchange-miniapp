@@ -17,8 +17,6 @@ import type {
   ReportsResponse,
   AdminRatesRangeResponse,
   Contact,
-  AfishaResponse,
-  AdminAfishaResponse,
   FaqResponse
 } from "./types";
 
@@ -85,13 +83,6 @@ export function apiWarmup() {
     atms: () => getJsonCached<AtmsResponse>("/api/atms", 5 * 60_000),
     bonuses: () => getJsonCached<BonusesResponse>("/api/bonuses", 60_000),
     bankIcons: () => getJsonCached<BankIconsResponse>("/api/banks/icons", 5 * 60_000),
-    afisha: (params: { category?: string; from?: string; to?: string } = {}) => {
-      const q = new URLSearchParams();
-      if (params.category) q.set('category', params.category);
-      if (params.from) q.set('from', params.from);
-      if (params.to) q.set('to', params.to);
-      return getJsonCached<AfishaResponse>(`/api/afisha?${q.toString()}`, 60_000, undefined, true);
-    },
     myRequests: (initData: string) => getJsonCached<MyRequestsResponse>("/api/requests/mine", 20_000, { headers: { "x-telegram-init-data": initData } }, true),
   };
 }
@@ -456,76 +447,6 @@ export async function apiAdminGetRatesRange(token: string, params: { from: strin
   q.set("to", params.to);
   const r = await fetch(`/api/admin/rates/range?${q.toString()}`, {
     headers: { ...adminAuthHeaders(token) }
-  });
-  return readJsonSafe(r);
-}
-
-
-// --------------------
-// Afisha
-// --------------------
-export async function apiGetAfisha(params: { category?: string; from?: string; to?: string } = {}): Promise<AfishaResponse> {
-  const q = new URLSearchParams();
-  if (params.category) q.set('category', params.category);
-  if (params.from) q.set('from', params.from);
-  if (params.to) q.set('to', params.to);
-  return getJsonCached<AfishaResponse>(`/api/afisha?${q.toString()}`, 60_000, undefined, true);
-}
-
-export async function apiAfishaClick(initData: string, id: string, kind: 'details' | 'location') {
-  const r = await fetch('/api/afisha/click', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData },
-    body: JSON.stringify({ id, kind })
-  });
-  return readJsonSafe(r);
-}
-
-export async function apiAdminGetAfisha(token: string, params: { scope?: 'active' | 'history' | 'all'; from?: string; to?: string } = {}): Promise<AdminAfishaResponse> {
-  const q = new URLSearchParams();
-  if (params.scope) q.set('scope', params.scope);
-  if (params.from) q.set('from', params.from);
-  if (params.to) q.set('to', params.to);
-  const r = await fetch(`/api/admin/afisha?${q.toString()}`, {
-    headers: { ...adminAuthHeaders(token) }
-  });
-  return readJsonSafe(r);
-}
-
-export async function apiAdminCreateAfisha(
-  token: string,
-  payload: { category?: string; categories?: string[]; date: string; time?: string; title: string; comment?: string; detailsUrl: string; locationUrl: string; imageDataUrl?: string | null; previewImageDataUrl?: string | null }
-): Promise<any> {
-  const r = await fetch('/api/admin/afisha', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...adminAuthHeaders(token) },
-    body: JSON.stringify(payload)
-  });
-  return readJsonSafe(r);
-}
-
-export async function apiAdminUpdateAfisha(
-  token: string,
-  id: string,
-  payload: Partial<{ category: string; categories: string[]; date: string; time: string; title: string; comment?: string; detailsUrl: string; locationUrl: string; imageDataUrl?: string | null; previewImageDataUrl?: string | null }>
-): Promise<any> {
-  const r = await fetch(`/api/admin/afisha/${encodeURIComponent(id)}`, {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json', ...adminAuthHeaders(token) },
-    body: JSON.stringify(payload)
-  });
-  return readJsonSafe(r);
-}
-
-export async function apiAdminRepublishAfisha(
-  token: string,
-  id: string,
-  payload: Partial<{ category: string; categories: string[]; date: string; time: string; title: string; comment?: string; detailsUrl: string; locationUrl: string; imageDataUrl?: string | null; previewImageDataUrl?: string | null }>
-): Promise<any> {
-  const r = await fetch(`/api/admin/afisha/${encodeURIComponent(id)}/republish`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...adminAuthHeaders(token) },
-    body: JSON.stringify(payload)
   });
   return readJsonSafe(r);
 }

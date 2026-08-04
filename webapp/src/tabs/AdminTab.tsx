@@ -93,6 +93,14 @@ function normalizeBonuses(input: any): BonusesConfig {
   };
   const tierList = (arr: any) => (Array.isArray(arr) ? arr : []);
 
+  const methodRow = (row: any) => ({
+    RUB: num(row?.RUB, 0),
+    USD: num(row?.USD, 0),
+    USDT: num(row?.USDT, 0),
+    EUR: num(row?.EUR, 0),
+    THB: num(row?.THB, 0)
+  });
+
   return {
     enabled: {
       tiers: typeof src?.enabled?.tiers === "boolean" ? src.enabled.tiers : true,
@@ -101,22 +109,19 @@ function normalizeBonuses(input: any): BonusesConfig {
     tiers: {
       RUB: tierList(src?.tiers?.RUB),
       USD: tierList(src?.tiers?.USD),
-      USDT: tierList(src?.tiers?.USDT)
+      USDT: tierList(src?.tiers?.USDT),
+      EUR: tierList(src?.tiers?.EUR),
+      THB: tierList(src?.tiers?.THB)
     },
     methods: {
-      transfer: {
-        RUB: num(src?.methods?.transfer?.RUB, 0),
-        USD: num(src?.methods?.transfer?.USD, 0),
-        USDT: num(src?.methods?.transfer?.USDT, 0)
-      },
-      atm: {
-        RUB: num(src?.methods?.atm?.RUB, 0),
-        USD: num(src?.methods?.atm?.USD, 0),
-        USDT: num(src?.methods?.atm?.USDT, 0)
-      }
+      transfer: methodRow(src?.methods?.transfer),
+      atm: methodRow(src?.methods?.atm)
     }
   };
 }
+
+/* Every sell-currency with a →VND markup, in editor order. */
+const BONUS_CURRENCIES = ["RUB", "USD", "USDT", "EUR", "THB"] as const;
 
 type AdminSection = "rates" | "users" | "requests" | "bonuses" | "reviews";
 
@@ -381,7 +386,7 @@ export default function AdminTab({
     setBonuses((p) => (p ? { ...p, enabled: { ...p.enabled, [key]: on } } : p));
   };
 
-  const updMethodBonus = (method: "transfer" | "atm", cur: "RUB" | "USD" | "USDT", v: number) => {
+  const updMethodBonus = (method: "transfer" | "atm", cur: "RUB" | "USD" | "USDT" | "EUR" | "THB", v: number) => {
     setBonuses((p) =>
       p
         ? {
@@ -395,7 +400,7 @@ export default function AdminTab({
     );
   };
 
-  const updTier = (cur: "RUB" | "USD" | "USDT", idx: number, patch: Partial<BonusesTier>) => {
+  const updTier = (cur: "RUB" | "USD" | "USDT" | "EUR" | "THB", idx: number, patch: Partial<BonusesTier>) => {
     setBonuses((p) => {
       if (!p) return p;
       const list = (p.tiers as any)[cur] as BonusesTier[];
@@ -404,23 +409,25 @@ export default function AdminTab({
     });
   };
 
-  const addTier = (cur: "RUB" | "USD" | "USDT") => {
+  const addTier = (cur: "RUB" | "USD" | "USDT" | "EUR" | "THB") => {
     setBonuses((p) => {
       if (!p) return p;
       const list = (p.tiers as any)[cur] as BonusesTier[];
       const last = list[list.length - 1];
-      const min = Number.isFinite(last?.max as any) ? Number(last.max) : Number(last?.min ?? 0) + 1;
+      const min = list.length === 0 ? 0 : Number.isFinite(last?.max as any) ? Number(last.max) : Number(last?.min ?? 0) + 1;
       const row: BonusesTier = { min: Math.max(0, min || 0), standard: 0, silver: 0, gold: 0 };
       return { ...p, tiers: { ...p.tiers, [cur]: [...list, row] } };
     });
   };
 
-  const delTier = (cur: "RUB" | "USD" | "USDT", idx: number) => {
+  const delTier = (cur: "RUB" | "USD" | "USDT" | "EUR" | "THB", idx: number) => {
     setBonuses((p) => {
       if (!p) return p;
       const list = (p.tiers as any)[cur] as BonusesTier[];
       const next = list.filter((_, i) => i !== idx);
-      return { ...p, tiers: { ...p.tiers, [cur]: next.length ? next : list } };
+      // Пустой список допустим: для валюты просто не будет надбавки по статусу
+      // (RUB/USD/USDT сервер вернёт к дефолтным диапазонам).
+      return { ...p, tiers: { ...p.tiers, [cur]: next } };
     });
   };
 
@@ -512,7 +519,7 @@ export default function AdminTab({
           </div>
 
           <div className="small vx-mt6">
-            Надбавки применяются только для <b>RUB/USD/USDT → VND</b>.
+            Надбавки применяются при обмене <b>любой валюты → VND</b> (RUB / USD / USDT / EUR / THB).
           </div>
 
           <div className="hr" />
@@ -548,73 +555,42 @@ export default function AdminTab({
               <div className="vx-sp12" />
 
               <div className="h3">Надбавки за способ получения</div>
+              <div className="small">Прибавляется к курсу покупки при обмене валюты на VND. Указана валюта, которую отдаёт клиент.</div>
 
-              <div className="row vx-rowWrap vx-gap8">
-                <div className="vx-field">
-                  <div className="vx-lbl">Перевод — RUB</div>
-                  <input
-                    className="input vx-in"
-                    inputMode="decimal"
-                    value={String(bonuses.methods.transfer.RUB ?? 0)}
-                    onChange={(e) => updMethodBonus("transfer", "RUB", numInput(e.target.value))}
-                  />
-                </div>
-                <div className="vx-field">
-                  <div className="vx-lbl">Перевод — USD</div>
-                  <input
-                    className="input vx-in"
-                    inputMode="decimal"
-                    value={String(bonuses.methods.transfer.USD ?? 0)}
-                    onChange={(e) => updMethodBonus("transfer", "USD", numInput(e.target.value))}
-                  />
-                </div>
-                <div className="vx-field">
-                  <div className="vx-lbl">Перевод — USDT</div>
-                  <input
-                    className="input vx-in"
-                    inputMode="decimal"
-                    value={String(bonuses.methods.transfer.USDT ?? 0)}
-                    onChange={(e) => updMethodBonus("transfer", "USDT", numInput(e.target.value))}
-                  />
-                </div>
+              <div className="row vx-rowWrap vx-gap8 vx-mt10">
+                {BONUS_CURRENCIES.map((cur) => (
+                  <div key={"tr-" + cur} className="vx-field">
+                    <div className="vx-lbl">Перевод — {cur}</div>
+                    <input
+                      className="input vx-in"
+                      inputMode="decimal"
+                      value={String(bonuses.methods.transfer[cur] ?? 0)}
+                      onChange={(e) => updMethodBonus("transfer", cur, numInput(e.target.value))}
+                    />
+                  </div>
+                ))}
               </div>
 
               <div className="row vx-rowWrap vx-gap8 vx-mt10">
-                <div className="vx-field">
-                  <div className="vx-lbl">Банкомат — RUB</div>
-                  <input
-                    className="input vx-in"
-                    inputMode="decimal"
-                    value={String(bonuses.methods.atm.RUB ?? 0)}
-                    onChange={(e) => updMethodBonus("atm", "RUB", numInput(e.target.value))}
-                  />
-                </div>
-                <div className="vx-field">
-                  <div className="vx-lbl">Банкомат — USD</div>
-                  <input
-                    className="input vx-in"
-                    inputMode="decimal"
-                    value={String(bonuses.methods.atm.USD ?? 0)}
-                    onChange={(e) => updMethodBonus("atm", "USD", numInput(e.target.value))}
-                  />
-                </div>
-                <div className="vx-field">
-                  <div className="vx-lbl">Банкомат — USDT</div>
-                  <input
-                    className="input vx-in"
-                    inputMode="decimal"
-                    value={String(bonuses.methods.atm.USDT ?? 0)}
-                    onChange={(e) => updMethodBonus("atm", "USDT", numInput(e.target.value))}
-                  />
-                </div>
+                {BONUS_CURRENCIES.map((cur) => (
+                  <div key={"atm-" + cur} className="vx-field">
+                    <div className="vx-lbl">Банкомат — {cur}</div>
+                    <input
+                      className="input vx-in"
+                      inputMode="decimal"
+                      value={String(bonuses.methods.atm[cur] ?? 0)}
+                      onChange={(e) => updMethodBonus("atm", cur, numInput(e.target.value))}
+                    />
+                  </div>
+                ))}
               </div>
 
               <div className="hr" />
 
               <div className="h3">Надбавки по статусам и сумме</div>
-              <div className="small">Формат: min ≤ сумма &lt; max (max можно оставить пустым для последнего диапазона).</div>
+              <div className="small">Формат: min ≤ сумма &lt; max (max можно оставить пустым для последнего диапазона). Для EUR/THB пустой список = надбавка по статусу не применяется; для RUB/USD/USDT при пустом списке сервер вернёт стандартные диапазоны.</div>
 
-              {(["RUB", "USD", "USDT"] as const).map((cur) => (
+              {BONUS_CURRENCIES.map((cur) => (
                 <div key={cur} className="vx-mt10">
                   <div className="row vx-between vx-center">
                     <div className="vx-title18">{cur}</div>

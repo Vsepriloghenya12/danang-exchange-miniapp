@@ -54,7 +54,6 @@ function setStaticCacheHeaders(res: express.Response, filePath: string) {
   const normalized = filePath.replace(/\\/g, "/");
   const isHtml = ext === ".html";
   const isHashedBundle = normalized.includes("/assets/");
-  const isAfishaCategoryBrand = /\/brand\/afisha-[^/]+\.(png|jpg|jpeg|webp)$/i.test(normalized);
   const isMedia = [".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif", ".ico", ".woff", ".woff2", ".ttf", ".otf", ".mp4", ".webm"].includes(ext);
 
   if (isHtml) {
@@ -67,15 +66,8 @@ function setStaticCacheHeaders(res: express.Response, filePath: string) {
     return;
   }
 
-  if (isAfishaCategoryBrand) {
-    // Category covers are versioned in the client URL query string.
-    // Keep them hot in cache for fast Afisha open; a version bump invalidates immediately.
-    res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400");
-    return;
-  }
-
   if (isMedia) {
-    // Logos, icons, fonts, banks, afisha images and short videos should stay snappy on reopen.
+    // Logos, icons, fonts, banks images and short videos should stay snappy on reopen.
     // Versioned files still invalidate immediately via their query string or filename.
     res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400");
     return;
@@ -85,16 +77,6 @@ function setStaticCacheHeaders(res: express.Response, filePath: string) {
 }
 
 
-function getAfishaRuntimeDir(): string {
-  const explicit = String(process.env.AFISHA_STORAGE_DIR || "").trim();
-  if (explicit) return path.resolve(explicit);
-
-  const volumeRoot = String(process.env.RAILWAY_VOLUME_MOUNT_PATH || "").trim();
-  if (volumeRoot) return path.resolve(volumeRoot, "afisha");
-
-  return path.join(runtimePublic, "afisha");
-}
-
 function getRequestAttachmentRuntimeDir(): string {
   const explicit = String(process.env.REQUEST_ATTACHMENT_STORAGE_DIR || "").trim();
   if (explicit) return path.resolve(explicit);
@@ -103,25 +85,6 @@ function getRequestAttachmentRuntimeDir(): string {
   if (volumeRoot) return path.resolve(volumeRoot, "request-attachments");
 
   return path.join(runtimePublic, "request-attachments");
-}
-
-function mountAfishaStatic(app: express.Express) {
-  const volumeAfishaDir = getAfishaRuntimeDir();
-  const bundledAfishaDir = path.join(runtimePublic, "afisha");
-
-  const staticOpts = {
-    setHeaders(res: express.Response, filePath: string) {
-      setStaticCacheHeaders(res, filePath);
-    }
-  };
-
-  if (fs.existsSync(volumeAfishaDir)) {
-    app.use("/afisha", express.static(volumeAfishaDir, staticOpts));
-  }
-
-  if (bundledAfishaDir !== volumeAfishaDir && fs.existsSync(bundledAfishaDir)) {
-    app.use("/afisha", express.static(bundledAfishaDir, staticOpts));
-  }
 }
 
 function mountRequestAttachmentStatic(app: express.Express) {
@@ -194,7 +157,7 @@ async function startApiOnly() {
 
   if (fs.existsSync(webDist)) {
     // Runtime assets (no rebuild): put files into server/public
-    mountAfishaStatic(app);
+
     mountRequestAttachmentStatic(app);
 
     if (fs.existsSync(runtimePublic)) {
@@ -301,7 +264,7 @@ async function startMonolith() {
   );
 
   if (fs.existsSync(webDist)) {
-    mountAfishaStatic(app);
+
     mountRequestAttachmentStatic(app);
 
     if (fs.existsSync(runtimePublic)) {

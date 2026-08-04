@@ -25,7 +25,7 @@ export default function ContactsTab({ lang = "ru" }: { lang?: Lang }) {
   return (
     <div className="card" style={{ padding: 14 }}>
       <div className="small" style={{ marginBottom: 12, lineHeight: 1.5 }}>
-        {isEn ? "For exchange, events, and app support questions, you can message us directly." : "По вопросам обмена, афиши и работы приложения вы можете написать нам напрямую."}
+        {isEn ? "For exchange and app support questions, you can message us directly." : "По вопросам обмена и работы приложения вы можете написать нам напрямую."}
       </div>
       <ContactCard role={isEn ? "Admin" : "Админ"} handle="@exchange_vn" />
       <div style={{ height: 10 }} />

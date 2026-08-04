@@ -12,12 +12,8 @@ function openLink(url: string) {
 export default function AboutTab({ lang = "ru" }: { lang?: Lang }) {
   const isEn = lang === "en";
   const text = isEn
-    ? `A helper app for tourists and locals in Da Nang. Here you can find interesting events and activities, exchange currency, book and pay for hotels and tickets, and get help with e-visa services.
-
-If you want to publish your event in the Events section, please contact us.`
-    : `Приложение-помощник для туристов и локалов Дананга. Здесь можно найти интересные мероприятия и активности на любой вкус, а также обменять валюту, забронировать и оплатить отели, билеты, оформить e-visa.
-
-Если вы хотите опубликовать своё мероприятие в разделе «Афиша», пожалуйста, напишите нам.`;
+    ? `A helper app for tourists and locals in Da Nang. Here you can exchange currency, book and pay for hotels and tickets, and get help with e-visa services.`
+    : `Приложение-помощник для туристов и локалов Дананга. Здесь можно обменять валюту, забронировать и оплатить отели, билеты, оформить e-visa.`;
   return (
     <div className="card" style={{ padding: 14 }}>
       <div className="small" style={{ lineHeight: 1.6, whiteSpace: "pre-line" }}>{text}</div>

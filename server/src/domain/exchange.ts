@@ -19,19 +19,18 @@ export type BonusesTier = {
   gold: number;
 };
 
+/* Markups cover every sell-currency that converts to VND. */
+export type BonusCurrency = "RUB" | "USD" | "USDT" | "EUR" | "THB";
+
 export type BonusesConfig = {
   enabled: {
     tiers: boolean;
     methods: boolean;
   };
-  tiers: {
-    RUB: BonusesTier[];
-    USD: BonusesTier[];
-    USDT: BonusesTier[];
-  };
+  tiers: Record<BonusCurrency, BonusesTier[]>;
   methods: {
-    transfer: { RUB: number; USD: number; USDT: number };
-    atm: { RUB: number; USD: number; USDT: number };
+    transfer: Record<BonusCurrency, number>;
+    atm: Record<BonusCurrency, number>;
   };
 };
 
@@ -77,10 +76,13 @@ export function defaultBonuses(): BonusesConfig {
       RUB: rub,
       USD: usd,
       USDT: usd,
+      // EUR/THB have no markup by default — configure in the owner portal if needed.
+      EUR: [],
+      THB: [],
     },
     methods: {
-      transfer: { RUB: 1, USD: 100, USDT: 100 },
-      atm: { RUB: 1, USD: 100, USDT: 100 },
+      transfer: { RUB: 1, USD: 100, USDT: 100, EUR: 0, THB: 0 },
+      atm: { RUB: 1, USD: 100, USDT: 100, EUR: 0, THB: 0 },
     },
   };
 }

@@ -20,36 +20,6 @@ export type AtmItem = {
   mapUrl: string;
 };
 
-export type AfishaCategory = 
-  | "sport"
-  | "party"
-  | "culture"
-  | "city"
-  | "games"
-  | "market"
-  | "food"
-  | "music"
-  | "learning"
-  | "misc";
-
-export type AfishaEvent = {
-  id: string;
-  category: AfishaCategory;
-  date: string; // YYYY-MM-DD
-  time?: string; // HH:MM
-  title: string;
-  // optional short note/comment shown under the title in the client
-  comment?: string;
-  detailsUrl: string;
-  locationUrl: string;
-  imageUrl?: string;
-  previewImageUrl?: string;
-  created_at: string;
-  updated_at: string;
-  clicks: { details: number; location: number };
-};
-
-
 export type FaqItem = {
   id: string;
   q_ru: string;
@@ -122,7 +92,6 @@ export type Store = {
   requests: StoredRequest[];
   reviews: StoredReview[];
   atms: AtmItem[];
-  afisha: AfishaEvent[];
   contacts: Contact[];
   faq: FaqItem[];
 };
@@ -208,7 +177,6 @@ function defaultStore(): Store {
     requests: [],
     reviews: [],
     atms: [],
-    afisha: [],
     contacts: [],
     faq: []
   };
@@ -229,7 +197,6 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
     requests: Array.isArray(parsed?.requests) ? (parsed.requests as any) : [],
     reviews: Array.isArray(parsed?.reviews) ? (parsed.reviews as any) : [],
     atms: Array.isArray(parsed?.atms) ? parsed.atms : [],
-    afisha: Array.isArray(parsed?.afisha) ? parsed.afisha : [],
     contacts: Array.isArray(parsed?.contacts) ? parsed.contacts : [],
     faq: Array.isArray(parsed?.faq) ? parsed.faq : []
   };
@@ -392,78 +359,6 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
     }
     if (!it.updated_at) {
       it.updated_at = it.created_at;
-      dirty = true;
-    }
-  }
-
-  if (!Array.isArray((store as any).afisha)) {
-    (store as any).afisha = [];
-    dirty = true;
-  }
-
-  // normalize afisha items
-  for (const ev of (store as any).afisha as any[]) {
-    if (!ev || typeof ev !== "object") continue;
-    if (!ev.id) {
-      ev.id = `af_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-      dirty = true;
-    }
-    if (!ev.created_at) {
-      ev.created_at = new Date().toISOString();
-      dirty = true;
-    }
-    if (!ev.updated_at) {
-      ev.updated_at = ev.created_at;
-      dirty = true;
-    }
-    if (!ev.clicks) {
-      ev.clicks = { details: 0, location: 0 };
-      dirty = true;
-    }
-    if (typeof ev.clicks.details !== "number") {
-      ev.clicks.details = Number(ev.clicks.details) || 0;
-      dirty = true;
-    }
-    if (typeof ev.clicks.location !== "number") {
-      ev.clicks.location = Number(ev.clicks.location) || 0;
-      dirty = true;
-    }
-    if (ev.comment != null && typeof ev.comment !== "string") {
-      ev.comment = String(ev.comment || "");
-      dirty = true;
-    }
-    if (ev.time != null) {
-      const t = String(ev.time || "").trim();
-      const normTime = /^\d{2}:\d{2}$/.test(t) ? t : "";
-      if (normTime) {
-        if (ev.time !== normTime) {
-          ev.time = normTime;
-          dirty = true;
-        }
-      } else {
-        delete ev.time;
-        dirty = true;
-      }
-    }
-    const cats = Array.isArray(ev.categories)
-      ? ev.categories
-      : ev.category
-      ? [ev.category]
-      : [];
-    const normCats = Array.from(
-      new Set(
-        cats
-          .map((x: any) => String(x || "").trim().toLowerCase())
-          .map((x: string) => (x === "город" || x === "city" ? "culture" : x))
-          .filter(Boolean)
-      )
-    ).slice(0, 3);
-    if (!Array.isArray(ev.categories) || JSON.stringify(ev.categories) !== JSON.stringify(normCats)) {
-      ev.categories = normCats;
-      dirty = true;
-    }
-    if (normCats[0] && ev.category !== normCats[0]) {
-      ev.category = normCats[0];
       dirty = true;
     }
   }

@@ -209,19 +209,18 @@ export type BonusesTier = {
   gold: number;
 };
 
+/* Markups cover every sell-currency that converts to VND. */
+export type BonusCurrency = "RUB" | "USD" | "USDT" | "EUR" | "THB";
+
 export type BonusesConfig = {
   enabled: {
     tiers: boolean;
     methods: boolean;
   };
-  tiers: {
-    RUB: BonusesTier[];
-    USD: BonusesTier[];
-    USDT: BonusesTier[];
-  };
+  tiers: Record<BonusCurrency, BonusesTier[]>;
   methods: {
-    transfer: { RUB: number; USD: number; USDT: number };
-    atm: { RUB: number; USD: number; USDT: number };
+    transfer: Record<BonusCurrency, number>;
+    atm: Record<BonusCurrency, number>;
   };
 };
 
@@ -232,43 +231,3 @@ export type BonusesResponse = {
 };
 
 
-// --------------------
-// Afisha (events)
-// --------------------
-export type AfishaCategory = "sport" | "party" | "culture" | "food" | "music" | "games" | "market" | "learning" | "misc";
-export type AfishaFilterCategory = "all" | AfishaCategory;
-
-export type AfishaEvent = {
-  id: string;
-  // NEW: an event may belong to up to 3 categories
-  categories?: AfishaCategory[];
-  // legacy (single category)
-  category?: AfishaCategory;
-  date: string; // YYYY-MM-DD
-  time?: string; // HH:MM
-  title: string;
-  comment?: string;
-  detailsUrl: string;
-  locationUrl: string;
-  // optional background image URL served from server/public (e.g. /afisha/<id>.jpg)
-  imageUrl?: string;
-  previewImageUrl?: string;
-  shareUrl?: string;
-  created_at: string;
-  updated_at: string;
-  clicks?: { details: number; location: number };
-};
-
-export type AfishaResponse = {
-  ok: boolean;
-  today?: string;
-  events: AfishaEvent[];
-  error?: string;
-};
-
-export type AdminAfishaResponse = {
-  ok: boolean;
-  today?: string;
-  events: AfishaEvent[];
-  error?: string;
-};
