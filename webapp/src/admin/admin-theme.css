@@ -1,0 +1,506 @@
+/* ==========================================================================
+   Owner portal theme — ported from the marketplace-dashboard design system
+   (design-craft: OKLCH neutrals, IBM Plex, product register, high density).
+   Scoped under .adx on the portal root; later import wins over styles.css.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+.adx {
+  /* Поверхности */
+  --bg: oklch(14% 0.005 240);
+  --surface: oklch(18% 0.008 240);
+  --surface-elevated: oklch(22% 0.01 240);
+  --surface-hover: oklch(20% 0.009 240);
+  /* Границы */
+  --border: oklch(28% 0.01 240);
+  --border-subtle: oklch(24% 0.01 240);
+  /* Текст */
+  --tx: oklch(96% 0.005 240);
+  --tx-muted: oklch(70% 0.01 240);
+  --tx-subtle: oklch(50% 0.01 240);
+  /* Семантика */
+  --positive: oklch(72% 0.15 155);
+  --negative: oklch(65% 0.2 25);
+  --warning: oklch(75% 0.1 85);
+  --info: oklch(72% 0.12 240);
+  --accent: oklch(78% 0.18 210);
+  --positive-bg: oklch(72% 0.15 155 / 0.08);
+  --negative-bg: oklch(65% 0.2 25 / 0.08);
+  --warning-bg: oklch(75% 0.1 85 / 0.1);
+  --negative-border: oklch(65% 0.2 25 / 0.3);
+  --warning-border: oklch(75% 0.1 85 / 0.3);
+  /* Шрифты, радиусы, движение */
+  --font-ui: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --r-card: 8px;
+  --r-control: 6px;
+  --r-inner: 4px;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Полотно страницы ─────────────────────────────────────────────────────── */
+
+body:has(.adx),
+body:has(.adx) #root {
+  background: oklch(14% 0.005 240) !important;
+}
+
+.vx-page.adx,
+.vx-page.theme-owner.adx {
+  background: var(--bg) !important;
+  color: var(--tx);
+  font: 400 14px/1.5 var(--font-ui);
+  min-height: 100dvh;
+  padding: 0 0 48px;
+}
+
+.adx .container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.adx ::selection { background: oklch(78% 0.18 210 / 0.3); }
+
+.adx ::-webkit-scrollbar { width: 10px; height: 10px; }
+.adx ::-webkit-scrollbar-track { background: oklch(20% 0.009 240); }
+.adx ::-webkit-scrollbar-thumb { background: oklch(38% 0.012 240); border-radius: 5px; }
+.adx ::-webkit-scrollbar-thumb:hover { background: oklch(52% 0.014 240); }
+
+/* ── Шапка: название + действия, ярусом ниже — разделы ────────────────────── */
+
+.adx-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-subtle);
+  margin: 0 -24px;
+  padding: 0 24px;
+}
+
+.adx-header-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 0 6px;
+  flex-wrap: wrap;
+}
+
+.adx-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--tx);
+  flex: none;
+}
+.adx-title-sub {
+  color: var(--tx-subtle);
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+.adx-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+/* Разделы — подчёркнутые табы, как в дашборде */
+.adx .vx-adminSeg {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.adx .vx-adminSeg::-webkit-scrollbar { display: none; }
+
+.adx .vx-adminSeg button {
+  white-space: nowrap;
+  flex-shrink: 0;
+  font: 500 14px/1 var(--font-ui);
+  color: var(--tx-muted);
+  background: none !important;
+  border: none;
+  box-shadow: none !important;
+  cursor: pointer;
+  padding: 8px 4px 10px;
+  margin: 0 20px 0 0;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  transition: color 100ms var(--ease);
+}
+.adx .vx-adminSeg button:hover { color: var(--tx); }
+.adx .vx-adminSeg button.on {
+  color: var(--tx);
+  border-bottom-color: var(--tx);
+  background: none !important;
+}
+.adx .vx-adminSeg button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-inner);
+}
+
+.adx-page { padding-top: 16px; }
+
+/* ── Карточки ─────────────────────────────────────────────────────────────── */
+
+.adx .card,
+.adx .vx-modalCard {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r-card);
+  box-shadow: none !important;
+  padding: 16px;
+  color: var(--tx);
+}
+.adx .card::before { display: none !important; }
+.adx .card + .card { margin-top: 12px; }
+
+.adx .vx-adminSection {
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+/* ── Типографика ──────────────────────────────────────────────────────────── */
+
+.adx .h1, .adx .vx-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--tx);
+  text-shadow: none;
+}
+.adx .h2 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; color: var(--tx); }
+.adx .h3, .adx .vx-title18 {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tx-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.adx .small { font-size: 13px; color: var(--tx); }
+.adx .small b { font-weight: 600; }
+.adx .vx-muted, .adx .vx-topSub, .adx .vx-meta {
+  color: var(--tx-muted);
+  font-size: 12.5px;
+}
+.adx .vx-lbl {
+  font-size: 12px;
+  color: var(--tx-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+.adx .vx-code {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--tx);
+}
+.adx .hr {
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  margin: 12px 0;
+  height: 0;
+  background: none;
+}
+
+/* Числа — всегда табличные */
+.adx input[inputmode='decimal'],
+.adx input[inputmode='numeric'],
+.adx .vx-code,
+.adx .adx-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* ── Кнопки ───────────────────────────────────────────────────────────────── */
+
+.adx .btn {
+  font: 500 13px/1 var(--font-ui);
+  color: var(--tx);
+  background: var(--surface-elevated) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r-control) !important;
+  padding: 8px 14px;
+  height: auto;
+  min-height: 0;
+  cursor: pointer;
+  box-shadow: none !important;
+  text-shadow: none;
+  transition: background 100ms var(--ease);
+}
+.adx .btn:hover { background: var(--surface-hover) !important; }
+.adx .btn:active { transform: none; }
+.adx .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.adx .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.adx .btn.vx-btnSm { padding: 7px 12px; font-size: 12.5px; }
+
+/* Активное состояние (vx-btnOn / is-on): инвертированная кнопка */
+.adx .btn.vx-btnOn,
+.adx .vx-toggleBtn.is-on {
+  background: var(--tx) !important;
+  color: var(--bg) !important;
+  border-color: var(--tx) !important;
+}
+.adx .btn.vx-btnOn:hover { opacity: 0.88; background: var(--tx) !important; }
+.adx .vx-toggleBtn.is-off {
+  color: var(--tx-muted);
+}
+
+.adx .vx-primary {
+  background: var(--tx) !important;
+  color: var(--bg) !important;
+  border: 1px solid var(--tx) !important;
+  border-radius: var(--r-control);
+  font: 500 13px/1 var(--font-ui);
+  padding: 9px 16px;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+.adx .vx-primary:hover { opacity: 0.88; }
+
+/* ── Формы ────────────────────────────────────────────────────────────────── */
+
+.adx input,
+.adx select,
+.adx textarea,
+.adx .input,
+.adx .vx-in {
+  font: 400 13px/1.4 var(--font-ui);
+  color: var(--tx) !important;
+  background: var(--bg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r-control) !important;
+  padding: 8px 10px;
+  box-shadow: none !important;
+  -webkit-text-fill-color: var(--tx);
+}
+.adx input::placeholder,
+.adx textarea::placeholder { color: var(--tx-subtle); -webkit-text-fill-color: var(--tx-subtle); }
+.adx input:focus-visible,
+.adx select:focus-visible,
+.adx textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-color: var(--border) !important;
+}
+.adx select option { background: var(--surface-elevated); color: var(--tx); }
+.adx input[type='date'], .adx input[type='time'] { color-scheme: dark; }
+.adx input[type='checkbox'] { accent-color: var(--accent); }
+
+.adx .vx-field { min-width: 0; }
+
+/* ── Списки заявок / строки-кнопки ────────────────────────────────────────── */
+
+.adx .vx-reqList { display: grid; gap: 8px; }
+
+.adx .vx-reqRow {
+  background: var(--surface-elevated) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r-card) !important;
+  box-shadow: none !important;
+  color: var(--tx);
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms var(--ease);
+  font: 400 13px/1.45 var(--font-ui);
+}
+.adx .vx-reqRow:hover { background: var(--surface-hover) !important; }
+.adx .vx-reqRow.is-active { border-color: var(--tx-subtle) !important; }
+.adx .vx-reqRow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.adx .vx-reqRow b { font-weight: 600; }
+.adx .vx-reqTop { display: flex; justify-content: space-between; gap: 12px; }
+
+.adx .vx-reqExpand {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--r-card) var(--r-card);
+  padding: 12px;
+  margin-top: -6px;
+}
+
+.adx .vx-tag {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--tx-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+/* ── Строки формул курса ──────────────────────────────────────────────────── */
+
+.adx .vx-rateRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.adx .vx-rateRow:last-child { border-bottom: none; }
+.adx .vx-rateRow .vx-code { flex: 0 0 110px; color: var(--tx-muted); }
+.adx .vx-fields { display: flex; gap: 8px; flex: 1; min-width: 0; }
+.adx .vx-fields .vx-field { flex: 1; min-width: 0; }
+.adx .vx-fields input { width: 100%; font-family: var(--font-mono); }
+
+/* ── Тосты ────────────────────────────────────────────────────────────────── */
+
+.adx .vx-toast {
+  position: sticky;
+  top: 92px;
+  z-index: 20;
+  margin: 8px 0;
+  padding: 10px 14px;
+  font-size: 13px;
+  border-radius: var(--r-card);
+  border: 1px solid var(--border);
+  background: var(--surface-elevated);
+  color: var(--tx);
+  box-shadow: 0 8px 24px oklch(0% 0 0 / 0.35);
+}
+.adx .vx-toastErr {
+  background: var(--negative-bg);
+  border-color: var(--negative-border);
+}
+.adx .vx-toastOk {
+  background: var(--positive-bg);
+  border-color: oklch(72% 0.15 155 / 0.3);
+}
+
+/* ── Таблицы (если где-то есть) ──────────────────────────────────────────── */
+
+.adx table {
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  overflow: clip;
+  font-size: 13px;
+}
+.adx th, .adx td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.adx th { font-weight: 500; font-size: 12px; color: var(--tx-muted); }
+.adx tbody tr:last-child td { border-bottom: none; }
+.adx tbody tr:hover { background: var(--surface-hover); }
+
+/* ── Экран входа ──────────────────────────────────────────────────────────── */
+
+.adx-login {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.adx-login .card {
+  width: min(380px, 100%);
+  padding: 24px;
+}
+.adx-login .h1 { font-size: 16px; margin-bottom: 4px; }
+.adx-login-hint { font-size: 12.5px; color: var(--tx-muted); margin: 0 0 14px; }
+.adx .vx-installRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+/* ── Разное наследие: погасить неон и лишние тени ────────────────────────── */
+
+.adx .vx-topCard { padding: 0; border: 0 !important; background: none !important; }
+.adx [class*='vx-'] { text-shadow: none; }
+.adx .vx-help { color: var(--tx-muted); font-size: 13px; }
+.adx .vx-note {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  color: var(--tx-muted);
+  padding: 8px 12px;
+  font-size: 12.5px;
+  box-shadow: none;
+}
+.adx .vx-warn {
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--r-control);
+  color: var(--tx);
+  padding: 8px 12px;
+  font-size: 12.5px;
+}
+
+.adx .vx-modalOverlay {
+  background: oklch(0% 0 0 / 0.55);
+}
+.adx .vx-modalCard {
+  background: var(--surface-elevated) !important;
+  box-shadow: 0 12px 40px oklch(0% 0 0 / 0.45) !important;
+  animation: adx-modal-enter 200ms var(--ease-enter);
+}
+@keyframes adx-modal-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Календарь/статистика и прочие цветные плашки — к нейтральным поверхностям */
+.adx .vx-chatActionRow { display: flex; gap: 8px; flex-wrap: wrap; }
+
+@media (max-width: 720px) {
+  .adx .container { padding: 0 12px; }
+  .adx-header { margin: 0 -12px; padding: 0 12px; }
+  .adx-header-row { gap: 10px; }
+  .adx .btn { min-height: 40px; }
+  .adx input, .adx select, .adx textarea { font-size: 16px; min-height: 40px; }
+  .adx .vx-adminSeg button { padding: 12px 4px; min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adx *, .adx *::before, .adx *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.adx-header { margin-bottom: 8px; }
+.adx .vx-sp6 { height: 6px; } .adx .vx-sp8 { height: 8px; } .adx .vx-sp10 { height: 10px; } .adx .vx-sp12 { height: 12px; }
+
+/* ── Жёсткие перекрытия легаси-!important из styles.css ──────────────────── */
+.adx .btn { color: var(--tx) !important; }
+.adx .btn.vx-btnOn, .adx .vx-toggleBtn.is-on { color: var(--bg) !important; }
+.adx .vx-primary { color: var(--bg) !important; }
+.adx .vx-adminSeg button { color: var(--tx-muted) !important; }
+.adx .vx-adminSeg button:hover, .adx .vx-adminSeg button.on { color: var(--tx) !important; }
+.adx .small { color: var(--tx) !important; }
+.adx .vx-muted, .adx .vx-topSub, .adx .vx-meta, .adx .vx-help { color: var(--tx-muted) !important; font-weight: 400 !important; }
+.adx .vx-lbl { color: var(--tx-muted) !important; }
+.adx .h1, .adx .h2, .adx .vx-title { color: var(--tx) !important; }
+.adx .h3, .adx .vx-title18 { color: var(--tx-muted) !important; }
+.adx .vx-code { color: var(--tx) !important; }
+.adx .vx-tag { color: var(--tx-muted) !important; }
+.adx .vx-reqRow, .adx .vx-reqRow * { text-shadow: none !important; }
+
+/* Формулы курса: числовые поля фиксированной ширины, а не на полэкрана */
+.adx .vx-fields { flex: 0 1 auto; }
+.adx .vx-fields .vx-field { flex: 0 0 140px; }

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import "./admin-theme.css";
 import AdminTab from "../tabs/AdminTab";
 import CalculatorTab from "../tabs/CalculatorTab";
 import { createGFormulaDraft, DEFAULT_G_FORMULAS, G_FORMULA_KEYS } from "../domain/exchange";
@@ -1355,18 +1356,16 @@ function moveFaq(id: string, dir: -1 | 1) {
 
   if (!token) {
     return (
-      <div className="vx-page theme-owner">
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap');`}</style>
-        {/* background removed (old Danang/beach style is no longer used) */}
-        <div className="container">
-          {banner ? (
-            <div className={banner.type === "err" ? "vx-toast vx-toastErr" : "vx-toast vx-toastOk"}>
-              {banner.text}
-            </div>
-          ) : null}
+      <div className="vx-page theme-owner adx">
+        <div className="adx-login">
           <div className="card">
-            <div className="h1">Управление владельца</div>
-            <div className="vx-sp12" />
+            <div className="h1">Cash a Lot — портал владельца</div>
+            <p className="adx-login-hint">Введите ключ доступа, чтобы открыть управление.</p>
+            {banner ? (
+              <div className={banner.type === "err" ? "vx-toast vx-toastErr" : "vx-toast vx-toastOk"} style={{ position: "static", marginBottom: 12 }}>
+                {banner.text}
+              </div>
+            ) : null}
             <input
               className="input vx-in"
               value={draftKey}
@@ -1397,18 +1396,17 @@ function moveFaq(id: string, dir: -1 | 1) {
     );
   }
 
+
   return (
-    <div className="vx-page theme-owner">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap');`}</style>
-      {/* background removed (old Danang/beach style is no longer used) */}
+    <div className="vx-page theme-owner adx">
       <div className="container">
-        <div className="card vx-topCard" style={{ paddingLeft: 14, paddingRight: 14 }}>
-          <div className="row vx-between vx-center" style={{ gap: 12 }}>
-            <div>
-              <div className="vx-title">Управление</div>
-              <div className="vx-topSub">/admin</div>
-            </div>
-            <div className="vx-chatActionRow">
+        <header className="adx-header">
+          <div className="adx-header-row">
+            <h1 className="adx-title">
+              Cash a Lot
+              <span className="adx-title-sub">портал владельца</span>
+            </h1>
+            <div className="adx-actions">
               <button className="btn vx-btnSm" type="button" onClick={installOwnerApp} disabled={installDone}>
                 {installDone ? "Установлено" : "Установить"}
               </button>
@@ -1431,25 +1429,25 @@ function moveFaq(id: string, dir: -1 | 1) {
               </button>
             </div>
           </div>
-        </div>
+
+          <div className="vx-adminSeg">
+            <button className={tab === "rates" ? "on" : ""} onClick={() => setTab("rates")}>Курс</button>
+            <button className={tab === "bonuses" ? "on" : ""} onClick={() => setTab("bonuses")}>Надбавки</button>
+            <button className={tab === "reviews" ? "on" : ""} onClick={() => setTab("reviews")}>Отзывы</button>
+            <button className={tab === "clients" ? "on" : ""} onClick={() => setTab("clients")}>Клиенты</button>
+            <button className={tab === "requests" ? "on" : ""} onClick={() => setTab("requests")}>Заявки</button>
+            <button className={tab === "faq" ? "on" : ""} onClick={() => setTab("faq")}>FAQ</button>
+            <button className={tab === "cashbox" ? "on" : ""} onClick={() => setTab("cashbox")}>Касса</button>
+            <button className={tab === "reports" ? "on" : ""} onClick={() => setTab("reports")}>Отчёты</button>
+            <button className={tab === "analytics" ? "on" : ""} onClick={() => setTab("analytics")}>Статистика</button>
+          </div>
+        </header>
 
         {banner ? (
           <div className={banner.type === "err" ? "vx-toast vx-toastErr" : "vx-toast vx-toastOk"}>
             {banner.text}
           </div>
         ) : null}
-
-        <div className="vx-adminSeg" style={{ marginTop: 0 }}>
-          <button className={tab === "rates" ? "on" : ""} onClick={() => setTab("rates")}>Курс</button>
-          <button className={tab === "bonuses" ? "on" : ""} onClick={() => setTab("bonuses")}>Надбавки</button>
-          <button className={tab === "reviews" ? "on" : ""} onClick={() => setTab("reviews")}>Отзывы</button>
-          <button className={tab === "clients" ? "on" : ""} onClick={() => setTab("clients")}>Клиенты</button>
-          <button className={tab === "requests" ? "on" : ""} onClick={() => setTab("requests")}>Заявки</button>
-          <button className={tab === "faq" ? "on" : ""} onClick={() => setTab("faq")}>FAQ</button>
-          <button className={tab === "cashbox" ? "on" : ""} onClick={() => setTab("cashbox")}>Касса</button>
-          <button className={tab === "reports" ? "on" : ""} onClick={() => setTab("reports")}>Отчёты</button>
-          <button className={tab === "analytics" ? "on" : ""} onClick={() => setTab("analytics")}>Статистика</button>
-        </div>
 
         <div className="vx-mt10" />
 
