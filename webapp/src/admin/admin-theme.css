@@ -626,3 +626,68 @@ body:has(.adx) #root {
 .adx .adx-table td:nth-child(1) input,
 .adx .adx-table td:nth-child(2) input { width: 112px; max-width: 112px; }
 .adx .adx-matrix td:nth-child(n) input { width: 88px; max-width: 88px; }
+
+/* ── Данные-зависимые легаси-блоки (не видны на пустом стенде) ───────────── */
+
+/* Клиенты: карточки списка */
+.adx .vx-contactList { background: none !important; border: 0 !important; box-shadow: none !important; }
+.adx .vx-contactRow {
+  background: var(--surface-elevated) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r-card) !important;
+  box-shadow: none !important;
+  color: var(--tx) !important;
+  transition: background 100ms var(--ease);
+}
+.adx .vx-contactRow:hover { background: var(--surface-hover) !important; }
+.adx .vx-contactRow.vx-cardSel { border-color: var(--accent) !important; }
+.adx .vx-contactRow b { color: var(--tx) !important; }
+.adx .vx-tag.vx-tagNew {
+  color: var(--positive) !important;
+  background: var(--positive-bg) !important;
+  border-color: oklch(72% 0.15 155 / 0.3) !important;
+}
+
+/* Панель калькулятора в заявках */
+.adx .vx-adminCalcPanel {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r-card) !important;
+  box-shadow: none !important;
+  color: var(--tx) !important;
+}
+
+/* Отчёты: карточки метрик */
+.adx .vx-metricGrid { background: none !important; border: 0 !important; box-shadow: none !important; }
+.adx .vx-metricCard {
+  background: var(--surface-elevated) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r-card) !important;
+  box-shadow: none !important;
+  color: var(--tx) !important;
+}
+
+/* Чипы, банки, превью */
+.adx .vx-chip {
+  background: var(--surface-elevated) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--tx) !important;
+}
+.adx .vx-bankGrid, .adx .vx-bankInline { background: none !important; border: 0 !important; box-shadow: none !important; }
+.adx .vx-bankBtn {
+  background: var(--surface-elevated) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r-control) !important;
+}
+/* Логотипы банков остаются на белой плашке — иначе тёмные логотипы пропадут */
+.adx .vx-bankInlineImg, .adx .vx-bankImg {
+  background: #fff !important;
+  border-radius: 4px;
+  padding: 2px;
+}
+.adx .vx-pubThumb {
+  background: var(--surface-elevated) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r-inner);
+}
+.adx .vx-admin { background: none !important; border: 0 !important; box-shadow: none !important; }
