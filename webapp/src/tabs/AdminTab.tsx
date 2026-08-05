@@ -168,6 +168,26 @@ export default function AdminTab({
   const [bonusesBusy, setBonusesBusy] = useState(false);
   const [bonusesLoaded, setBonusesLoaded] = useState(false);
 
+  // Мобильный вид: группы диапазонов свёрнуты по умолчанию.
+  const [isMobileView, setIsMobileView] = useState<boolean>(() => {
+    try {
+      return window.matchMedia("(max-width: 640px)").matches;
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      const mq = window.matchMedia("(max-width: 640px)");
+      const onChange = () => setIsMobileView(mq.matches);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    } catch {
+      return;
+    }
+  }, []);
+  const [openTiers, setOpenTiers] = useState<Record<string, boolean>>({});
+
   const [reviewsLoaded, setReviewsLoaded] = useState(false);
   const [reviewsBusy, setReviewsBusy] = useState(false);
   const [adminReviews, setAdminReviews] = useState<any[]>([]);
@@ -595,16 +615,34 @@ export default function AdminTab({
               <div className="adx-tiersWrap">
               {BONUS_CURRENCIES.map((cur) => {
                 const list = (bonuses.tiers as any)[cur] as BonusesTier[];
+                const tiersOpen = !isMobileView || !!openTiers[cur];
                 return (
                   <div key={cur} className="adx-tierGroup">
-                    <div className="adx-tierHead">
-                      <span className="adx-tierCur">{cur}</span>
-                      <button className="btn vx-btnSm" type="button" onClick={() => addTier(cur)} disabled={bonusesBusy}>
+                    <div
+                      className={"adx-tierHead" + (isMobileView ? " is-toggle" : "")}
+                      onClick={isMobileView ? () => setOpenTiers((p) => ({ ...p, [cur]: !p[cur] })) : undefined}
+                      role={isMobileView ? "button" : undefined}
+                    >
+                      <span className="adx-tierCur">
+                        {cur}
+                        {isMobileView ? <span className="adx-tierCount">{list.length ? `· ${list.length}` : "· нет"}</span> : null}
+                        {isMobileView ? <span className={"adx-caret" + (tiersOpen ? " is-open" : "")} aria-hidden="true">▾</span> : null}
+                      </span>
+                      <button
+                        className="btn vx-btnSm"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenTiers((p) => ({ ...p, [cur]: true }));
+                          addTier(cur);
+                        }}
+                        disabled={bonusesBusy}
+                      >
                         Добавить диапазон
                       </button>
                     </div>
 
-                    {list.length === 0 ? (
+                    {!tiersOpen ? null : list.length === 0 ? (
                       <div className="vx-muted">Диапазонов нет — надбавка по статусу для {cur} не применяется.</div>
                     ) : (
                       <div className="vx-tableWrap">

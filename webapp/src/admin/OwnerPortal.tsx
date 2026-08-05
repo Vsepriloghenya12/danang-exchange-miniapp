@@ -65,6 +65,23 @@ type DeferredInstallPromptEvent = Event & {
   userChoice?: Promise<{ outcome: "accepted" | "dismissed"; platform?: string }>;
 };
 
+/* Мобильный аккордеон: на телефоне блок свёрнут до заголовка, на десктопе
+   рендерит детей как есть. Содержимое скрывается display:none — формы
+   остаются смонтированными, введённые значения не теряются. */
+function AdxCollapse({ mobile, title, children, defaultOpen = false }: { mobile: boolean; title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  if (!mobile) return <>{children}</>;
+  return (
+    <>
+      <div className="adx-mHead" role="button" tabIndex={0} onClick={() => setOpen((o) => !o)}>
+        <span className="adx-mHeadTitle">{title}</span>
+        <span className={"adx-caret" + (open ? " is-open" : "")} aria-hidden="true">▾</span>
+      </div>
+      <div style={open ? undefined : { display: "none" }}>{children}</div>
+    </>
+  );
+}
+
 export default function OwnerPortal() {
   // Owner portal is opened in a regular browser; keep background consistent with the miniapp.
   useEffect(() => {
@@ -1473,11 +1490,12 @@ function moveFaq(id: string, dir: -1 | 1) {
 
       {tab === "rates" ? (
         <div className="adx-cols">
-          <div className="card"><AdminTab me={me} forcedSection="rates" hideHeader hideSeg /></div>
+          <div className="card"><AdxCollapse mobile={isMobileView} title="Курс на сегодня"><AdminTab me={me} forcedSection="rates" hideHeader hideSeg /></AdxCollapse></div>
 
           <div className="vx-sp12" />
 
           <div className="card">
+            <AdxCollapse mobile={isMobileView} title="Формулы кросс-курсов (G)">
             <div className="row vx-between vx-center">
               <div className="small"><b>Формулы кросс‑курсов (G)</b></div>
               <button className="btn vx-btnSm" type="button" onClick={resetGFormulasToDefault}>
@@ -1539,11 +1557,13 @@ function moveFaq(id: string, dir: -1 | 1) {
             <button className="btn" type="button" onClick={saveGFormulas} disabled={gFormulasSaving}>
               {gFormulasSaving ? "Сохраняю…" : "Сохранить формулы"}
             </button>
+            </AdxCollapse>
           </div>
 
           <div className="vx-sp12" />
 
           <div className="card">
+            <AdxCollapse mobile={isMobileView} title="Публикация в группу">
             <div className="small"><b>Публикация в группу</b></div>
             <div className="vx-sp10" />
             <textarea className="vx-revText" rows={10} value={tpl} onChange={(e) => setTpl(e.target.value)} />
@@ -1577,12 +1597,13 @@ function moveFaq(id: string, dir: -1 | 1) {
             <button className="btn" type="button" onClick={publishNow} disabled={isPublishing}>
               {isPublishing ? "Публикую…" : "Опубликовать"}
             </button>
-
+            </AdxCollapse>
           </div>
 
           <div className="vx-sp12" />
 
           <div className="card">
+            <AdxCollapse mobile={isMobileView} title="Админы">
             <div className="small"><b>Админы (tg_id)</b></div>
             <div className="vx-sp10" />
             <input
@@ -1595,11 +1616,13 @@ function moveFaq(id: string, dir: -1 | 1) {
             <button className="btn" type="button" onClick={saveAdmins}>
               Сохранить
             </button>
+            </AdxCollapse>
           </div>
 
           <div className="vx-sp12" />
 
           <div className="card">
+            <AdxCollapse mobile={isMobileView} title="Чёрный список">
             <div className="small"><b>Чёрный список (username)</b></div>
             <div className="vx-sp6" />
             <div className="small" style={{ opacity: 0.85 }}>
@@ -1618,6 +1641,7 @@ function moveFaq(id: string, dir: -1 | 1) {
             <button className="btn" type="button" onClick={saveBlacklist}>
               Сохранить
             </button>
+            </AdxCollapse>
           </div>
         </div>
       ) : null}

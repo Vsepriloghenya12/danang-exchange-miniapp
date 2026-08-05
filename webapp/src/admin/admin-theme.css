@@ -733,6 +733,19 @@ body:has(.adx) #root {
 }
 .adx-caret.is-open { transform: rotate(180deg); }
 
+/* Мобильный аккордеон карточек */
+.adx .adx-mHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  min-height: 34px;
+  font: 600 14px/1.3 var(--font-ui);
+  color: var(--tx);
+}
+.adx .adx-mHead:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-inner); }
+
 @media (max-width: 640px) {
   .adx .container { padding: 0 12px; }
   .adx-header { margin: 0 -12px; padding: 0 12px; }
@@ -760,4 +773,36 @@ body:has(.adx) #root {
   /* Таблицы надбавок/кассы уезжают в горизонтальный скролл внутри обёртки */
   .adx .vx-tableWrap { width: 100%; overflow-x: auto; }
   .adx .adx-tiersWrap { columns: auto 1; }
+
+  /* «Курс»: валюта + пара BUY/SELL в ОДНУ строку */
+  .adx .vx-rateRow { display: flex !important; align-items: center; gap: 8px; flex-wrap: nowrap !important; }
+  .adx .vx-rateRow .vx-code { flex: 0 0 52px !important; }
+  .adx .vx-rateRow .vx-fields {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 8px;
+    flex: 1 1 auto !important;
+    min-width: 0;
+  }
+  .adx .vx-rateRow .vx-fields .vx-field { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; }
+  .adx .vx-rateRow .vx-fields input { width: 100% !important; max-width: none !important; }
+
+  /* Свёрнутые группы диапазонов: заголовок-переключатель */
+  .adx .adx-tierHead.is-toggle { cursor: pointer; padding: 6px 0; }
+  .adx .adx-tierCount {
+    margin-left: 8px;
+    font: 400 12.5px/1 var(--font-ui);
+    color: var(--tx-muted);
+  }
+  .adx .adx-tierGroup { margin-bottom: 14px; }
+
+  /* Таблицы редактора компактнее — меньше горизонтального скролла */
+  .adx .adx-table input { width: 72px; max-width: 72px; min-height: 34px; font-size: 14px; padding: 6px 8px; }
+  .adx .adx-table td:nth-child(1) input,
+  .adx .adx-table td:nth-child(2) input { width: 88px; max-width: 88px; }
+  .adx .adx-matrix input { width: 64px; max-width: 64px; }
+  .adx .adx-table th { padding: 6px 8px; }
+  .adx .adx-table td { padding: 4px 6px; }
+  .adx .adx-table .btn { padding: 6px 9px; font-size: 12px; min-height: 34px; }
 }
