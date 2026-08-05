@@ -357,6 +357,26 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
 
   const saveTplTimer = useRef<number | null>(null);
 
+  // Мобильный вид: списки свёрнуты по умолчанию, разворачиваются тапом.
+  const [isMobileView, setIsMobileView] = useState<boolean>(() => {
+    try {
+      return window.matchMedia("(max-width: 640px)").matches;
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      const mq = window.matchMedia("(max-width: 640px)");
+      const onChange = () => setIsMobileView(mq.matches);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    } catch {
+      return;
+    }
+  }, []);
+  const [expandedClient, setExpandedClient] = useState<string>("");
+
   async function loadAll() {
     if (!token) return;
     setBanner(null);
@@ -1737,22 +1757,33 @@ function moveFaq(id: string, dir: -1 | 1) {
                     ? () => openClientEditor(u, c, Number(tgId))
                     : () => openContactOnlyEditor(c);
 
+                  const rowKey = String(c?.id || tgId || uname);
+                  const expanded = expandedClient === rowKey;
+                  const onRowClick = () => {
+                    if (isMobileView) {
+                      setExpandedClient(expanded ? "" : rowKey);
+                      return;
+                    }
+                    clickHandler();
+                  };
+
                   return (
-                    <div key={String(c?.id || tgId || uname)} className={"vx-contactRow is-clickable" + (isEditing ? " vx-cardSel" : "")} onClick={clickHandler}>
+                    <div key={rowKey} className={"vx-contactRow is-clickable" + (isEditing ? " vx-cardSel" : "") + (expanded ? " is-open" : "")} onClick={onRowClick}>
                       <div className="row vx-between vx-center" style={{ gap: 8, flexWrap: "wrap" }}>
-                        <div>
+                        <div style={{ minWidth: 0 }}>
                           <div>
                             <b>{who}</b>{tgId ? <span className="vx-muted"> • id:{tgId}</span> : null}
                             {isNew ? <span className="vx-tag vx-tagNew">Новый</span> : null}
+                            {isMobileView ? <span className={"adx-caret" + (expanded ? " is-open" : "")} aria-hidden="true">▾</span> : null}
                           </div>
-                          <div className="vx-muted" style={{ marginTop: 2 }}>
+                          <div className="vx-muted adx-collapsible" style={{ marginTop: 2 }}>
                             Имя (админ): <b>{adminName}</b>
                           </div>
                           {row.kind !== "user" ? (
-                            <div className="vx-muted" style={{ marginTop: 2 }}>Ещё не заходил в мини‑приложение</div>
+                            <div className="vx-muted adx-collapsible" style={{ marginTop: 2 }}>Ещё не заходил в мини‑приложение</div>
                           ) : null}
                           {banks.length ? (
-                            <div className="vx-bankInline" style={{ marginTop: 6 }}>
+                            <div className="vx-bankInline adx-collapsible" style={{ marginTop: 6 }}>
                               {banks.slice(0, 6).map((ic: string) => (
                                 <img key={ic} src={bankIconUrl(ic)} alt="" className="vx-bankInlineImg" title={ic} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                               ))}
@@ -1760,7 +1791,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                           ) : null}
                         </div>
 
-                        <div style={{ textAlign: "right", maxWidth: 420 }}>
+                        <div className="adx-collapsible" style={{ textAlign: "right", maxWidth: 420 }}>
                           <div className="vx-muted">Отдал</div>
                           <div><b>{sumSellText}</b></div>
                           <div className="vx-muted" style={{ marginTop: 4 }}>Получил</div>
@@ -1769,11 +1800,23 @@ function moveFaq(id: string, dir: -1 | 1) {
                         </div>
                       </div>
 
-                      <div className="vx-sp8" />
+                      <div className="vx-sp8 adx-collapsible" />
 
-                      <div className="row vx-rowWrap vx-gap6" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <div className="row vx-rowWrap vx-gap6" style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                         <span className="vx-tag">Статус: <b>{getUserStatusLabelRu((c?.status as any) || (u?.status as any) || "standard")}</b></span>
-                        <span className="vx-tag">Нажмите для редактирования</span>
+                        {!isMobileView ? <span className="vx-tag">Нажмите для редактирования</span> : null}
+                        {isMobileView && expanded ? (
+                          <button
+                            type="button"
+                            className="btn vx-btnSm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              clickHandler();
+                            }}
+                          >
+                            Редактировать
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   );

@@ -721,3 +721,43 @@ body:has(.adx) #root {
 }
 .adx .vx-metricLine { color: var(--tx-muted) !important; font-size: 12.5px; }
 .adx .vx-chipRow { background: none !important; border: 0 !important; }
+
+/* ── Мобильный портал (≤640px): свёрнутые списки, компактный хром ────────── */
+
+.adx-caret {
+  display: inline-block;
+  margin-left: 8px;
+  color: var(--tx-subtle);
+  font-size: 11px;
+  transition: transform 150ms var(--ease);
+}
+.adx-caret.is-open { transform: rotate(180deg); }
+
+@media (max-width: 640px) {
+  .adx .container { padding: 0 12px; }
+  .adx-header { margin: 0 -12px; padding: 0 12px; }
+  .adx-header-row { gap: 10px; padding: 10px 0 4px; }
+  .adx-title { font-size: 16px; }
+  .adx-title-sub { display: block; margin-left: 0; font-size: 12px; }
+  /* «Установить» на телефоне не нужен постоянно */
+  .adx-actions .btn:first-child { display: none; }
+  .adx-actions { gap: 6px; }
+  .adx .btn { min-height: 42px; }
+  .adx .vx-adminSeg button { padding: 12px 4px; min-height: 44px; }
+
+  .adx .card { padding: 12px; }
+  .adx .adx-cols { columns: auto 1; }
+
+  /* Свёрнутые карточки клиентов: только имя + статус, тап раскрывает */
+  .adx .vx-contactRow .adx-collapsible { display: none; }
+  .adx .vx-contactRow.is-open .adx-collapsible { display: block; }
+  .adx .vx-contactRow { padding: 12px 14px !important; }
+
+  /* Инпуты: 16px против авто-зума iOS, полноценные тач-таргеты */
+  .adx input, .adx select, .adx textarea { font-size: 16px; min-height: 42px; }
+  .adx .adx-table input { min-height: 36px; }
+
+  /* Таблицы надбавок/кассы уезжают в горизонтальный скролл внутри обёртки */
+  .adx .vx-tableWrap { width: 100%; overflow-x: auto; }
+  .adx .adx-tiersWrap { columns: auto 1; }
+}
