@@ -11,6 +11,7 @@ import StaffTab from "./tabs/StaffTab";
 import HistoryTab from "./tabs/HistoryTab";
 import AboutTab from "./tabs/AboutTab";
 import OtherTab from "./tabs/OtherTab";
+import DocsTab from "./tabs/DocsTab";
 import FaqTab from "./tabs/FaqTab";
 import ContactsTab from "./tabs/ContactsTab";
 import PaymentsTab from "./tabs/PaymentsTab";
@@ -29,7 +30,7 @@ type Me = {
   error?: string;
 };
 
-type ScreenKey = "home" | "calc" | "atm" | "reviews" | "staff" | "pay" | "history" | "other" | "faq" | "about" | "contacts";
+type ScreenKey = "home" | "calc" | "atm" | "reviews" | "staff" | "pay" | "history" | "other" | "faq" | "about" | "contacts" | "privacy" | "terms";
 type Lang = "ru" | "en";
 type HomeSection = "calc" | "atm" | "reviews";
 
@@ -98,74 +99,79 @@ function IconArrowLeft({ className = "" }: { className?: string }) {
 
 function ScreenHeader({ title, onBack, lang }: { title: string; onBack?: () => void; lang?: Lang }) {
   return (
-    <div className="mx-header">
+    <div className="cx-screenHeader">
       {onBack ? (
         <button
           type="button"
-          className="mx-backBtn"
+          className="cx-backChip"
           onClick={onBack}
           aria-label={lang === "en" ? "Back" : "Назад"}
           title={lang === "en" ? "Back" : "Назад"}
         >
-          <IconArrowLeft className="mx-i" />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
         </button>
-      ) : (
-        <div style={{ width: 40 }} />
-      )}
-      <div className="mx-hTitle">{title}</div>
-      <div style={{ width: 40 }} />
+      ) : null}
+      <div className="cx-screenTitle">{title}</div>
     </div>
   );
+}
+
+function IconStar({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2l2.9 6.3 6.9.7-5.1 4.7 1.4 6.8L12 17.8 5.9 21.3l1.4-6.8L2.2 9l6.9-.7z" />
+    </svg>
+  );
+}
+
+function IconNavCard() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2.5" y="5.5" width="19" height="13" rx="2.5" />
+      <path d="M2.5 10h19" />
+    </svg>
+  );
+}
+
+function IconNavReceipt() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 3h12v18l-2.4-1.4L13.2 21 12 20l-1.2 1-2.4-1.4L6 21z" />
+      <path d="M9.5 8h5M9.5 12h5" />
+    </svg>
+  );
+}
+
+function IconNavGrid() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3.5" y="3.5" width="7" height="7" rx="2" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="2" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="2" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="2" />
+    </svg>
+  );
+}
+
+function getDanangHour(nowMs: number): number {
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date(nowMs));
+    const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+    return Number.isFinite(hour) ? hour : 0;
+  } catch {
+    return new Date(nowMs).getHours();
+  }
 }
 
 function ScreenPane({ active, children }: { active: boolean; children: React.ReactNode }) {
   return <div className={"mx-screenPane " + (active ? "is-active" : "is-hidden")}>{children}</div>;
 }
-
-function StatusIcon({ status }: { status?: UserStatus }) {
-  // Telegram WebView can be slow to paint images after navigation.
-  // Use real existing files first, otherwise Telegram spends time trying missing assets.
-  const bust = `v48-${String(status || "").toLowerCase() || "x"}`;
-  const candidates = useMemo(() => {
-    const s = String(status || "").toLowerCase();
-    const list: string[] = [];
-    if (s) list.push(`/brand/status-${s}.svg`);
-    list.push("/brand/status.svg");
-    return list;
-  }, [status]);
-
-  const [idx, setIdx] = useState(0);
-  const [ok, setOk] = useState(false);
-
-  useEffect(() => {
-    setIdx(0);
-    setOk(false);
-  }, [status]);
-
-  const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
-
-  return (
-    <div className="mx-statusWrap" aria-label="Статус">
-      {!ok ? <div className="mx-statusSkeleton" aria-hidden="true" /> : null}
-      <img
-        key={src}
-        className="mx-statusImg"
-        src={src}
-        alt=""
-        loading="eager"
-        decoding="async"
-        style={{ opacity: ok ? 1 : 0 }}
-        onLoad={() => setOk(true)}
-        onError={() => {
-          setOk(false);
-          setIdx((x) => (x < candidates.length - 1 ? x + 1 : x));
-        }}
-      />
-    </div>
-  );
-}
-
-
 
 function MainLogo({ theme }: { theme: "light" | "dark" }) {
   // Separate logo files for light/dark themes. Easy to replace later.
@@ -265,14 +271,6 @@ export default function App() {
     const urls = [
       "/brand/main-logo-light.png?v31-light",
       "/brand/main-logo-dark.png?v31-dark",
-      "/brand/header-logo-light.png?v31-light",
-      "/brand/header-logo-dark.png?v31-dark",
-      "/brand/status-standard.svg?v48-standard",
-      "/brand/status-silver.svg?v48-silver",
-      "/brand/status-gold.svg?v48-gold",
-      "/brand/icons/tab-atm-256.png?v=1",
-      "/brand/icons/tab-rates-256.png?v=1",
-      "/brand/icons/tab-reviews-256.png?v=1",
     ];
     try {
       urls.forEach((u) => {
@@ -348,23 +346,46 @@ export default function App() {
     }
   }, []);
 
-  // Preload status icons to avoid a visible "loading" placeholder when returning to the home screen.
-  useEffect(() => {
-    try {
-      const sts = ["standard", "silver", "gold"];
-      const exts = [".svg", ".png", ".webp"];
-      for (const s of sts) {
-        for (const ext of exts) {
-          const img = new Image();
-          img.src = `/brand/status-${s}${ext}`;
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
   const tg = getTg();
+
+  // Da Nang local hour — drives the "online / offline" trust strip on the home screen.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(t);
+  }, []);
+  const danangHour = getDanangHour(nowMs);
+  const serviceOnline = danangHour >= 10 && danangHour < 22;
+
+  // Exchange conditions modal, opened from the "i" chip in the header.
+  const [showConditions, setShowConditions] = useState(false);
+
+  // Where the privacy/terms screens should return on Back: the "More" menu
+  // or the home calculator (when opened via the consent links).
+  const [docsReturnTo, setDocsReturnTo] = useState<"home" | "other">("other");
+  const conditionsItems = useMemo(() => (lang === "en" ? [
+    "Service hours: daily from 10:00 to 22:00. After 20:00 only remote exchange is available.",
+    "For exchanges below 20,000 RUB / 200 USD / 200 EUR / 200 USDT / 100,000 THB, delivery costs from 70,000 VND.",
+    "Minimum RUB amount — 10,000 ₽.",
+    "Minimum USD / EUR / USDT amount — 100.",
+    "Minimum THB amount — 10,000 baht.",
+    "Minimum VND amount — 6,500,000 VND.",
+    "USD: only new-series $100 cash notes without defects are accepted and paid out.",
+    "EUR: only new-series €50/€100/€200 cash notes without defects are accepted and paid out.",
+    "THB: cash only, in multiples of 100 baht.",
+    "VND → VND: fee is 2%, but at least 100,000 VND. Payment is cash or transfer; receive is cash, transfer, or ATM.",
+  ] : [
+    "Время работы сервиса: ежедневно с 10:00 до 22:00. После 20:00 возможен только дистанционный обмен.",
+    "При обмене менее 20,000₽ / 200$ / 200€ / 200 USDT / 100,000 THB стоимость доставки составит от 70,000 VND.",
+    "Минимальная сумма RUB для обмена — 10,000 ₽.",
+    "Минимальная сумма USD / EUR / USDT для обмена — 100.",
+    "Минимальная сумма THB для обмена — 10,000 бат.",
+    "Минимальная сумма VND для обмена — 6,500,000 VND.",
+    "USD: принимаются и выдаются только наличные купюры 100$ нового образца, без дефектов.",
+    "EUR: принимаются и выдаются только наличные купюры 50/100/200€ нового образца, без дефектов.",
+    "THB: передача и получение только наличными, кратно 100 бат.",
+    "VND → VND: комиссия 2%, но не меньше 100,000 VND. Оплата наличными или переводом; получение наличными, переводом или через банкомат.",
+  ]), [lang]);
 
   // Haptic feedback for buttons only (no vibration while typing/entering data).
   useEffect(() => {
@@ -554,7 +575,9 @@ export default function App() {
 
   const scrollToHomeCalc = () => openHomeSection("calc", "home_calc_btn");
   const goHome = () => setScreen("home");
-  const isOtherBranch = screen === "other" || screen === "faq" || screen === "about" || screen === "contacts";
+  const isOtherBranch =
+    screen === "other" || screen === "faq" || screen === "about" || screen === "contacts" ||
+    ((screen === "privacy" || screen === "terms") && docsReturnTo === "other");
 
   const trackClick = (target: string, props: any = {}) => {
     try {
@@ -611,17 +634,22 @@ ${msg}`);
     }
   };
 
+  const statusKey = normalizeStatus(me.status);
+  const statusChipLabel = isEn
+    ? statusKey === "gold" ? "Gold" : statusKey === "silver" ? "Silver" : "Standard"
+    : statusTitle(statusKey);
+
   return (
-    <div className={`vx-page theme-client ${screen === "home" ? "mx-homePage" : ""}`}>
+    <div className={`vx-page theme-client cx-app ${screen === "home" ? "mx-homePage" : ""}`}>
       <div className="container">
         <ScreenPane active={screen === "home"}>
           <div className="mx-homeLayout">
             <div className="mx-homeLead">
-              <div className="mx-topRow mx-topRowHome">
-                <div className="mx-homeControlsStack">
+              <div className="cx-header">
+                <div className="cx-headerSide">
                   <button
                     type="button"
-                    className="mx-langSwitchBtn mx-homeLangSwitchBtn"
+                    className="cx-chip"
                     onClick={toggleLang}
                     aria-label={isEn ? "Switch to Russian" : "Переключить на английский"}
                     title={isEn ? "Switch to Russian" : "Переключить на английский"}
@@ -630,27 +658,65 @@ ${msg}`);
                   </button>
                   <button
                     type="button"
-                    className="mx-themeBtn mx-homeThemeBtn"
+                    className="cx-chip cx-chipIcon"
                     onClick={toggleTheme}
                     aria-label={theme === "dark" ? (isEn ? "Dark theme" : "Тёмная тема") : (isEn ? "Light theme" : "Светлая тема")}
                   >
-                    {theme === "dark" ? <IconMoon className="mx-themeI" /> : <IconSun className="mx-themeI" />}
+                    {theme === "dark" ? <IconMoon className="cx-themeIcon" /> : <IconSun className="cx-themeIcon" />}
                   </button>
                 </div>
 
-                <div className="mx-topCenter">
-                  <MainLogo theme={theme} />
-                </div>
+                <MainLogo theme={theme} />
 
-                <button type="button" className="mx-statusBtn" onClick={showStatusInfo} aria-label={isEn ? "Your status" : "Ваш статус"}>
-                  <StatusIcon status={me.status} />
-                </button>
+                <div className="cx-headerSide">
+                  <button
+                    type="button"
+                    className="cx-chip cx-chipIcon"
+                    onClick={() => setShowConditions(true)}
+                    aria-label={isEn ? "Exchange conditions" : "Условия обмена"}
+                    title={isEn ? "Exchange conditions" : "Условия обмена"}
+                  >
+                    i
+                  </button>
+                  <button
+                    type="button"
+                    className={`cx-statusChip is-${statusKey}`}
+                    onClick={showStatusInfo}
+                    aria-label={isEn ? "Your status" : "Ваш статус"}
+                  >
+                    <IconStar />
+                    <span>{statusChipLabel}</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="mx-homeTabs" role="tablist" aria-label={isEn ? "Home sections" : "Разделы главной"}>
+              {showConditions ? (
+                <div className="vx-modalOverlay" onClick={() => setShowConditions(false)}>
+                  <div className="vx-modalCard" onClick={(e) => e.stopPropagation()}>
+                    <div className="row vx-between vx-center">
+                      <div className="vx-modalTitle">{isEn ? "Exchange conditions" : "Условия обмена"}</div>
+                      <button type="button" className="btn vx-btnSm" onClick={() => setShowConditions(false)}>{isEn ? "Close" : "Закрыть"}</button>
+                    </div>
+                    <div className="vx-conditionsList">
+                      {conditionsItems.map((item) => (
+                        <div key={item} className="vx-conditionsItem">• {item}</div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="cx-trust">
+                <span className={"cx-liveDot" + (serviceOnline ? "" : " is-off")} aria-hidden="true" />
+                {serviceOnline
+                  ? (isEn ? "Online · open 10:00–22:00 · Da Nang" : "Онлайн · работаем 10:00–22:00 · Дананг")
+                  : (isEn ? "Offline · open 10:00–22:00 · Da Nang" : "Офлайн · работаем 10:00–22:00 · Дананг")}
+              </div>
+
+              <div className="cx-segment" role="tablist" aria-label={isEn ? "Home sections" : "Разделы главной"}>
                 <button
                   type="button"
-                  className={"mx-homeTab " + (homeSection === "calc" ? "is-active" : "")}
+                  className={"cx-segmentBtn " + (homeSection === "calc" ? "is-active" : "")}
                   onClick={scrollToHomeCalc}
                   aria-current={homeSection === "calc" ? "page" : undefined}
                 >
@@ -658,7 +724,7 @@ ${msg}`);
                 </button>
                 <button
                   type="button"
-                  className={"mx-homeTab " + (homeSection === "atm" ? "is-active" : "")}
+                  className={"cx-segmentBtn " + (homeSection === "atm" ? "is-active" : "")}
                   onClick={() => openHomeSection("atm", "home_tab_atm")}
                   aria-current={homeSection === "atm" ? "page" : undefined}
                 >
@@ -666,7 +732,7 @@ ${msg}`);
                 </button>
                 <button
                   type="button"
-                  className={"mx-homeTab " + (homeSection === "reviews" ? "is-active" : "")}
+                  className={"cx-segmentBtn " + (homeSection === "reviews" ? "is-active" : "")}
                   onClick={() => openHomeSection("reviews", "home_tab_reviews")}
                   aria-current={homeSection === "reviews" ? "page" : undefined}
                 >
@@ -677,35 +743,32 @@ ${msg}`);
               {homeSection === "calc" ? (
                 <>
                   <div ref={homeCalcRef} className="mx-homeCalcSection">
-                    <CalculatorTab me={me} lang={lang} />
+                    <CalculatorTab
+                      me={me}
+                      lang={lang}
+                      onOpenDoc={(doc) => { setDocsReturnTo("home"); goTo(doc, doc === "privacy" ? "calc_privacy_link" : "calc_terms_link"); }}
+                    />
                   </div>
 
-                  <div className="mx-card">
-                    <div className="mx-cardHead">
-                      <div>
-                        <div className="mx-cardTitle">{isEn ? "Rates" : "Курс"}</div>
-                        <div className="mx-cardSub">{me.ok ? (isEn ? "Currency exchange — Da Nang" : UI.title) : me.error ?? (isEn ? "Authorizing…" : "Авторизация…")}</div>
+                  <div className="cx-card cx-rateCard" style={{ marginTop: 4 }}>
+                    <div className="cx-rateCardHead">
+                      <span className="cx-rateCardTitle">{isEn ? "Rates today" : "Курс сегодня"}</span>
+                      <div className="cx-rateCardLinks">
+                        {me.isAdmin ? (
+                          <button type="button" className="cx-linkBtn" onClick={() => goTo("staff", "home_admin_btn")}>
+                            {isEn ? "Admin" : "Админ"}
+                          </button>
+                        ) : null}
+                        <button type="button" className="cx-linkBtn" onClick={() => setCourseExpanded((v) => !v)}>
+                          {courseExpanded ? (isEn ? "Collapse" : "Свернуть") : (isEn ? "All rates" : "Все курсы")}
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M9 6l6 6-6 6" />
+                          </svg>
+                        </button>
                       </div>
                     </div>
 
-                    <div className="mx-courseBody">
-                      <RatesTab embedded limit={courseExpanded ? undefined : 3} lang={lang} />
-                    </div>
-
-                    <div className="mx-btnRow">
-                      <button type="button" className="mx-btn" onClick={() => setCourseExpanded((v) => !v)}>
-                        {courseExpanded ? (isEn ? "Collapse" : "Свернуть") : (isEn ? "All rates" : "Все курсы")}
-                      </button>
-                      {me.isAdmin ? (
-                        <button type="button" className="mx-btn mx-btnPrimary" onClick={() => goTo("staff", "home_admin_btn")}>
-                          {isEn ? "Admin" : "Админ"}
-                        </button>
-                      ) : (
-                        <button type="button" className="mx-btn mx-btnPrimary" onClick={scrollToHomeCalc}>
-                          {isEn ? "Calculator" : "Калькулятор"}
-                        </button>
-                      )}
-                    </div>
+                    <RatesTab embedded limit={courseExpanded ? undefined : 3} lang={lang} />
                   </div>
                 </>
               ) : null}
@@ -747,7 +810,7 @@ ${msg}`);
           <ScreenPane active={screen === "history"}>
             <>
               <ScreenHeader title={isEn ? "My history" : "Моя история"} onBack={goHome} lang={lang} />
-              <HistoryTab me={me} lang={lang} />
+              <HistoryTab me={me} lang={lang} onExchange={() => openHomeSection("calc", "hist_empty_cta")} />
             </>
           </ScreenPane>
         ) : null}
@@ -761,6 +824,8 @@ ${msg}`);
                 onFaq={() => goTo("faq", "other_faq")}
                 onAbout={() => goTo("about", "other_about")}
                 onContacts={() => goTo("contacts", "other_contacts")}
+                onPrivacy={() => { setDocsReturnTo("other"); goTo("privacy", "other_privacy"); }}
+                onTerms={() => { setDocsReturnTo("other"); goTo("terms", "other_terms"); }}
                 onOrderApp={() => openExternal("https://t.me/Tutenhaman")}
               />
             </>
@@ -793,29 +858,53 @@ ${msg}`);
             </>
           </ScreenPane>
         ) : null}
+
+        {visited.privacy ? (
+          <ScreenPane active={screen === "privacy"}>
+            <>
+              <ScreenHeader title={isEn ? "Privacy policy" : "Политика конфиденциальности"} onBack={() => setScreen(docsReturnTo)} lang={lang} />
+              <DocsTab kind="privacy" lang={lang} />
+            </>
+          </ScreenPane>
+        ) : null}
+
+        {visited.terms ? (
+          <ScreenPane active={screen === "terms"}>
+            <>
+              <ScreenHeader title={isEn ? "Terms of service" : "Пользовательское соглашение"} onBack={() => setScreen(docsReturnTo)} lang={lang} />
+              <DocsTab kind="terms" lang={lang} />
+            </>
+          </ScreenPane>
+        ) : null}
       </div>
 
-      <div className="mx-bottomNav" role="navigation" aria-label={isEn ? "Bottom menu" : "Нижнее меню"}>
+      <div className="mx-bottomNav cx-nav" role="navigation" aria-label={isEn ? "Bottom menu" : "Нижнее меню"}>
         <button
           type="button"
-          className={"mx-bottomBtn " + (screen === "pay" ? "is-on" : "")}
+          className={"cx-navBtn " + (screen === "pay" ? "is-on" : "")}
           onClick={() => goTo("pay", "bottom_pay")}
+          title={isEn ? "Payments and booking" : "Оплаты и бронирование"}
         >
-          {isEn ? "Payments and booking" : "Оплаты и бронирование"}
+          <IconNavCard />
+          <span>{isEn ? "Payments" : "Оплаты"}</span>
         </button>
         <button
           type="button"
-          className={"mx-bottomBtn " + (screen === "history" ? "is-on" : "")}
+          className={"cx-navBtn " + (screen === "history" ? "is-on" : "")}
           onClick={() => goTo("history", "bottom_history")}
+          title={isEn ? "My history" : "Моя история"}
         >
-          {isEn ? "My history" : "Моя история"}
+          <IconNavReceipt />
+          <span>{isEn ? "History" : "История"}</span>
         </button>
         <button
           type="button"
-          className={"mx-bottomBtn " + (isOtherBranch ? "is-on" : "")}
+          className={"cx-navBtn " + (isOtherBranch ? "is-on" : "")}
           onClick={() => goTo("other", "bottom_other")}
+          title={isEn ? "More" : "Прочее"}
         >
-          {isEn ? "More" : "Прочее"}
+          <IconNavGrid />
+          <span>{isEn ? "More" : "Ещё"}</span>
         </button>
       </div>
     </div>
