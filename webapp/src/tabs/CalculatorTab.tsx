@@ -428,34 +428,23 @@ function getRate(rates: Rates | null, c: Currency): RateEntry | null {
 // RUB / USDT -> только перевод
 // USD / EUR / THB -> только наличные
 // VND -> наличные или перевод. Через банкомат клиент ничего не передаёт.
-function rubCashAllowed(
-  sellCurrency: Currency,
-  buyCurrency: Currency,
-  sellAmount?: number,
-  buyAmount?: number
-): boolean {
-  if (sellCurrency === "RUB") return sellAmount != null && sellAmount >= 20_000;
-  if (buyCurrency === "RUB") return buyAmount != null && buyAmount >= 20_000;
-  return true;
-}
-
-function allowedPayMethods(sellCurrency: Currency, buyCurrency: Currency, sellAmount?: number, buyAmount?: number): PayMethod[] {
+function allowedPayMethods(sellCurrency: Currency, buyCurrency: Currency): PayMethod[] {
   if (sellCurrency === "VND" && buyCurrency === "VND") return ["cash", "transfer"];
-  const rubCashOk = rubCashAllowed(sellCurrency, buyCurrency, sellAmount, buyAmount);
   if (sellCurrency === "USDT") return ["transfer"];
   if (sellCurrency === "RUB") return ["transfer"];
-  if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return rubCashOk ? ["cash"] : [];
-  return rubCashOk ? ["cash", "transfer"] : ["transfer"]; // VND
+  if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return ["cash"];
+  return ["cash", "transfer"]; // VND
 }
 
 // ======= Способы получения (что клиент ПОЛУЧАЕТ) =======
-function allowedReceiveMethods(buyCurrency: Currency, sellCurrency?: Currency, buyAmount?: number, sellAmount?: number): ReceiveMethod[] {
-  if (sellCurrency === "VND" && buyCurrency === "VND") return ["cash", "transfer", "atm"];
-  const rubCashOk = rubCashAllowed(sellCurrency || "VND", buyCurrency, sellAmount, buyAmount);
-  if (buyCurrency === "VND") return rubCashOk ? ["cash", "transfer", "atm"] : ["transfer", "atm"];
+// Доставка (наличные) доступна на любую сумму. Для сумм ниже CASH_DELIVERY_MIN_AMOUNTS
+// способ получения не убирается — вместо этого показывается предупреждение
+// о платной доставке (от 70,000 VND).
+function allowedReceiveMethods(buyCurrency: Currency): ReceiveMethod[] {
+  if (buyCurrency === "VND") return ["cash", "transfer", "atm"];
   if (buyCurrency === "USDT") return ["transfer"];
-  if (buyCurrency === "RUB") return rubCashOk ? ["cash", "transfer"] : ["transfer"];
-  return rubCashOk ? ["cash"] : []; // USD/EUR/THB
+  if (buyCurrency === "RUB") return ["cash", "transfer"];
+  return ["cash"]; // USD/EUR/THB
 }
 
 function hasVndRateMarkup(sellCurrency: Currency, buyCurrency: Currency) {
@@ -871,7 +860,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
   // Enforce pay-method restrictions based on SELL currency
   useEffect(() => {
-    const allowed = allowedPayMethods(sellCurrency, buyCurrency, parseAmount(sellCurrency, sellText), parseAmount(buyCurrency, buyText));
+    const allowed = allowedPayMethods(sellCurrency, buyCurrency);
     const next = normalizeMethodSelection(allowed, payMethod, payMethodAutoSelectedRef.current);
     payMethodAutoSelectedRef.current = next.selectedByDefault;
     if (payMethod !== next.value) setPayMethod(next.value);
@@ -880,12 +869,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
   // Enforce receive-method restrictions based on BUY currency and service hours
   useEffect(() => {
-    const baseAllowed = allowedReceiveMethods(
-      buyCurrency,
-      sellCurrency,
-      parseAmount(buyCurrency, buyText),
-      parseAmount(sellCurrency, sellText)
-    );
+    const baseAllowed = allowedReceiveMethods(buyCurrency);
     const allowed = deliveryClosedForRules && !(sellCurrency === "VND" && buyCurrency === "VND")
       ? baseAllowed.filter((m) => m === "transfer" || m === "atm")
       : baseAllowed;
@@ -1025,13 +1009,13 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     });
   }, [buyCurrency]);
 
-  const allowedPay = useMemo(() => allowedPayMethods(sellCurrency, buyCurrency, sellAmount, buyAmount), [sellCurrency, buyCurrency, sellAmount, buyAmount]);
+  const allowedPay = useMemo(() => allowedPayMethods(sellCurrency, buyCurrency), [sellCurrency, buyCurrency]);
   const allowedRecv = useMemo(() => {
-    const baseAllowed = allowedReceiveMethods(buyCurrency, sellCurrency, buyAmount, sellAmount);
+    const baseAllowed = allowedReceiveMethods(buyCurrency);
     return deliveryClosedForRules && !(sellCurrency === "VND" && buyCurrency === "VND")
       ? baseAllowed.filter((m) => m === "transfer" || m === "atm")
       : baseAllowed;
-  }, [buyCurrency, sellCurrency, buyAmount, sellAmount, deliveryClosedForRules]);
+  }, [buyCurrency, sellCurrency, deliveryClosedForRules]);
   const receiveMethodUnavailableByHours = deliveryClosedForRules && allowedRecv.length === 0;
 
   // Missing data check
@@ -1309,7 +1293,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     const swappedReceiveCandidate: ReceiveMethod | null = payMethod === "cash" || payMethod === "transfer" ? payMethod : null;
 
     const nextAllowedPay = allowedPayMethods(nextSellCurrency, nextBuyCurrency);
-    const nextAllowedReceiveBase = allowedReceiveMethods(nextBuyCurrency, nextSellCurrency);
+    const nextAllowedReceiveBase = allowedReceiveMethods(nextBuyCurrency);
     const nextAllowedReceive = deliveryClosedForRules && !(nextSellCurrency === "VND" && nextBuyCurrency === "VND")
       ? nextAllowedReceiveBase.filter((m) => m === "transfer" || m === "atm")
       : nextAllowedReceiveBase;

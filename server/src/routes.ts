@@ -139,28 +139,21 @@ function isAllowedRequestPair(sellCurrency: Currency, buyCurrency: Currency) {
   return isSameCurrencyVndPair(sellCurrency, buyCurrency);
 }
 
-function rubRequestCashAllowed(sellCurrency: Currency, buyCurrency: Currency, sellAmount?: number, buyAmount?: number) {
-  if (sellCurrency === "RUB") return (sellAmount ?? 0) >= 20_000;
-  if (buyCurrency === "RUB") return (buyAmount ?? 0) >= 20_000;
-  return true;
-}
-
-function allowedRequestPayMethods(sellCurrency: Currency, buyCurrency: Currency, sellAmount?: number, buyAmount?: number) {
+function allowedRequestPayMethods(sellCurrency: Currency, buyCurrency: Currency) {
   if (isSameCurrencyVndPair(sellCurrency, buyCurrency)) return new Set(["cash", "transfer"]);
-  const rubCashOk = rubRequestCashAllowed(sellCurrency, buyCurrency, sellAmount, buyAmount);
   if (sellCurrency === "USDT") return new Set(["transfer"]);
   if (sellCurrency === "RUB") return new Set(["transfer"]);
-  if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return new Set(rubCashOk ? ["cash"] : []);
-  return new Set(rubCashOk ? ["cash", "transfer"] : ["transfer"]);
+  if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return new Set(["cash"]);
+  return new Set(["cash", "transfer"]);
 }
 
-function allowedRequestReceiveMethods(buyCurrency: Currency, sellCurrency?: Currency, buyAmount?: number, sellAmount?: number) {
-  if (sellCurrency === "VND" && buyCurrency === "VND") return new Set(["cash", "transfer", "atm"]);
-  const rubCashOk = rubRequestCashAllowed(sellCurrency || "VND", buyCurrency, sellAmount, buyAmount);
-  if (buyCurrency === "VND") return new Set(rubCashOk ? ["cash", "transfer", "atm"] : ["transfer", "atm"]);
+// Доставка (наличные) доступна на любую сумму — порог 20 000 ₽ влияет только
+// на платность доставки, о чём мини-приложение предупреждает отдельно.
+function allowedRequestReceiveMethods(buyCurrency: Currency) {
+  if (buyCurrency === "VND") return new Set(["cash", "transfer", "atm"]);
   if (buyCurrency === "USDT") return new Set(["transfer"]);
-  if (buyCurrency === "RUB") return new Set(rubCashOk ? ["cash", "transfer"] : ["transfer"]);
-  return new Set(rubCashOk ? ["cash"] : []);
+  if (buyCurrency === "RUB") return new Set(["cash", "transfer"]);
+  return new Set(["cash"]);
 }
 
 export function createApiRouter(opts: {
@@ -1828,8 +1821,8 @@ router.post("/admin/faq", async (req, res) => {
         const payMethod = String(req.body?.payMethod || r.payMethod || "").toLowerCase().trim();
         const receiveMethod = String(req.body?.receiveMethod || r.receiveMethod || "").toLowerCase().trim();
         const comment = String(req.body?.comment ?? r.comment ?? "").trim().slice(0, 300);
-        const allowedPayMethods = allowedRequestPayMethods(sellCurrency as Currency, buyCurrency as Currency, sellAmount, buyAmount);
-        const allowedReceiveMethods = allowedRequestReceiveMethods(buyCurrency as Currency, sellCurrency as Currency, buyAmount, sellAmount);
+        const allowedPayMethods = allowedRequestPayMethods(sellCurrency as Currency, buyCurrency as Currency);
+        const allowedReceiveMethods = allowedRequestReceiveMethods(buyCurrency as Currency);
 
         if (!allowedCurrencies.has(sellCurrency) || !allowedCurrencies.has(buyCurrency) || !isAllowedRequestPair(sellCurrency as Currency, buyCurrency as Currency)) {
           return { error: "bad_currency_pair" as const };
@@ -1988,8 +1981,8 @@ router.post("/admin/faq", async (req, res) => {
       const language = String(p.language || "ru").toLowerCase() === "en" ? "en" : "ru";
 
       const allowedCur = new Set<Currency>(["RUB", "USD", "USDT", "VND", "EUR", "THB"]);
-      const allowedPay = allowedRequestPayMethods(sellCurrency, buyCurrency, sellAmount, buyAmount);
-      const allowedReceive = allowedRequestReceiveMethods(buyCurrency, sellCurrency, buyAmount, sellAmount);
+      const allowedPay = allowedRequestPayMethods(sellCurrency, buyCurrency);
+      const allowedReceive = allowedRequestReceiveMethods(buyCurrency);
 
       if (!allowedCur.has(sellCurrency) || !allowedCur.has(buyCurrency) || !isAllowedRequestPair(sellCurrency, buyCurrency)) {
         return res.status(400).json({ ok: false, error: "bad_currency" });
