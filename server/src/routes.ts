@@ -5,6 +5,8 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listCanonicalBankIcons, normalizeBankIcons, normalizeContactBanks } from "./bankIcons.js";
 import { USER_STATUS_LABELS_RU, type UserStatus } from "./domain/status.js";
+import { BONUS_CURRENCIES, MARKUP_DIRECTION_KEYS, directionKey, type CrossRates, type PairMarkup } from "./domain/exchange.js";
+import { formatAmount } from "./format.js";
 import {
   readStore,
   mutateStore,
@@ -41,24 +43,9 @@ type PublicReview = {
   company_reply?: { text: string; created_at: string };
 };
 
-// Thousands separator must be a comma (1,000 / 10,000) — same as in the calculator UI
-function fmtGroupedInt(n: number): string {
-  const s = String(Math.trunc(Math.abs(n)));
-  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
-
 function fmtReqAmount(cur: Currency, n: number): string {
   if (!Number.isFinite(n)) return String(n);
-  if (cur === "USDT") {
-    const v = Math.round(n * 10) / 10;
-    const sign = v < 0 ? "-" : "";
-    const abs = Math.abs(v);
-    const intPart = Math.trunc(abs);
-    const dec = Math.round((abs - intPart) * 10);
-    const grouped = fmtGroupedInt(intPart);
-    return dec ? `${sign}${grouped}.${dec}` : `${sign}${grouped}`;
-  }
-  return fmtGroupedInt(Math.round(n));
+  return formatAmount(cur, n);
 }
 
 function ignoreStatusForPair(a: Currency, b: Currency) {
@@ -716,6 +703,19 @@ export function createApiRouter(opts: {
     return out as Record<string, { buyMul: number; sellMul: number }>;
   }
 
+  // Manual cross-pair rates for a day: only G-formula pairs with both numbers > 0 are kept.
+  function cleanCrossRates(input: any): CrossRates | undefined {
+    const src = input && typeof input === "object" ? input : {};
+    const out: CrossRates = {};
+    for (const k of Object.keys(defaultGFormulas())) {
+      const v = (src as any)[k];
+      const buy = Number(String(v?.buy ?? "").replace(",", "."));
+      const sell = Number(String(v?.sell ?? "").replace(",", "."));
+      if (Number.isFinite(buy) && Number.isFinite(sell) && buy > 0 && sell > 0) out[k] = { buy, sell };
+    }
+    return Object.keys(out).length ? out : undefined;
+  }
+
   // Public: client uses it for Rates/Calculator
   router.get("/g-formulas", async (_req, res) => {
     const store = await readStore();
@@ -880,36 +880,58 @@ router.post("/admin/faq", async (req, res) => {
       return list;
     };
 
-    const cleanMethodRow = (row: any, fb: { RUB: number; USD: number; USDT: number; EUR: number; THB: number }) => {
-      return {
-        RUB: num(row?.RUB, fb.RUB),
-        USD: num(row?.USD, fb.USD),
-        USDT: num(row?.USDT, fb.USDT),
-        EUR: num(row?.EUR, fb.EUR),
-        THB: num(row?.THB, fb.THB)
-      };
-    };
+    const pairs: Record<string, PairMarkup> = {};
 
-    const out: BonusesConfig = {
+    if (src.pairs && typeof src.pairs === "object" && !Array.isArray(src.pairs)) {
+      // Per-direction markups: an empty tier list simply means "no markup".
+      for (const key of MARKUP_DIRECTION_KEYS) {
+        const p = src.pairs[key];
+        if (!p || typeof p !== "object") continue;
+        pairs[key] = {
+          tiers: cleanTierList(p.tiers, [], true),
+          methods: {
+            cash: num(p.methods?.cash, 0),
+            transfer: num(p.methods?.transfer, 0),
+            atm: num(p.methods?.atm, 0)
+          }
+        };
+      }
+    } else {
+      // Legacy store: markups existed only for "currency → VND".
+      for (const cur of BONUS_CURRENCIES) {
+        // EUR/THB may legitimately have no tiers at all (no markup)
+        const allowEmpty = cur === "EUR" || cur === "THB";
+        pairs[directionKey(cur, "VND")] = {
+          tiers: cleanTierList(src?.tiers?.[cur], base.tiers[cur], allowEmpty),
+          methods: {
+            cash: 0,
+            transfer: num(src?.methods?.transfer?.[cur], base.methods.transfer[cur]),
+            atm: num(src?.methods?.atm?.[cur], base.methods.atm[cur])
+          }
+        };
+      }
+    }
+
+    // Legacy fields mirror "currency → VND" for clients that predate per-direction markups.
+    const legacyTiers = {} as BonusesConfig["tiers"];
+    const legacyTransfer = {} as BonusesConfig["methods"]["transfer"];
+    const legacyAtm = {} as BonusesConfig["methods"]["atm"];
+    for (const cur of BONUS_CURRENCIES) {
+      const p = pairs[directionKey(cur, "VND")];
+      legacyTiers[cur] = p ? p.tiers : [];
+      legacyTransfer[cur] = p ? p.methods.transfer : 0;
+      legacyAtm[cur] = p ? p.methods.atm : 0;
+    }
+
+    return {
       enabled: {
         tiers: bool(src?.enabled?.tiers, base.enabled.tiers),
         methods: bool(src?.enabled?.methods, base.enabled.methods)
       },
-      tiers: {
-        RUB: cleanTierList(src?.tiers?.RUB, base.tiers.RUB),
-        USD: cleanTierList(src?.tiers?.USD, base.tiers.USD),
-        USDT: cleanTierList(src?.tiers?.USDT, base.tiers.USDT),
-        // EUR/THB may legitimately have no tiers at all (no markup)
-        EUR: cleanTierList(src?.tiers?.EUR, base.tiers.EUR, true),
-        THB: cleanTierList(src?.tiers?.THB, base.tiers.THB, true)
-      },
-      methods: {
-        transfer: cleanMethodRow(src?.methods?.transfer, base.methods.transfer),
-        atm: cleanMethodRow(src?.methods?.atm, base.methods.atm)
-      }
+      pairs,
+      tiers: legacyTiers,
+      methods: { transfer: legacyTransfer, atm: legacyAtm }
     };
-
-    return out;
   }
 
   router.post("/admin/bonuses", async (req, res) => {
@@ -1124,10 +1146,12 @@ router.post("/admin/faq", async (req, res) => {
       }
 
       const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+      const cross = cleanCrossRates(body.cross);
       const saved = {
         updated_at: new Date().toISOString(),
         updated_by: user.id,
-        rates: data
+        rates: data,
+        ...(cross ? { cross } : {})
       };
 
       await mutateStore((store) => {
@@ -1200,12 +1224,16 @@ router.post("/admin/faq", async (req, res) => {
         rates: data
       };
 
-      await mutateStore((store: any) => {
+      const { result: stored } = await mutateStore((store: any) => {
         if (!store.ratesByDate || typeof store.ratesByDate !== "object") store.ratesByDate = {};
-        store.ratesByDate[date] = saved;
+        // The cashbox backfill edits only VND rates: keep manual cross rates of that day.
+        const cross = body.cross !== undefined ? cleanCrossRates(body.cross) : store.ratesByDate[date]?.cross;
+        const next = { ...saved, ...(cross ? { cross } : {}) };
+        store.ratesByDate[date] = next;
+        return next;
       });
 
-      return res.json({ ok: true, date, data: saved });
+      return res.json({ ok: true, date, data: stored });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }

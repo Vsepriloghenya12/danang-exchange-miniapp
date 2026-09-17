@@ -19,20 +19,46 @@ export type BonusesTier = {
   gold: number;
 };
 
-/* Markups cover every sell-currency that converts to VND. */
 export type BonusCurrency = "RUB" | "USD" | "USDT" | "EUR" | "THB";
+
+export type MarkupMethods = { cash: number; transfer: number; atm: number };
+
+// Markups of one exchange direction. Tier ranges use the amount the client gives.
+export type PairMarkup = {
+  tiers: BonusesTier[];
+  methods: MarkupMethods;
+};
 
 export type BonusesConfig = {
   enabled: {
     tiers: boolean;
     methods: boolean;
   };
+  // Keyed by direction "FROM>TO" (client gives FROM, gets TO).
+  pairs: Record<string, PairMarkup>;
+  // Legacy mirror of pairs["X>VND"], kept for clients that predate per-direction markups.
   tiers: Record<BonusCurrency, BonusesTier[]>;
   methods: {
     transfer: Record<BonusCurrency, number>;
     atm: Record<BonusCurrency, number>;
   };
 };
+
+// Manual cross-pair rates for a day, keyed like the G formulas ("USDT/RUB").
+export type CrossRates = Record<string, { buy: number; sell: number }>;
+
+export const BONUS_CURRENCIES: BonusCurrency[] = ["RUB", "USD", "USDT", "EUR", "THB"];
+
+const PRICING_CURRENCIES: Currency[] = ["RUB", "USDT", "USD", "EUR", "THB", "VND"];
+
+export function directionKey(from: Currency, to: Currency): string {
+  return `${from}>${to}`;
+}
+
+// Every ordered pair of different currencies.
+export const MARKUP_DIRECTION_KEYS: string[] = PRICING_CURRENCIES.flatMap((from) =>
+  PRICING_CURRENCIES.filter((to) => to !== from).map((to) => directionKey(from, to))
+);
 
 export const DEFAULT_G_FORMULAS: Record<string, GFormula> = {
   "USDT/RUB": { buyMul: 0.98, sellMul: 1.08 },
@@ -70,19 +96,27 @@ export function defaultBonuses(): BonusesConfig {
     { min: 3000, standard: 150, silver: 200, gold: 250 },
   ];
 
-  return {
-    enabled: { tiers: true, methods: true },
-    tiers: {
-      RUB: rub,
-      USD: usd,
-      USDT: usd,
-      // EUR/THB have no markup by default — configure in the owner portal if needed.
-      EUR: [],
-      THB: [],
-    },
-    methods: {
-      transfer: { RUB: 1, USD: 100, USDT: 100, EUR: 0, THB: 0 },
-      atm: { RUB: 1, USD: 100, USDT: 100, EUR: 0, THB: 0 },
-    },
+  const tiers: Record<BonusCurrency, BonusesTier[]> = {
+    RUB: rub,
+    USD: usd,
+    USDT: usd,
+    // EUR/THB have no markup by default — configure in the owner portal if needed.
+    EUR: [],
+    THB: [],
   };
+  const methods = {
+    transfer: { RUB: 1, USD: 100, USDT: 100, EUR: 0, THB: 0 },
+    atm: { RUB: 1, USD: 100, USDT: 100, EUR: 0, THB: 0 },
+  };
+
+  // Only "currency → VND" directions have markups by default.
+  const pairs: Record<string, PairMarkup> = {};
+  for (const cur of BONUS_CURRENCIES) {
+    pairs[directionKey(cur, "VND")] = {
+      tiers: tiers[cur].map((t) => ({ ...t })),
+      methods: { cash: 0, transfer: methods.transfer[cur], atm: methods.atm[cur] },
+    };
+  }
+
+  return { enabled: { tiers: true, methods: true }, pairs, tiers, methods };
 }

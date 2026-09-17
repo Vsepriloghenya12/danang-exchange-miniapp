@@ -11,6 +11,11 @@ export type Rates = {
   THB?: { buy_vnd: number; sell_vnd: number };
 };
 
+// Manual cross-pair rates for the day, keyed like the G formulas ("USDT/RUB").
+// A pair without a manual rate falls back to G × multiplier.
+export type CrossRate = { buy: number; sell: number };
+export type CrossRates = Record<string, CrossRate>;
+
 export type TodayRatesResponse = {
   ok: boolean;
   date: string;
@@ -18,6 +23,7 @@ export type TodayRatesResponse = {
     updated_at: string;
     updated_by: number;
     rates: Rates;
+    cross?: CrossRates;
   };
 };
 
@@ -209,14 +215,24 @@ export type BonusesTier = {
   gold: number;
 };
 
-/* Markups cover every sell-currency that converts to VND. */
 export type BonusCurrency = "RUB" | "USD" | "USDT" | "EUR" | "THB";
+
+export type MarkupMethods = Record<ReceiveMethod, number>;
+
+// Markups of one exchange direction. Tier ranges use the amount the client gives.
+export type PairMarkup = {
+  tiers: BonusesTier[];
+  methods: MarkupMethods;
+};
 
 export type BonusesConfig = {
   enabled: {
     tiers: boolean;
     methods: boolean;
   };
+  // Keyed by direction "FROM>TO" (client gives FROM, gets TO).
+  pairs: Record<string, PairMarkup>;
+  // Legacy mirror of pairs["X>VND"], kept for clients that predate per-direction markups.
   tiers: Record<BonusCurrency, BonusesTier[]>;
   methods: {
     transfer: Record<BonusCurrency, number>;

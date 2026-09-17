@@ -1504,7 +1504,7 @@ function moveFaq(id: string, dir: -1 | 1) {
             </div>
             <div className="vx-sp6" />
             <div className="small" style={{ opacity: 0.85 }}>
-              Эти формулы применяются к парам без VND. Курс считается так: <b>BUY = G × buyMul</b>, <b>SELL = G × sellMul</b>.
+              Эти формулы применяются к парам без VND, если на сегодня не задан ручной кросс-курс. Курс считается так: <b>BUY = G × buyMul</b>, <b>SELL = G × sellMul</b>.
             </div>
 
             <div className="vx-sp10" />

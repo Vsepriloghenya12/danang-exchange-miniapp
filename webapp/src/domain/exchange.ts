@@ -1,4 +1,4 @@
-import type { Currency, GFormulas, MarketRatesResponse } from "../lib/types";
+import type { CrossRates, Currency, GFormulas, MarketRatesResponse } from "../lib/types";
 
 export type RatePair = {
   id: string;
@@ -73,11 +73,18 @@ export function calcFromGRate(
   market: MarketRatesResponse | null,
   formulas: GFormulas | null,
   base: Currency,
-  quote: Currency
+  quote: Currency,
+  manual?: CrossRates | null
 ): { buy: number | null; sell: number | null } {
+  const key = `${base}/${quote}`;
+
+  // A manual rate for today takes precedence over G × multiplier.
+  const manualBuy = Number(manual?.[key]?.buy);
+  const manualSell = Number(manual?.[key]?.sell);
+  if (manualBuy > 0 && manualSell > 0) return { buy: manualBuy, sell: manualSell };
+
   if (!market || !market.ok) return { buy: null, sell: null };
 
-  const key = `${base}/${quote}`;
   const formula = (formulas && formulas[key]) || DEFAULT_G_FORMULAS[key];
   const marketG = Number(market.g?.[key]);
 

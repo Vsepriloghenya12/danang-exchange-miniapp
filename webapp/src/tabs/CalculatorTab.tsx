@@ -1,21 +1,39 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import {
+  amountMaxDecimals,
+  fmtAmount,
+  fmtFromInput,
+  formatAmountInput,
+  parseAmount,
+  type AmountInputResult,
+  type InputHint,
+} from "../domain/amountInput";
 import { DEFAULT_G_FORMULAS } from "../domain/exchange";
-import { normalizeUserStatus } from "../domain/status";
+import {
+  allowedPayMethods,
+  allowedReceiveMethods,
+  convertBackward,
+  convertForward,
+  currencySymbol,
+  effectiveRate,
+  fmtUnitRate,
+  isGModePair,
+  markupFor,
+  resolveQuote,
+  vndRate,
+  type PayMethod,
+  type PricingContext,
+  type VndRates as Rates,
+} from "../domain/pricing";
+import { getUserStatusLabel, normalizeUserStatus } from "../domain/status";
 import { apiGetBonuses, apiGetGFormulas, apiGetMarketRates } from "../lib/api";
-import type { BonusesConfig, MarketRatesResponse, UserStatus } from "../lib/types";
+import type { BonusesConfig, CrossRates, Currency, MarketRatesResponse, ReceiveMethod, UserStatus } from "../lib/types";
 
-type Currency = "RUB" | "USDT" | "USD" | "EUR" | "THB" | "VND";
-type ReceiveMethod = "cash" | "transfer" | "atm";
-type PayMethod = "cash" | "transfer";
 type SelectedReceiveMethod = ReceiveMethod | null;
 type SelectedPayMethod = PayMethod | null;
 
-type RateKey = Exclude<Currency, "VND">;
-type RateEntry = { buy_vnd: number; sell_vnd: number };
-type Rates = Partial<Record<RateKey, RateEntry>>;
-
-type ClientStatus = "standard" | "silver" | "gold";
+type ClientStatus = UserStatus;
 type Lang = "ru" | "en";
 type AmountFieldKey = "sell" | "buy";
 type PendingCaret = {
@@ -79,28 +97,6 @@ function ArrowRightIcon() {
   );
 }
 
-function currencySymbol(c: Currency): string {
-  switch (c) {
-    case "RUB": return "₽";
-    case "USDT": return "₮";
-    case "USD": return "$";
-    case "EUR": return "€";
-    case "THB": return "฿";
-    case "VND": return "₫";
-    default: return c;
-  }
-}
-
-function fmtUnitRate(value: number, isEn: boolean): string {
-  if (!Number.isFinite(value)) return "—";
-  const decimals = value < 10 ? 3 : value < 1000 ? 1 : 0;
-  const text = new Intl.NumberFormat(isEn ? "en-US" : "ru-RU", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: decimals,
-  }).format(value);
-  return isEn ? text.replace(/,/g, " ") : text;
-}
-
 async function copyPlainText(value: string) {
   const text = String(value || "");
   if (!text) return false;
@@ -155,173 +151,29 @@ function openManagerContactLink(me?: Props["me"]) {
   else window.open(url, "_blank", "noopener,noreferrer");
 }
 
-// ======= Number formatting/parsing =======
-// Thousands separator must be a comma (1,000 / 10,000)
-// Only USDT may contain a fractional part, with exactly 1 digit (e.g. 100.1)
-
-function fmtGroupedInt(intPart: string): string {
-  const s = String(intPart ?? "").replace(/\D+/g, "");
-  if (!s) return "";
-  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
-
-function amountMaxDecimals(cur: Currency): number {
-  // In calculator only USDT may have fractional part. All other currencies are shown and entered as whole numbers.
-  if (cur === "USDT") return 1;
-  return 0;
-}
-
-function countDigits(value: string): number {
-  return String(value ?? "").replace(/\D+/g, "").length;
-}
-
-function detectDecimalSeparator(unsigned: string, maxDecimals: number): { index: number; char: "." | "," | null } {
-  if (maxDecimals <= 0) return { index: -1, char: null };
-
-  const dotIndex = unsigned.lastIndexOf(".");
-  if (dotIndex >= 0) {
-    const rightDigits = unsigned.slice(dotIndex + 1).replace(/\D+/g, "");
-    if (rightDigits.length <= maxDecimals) {
-      return { index: dotIndex, char: "." };
-    }
-  }
-
-  const commaMatches = [...unsigned.matchAll(/,/g)].map((m) => m.index ?? -1).filter((n) => n >= 0);
-  if (commaMatches.length === 1) {
-    const commaIndex = commaMatches[0];
-    const leftDigits = countDigits(unsigned.slice(0, commaIndex));
-    const rightDigits = unsigned.slice(commaIndex + 1).replace(/\D+/g, "");
-    const looksLikeThousands = leftDigits >= 1 && rightDigits.length >= 3;
-    if (!looksLikeThousands && rightDigits.length <= maxDecimals) {
-      return { index: commaIndex, char: "," };
-    }
-  }
-
-  return { index: -1, char: null };
-}
-
-function normalizeTypedNumber(rawInput: string, maxDecimals: number) {
-  const raw = String(rawInput ?? "").replace(/\s+/g, "").replace(/[^\d.,-]/g, "");
-  if (!raw) return { intPart: "", decPart: "", hasSep: false, text: "" };
-
-  const sign = raw.startsWith("-") ? "-" : "";
-  const unsigned = raw.replace(/-/g, "");
-  const sepInfo = detectDecimalSeparator(unsigned, maxDecimals);
-  const hasSep = sepInfo.index >= 0;
-
-  let intPart = "";
-  let decPart = "";
-  if (hasSep) {
-    intPart = unsigned.slice(0, sepInfo.index).replace(/\D+/g, "");
-    decPart = unsigned.slice(sepInfo.index + 1).replace(/\D+/g, "").slice(0, maxDecimals);
-  } else {
-    intPart = unsigned.replace(/\D+/g, "");
-  }
-
-  const grouped = fmtGroupedInt(intPart);
-  const text = sign + (hasSep ? `${grouped || "0"}.${decPart}` : grouped);
-  return { intPart, decPart, hasSep, text };
-}
-
-function parseAmount(cur: Currency, input: string): number {
-  const maxDecimals = amountMaxDecimals(cur);
-  const norm = normalizeTypedNumber(input, maxDecimals);
-  if (!norm.intPart && !norm.decPart) return 0;
-  const numText = norm.decPart ? `${norm.intPart || "0"}.${norm.decPart}` : norm.intPart || "0";
-  const n = Number(numText);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function formatExact(cur: Currency, n: number): string {
-  if (!Number.isFinite(n)) return "";
-  const maxDecimals = amountMaxDecimals(cur);
-  const sign = n < 0 ? "-" : "";
-  const abs = Math.abs(n);
-  const plain = abs.toLocaleString("en-US", {
-    useGrouping: false,
-    maximumFractionDigits: maxDecimals,
-  });
-  let [intPart, decPart = ""] = plain.split(".");
-  intPart = fmtGroupedInt(intPart);
-  if (maxDecimals <= 0) return sign + intPart;
-  decPart = decPart.replace(/0+$/, "");
-  return sign + (decPart ? `${intPart}.${decPart}` : intPart);
-}
-
-function fmtAmount(cur: Currency, n: number): string {
-  return formatExact(cur, n);
-}
-
-function fmtFromInput(cur: Currency, v: string): string {
-  const maxDecimals = amountMaxDecimals(cur);
-  const raw = String(v ?? "").replace(/\s+/g, "");
-  if (!raw) return "";
-  const norm = normalizeTypedNumber(raw, maxDecimals);
-  if (!norm.intPart && !norm.decPart) return "";
-  if (norm.hasSep) return norm.text;
-  return norm.text.replace(/\.$/, "");
-}
-
-function caretAfterDigits(value: string, digitsToKeep: number): number {
-  if (digitsToKeep <= 0) return 0;
-  let seen = 0;
-  for (let i = 0; i < value.length; i++) {
-    if (/\d/.test(value[i])) {
-      seen += 1;
-      if (seen >= digitsToKeep) return i + 1;
-    }
-  }
-  return value.length;
-}
-
-function mapCaretToFormattedValue(cur: Currency, rawValue: string, formattedValue: string, caret: number | null): number {
-  const next = String(formattedValue ?? "");
-  if (!next) return 0;
-
-  const raw = String(rawValue ?? "");
-  const safeCaret = Math.max(0, Math.min(caret ?? 0, raw.length));
-  const maxDecimals = amountMaxDecimals(cur);
-  const beforeRaw = raw.slice(0, safeCaret).replace(/\s+/g, "").replace(/[^\d.,-]/g, "");
-  const fullRaw = raw.replace(/\s+/g, "").replace(/[^\d.,-]/g, "");
-  const unsignedBefore = beforeRaw.replace(/-/g, "");
-  const unsignedFull = fullRaw.replace(/-/g, "");
-  const signOffset = next.startsWith("-") ? 1 : 0;
-  const unsignedNext = signOffset ? next.slice(1) : next;
-  const dotIndex = unsignedNext.indexOf(".");
-  const sepInfo = maxDecimals > 0 ? detectDecimalSeparator(unsignedFull, maxDecimals) : { index: -1, char: null as "." | "," | null };
-
-  if (maxDecimals > 0) {
-    if (sepInfo.index >= 0 && unsignedBefore.length > sepInfo.index) {
-      const fractionDigitsBefore = countDigits(unsignedBefore.slice(sepInfo.index + 1));
-      if (dotIndex >= 0) {
-        return Math.min(next.length, signOffset + dotIndex + 1 + fractionDigitsBefore);
-      }
-    }
-  }
-
-  const integerDigitsSource =
-    maxDecimals > 0 && sepInfo.index >= 0
-      ? unsignedBefore.slice(0, Math.min(unsignedBefore.length, sepInfo.index))
-      : unsignedBefore;
-  const digitsBefore = countDigits(integerDigitsSource);
-  const integerPart = dotIndex >= 0 ? unsignedNext.slice(0, dotIndex) : unsignedNext;
-  return Math.min(next.length, signOffset + caretAfterDigits(integerPart, digitsBefore));
-}
-
 function selectionIndex(value: string, index: number | null): number {
   return typeof index === "number" && Number.isFinite(index)
     ? index
     : String(value ?? "").length;
 }
 
-function makePendingCaret(field: AmountFieldKey, cur: Currency, input: HTMLInputElement, formattedValue: string): PendingCaret {
+// What was inserted, taken from the input event (more reliable than diffing values).
+function inputHintFromEvent(e: React.ChangeEvent<HTMLInputElement>): InputHint | null {
+  const ne = e.nativeEvent as InputEvent;
+  const type = String(ne?.inputType || "");
+  if (type === "insertFromPaste" || type === "insertFromDrop") return { text: "", index: -1, pasted: true };
+  const data = typeof ne?.data === "string" ? ne.data : "";
+  const caret = e.currentTarget.selectionStart;
+  if (type !== "insertText" || !data || caret == null) return null;
+  return { text: data, index: caret - data.length, pasted: data.length > 1 };
+}
+
+function makePendingCaret(field: AmountFieldKey, input: HTMLInputElement, formatted: AmountInputResult): PendingCaret {
   const rawValue = input.value;
-  const start = selectionIndex(rawValue, input.selectionStart);
-  const end = selectionIndex(rawValue, input.selectionEnd);
   return {
     field,
-    start: mapCaretToFormattedValue(cur, rawValue, formattedValue, start),
-    end: mapCaretToFormattedValue(cur, rawValue, formattedValue, end),
+    start: formatted.mapCaret(selectionIndex(rawValue, input.selectionStart)),
+    end: formatted.mapCaret(selectionIndex(rawValue, input.selectionEnd)),
     direction: input.selectionDirection ?? "none",
     restoreUntil: Date.now() + 150,
   };
@@ -413,191 +265,41 @@ function requestCommentPlaceholder(receiveMethod: SelectedReceiveMethod): string
   return "";
 }
 
-function getRate(rates: Rates | null, c: Currency): RateEntry | null {
-  if (!rates) return null;
-  if (c === "VND") return { buy_vnd: 1, sell_vnd: 1 };
-  const r = rates[c as RateKey];
-  if (!r) return null;
-  const buy = Number(r.buy_vnd);
-  const sell = Number(r.sell_vnd);
-  if (!Number.isFinite(buy) || !Number.isFinite(sell) || buy <= 0 || sell <= 0) return null;
-  return { buy_vnd: buy, sell_vnd: sell };
-}
-
-// ======= Способы оплаты (что клиент ОТДАЁТ) =======
-// RUB / USDT -> только перевод
-// USD / EUR / THB -> только наличные
-// VND -> наличные или перевод. Через банкомат клиент ничего не передаёт.
-function allowedPayMethods(sellCurrency: Currency, buyCurrency: Currency): PayMethod[] {
-  if (sellCurrency === "VND" && buyCurrency === "VND") return ["cash", "transfer"];
-  if (sellCurrency === "USDT") return ["transfer"];
-  if (sellCurrency === "RUB") return ["transfer"];
-  if (sellCurrency === "USD" || sellCurrency === "EUR" || sellCurrency === "THB") return ["cash"];
-  return ["cash", "transfer"]; // VND
-}
-
-// ======= Способы получения (что клиент ПОЛУЧАЕТ) =======
-// Доставка (наличные) доступна на любую сумму. Для сумм ниже CASH_DELIVERY_MIN_AMOUNTS
-// способ получения не убирается — вместо этого показывается предупреждение
-// о платной доставке (от 70,000 VND).
-function allowedReceiveMethods(buyCurrency: Currency): ReceiveMethod[] {
-  if (buyCurrency === "VND") return ["cash", "transfer", "atm"];
-  if (buyCurrency === "USDT") return ["transfer"];
-  if (buyCurrency === "RUB") return ["cash", "transfer"];
-  return ["cash"]; // USD/EUR/THB
-}
-
-function hasVndRateMarkup(sellCurrency: Currency, buyCurrency: Currency) {
-  // Любая валюта → VND может иметь надбавку (настраивается владельцем).
-  return buyCurrency === "VND" && sellCurrency !== "VND";
-}
-
-// ======= Бонусы лояльности (любая валюта -> VND) =======
-function tierBonusForRate(
-  sellCurrency: Currency,
-  sellAmount: number,
+// ---------- Курс направления с надбавками ----------
+function pricedQuote(
+  ctx: PricingContext,
+  from: Currency,
+  to: Currency,
+  amountFrom: number,
   status: ClientStatus,
-  bonuses?: BonusesConfig | null
-): number {
-  if (sellCurrency === "VND") return 0;
-  if (sellAmount <= 0) return 0;
-
-  // If bonuses config is present and tiers are disabled, do not apply any status/tier markup
-  if (bonuses && bonuses.enabled && bonuses.enabled.tiers === false) return 0;
-
-  // configurable bonuses from server
-  if (bonuses?.enabled?.tiers) {
-    const list: any[] | undefined = (bonuses.tiers as any)?.[sellCurrency];
-    if (Array.isArray(list) && list.length > 0) {
-      const t = list.find((x) => {
-        const min = Number(x?.min);
-        const max = x?.max == null || x?.max === "" ? undefined : Number(x?.max);
-        if (!Number.isFinite(min)) return false;
-        if (sellAmount < min) return false;
-        if (max !== undefined && Number.isFinite(max) && sellAmount >= max) return false;
-        return true;
-      });
-      if (t) {
-        const v = Number(t?.[status]);
-        return Number.isFinite(v) ? v : 0;
-      }
-    }
-  }
-
-  if (sellCurrency === "RUB") {
-    const a = sellAmount;
-    if (a < 50_000) return status === "silver" ? 1 : status === "gold" ? 2 : 0;
-    if (a < 100_000) return status === "standard" ? 1 : status === "silver" ? 2 : 3;
-    if (a < 200_000) return status === "standard" ? 2 : status === "silver" ? 3 : 4;
-    return status === "standard" ? 3 : status === "silver" ? 4 : 5;
-  }
-
-  if (sellCurrency === "USD" || sellCurrency === "USDT") {
-    const a = sellAmount;
-    if (a < 1000) return status === "silver" ? 100 : status === "gold" ? 150 : 0;
-    if (a < 3000) return status === "standard" ? 100 : status === "silver" ? 150 : 200;
-    return status === "standard" ? 150 : status === "silver" ? 200 : 250;
-  }
-
-  return 0;
-}
-
-function methodBonusForRate(
-  sellCurrency: Currency,
-  buyCurrency: Currency,
-  payMethod: SelectedPayMethod,
   receiveMethod: SelectedReceiveMethod,
-  bonuses?: BonusesConfig | null
-): number {
-  if (!hasVndRateMarkup(sellCurrency, buyCurrency)) return 0;
-
-  // If bonuses config is present and method markups are disabled, do not apply any method markup
-  if (bonuses && bonuses.enabled && bonuses.enabled.methods === false) return 0;
-
-  // Надбавка применяется при обмене на VND и зависит от способа получения.
-  // Оплата (нал/перевод) на неё не влияет.
-  // Наличными (cash) надбавка не применяется.
-  void payMethod;
-  if (receiveMethod === "cash") return 0;
-  if (receiveMethod !== "transfer" && receiveMethod !== "atm") return 0;
-
-  // configurable bonuses from server
-  if (bonuses?.enabled?.methods) {
-    const row = (bonuses.methods as any)?.[receiveMethod];
-    if (row && sellCurrency !== "VND") {
-      const v = Number(row?.[sellCurrency]);
-      return Number.isFinite(v) ? v : 0;
-    }
-    return 0;
-  }
-
-  if (sellCurrency === "RUB") return 1;
-  if (sellCurrency === "USD") return 100;
-  if (sellCurrency === "USDT") return 100;
-  return 0;
+  bonuses: BonusesConfig | null
+) {
+  const quote = resolveQuote(from, to, ctx);
+  if (!quote) return null;
+  const markup = markupFor(from, to, amountFrom, status, receiveMethod, bonuses);
+  return { quote, markup, rate: effectiveRate(quote, markup) };
 }
 
-function applyRateBonuses(
-  baseRates: Rates,
-  sellCurrency: Currency,
-  buyCurrency: Currency,
-  sellAmountForTier: number,
-  status: ClientStatus,
-  payMethod: SelectedPayMethod,
-  receiveMethod: SelectedReceiveMethod,
-  bonuses?: BonusesConfig | null
-): Rates {
-  const next: Rates = { ...baseRates };
-
-  if (hasVndRateMarkup(sellCurrency, buyCurrency)) {
-    const r = getRate(baseRates, sellCurrency);
-    if (!r) return next;
-
-    const tier = tierBonusForRate(sellCurrency, sellAmountForTier, status, bonuses);
-    const method = methodBonusForRate(sellCurrency, buyCurrency, payMethod, receiveMethod, bonuses);
-    next[sellCurrency as RateKey] = { buy_vnd: r.buy_vnd + tier + method, sell_vnd: r.sell_vnd };
-  }
-
-  return next;
-}
-
-// ---------- VND-конвертация ----------
+// ---------- VND-конвертация для кросс-пар без формулы (без надбавок) ----------
 function calcBuyAmountVnd(rates: Rates, sellCurrency: Currency, buyCurrency: Currency, sellAmount: number): number {
   if (sellAmount <= 0) return 0;
   if (sellCurrency === buyCurrency) return sellAmount;
 
-  let vnd: number;
-  if (sellCurrency === "VND") vnd = sellAmount;
-  else {
-    const sr = getRate(rates, sellCurrency);
-    if (!sr) return Number.NaN;
-    vnd = sellAmount * sr.buy_vnd;
-  }
-
-  if (buyCurrency === "VND") return vnd;
-
-  const br = getRate(rates, buyCurrency);
-  if (!br) return Number.NaN;
-  return vnd / br.sell_vnd;
+  const sr = vndRate(rates, sellCurrency);
+  const br = vndRate(rates, buyCurrency);
+  if (!sr || !br) return Number.NaN;
+  return (sellAmount * sr.buy_vnd) / br.sell_vnd;
 }
 
 function calcSellAmountVnd(rates: Rates, sellCurrency: Currency, buyCurrency: Currency, buyAmount: number): number {
   if (buyAmount <= 0) return 0;
   if (sellCurrency === buyCurrency) return buyAmount;
 
-  const vndCost = (() => {
-    if (buyCurrency === "VND") return buyAmount;
-    const br = getRate(rates, buyCurrency);
-    if (!br) return Number.NaN;
-    return buyAmount * br.sell_vnd;
-  })();
-
-  if (!Number.isFinite(vndCost)) return Number.NaN;
-  if (sellCurrency === "VND") return vndCost;
-
-  const sr = getRate(rates, sellCurrency);
-  if (!sr) return Number.NaN;
-  return vndCost / sr.buy_vnd;
+  const sr = vndRate(rates, sellCurrency);
+  const br = vndRate(rates, buyCurrency);
+  if (!sr || !br) return Number.NaN;
+  return (buyAmount * br.sell_vnd) / sr.buy_vnd;
 }
 
 const VND_TO_VND_FEE_RATE = 0.02;
@@ -615,78 +317,6 @@ function calcSellAmountSameVnd(buyAmount: number): number {
   if (buyAmount <= 0) return 0;
   if (buyAmount <= VND_TO_VND_BUY_THRESHOLD) return buyAmount + VND_TO_VND_MIN_FEE;
   return buyAmount / (1 - VND_TO_VND_FEE_RATE);
-}
-
-// ---------- G-конвертация ----------
-function isGModePair(formulas: Record<string, { buyMul: number; sellMul: number }>, a: Currency, b: Currency): boolean {
-  if (a === "VND" || b === "VND") return false;
-  return !!formulas[`${a}/${b}`] || !!formulas[`${b}/${a}`];
-}
-
-function gRateDecimals(base: Currency, quote: Currency): number {
-  return base === "USD" && quote === "USDT" ? 3 : 1;
-}
-
-function roundRate(value: number, decimals: number): number {
-  const factor = 10 ** decimals;
-  return Math.round((value + Number.EPSILON) * factor) / factor;
-}
-
-function getGPairRates(
-  market: MarketRatesResponse | null,
-  formulas: Record<string, { buyMul: number; sellMul: number }>,
-  base: Currency,
-  quote: Currency
-): { buy: number; sell: number } | null {
-  if (!market || !market.ok) return null;
-  const key = `${base}/${quote}`;
-  const f = formulas[key];
-  const G = Number(market.g?.[key]);
-  if (!f || !Number.isFinite(G) || G <= 0) return null;
-
-  const decimals = gRateDecimals(base, quote);
-  return {
-    buy: roundRate(G * f.buyMul, decimals),
-    sell: roundRate(G * f.sellMul, decimals),
-  };
-}
-
-function calcBuyAmountG(
-  market: MarketRatesResponse | null,
-  formulas: Record<string, { buyMul: number; sellMul: number }>,
-  sellCur: Currency,
-  buyCur: Currency,
-  sellAmount: number
-): number {
-  if (sellAmount <= 0) return 0;
-  if (sellCur === buyCur) return sellAmount;
-
-  const direct = getGPairRates(market, formulas, sellCur, buyCur);
-  if (direct) return sellAmount * direct.buy;
-
-  const inverse = getGPairRates(market, formulas, buyCur, sellCur);
-  if (inverse) return sellAmount / inverse.sell;
-
-  return Number.NaN;
-}
-
-function calcSellAmountG(
-  market: MarketRatesResponse | null,
-  formulas: Record<string, { buyMul: number; sellMul: number }>,
-  sellCur: Currency,
-  buyCur: Currency,
-  buyAmount: number
-): number {
-  if (buyAmount <= 0) return 0;
-  if (sellCur === buyCur) return buyAmount;
-
-  const direct = getGPairRates(market, formulas, sellCur, buyCur);
-  if (direct) return buyAmount / direct.buy;
-
-  const inverse = getGPairRates(market, formulas, buyCur, sellCur);
-  if (inverse) return buyAmount * inverse.sell;
-
-  return Number.NaN;
 }
 
 const ATM_VND_STEP = 100000;
@@ -736,6 +366,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState<Rates | null>(null);
+  const [cross, setCross] = useState<CrossRates | null>(null);
   const [ratesUpdatedAt, setRatesUpdatedAt] = useState<string | null>(null);
   const [market, setMarket] = useState<MarketRatesResponse | null>(null);
   const [bonuses, setBonuses] = useState<BonusesConfig | null>(null);
@@ -893,11 +524,13 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
         const r: Rates | null = json?.data?.rates ?? null;
         if (alive) {
           setRates(r);
+          setCross(json?.data?.cross && typeof json.data.cross === "object" ? json.data.cross : null);
           setRatesUpdatedAt(json?.data?.updated_at ? String(json.data.updated_at) : null);
         }
       } catch {
         if (alive) {
           setRates(null);
+          setCross(null);
           setRatesUpdatedAt(null);
         }
       }
@@ -1018,28 +651,22 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   }, [buyCurrency, sellCurrency, deliveryClosedForRules]);
   const receiveMethodUnavailableByHours = deliveryClosedForRules && allowedRecv.length === 0;
 
+  const pricingCtx = useMemo<PricingContext>(() => ({ rates, cross, market, formulas }), [rates, cross, market, formulas]);
+  const baseQuote = useMemo(() => resolveQuote(sellCurrency, buyCurrency, pricingCtx), [sellCurrency, buyCurrency, pricingCtx]);
+
   // Missing data check
   const missingRates = useMemo(() => {
-    const miss: string[] = [];
+    if (sellCurrency === "VND" && buyCurrency === "VND") return [];
+    if (baseQuote) return [];
 
-    if (sellCurrency === "VND" && buyCurrency === "VND") {
-      return [];
-    }
-
-    if (gMode) {
-      if (!market || !market.ok) miss.push("G");
-      else {
-        const has = !!market.g?.[`${sellCurrency}/${buyCurrency}`] || !!market.g?.[`${buyCurrency}/${sellCurrency}`];
-        if (!has) miss.push("G");
-      }
-      return Array.from(new Set(miss));
-    }
-
+    if (gMode) return ["G"];
     if (!rates) return ["VND rates"];
-    if (sellCurrency !== "VND" && !getRate(rates, sellCurrency)) miss.push(sellCurrency);
-    if (buyCurrency !== "VND" && !getRate(rates, buyCurrency)) miss.push(buyCurrency);
-    return Array.from(new Set(miss));
-  }, [gMode, market, rates, sellCurrency, buyCurrency]);
+
+    const miss: string[] = [];
+    if (sellCurrency !== "VND" && !vndRate(rates, sellCurrency)) miss.push(sellCurrency);
+    if (buyCurrency !== "VND" && !vndRate(rates, buyCurrency)) miss.push(buyCurrency);
+    return miss;
+  }, [baseQuote, gMode, rates, sellCurrency, buyCurrency]);
 
   const canCalc = missingRates.length === 0;
 
@@ -1108,61 +735,36 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       return;
     }
 
-    if (gMode) {
-      if (lastEdited.current === "sell") {
-        const outRaw = calcBuyAmountG(market, formulas, sellCurrency, buyCurrency, sellAmount);
-        const next = sellText.trim() !== "" && Number.isFinite(outRaw) ? formatComputed(buyCurrency, outRaw) : "";
-        buyRawRef.current = next ? outRaw : null;
-        if (next !== buyText) setBuyText(next);
-      } else {
-        const needRaw = calcSellAmountG(market, formulas, sellCurrency, buyCurrency, buyAmount);
-        const next = buyText.trim() !== "" && Number.isFinite(needRaw) ? formatComputedSell(sellCurrency, needRaw) : "";
-        sellRawRef.current = next ? needRaw : null;
-        if (next !== sellText) setSellText(next);
-      }
-      return;
-    }
-
-    if (!rates) return;
+    const priced = (amountFrom: number) =>
+      pricedQuote(pricingCtx, sellCurrency, buyCurrency, amountFrom, clientStatus, receiveMethod, bonuses);
 
     if (lastEdited.current === "sell") {
-      const effectiveRates = applyRateBonuses(
-        rates,
-        sellCurrency,
-        buyCurrency,
-        sellAmount,
-        clientStatus,
-        payMethod,
-        receiveMethod,
-        bonuses
-      );
-
-      const outRaw = calcBuyAmountVnd(effectiveRates, sellCurrency, buyCurrency, sellAmount);
+      const p = priced(sellAmount);
+      const outRaw = p
+        ? convertForward(p.quote.side, p.rate, sellAmount)
+        : !gMode && rates
+          ? calcBuyAmountVnd(rates, sellCurrency, buyCurrency, sellAmount)
+          : Number.NaN;
       const next = sellText.trim() !== "" && Number.isFinite(outRaw) ? formatComputed(buyCurrency, outRaw) : "";
       buyRawRef.current = next ? outRaw : null;
       if (next !== buyText) setBuyText(next);
     } else {
-      // Iteration is needed only because tier bonus depends on sellAmount
-      let guess = calcSellAmountVnd(rates, sellCurrency, buyCurrency, buyAmount);
-
-      for (let i = 0; i < 3; i++) {
-        const effectiveRates = applyRateBonuses(
-          rates,
-          sellCurrency,
-          buyCurrency,
-          Number.isFinite(guess) ? guess : 0,
-          clientStatus,
-          payMethod,
-          receiveMethod,
-          bonuses
-        );
-        const nextGuess = calcSellAmountVnd(effectiveRates, sellCurrency, buyCurrency, buyAmount);
-        if (!Number.isFinite(nextGuess)) break;
-        if (Math.abs(nextGuess - guess) < 1e-7) {
+      let guess: number;
+      if (baseQuote) {
+        // Iteration is needed only because the tier markup depends on the amount the client gives
+        guess = convertBackward(baseQuote.side, baseQuote.rate, buyAmount);
+        for (let i = 0; i < 3; i++) {
+          const p = priced(Number.isFinite(guess) ? guess : 0);
+          const nextGuess = p ? convertBackward(p.quote.side, p.rate, buyAmount) : Number.NaN;
+          if (!Number.isFinite(nextGuess)) break;
+          if (Math.abs(nextGuess - guess) < 1e-7) {
+            guess = nextGuess;
+            break;
+          }
           guess = nextGuess;
-          break;
         }
-        guess = nextGuess;
+      } else {
+        guess = !gMode && rates ? calcSellAmountVnd(rates, sellCurrency, buyCurrency, buyAmount) : Number.NaN;
       }
 
       const next = buyText.trim() !== "" && Number.isFinite(guess) ? formatComputedSell(sellCurrency, guess) : "";
@@ -1176,8 +778,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     sellCurrency,
     buyCurrency,
     rates,
-    market,
-    formulas,
+    pricingCtx,
+    baseQuote,
     bonuses,
     payMethod,
     receiveMethod,
@@ -1186,49 +788,38 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     gMode,
   ]);
 
+  // Rate of the current direction with markups: base ± status tier ± receive method.
   const rateInfo = useMemo(() => {
-    // бонусы показываем для пар «валюта -> VND», и только если НЕ gMode
-    if (gMode) return null;
-    if (!rates) return null;
-    if (!hasVndRateMarkup(sellCurrency, buyCurrency)) return null;
+    if (!baseQuote) return null;
+    const p = pricedQuote(pricingCtx, sellCurrency, buyCurrency, sellAmount, clientStatus, receiveMethod, bonuses);
+    if (!p || !Number.isFinite(p.rate)) return null;
+    return { quote: baseQuote, tier: p.markup.tier, method: p.markup.method, eff: p.rate };
+  }, [baseQuote, pricingCtx, sellCurrency, buyCurrency, sellAmount, clientStatus, receiveMethod, bonuses]);
 
-    const base = getRate(rates, sellCurrency)?.buy_vnd ?? null;
-    if (!base) return null;
-
-    const tier = tierBonusForRate(sellCurrency, sellAmount, clientStatus, bonuses);
-    const m = methodBonusForRate(sellCurrency, buyCurrency, payMethod, receiveMethod, bonuses);
-    return { base, tier, m, eff: base + tier + m };
-  }, [gMode, rates, buyCurrency, sellCurrency, sellAmount, clientStatus, payMethod, receiveMethod, bonuses]);
-
-  // "1 ₽ = 300 ₫" line under the amount cards (redesign). Uses the effective rate when bonuses apply.
+  // "1 ₽ = 300 ₫" line under the amount cards (redesign). Uses the effective rate when markups apply.
   const unitRate = useMemo(() => {
-    if (sellCurrency === buyCurrency) return null;
+    if (!rateInfo) return null;
+    return { unitCur: rateInfo.quote.base, quoteCur: rateInfo.quote.quote, rate: rateInfo.eff };
+  }, [rateInfo]);
 
-    if (gMode) {
-      const direct = getGPairRates(market, formulas, sellCurrency, buyCurrency);
-      if (direct) return { unitCur: sellCurrency, quoteCur: buyCurrency, rate: direct.buy };
-      const inverse = getGPairRates(market, formulas, buyCurrency, sellCurrency);
-      if (inverse && inverse.sell > 0) return { unitCur: buyCurrency, quoteCur: sellCurrency, rate: inverse.sell };
-      return null;
-    }
-
-    if (!rates) return null;
-    if (buyCurrency === "VND" && sellCurrency !== "VND") {
-      const base = getRate(rates, sellCurrency)?.buy_vnd;
-      if (!base) return null;
-      const eff = rateInfo ? rateInfo.eff : base;
-      return { unitCur: sellCurrency, quoteCur: "VND" as Currency, rate: eff };
-    }
-    if (sellCurrency === "VND" && buyCurrency !== "VND") {
-      const sell = getRate(rates, buyCurrency)?.sell_vnd;
-      if (!sell) return null;
-      return { unitCur: buyCurrency, quoteCur: "VND" as Currency, rate: sell };
-    }
-    return null;
-  }, [gMode, market, formulas, rates, sellCurrency, buyCurrency, rateInfo]);
+  // Admin-only breakdown: "база 300 + статус +1 + перевод +1".
+  const rateBreakdown = useMemo(() => {
+    if (!isAdminMode || !rateInfo) return null;
+    const sign = rateInfo.quote.side === "buy" ? "+" : "−";
+    const parts = [`${isEn ? "base" : "база"} ${fmtUnitRate(rateInfo.quote.rate, isEn)}`];
+    if (rateInfo.quote.manual) parts[0] += isEn ? " (manual)" : " (ручной)";
+    parts.push(`${isEn ? "status" : "статус"} «${getUserStatusLabel(clientStatus, lang)}» ${sign}${fmtUnitRate(rateInfo.tier, isEn)}`);
+    parts.push(
+      receiveMethod
+        ? `${uiMethodLabel(receiveMethod).toLowerCase()} ${sign}${fmtUnitRate(rateInfo.method, isEn)}`
+        : isEn ? "receive method not selected" : "способ получения не выбран"
+    );
+    return parts.join(" · ");
+  }, [isAdminMode, rateInfo, clientStatus, receiveMethod, isEn, lang]);
 
   const rateUpdatedLabel = useMemo(() => {
-    const iso = gMode ? (market?.ok ? market.updated_at : null) : ratesUpdatedAt;
+    const usesMarket = gMode && !baseQuote?.manual;
+    const iso = usesMarket ? (market?.ok ? market.updated_at : null) : ratesUpdatedAt;
     if (!iso) return null;
     const t = new Date(iso).getTime();
     if (!Number.isFinite(t)) return null;
@@ -1237,7 +828,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     if (mins < 60) return isEn ? `updated ${mins} min ago` : `обновлён ${mins} мин назад`;
     const hours = Math.floor(mins / 60);
     return isEn ? `updated ${hours} h ago` : `обновлён ${hours} ч назад`;
-  }, [gMode, market, ratesUpdatedAt, danangNowMs, isEn]);
+  }, [gMode, baseQuote, market, ratesUpdatedAt, danangNowMs, isEn]);
 
   const sameCurrencyAllowed = sellCurrency === buyCurrency ? sellCurrency === "VND" && buyCurrency === "VND" : true;
   const isVndToVnd = sellCurrency === "VND" && buyCurrency === "VND";
@@ -1590,16 +1181,16 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
               <input
                 ref={sellInputRef}
-                inputMode={sellCurrency === "USDT" ? "decimal" : "numeric"}
+                inputMode={amountMaxDecimals(sellCurrency) > 0 ? "decimal" : "numeric"}
                 placeholder="0"
                 value={sellText}
                 className={"cx-amtInput" + (invalidUsdSell || invalidEurSell || invalidThbSell || invalidVndSellCash || invalidMinSell ? " cx-amtInvalid" : "")}
                 onChange={(e) => {
                   preserveSwappedValuesRef.current = false;
                   lastEdited.current = "sell";
-                  const rawValue = e.target.value;
-                  const next = fmtFromInput(sellCurrency, rawValue);
-                  pendingCaretRef.current = makePendingCaret("sell", sellCurrency, e.currentTarget, next);
+                  const formatted = formatAmountInput(sellCurrency, e.currentTarget.value, sellText, inputHintFromEvent(e));
+                  const next = formatted.text;
+                  pendingCaretRef.current = makePendingCaret("sell", e.currentTarget, formatted);
                   sellRawRef.current = next.trim() ? parseAmount(sellCurrency, next) : null;
                   setSellText(next);
                 }}
@@ -1635,16 +1226,16 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
               <input
                 ref={buyInputRef}
-                inputMode={buyCurrency === "USDT" ? "decimal" : "numeric"}
+                inputMode={amountMaxDecimals(buyCurrency) > 0 ? "decimal" : "numeric"}
                 placeholder="0"
                 value={buyText}
                 className={"cx-amtInput" + (invalidUsdBuy || invalidEurBuy || invalidThbBuy || invalidVndBuyCash || invalidVndBuyAtm ? " cx-amtInvalid" : "")}
                 onChange={(e) => {
                   preserveSwappedValuesRef.current = false;
                   lastEdited.current = "buy";
-                  const rawValue = e.target.value;
-                  const next = fmtFromInput(buyCurrency, rawValue);
-                  pendingCaretRef.current = makePendingCaret("buy", buyCurrency, e.currentTarget, next);
+                  const formatted = formatAmountInput(buyCurrency, e.currentTarget.value, buyText, inputHintFromEvent(e));
+                  const next = formatted.text;
+                  pendingCaretRef.current = makePendingCaret("buy", e.currentTarget, formatted);
                   buyRawRef.current = next.trim() ? parseAmount(buyCurrency, next) : null;
                   setBuyText(next);
                 }}
@@ -1675,6 +1266,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
         ) : (
           <div style={{ height: 13 }} />
         )}
+
+        {rateBreakdown ? <div className="cx-bonusLine">{rateBreakdown}</div> : null}
 
         <div className="cx-calcSide">
           {allowedPay.length ? (

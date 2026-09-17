@@ -7,6 +7,7 @@ import type {
   BonusesConfig,
   BonusesResponse,
   BankIconsResponse,
+  CrossRates,
   StaffRequestsResponse,
   MyRequestsResponse,
   AdminContactsResponse,
@@ -146,11 +147,11 @@ export async function apiAdminSetFaq(token: string, items: any): Promise<FaqResp
   return readJsonSafe(r);
 }
 
-export async function apiAdminSetTodayRates(initData: string, rates: any) {
+export async function apiAdminSetTodayRates(initData: string, rates: any, cross?: CrossRates) {
   const r = await fetch("/api/admin/rates/today", {
     method: "POST",
     headers: { "content-type": "application/json", ...adminAuthHeaders(initData) },
-    body: JSON.stringify({ rates })
+    body: JSON.stringify({ rates, cross })
   });
   return r.json();
 }

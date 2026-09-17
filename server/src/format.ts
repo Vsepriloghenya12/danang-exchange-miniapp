@@ -88,19 +88,17 @@ function formatUser(u: { id: number; username?: string; first_name?: string; las
   return name || `id ${u.id}`;
 }
 
-function formatAmount(cur: Currency, n: number): string {
+// Same format as the calculator: "," groups thousands; USDT and RUB keep up to 2 decimals.
+export function formatAmount(cur: string, n: number): string {
   if (!Number.isFinite(n)) return "0";
-  if (cur === "USDT") {
-    const v = Math.round(n * 10) / 10;
-    const sign = v < 0 ? "-" : "";
-    const abs = Math.abs(v);
-    const intPart = Math.trunc(abs);
-    const dec = Math.round((abs - intPart) * 10);
-    const grouped = String(intPart).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    return dec ? `${sign}${grouped}.${dec}` : `${sign}${grouped}`;
-  }
-  const v = cur === "VND" ? Math.round(n) : Math.round(n);
-  return String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const decimals = cur === "USDT" || cur === "RUB" ? 2 : 0;
+  const factor = 10 ** decimals;
+  const v = Math.round(n * factor) / factor;
+  const sign = v < 0 ? "-" : "";
+  const [intPart, decPart = ""] = Math.abs(v).toFixed(decimals).split(".");
+  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const dec = decPart.replace(/0+$/, "");
+  return dec ? `${sign}${grouped}.${dec}` : `${sign}${grouped}`;
 }
 
 function escapeHtml(s: string) {

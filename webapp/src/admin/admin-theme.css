@@ -627,6 +627,29 @@ body:has(.adx) #root {
 .adx .adx-table td:nth-child(2) input { width: 112px; max-width: 112px; }
 .adx .adx-matrix td:nth-child(n) input { width: 88px; max-width: 88px; }
 
+/* ── Направление обмена и итоговые курсы ─────────────────────────────────── */
+.adx .adx-dirPicker {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+.adx .adx-dirPicker label { display: flex; flex-direction: column; gap: 4px; }
+.adx .adx-dirPicker select { min-width: 110px; font-family: var(--font-mono); }
+.adx .adx-dirArrow { padding-bottom: 9px; color: var(--tx-muted); }
+.adx .adx-dirChips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.adx .adx-dirChips .btn { font-family: var(--font-mono); }
+.adx .adx-effRates { margin-top: 12px; }
+.adx .adx-effTable td.adx-effCell {
+  text-align: right;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.adx .adx-effVal { color: var(--tx); font-weight: 600; }
+.adx .adx-effDelta { margin-left: 6px; color: var(--positive); font-size: 11px; }
+
 /* ── Данные-зависимые легаси-блоки (не видны на пустом стенде) ───────────── */
 
 /* Клиенты: карточки списка */

@@ -143,15 +143,16 @@ export default function RatesTab({ embedded = false, limit, lang = "ru" }: Props
   }, []);
 
   const rates: any = (today as any)?.data?.rates ?? null;
+  const cross = today?.data?.cross ?? null;
   const isHomePreview = embedded && limit === 3;
 
   const rows = useMemo(
     () =>
       EXCHANGE_RATE_PAIRS.map((p) => {
-        const { buy, sell } = p.mode === "g" ? calcFromGRate(market, formulas, p.base, p.quote) : calcFromVnd(rates, p.base, p.quote);
+        const { buy, sell } = p.mode === "g" ? calcFromGRate(market, formulas, p.base, p.quote, cross) : calcFromVnd(rates, p.base, p.quote);
         return { ...p, buy, sell };
       }),
-    [rates, market, formulas]
+    [rates, cross, market, formulas]
   );
 
   const updatedLabel = useMemo(() => {

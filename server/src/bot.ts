@@ -1,6 +1,7 @@
 import { Telegraf, Markup } from "telegraf";
 import { randomUUID } from "node:crypto";
 import { USER_STATUS_LABELS_RU, type UserStatus } from "./domain/status.js";
+import { formatAmount } from "./format.js";
 import {
   readStore,
   mutateStore,
@@ -22,24 +23,9 @@ const WEBAPP_OPEN_VERSION =
     .trim()
     .slice(0, 24);
 
-// Thousands separator must be a comma (1,000 / 10,000) — same as in the calculator UI
-function fmtGroupedInt(n: number): string {
-  const s = String(Math.trunc(Math.abs(n)));
-  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
-
 function fmtReqAmount(cur: string, n: number): string {
   if (!Number.isFinite(n)) return String(n);
-  if (String(cur) === "USDT") {
-    const v = Math.round(n * 10) / 10;
-    const sign = v < 0 ? "-" : "";
-    const abs = Math.abs(v);
-    const intPart = Math.trunc(abs);
-    const dec = Math.round((abs - intPart) * 10);
-    const grouped = fmtGroupedInt(intPart);
-    return dec ? `${sign}${grouped}.${dec}` : `${sign}${grouped}`;
-  }
-  return fmtGroupedInt(Math.round(n));
+  return formatAmount(String(cur), n);
 }
 
 function ignoreStatusForPair(a: string, b: string) {

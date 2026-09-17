@@ -1,4 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { DirectionPicker, EffectiveRatesTable, markupUnitHint } from "../admin/EffectiveRates";
+import { DEFAULT_G_FORMULAS, G_FORMULA_KEYS, calcFromGRate } from "../domain/exchange";
+import {
+  MARKUP_DIRECTIONS,
+  allowedReceiveMethods,
+  directionKey,
+  emptyPairMarkup,
+  fmtUnitRate,
+  hasAnyMarkup,
+  receiveMethodLabel,
+  type PricingContext,
+  type VndRates,
+} from "../domain/pricing";
 import { getUserStatusLabelRu, normalizeUserStatus, USER_STATUS_OPTIONS_RU } from "../domain/status";
 import {
   apiAdminSetTodayRates,
@@ -7,6 +20,8 @@ import {
   apiAdminSetUserStatus,
   apiAdminUsers,
   apiGetTodayRates,
+  apiGetGFormulas,
+  apiGetMarketRates,
   apiAdminGetBonuses,
   apiAdminSetBonuses,
   apiAdminGetReviews,
@@ -15,7 +30,16 @@ import {
   apiAdminReplyReview,
   apiAdminGetRatesRange
 } from "../lib/api";
-import type { BonusesConfig, BonusesTier } from "../lib/types";
+import type {
+  BonusesConfig,
+  BonusesTier,
+  CrossRates,
+  Currency,
+  GFormulas,
+  MarketRatesResponse,
+  PairMarkup,
+  ReceiveMethod
+} from "../lib/types";
 
 const REQUEST_STATE_OPTIONS = [
   { value: "new", label: "Принята" },
@@ -30,6 +54,8 @@ type RateRowProps = {
   sell: string;
   setBuy: (v: string) => void;
   setSell: (v: string) => void;
+  buyPlaceholder?: string;
+  sellPlaceholder?: string;
 };
 
 // ВАЖНО: компонент вынесен наружу.
@@ -47,7 +73,7 @@ const RateRow = React.memo(function RateRow(props: RateRowProps) {
             inputMode="decimal"
             value={props.buy}
             onChange={(e) => props.setBuy(e.target.value)}
-            placeholder="0"
+            placeholder={props.buyPlaceholder ?? "0"}
           />
         </div>
 
@@ -57,11 +83,52 @@ const RateRow = React.memo(function RateRow(props: RateRowProps) {
             inputMode="decimal"
             value={props.sell}
             onChange={(e) => props.setSell(e.target.value)}
-            placeholder="0"
+            placeholder={props.sellPlaceholder ?? "0"}
           />
         </div>
       </div>
     </div>
+  );
+});
+
+function parseNumInput(s: string): number {
+  const t = String(s ?? "").replace(",", ".").trim();
+  if (t === "") return 0;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// Numeric cell that keeps the typed text ("0." / "0,5") while the config stores numbers.
+// Declared outside AdminTab for the same focus reason as RateRow.
+const NumInput = React.memo(function NumInput(props: {
+  value: number | undefined;
+  onChange: (v: number | undefined) => void;
+  integer?: boolean;
+  allowEmpty?: boolean;
+  placeholder?: string;
+}) {
+  const shown = props.value == null ? "" : String(props.value);
+  const [text, setText] = useState(shown);
+  useEffect(() => {
+    const current = text.trim() === "" && props.allowEmpty ? undefined : parseNumInput(text);
+    if (current !== props.value) setText(shown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.value]);
+
+  return (
+    <input
+      className="input vx-in"
+      inputMode={props.integer ? "numeric" : "decimal"}
+      value={text}
+      placeholder={props.placeholder}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setText(raw);
+        if (raw.trim() === "" && props.allowEmpty) return props.onChange(undefined);
+        const n = parseNumInput(raw);
+        props.onChange(props.integer ? Math.max(0, Math.floor(n)) : n);
+      }}
+    />
   );
 });
 
@@ -84,6 +151,17 @@ function toNumStrict(label: string, s: string) {
   return n;
 }
 
+function toPositiveOrNull(s: string): number | null {
+  const n = Number(String(s ?? "").replace(",", ".").trim());
+  return String(s ?? "").trim() !== "" && Number.isFinite(n) && n > 0 ? n : null;
+}
+
+type CrossDraft = Record<string, { buy: string; sell: string }>;
+
+function emptyCrossDraft(): CrossDraft {
+  return Object.fromEntries(G_FORMULA_KEYS.map((k) => [k, { buy: "", sell: "" }]));
+}
+
 // Защита от «битых» данных в store.json (например, bonuses = {}), чтобы UI не падал.
 function normalizeBonuses(input: any): BonusesConfig {
   const src = input && typeof input === "object" ? input : {};
@@ -91,7 +169,7 @@ function normalizeBonuses(input: any): BonusesConfig {
     const n = Number(String(v ?? "").replace(",", ".").trim());
     return Number.isFinite(n) ? n : d;
   };
-  const tierList = (arr: any) => (Array.isArray(arr) ? arr : []);
+  const tierList = (arr: any): BonusesTier[] => (Array.isArray(arr) ? arr : []);
 
   const methodRow = (row: any) => ({
     RUB: num(row?.RUB, 0),
@@ -101,11 +179,30 @@ function normalizeBonuses(input: any): BonusesConfig {
     THB: num(row?.THB, 0)
   });
 
+  const srcPairs = src.pairs && typeof src.pairs === "object" ? src.pairs : null;
+  const pairs: Record<string, PairMarkup> = {};
+  for (const d of MARKUP_DIRECTIONS) {
+    let p: any = srcPairs?.[d.key];
+    if (!srcPairs && d.to === "VND" && d.from !== "VND") {
+      // Legacy config: only "currency → VND" had markups.
+      p = {
+        tiers: src?.tiers?.[d.from],
+        methods: { cash: 0, transfer: src?.methods?.transfer?.[d.from], atm: src?.methods?.atm?.[d.from] }
+      };
+    }
+    if (!p || typeof p !== "object") continue;
+    pairs[d.key] = {
+      tiers: tierList(p.tiers),
+      methods: { cash: num(p.methods?.cash), transfer: num(p.methods?.transfer), atm: num(p.methods?.atm) }
+    };
+  }
+
   return {
     enabled: {
       tiers: typeof src?.enabled?.tiers === "boolean" ? src.enabled.tiers : true,
       methods: typeof src?.enabled?.methods === "boolean" ? src.enabled.methods : true
     },
+    pairs,
     tiers: {
       RUB: tierList(src?.tiers?.RUB),
       USD: tierList(src?.tiers?.USD),
@@ -120,8 +217,7 @@ function normalizeBonuses(input: any): BonusesConfig {
   };
 }
 
-/* Every sell-currency with a →VND markup, in editor order. */
-const BONUS_CURRENCIES = ["RUB", "USD", "USDT", "EUR", "THB"] as const;
+const VND_RATE_CURRENCIES = ["RUB", "USDT", "USD", "EUR", "THB"] as const;
 
 type AdminSection = "rates" | "users" | "requests" | "bonuses" | "reviews";
 
@@ -160,6 +256,18 @@ export default function AdminTab({
   const [thbBuy, setThbBuy] = useState("");
   const [thbSell, setThbSell] = useState("");
 
+  // Ручные кросс-курсы (без VND): пусто — считается по G × множитель.
+  const [crossDraft, setCrossDraft] = useState<CrossDraft>(emptyCrossDraft);
+
+  // Сохранённые курсы и рыночные данные — для итоговых таблиц и подсказок.
+  const [savedRates, setSavedRates] = useState<VndRates | null>(null);
+  const [savedCross, setSavedCross] = useState<CrossRates | null>(null);
+  const [market, setMarket] = useState<MarketRatesResponse | null>(null);
+  const [formulas, setFormulas] = useState<GFormulas>(DEFAULT_G_FORMULAS);
+
+  const [ratesDir, setRatesDir] = useState<{ from: Currency; to: Currency }>({ from: "RUB", to: "VND" });
+  const [bonusDir, setBonusDir] = useState<{ from: Currency; to: Currency }>({ from: "RUB", to: "VND" });
+
   const [users, setUsers] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [requestsFilter, setRequestsFilter] = useState<"all" | "new" | "in_progress" | "done" | "canceled">("all");
@@ -168,31 +276,19 @@ export default function AdminTab({
   const [bonusesBusy, setBonusesBusy] = useState(false);
   const [bonusesLoaded, setBonusesLoaded] = useState(false);
 
-  // Мобильный вид: группы диапазонов свёрнуты по умолчанию.
-  const [isMobileView, setIsMobileView] = useState<boolean>(() => {
-    try {
-      return window.matchMedia("(max-width: 640px)").matches;
-    } catch {
-      return false;
-    }
-  });
-  useEffect(() => {
-    try {
-      const mq = window.matchMedia("(max-width: 640px)");
-      const onChange = () => setIsMobileView(mq.matches);
-      mq.addEventListener("change", onChange);
-      return () => mq.removeEventListener("change", onChange);
-    } catch {
-      return;
-    }
-  }, []);
-  const [openTiers, setOpenTiers] = useState<Record<string, boolean>>({});
-
   const [reviewsLoaded, setReviewsLoaded] = useState(false);
   const [reviewsBusy, setReviewsBusy] = useState(false);
   const [adminReviews, setAdminReviews] = useState<any[]>([]);
   const [reviewsFilter, setReviewsFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+
+  const vndDraft: Record<(typeof VND_RATE_CURRENCIES)[number], { buy: string; sell: string }> = {
+    RUB: { buy: rubBuy, sell: rubSell },
+    USDT: { buy: usdtBuy, sell: usdtSell },
+    USD: { buy: usdBuy, sell: usdSell },
+    EUR: { buy: eurBuy, sell: eurSell },
+    THB: { buy: thbBuy, sell: thbSell }
+  };
 
   const clearRates = () => {
     setRubBuy(""); setRubSell("");
@@ -200,6 +296,11 @@ export default function AdminTab({
     setUsdBuy(""); setUsdSell("");
     setEurBuy(""); setEurSell("");
     setThbBuy(""); setThbSell("");
+    setCrossDraft(emptyCrossDraft());
+  };
+
+  const setCrossField = (key: string, field: "buy" | "sell", value: string) => {
+    setCrossDraft((prev) => ({ ...prev, [key]: { ...(prev[key] || { buy: "", sell: "" }), [field]: value } }));
   };
 
   const loadUsers = async () => {
@@ -212,7 +313,7 @@ export default function AdminTab({
     if (r.ok) setRequests(r.requests || []);
   };
 
-  const applyRatesToForm = (rates: any) => {
+  const applyRatesToForm = (rates: any, cross?: any) => {
     if (!rates || typeof rates !== "object") return;
     clearRates();
     if (rates.USD) { setUsdBuy(nStr(rates.USD.buy_vnd)); setUsdSell(nStr(rates.USD.sell_vnd)); }
@@ -220,6 +321,13 @@ export default function AdminTab({
     if (rates.USDT) { setUsdtBuy(nStr(rates.USDT.buy_vnd)); setUsdtSell(nStr(rates.USDT.sell_vnd)); }
     if (rates.EUR) { setEurBuy(nStr(rates.EUR.buy_vnd)); setEurSell(nStr(rates.EUR.sell_vnd)); }
     if (rates.THB) { setThbBuy(nStr(rates.THB.buy_vnd)); setThbSell(nStr(rates.THB.sell_vnd)); }
+    const nextCross = emptyCrossDraft();
+    if (cross && typeof cross === "object") {
+      for (const k of G_FORMULA_KEYS) {
+        if (cross[k]) nextCross[k] = { buy: nStr(cross[k].buy), sell: nStr(cross[k].sell) };
+      }
+    }
+    setCrossDraft(nextCross);
   };
 
   const daNangISO = (shiftDays = 0) => {
@@ -227,11 +335,18 @@ export default function AdminTab({
     return d.toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
   };
 
-  const loadRates = async () => {
+  const fetchSavedRates = async () => {
     const r = await apiGetTodayRates();
-    const rates = (r as any)?.data?.rates;
-    if (!rates) return;
-    applyRatesToForm(rates);
+    const data = (r as any)?.data;
+    setSavedRates(data?.rates ?? null);
+    setSavedCross(data?.cross ?? null);
+    return data;
+  };
+
+  const loadRates = async () => {
+    const data = await fetchSavedRates();
+    if (!data?.rates) return;
+    applyRatesToForm(data.rates, data.cross);
   };
 
   const loadYesterdayRates = async () => {
@@ -243,7 +358,7 @@ export default function AdminTab({
       alert(`За ${day} курс не найден`);
       return;
     }
-    applyRatesToForm(rates);
+    applyRatesToForm(rates, item?.cross);
   };
 
   useEffect(() => {
@@ -251,12 +366,20 @@ export default function AdminTab({
     loadRequests();
     // ВАЖНО: не подставляем сохранённые курсы автоматически — всё начинается пустым.
     clearRates();
+    // Сохранённые курсы, рынок и формулы нужны только для подсказок и итоговых таблиц.
+    void fetchSavedRates().catch(() => null);
+    apiGetMarketRates().then(setMarket).catch(() => null);
+    apiGetGFormulas()
+      .then((f: any) => {
+        if (f?.ok && f.formulas && typeof f.formulas === "object") setFormulas(f.formulas);
+      })
+      .catch(() => null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Загружаем надбавки только когда пользователь открыл этот раздел
+  // Надбавки нужны разделу «Надбавки» и итоговой таблице в разделе «Курс»
   useEffect(() => {
-    if (section === "bonuses" && !bonusesLoaded) {
+    if ((section === "bonuses" || section === "rates") && !bonusesLoaded) {
       (async () => {
         setBonusesBusy(true);
         try {
@@ -264,7 +387,7 @@ export default function AdminTab({
           if (r.ok) {
             setBonuses(normalizeBonuses((r as any).bonuses));
             setBonusesLoaded(true);
-          } else {
+          } else if (section === "bonuses") {
             alert(r.error || "Ошибка загрузки надбавок");
           }
         } finally {
@@ -372,9 +495,21 @@ export default function AdminTab({
         rates.THB = { buy_vnd: toNumStrict("THB BUY", thbBuy), sell_vnd: toNumStrict("THB SELL", thbSell) };
       }
 
-      const r = await apiAdminSetTodayRates(me.initData, rates);
-      if (r.ok) alert("Курс сохранён ✅");
-      else alert(r.error || "Ошибка");
+      // Кросс-курсы — опционально, по тем же правилам
+      const cross: CrossRates = {};
+      for (const k of G_FORMULA_KEYS) {
+        const d = crossDraft[k] || { buy: "", sell: "" };
+        if (!hasAny(d.buy, d.sell)) continue;
+        if (!hasBoth(d.buy, d.sell)) throw new Error(`${k}: заполни BUY и SELL (или оставь оба поля пустыми)`);
+        cross[k] = { buy: toNumStrict(`${k} BUY`, d.buy), sell: toNumStrict(`${k} SELL`, d.sell) };
+      }
+
+      const r = await apiAdminSetTodayRates(me.initData, rates, cross);
+      if (r.ok) {
+        setSavedRates(r.data?.rates ?? rates);
+        setSavedCross(r.data?.cross ?? null);
+        alert("Курс сохранён ✅");
+      } else alert(r.error || "Ошибка");
     } catch (e: any) {
       alert(e?.message || "Проверь значения");
     }
@@ -393,62 +528,80 @@ export default function AdminTab({
   };
 
   // --------------------
+  // Итоговые курсы
+  // --------------------
+  // Пустая форма — показываем сохранённый курс; иначе — то, что введено в форме
+  // (пустой кросс-курс в форме означает расчёт по G × множитель).
+  const formHasValues =
+    VND_RATE_CURRENCIES.some((c) => vndDraft[c].buy.trim() !== "" || vndDraft[c].sell.trim() !== "") ||
+    G_FORMULA_KEYS.some((k) => (crossDraft[k]?.buy || "").trim() !== "" || (crossDraft[k]?.sell || "").trim() !== "");
+
+  const ratesPreviewCtx = useMemo<PricingContext>(() => {
+    if (!formHasValues) return { rates: savedRates, cross: savedCross, market, formulas };
+    const rates: VndRates = {};
+    for (const c of VND_RATE_CURRENCIES) {
+      const buy = toPositiveOrNull(vndDraft[c].buy);
+      const sell = toPositiveOrNull(vndDraft[c].sell);
+      if (buy && sell) rates[c] = { buy_vnd: buy, sell_vnd: sell };
+    }
+    const cross: CrossRates = {};
+    for (const k of G_FORMULA_KEYS) {
+      const buy = toPositiveOrNull(crossDraft[k]?.buy || "");
+      const sell = toPositiveOrNull(crossDraft[k]?.sell || "");
+      if (buy && sell) cross[k] = { buy, sell };
+    }
+    return { rates, cross, market, formulas };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formHasValues, savedRates, savedCross, market, formulas, rubBuy, rubSell, usdtBuy, usdtSell, usdBuy, usdSell, eurBuy, eurSell, thbBuy, thbSell, crossDraft]);
+
+  const savedCtx = useMemo<PricingContext>(
+    () => ({ rates: savedRates, cross: savedCross, market, formulas }),
+    [savedRates, savedCross, market, formulas]
+  );
+
+  const autoCrossPlaceholder = (key: string, side: "buy" | "sell") => {
+    const [base, quote] = key.split("/") as [Currency, Currency];
+    const v = calcFromGRate(market, formulas, base, quote)[side];
+    return v == null ? "G" : `G: ${fmtUnitRate(v)}`;
+  };
+
+  // --------------------
   // Bonuses helpers
   // --------------------
-  const numInput = (s: string) => {
-    const t = String(s ?? "").replace(",", ".").trim();
-    if (t === "") return 0;
-    const n = Number(t);
-    return Number.isFinite(n) ? n : 0;
-  };
+  const bonusKey = directionKey(bonusDir.from, bonusDir.to);
+  const bonusPair: PairMarkup = bonuses?.pairs[bonusKey] ?? emptyPairMarkup();
+  const bonusMethods = allowedReceiveMethods(bonusDir.to);
+  const configuredDirections = MARKUP_DIRECTIONS.filter((d) => hasAnyMarkup(bonuses?.pairs[d.key]));
 
   const setBonusEnabled = (key: "tiers" | "methods", on: boolean) => {
     setBonuses((p) => (p ? { ...p, enabled: { ...p.enabled, [key]: on } } : p));
   };
 
-  const updMethodBonus = (method: "transfer" | "atm", cur: "RUB" | "USD" | "USDT" | "EUR" | "THB", v: number) => {
-    setBonuses((p) =>
-      p
-        ? {
-            ...p,
-            methods: {
-              ...p.methods,
-              [method]: { ...p.methods[method], [cur]: v }
-            }
-          }
-        : p
-    );
+  const updPair = (key: string, fn: (p: PairMarkup) => PairMarkup) => {
+    setBonuses((p) => (p ? { ...p, pairs: { ...p.pairs, [key]: fn(p.pairs[key] ?? emptyPairMarkup()) } } : p));
   };
 
-  const updTier = (cur: "RUB" | "USD" | "USDT" | "EUR" | "THB", idx: number, patch: Partial<BonusesTier>) => {
-    setBonuses((p) => {
-      if (!p) return p;
-      const list = (p.tiers as any)[cur] as BonusesTier[];
-      const next = list.map((t, i) => (i === idx ? { ...t, ...patch } : t));
-      return { ...p, tiers: { ...p.tiers, [cur]: next } };
-    });
+  const updMethodBonus = (key: string, method: ReceiveMethod, v: number) => {
+    updPair(key, (p) => ({ ...p, methods: { ...p.methods, [method]: v } }));
   };
 
-  const addTier = (cur: "RUB" | "USD" | "USDT" | "EUR" | "THB") => {
-    setBonuses((p) => {
-      if (!p) return p;
-      const list = (p.tiers as any)[cur] as BonusesTier[];
+  const updTier = (key: string, idx: number, patch: Partial<BonusesTier>) => {
+    updPair(key, (p) => ({ ...p, tiers: p.tiers.map((t, i) => (i === idx ? { ...t, ...patch } : t)) }));
+  };
+
+  const addTier = (key: string) => {
+    updPair(key, (p) => {
+      const list = p.tiers;
       const last = list[list.length - 1];
       const min = list.length === 0 ? 0 : Number.isFinite(last?.max as any) ? Number(last.max) : Number(last?.min ?? 0) + 1;
       const row: BonusesTier = { min: Math.max(0, min || 0), standard: 0, silver: 0, gold: 0 };
-      return { ...p, tiers: { ...p.tiers, [cur]: [...list, row] } };
+      return { ...p, tiers: [...list, row] };
     });
   };
 
-  const delTier = (cur: "RUB" | "USD" | "USDT" | "EUR" | "THB", idx: number) => {
-    setBonuses((p) => {
-      if (!p) return p;
-      const list = (p.tiers as any)[cur] as BonusesTier[];
-      const next = list.filter((_, i) => i !== idx);
-      // Пустой список допустим: для валюты просто не будет надбавки по статусу
-      // (RUB/USD/USDT сервер вернёт к дефолтным диапазонам).
-      return { ...p, tiers: { ...p.tiers, [cur]: next } };
-    });
+  // Пустой список допустим: для направления просто не будет надбавки по статусу.
+  const delTier = (key: string, idx: number) => {
+    updPair(key, (p) => ({ ...p, tiers: p.tiers.filter((_, i) => i !== idx) }));
   };
 
   const saveBonuses = async () => {
@@ -513,6 +666,26 @@ export default function AdminTab({
           <RateRow code="EUR" buy={eurBuy} sell={eurSell} setBuy={setEurBuy} setSell={setEurSell} />
           <RateRow code="THB" buy={thbBuy} sell={thbSell} setBuy={setThbBuy} setSell={setThbSell} />
 
+          <div className="hr" />
+          <div className="small">
+            Кросс-курсы без VND (BUY/SELL) — необязательно. Пустые поля — курс считается автоматически по G × множитель
+            (текущее значение в подсказке).
+          </div>
+          <div className="vx-sp6" />
+
+          {G_FORMULA_KEYS.map((k) => (
+            <RateRow
+              key={k}
+              code={k}
+              buy={crossDraft[k]?.buy ?? ""}
+              sell={crossDraft[k]?.sell ?? ""}
+              setBuy={(v) => setCrossField(k, "buy", v)}
+              setSell={(v) => setCrossField(k, "sell", v)}
+              buyPlaceholder={autoCrossPlaceholder(k, "buy")}
+              sellPlaceholder={autoCrossPlaceholder(k, "sell")}
+            />
+          ))}
+
           <div className="vx-mt10">
             <div className="row vx-rowWrap vx-gap8">
               <button className="btn" onClick={saveRates}>Сохранить</button>
@@ -521,6 +694,16 @@ export default function AdminTab({
               <button className="btn" onClick={loadRates}>Загрузить текущий</button>
             </div>
           </div>
+
+          <div className="hr" />
+          <div className="h3">Итоговый курс с надбавками</div>
+          <div className="small">
+            {formHasValues
+              ? "Считается по курсу из формы (ещё не сохранённому) и сохранённым надбавкам."
+              : "Считается по сохранённому курсу и сохранённым надбавкам."}
+          </div>
+          <DirectionPicker from={ratesDir.from} to={ratesDir.to} onChange={(from, to) => setRatesDir({ from, to })} />
+          <EffectiveRatesTable from={ratesDir.from} to={ratesDir.to} bonuses={bonuses} ctx={ratesPreviewCtx} />
         </div>
       ) : null}
 
@@ -539,7 +722,7 @@ export default function AdminTab({
           </div>
 
           <div className="small vx-mt6">
-            Надбавки применяются при обмене <b>любой валюты → VND</b> (RUB / USD / USDT / EUR / THB).
+            Надбавки задаются для каждого направления обмена (любая валюта → любая) и всегда идут в пользу клиента.
           </div>
 
           <div className="hr" />
@@ -574,151 +757,122 @@ export default function AdminTab({
 
               <div className="vx-sp12" />
 
-              <div className="h3">Надбавки за способ получения</div>
-              <div className="small">Прибавляется к курсу покупки при обмене валюты на VND. Колонка — валюта, которую отдаёт клиент.</div>
+              <div className="h3">Направление</div>
+              <DirectionPicker from={bonusDir.from} to={bonusDir.to} onChange={(from, to) => setBonusDir({ from, to })} />
+              {configuredDirections.length ? (
+                <div className="adx-dirChips" aria-label="Направления с надбавками">
+                  {configuredDirections.map((d) => (
+                    <button
+                      key={d.key}
+                      type="button"
+                      className={"btn vx-btnSm " + (d.key === bonusKey ? "vx-btnOn" : "")}
+                      onClick={() => setBonusDir({ from: d.from, to: d.to })}
+                    >
+                      {d.from} → {d.to}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <div className="small vx-mt6">{markupUnitHint(bonusDir.from, bonusDir.to, formulas)}</div>
 
+              <div className="hr" />
+
+              <div className="h3">Надбавки за способ получения — {bonusDir.from} → {bonusDir.to}</div>
               <div className="vx-tableWrap vx-mt10">
                 <table className="adx-table adx-matrix">
                   <thead>
                     <tr>
-                      <th>Способ</th>
-                      {BONUS_CURRENCIES.map((cur) => (
-                        <th key={cur}>{cur}</th>
+                      {bonusMethods.map((m) => (
+                        <th key={m}>{receiveMethodLabel(m)}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {(["transfer", "atm"] as const).map((method) => (
-                      <tr key={method}>
-                        <td className="adx-rowLbl">{method === "transfer" ? "Перевод" : "Банкомат"}</td>
-                        {BONUS_CURRENCIES.map((cur) => (
-                          <td key={cur}>
-                            <input
-                              className="input vx-in"
-                              inputMode="decimal"
-                              value={String(bonuses.methods[method][cur] ?? 0)}
-                              onChange={(e) => updMethodBonus(method, cur, numInput(e.target.value))}
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
+                    <tr>
+                      {bonusMethods.map((m) => (
+                        <td key={m}>
+                          <NumInput
+                            key={`${bonusKey}-${m}`}
+                            value={bonusPair.methods[m] ?? 0}
+                            onChange={(v) => updMethodBonus(bonusKey, m, v ?? 0)}
+                          />
+                        </td>
+                      ))}
+                    </tr>
                   </tbody>
                 </table>
               </div>
 
               <div className="hr" />
 
-              <div className="h3">Надбавки по статусам и сумме</div>
-              <div className="small">Диапазон действует при min ≤ сумма &lt; max; max последнего диапазона можно оставить пустым. Для EUR/THB пустой список = надбавка не применяется; для RUB/USD/USDT при пустом списке сервер вернёт стандартные диапазоны.</div>
+              <div className="adx-tierGroup">
+                <div className="adx-tierHead">
+                  <span className="h3 vx-m0">Надбавки по статусам и сумме, {bonusDir.from}</span>
+                  <button className="btn vx-btnSm" type="button" onClick={() => addTier(bonusKey)} disabled={bonusesBusy}>
+                    Добавить диапазон
+                  </button>
+                </div>
+                <div className="small">
+                  Диапазон действует при min ≤ сумма &lt; max (сумма в {bonusDir.from}, которую отдаёт клиент); max последнего диапазона
+                  можно оставить пустым. Пустой список — надбавка по статусу не применяется.
+                </div>
 
-              <div className="adx-tiersWrap">
-              {BONUS_CURRENCIES.map((cur) => {
-                const list = (bonuses.tiers as any)[cur] as BonusesTier[];
-                const tiersOpen = !isMobileView || !!openTiers[cur];
-                return (
-                  <div key={cur} className="adx-tierGroup">
-                    <div
-                      className={"adx-tierHead" + (isMobileView ? " is-toggle" : "")}
-                      onClick={isMobileView ? () => setOpenTiers((p) => ({ ...p, [cur]: !p[cur] })) : undefined}
-                      role={isMobileView ? "button" : undefined}
-                    >
-                      <span className="adx-tierCur">
-                        {cur}
-                        {isMobileView ? <span className="adx-tierCount">{list.length ? `· ${list.length}` : "· нет"}</span> : null}
-                        {isMobileView ? <span className={"adx-caret" + (tiersOpen ? " is-open" : "")} aria-hidden="true">▾</span> : null}
-                      </span>
-                      <button
-                        className="btn vx-btnSm"
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenTiers((p) => ({ ...p, [cur]: true }));
-                          addTier(cur);
-                        }}
-                        disabled={bonusesBusy}
-                      >
-                        Добавить диапазон
-                      </button>
-                    </div>
-
-                    {!tiersOpen ? null : list.length === 0 ? (
-                      <div className="vx-muted">Диапазонов нет — надбавка по статусу для {cur} не применяется.</div>
-                    ) : (
-                      <div className="vx-tableWrap">
-                        <table className="adx-table">
-                          <thead>
-                            <tr>
-                              <th>Мин</th>
-                              <th>Макс</th>
-                              <th>Стандарт</th>
-                              <th>Серебро</th>
-                              <th>Золото</th>
-                              <th aria-label="Действия" />
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {list.map((t: BonusesTier, idx: number) => (
-                              <tr key={idx}>
-                                <td>
-                                  <input
-                                    className="input vx-in"
-                                    inputMode="numeric"
-                                    value={String(t.min ?? 0)}
-                                    onChange={(e) => updTier(cur, idx, { min: Math.max(0, Math.floor(numInput(e.target.value))) })}
-                                  />
-                                </td>
-                                <td>
-                                  <input
-                                    className="input vx-in"
-                                    inputMode="numeric"
-                                    value={t.max == null ? "" : String(t.max)}
-                                    onChange={(e) => {
-                                      const raw = e.target.value.trim();
-                                      updTier(cur, idx, { max: raw === "" ? undefined : Math.max(0, Math.floor(numInput(raw))) });
-                                    }}
-                                    placeholder="∞"
-                                  />
-                                </td>
-                                <td>
-                                  <input
-                                    className="input vx-in"
-                                    inputMode="decimal"
-                                    value={String(t.standard ?? 0)}
-                                    onChange={(e) => updTier(cur, idx, { standard: numInput(e.target.value) })}
-                                  />
-                                </td>
-                                <td>
-                                  <input
-                                    className="input vx-in"
-                                    inputMode="decimal"
-                                    value={String(t.silver ?? 0)}
-                                    onChange={(e) => updTier(cur, idx, { silver: numInput(e.target.value) })}
-                                  />
-                                </td>
-                                <td>
-                                  <input
-                                    className="input vx-in"
-                                    inputMode="decimal"
-                                    value={String(t.gold ?? 0)}
-                                    onChange={(e) => updTier(cur, idx, { gold: numInput(e.target.value) })}
-                                  />
-                                </td>
-                                <td>
-                                  <button className="btn vx-btnSm" type="button" onClick={() => delTier(cur, idx)} disabled={bonusesBusy}>
-                                    Удалить
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                {bonusPair.tiers.length === 0 ? (
+                  <div className="vx-muted vx-mt6">Диапазонов нет.</div>
+                ) : (
+                  <div className="vx-tableWrap vx-mt10">
+                    <table className="adx-table">
+                      <thead>
+                        <tr>
+                          <th>Мин</th>
+                          <th>Макс</th>
+                          <th>Стандарт</th>
+                          <th>Серебро</th>
+                          <th>Золото</th>
+                          <th aria-label="Действия" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bonusPair.tiers.map((t: BonusesTier, idx: number) => (
+                          <tr key={`${bonusKey}-${idx}`}>
+                            <td>
+                              <NumInput integer value={t.min ?? 0} onChange={(v) => updTier(bonusKey, idx, { min: v ?? 0 })} />
+                            </td>
+                            <td>
+                              <NumInput
+                                integer
+                                allowEmpty
+                                placeholder="∞"
+                                value={t.max == null ? undefined : t.max}
+                                onChange={(v) => updTier(bonusKey, idx, { max: v })}
+                              />
+                            </td>
+                            <td>
+                              <NumInput value={t.standard ?? 0} onChange={(v) => updTier(bonusKey, idx, { standard: v ?? 0 })} />
+                            </td>
+                            <td>
+                              <NumInput value={t.silver ?? 0} onChange={(v) => updTier(bonusKey, idx, { silver: v ?? 0 })} />
+                            </td>
+                            <td>
+                              <NumInput value={t.gold ?? 0} onChange={(v) => updTier(bonusKey, idx, { gold: v ?? 0 })} />
+                            </td>
+                            <td>
+                              <button className="btn vx-btnSm" type="button" onClick={() => delTier(bonusKey, idx)} disabled={bonusesBusy}>
+                                Удалить
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                );
-              })}
+                )}
               </div>
+
+              <div className="hr" />
+              <div className="h3">Итоговый курс — {bonusDir.from} → {bonusDir.to}</div>
+              <div className="small">По сохранённому курсу на сегодня и надбавкам на этой странице (включая несохранённые правки).</div>
+              <EffectiveRatesTable from={bonusDir.from} to={bonusDir.to} bonuses={bonuses} ctx={savedCtx} />
             </>
           )}
         </div>

@@ -2,12 +2,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { HAS_DATABASE, ensureSchema, getPool } from "./db.js";
-import type { BonusesConfig, BonusesTier, GFormula, Rates } from "./domain/exchange.js";
+import type { BonusesConfig, BonusesTier, CrossRates, GFormula, Rates } from "./domain/exchange.js";
 import { defaultBonuses, defaultGFormulas } from "./domain/exchange.js";
 import type { RequestState, UserStatus } from "./domain/status.js";
 import { normalizeStatus, parseStatusInput } from "./domain/status.js";
 
-export type { BonusesConfig, BonusesTier, GFormula, Rates } from "./domain/exchange.js";
+export type { BonusesConfig, BonusesTier, CrossRates, GFormula, PairMarkup, Rates } from "./domain/exchange.js";
 export { defaultBonuses, defaultGFormulas } from "./domain/exchange.js";
 export type { RequestState, UserStatus } from "./domain/status.js";
 export { normalizeStatus, parseStatusInput } from "./domain/status.js";
@@ -87,6 +87,8 @@ export type Store = {
       updated_at: string;
       updated_by: number;
       rates: Rates;
+      // Manual cross-pair rates; a missing pair falls back to G × multiplier.
+      cross?: CrossRates;
     }
   >;
   requests: StoredRequest[];
