@@ -25,7 +25,7 @@ import type {
 // - Telegram Mini App uses initData via header x-telegram-init-data
 // - Standalone PC admin uses header x-admin-key
 // We pass a token string. If it starts with "adminkey:", it will be sent as x-admin-key.
-function adminAuthHeaders(token: string) {
+function adminAuthHeaders(token: string): Record<string, string> {
   const t = String(token || "");
   if (t.startsWith("adminkey:")) {
     return { "x-admin-key": t.slice("adminkey:".length) };
@@ -60,18 +60,27 @@ async function getJsonCached<T = any>(url: string, ttlMs = 45_000, init?: Reques
   if (hit && hit.data !== undefined && hit.exp > now) return hit.data as T;
   if (hit?.promise) return hit.promise as Promise<T>;
 
+  const entry: CacheEntry = { exp: now + ttlMs };
   const prom = (async () => {
     const r = await fetch(url, init);
     const data = safe ? await readJsonSafe(r) : await r.json();
-    __mxGetCache.set(key, { exp: Date.now() + ttlMs, data });
+    // A save may invalidate this entry while its read is still in flight.
+    if (__mxGetCache.get(key) === entry) __mxGetCache.set(key, { exp: Date.now() + ttlMs, data });
     return data as T;
   })().catch((e) => {
-    __mxGetCache.delete(key);
+    if (__mxGetCache.get(key) === entry) __mxGetCache.delete(key);
     throw e;
   });
 
-  __mxGetCache.set(key, { exp: now + ttlMs, promise: prom });
+  entry.promise = prom;
+  __mxGetCache.set(key, entry);
   return prom;
+}
+
+function invalidatePricingCache() {
+  for (const url of ["/api/rates/today", "/api/bonuses", "/api/g-formulas"]) {
+    __mxGetCache.delete(cacheKey(url));
+  }
 }
 
 export function apiWarmup() {
@@ -123,7 +132,9 @@ export async function apiAdminSetGFormulas(token: string, formulas: any) {
     headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
     body: JSON.stringify({ formulas })
   });
-  return readJsonSafe(r);
+  const result = await readJsonSafe(r);
+  if (result.ok) invalidatePricingCache();
+  return result;
 }
 
 
@@ -153,7 +164,9 @@ export async function apiAdminSetTodayRates(initData: string, rates: any, cross?
     headers: { "content-type": "application/json", ...adminAuthHeaders(initData) },
     body: JSON.stringify({ rates, cross })
   });
-  return r.json();
+  const result = await r.json();
+  if (result.ok) invalidatePricingCache();
+  return result;
 }
 
 export async function apiAdminSetRatesForDate(initData: string, date: string, rates: any) {
@@ -162,7 +175,9 @@ export async function apiAdminSetRatesForDate(initData: string, date: string, ra
     headers: { "content-type": "application/json", ...adminAuthHeaders(initData) },
     body: JSON.stringify({ date, rates })
   });
-  return readJsonSafe(r);
+  const result = await readJsonSafe(r);
+  if (result.ok) invalidatePricingCache();
+  return result;
 }
 
 export async function apiAdminUsers(initData: string) {
@@ -303,7 +318,9 @@ export async function apiAdminSetBonuses(token: string, bonuses: BonusesConfig):
     headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
     body: JSON.stringify({ bonuses })
   });
-  return r.json();
+  const result = await r.json();
+  if (result.ok) invalidatePricingCache();
+  return result;
 }
 
 // --------------------
@@ -407,8 +424,19 @@ export async function apiAdminSetPublishTemplate(token: string, template: string
 export async function apiAdminPublish(token: string, payload: { template?: string; imageDataUrl?: string | null }): Promise<PublishResponse> {
   const r = await fetch("/api/admin/publish", {
     method: "POST",
+    signal: AbortSignal.timeout(60_000),
     headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
     body: JSON.stringify(payload)
+  });
+  return readJsonSafe(r);
+}
+
+export async function apiAdminSetPublishTarget(token: string, chatId: string): Promise<PublishResponse & { chatId?: string | number }> {
+  const r = await fetch("/api/admin/publish-target", {
+    method: "POST",
+    signal: AbortSignal.timeout(15_000),
+    headers: { "content-type": "application/json", ...adminAuthHeaders(token) },
+    body: JSON.stringify({ chatId }),
   });
   return readJsonSafe(r);
 }

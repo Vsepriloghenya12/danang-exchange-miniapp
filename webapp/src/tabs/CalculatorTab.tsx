@@ -1181,6 +1181,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
               <input
                 ref={sellInputRef}
+                aria-label={isEn ? "Amount you give" : "Сумма, которую отдаёте"}
                 inputMode={amountMaxDecimals(sellCurrency) > 0 ? "decimal" : "numeric"}
                 placeholder="0"
                 value={sellText}
@@ -1226,6 +1227,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
               <input
                 ref={buyInputRef}
+                aria-label={isEn ? "Amount you get" : "Сумма, которую получаете"}
                 inputMode={amountMaxDecimals(buyCurrency) > 0 ? "decimal" : "numeric"}
                 placeholder="0"
                 value={buyText}

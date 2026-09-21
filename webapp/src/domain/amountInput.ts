@@ -2,10 +2,10 @@ import type { Currency } from "../lib/types";
 
 // ======= Number formatting/parsing for calculator amounts =======
 // Canonical display: "," groups thousands, "." separates decimals (1,000.25).
-// Only USDT and RUB may have a fractional part, up to 2 digits.
+// VND uses whole dong; the other currencies accept up to 2 decimal digits.
 
 export function amountMaxDecimals(cur: Currency): number {
-  return cur === "USDT" || cur === "RUB" ? 2 : 0;
+  return cur === "VND" ? 0 : 2;
 }
 
 export function fmtGroupedInt(intPart: string): string {
@@ -57,6 +57,16 @@ function typedInCleaned(raw: string, cleaned: string, hint: InputHint | null | u
 }
 
 function analyzeCleaned(cleaned: string, maxDecimals: number, pasted: boolean): number {
+  const lastComma = cleaned.lastIndexOf(",");
+  if (maxDecimals > 0 && lastComma >= 0) {
+    const integer = cleaned.slice(0, lastComma);
+    const fraction = cleaned.slice(lastComma + 1);
+    // Mobile keyboards can replace the whole value without reporting the inserted key.
+    // Preserve a decimal comma after grouped thousands, including "1,000,".
+    const groupedInteger = /^\d{1,3}(,\d{3})+$/.test(integer);
+    const pastedEuropean = pasted && /^\d{1,3}(\.\d{3})+$/.test(integer);
+    if (pasted && (groupedInteger || pastedEuropean) && /^\d{0,2}$/.test(fraction)) return lastComma;
+  }
   const dot = cleaned.indexOf(".");
   if (dot >= 0) {
     if (maxDecimals > 0) return dot;
@@ -103,6 +113,11 @@ function analyzeInput(raw: string, maxDecimals: number, prev: string | null, hin
   }
 
   const pasted = !!hint?.pasted || prevClean == null || cleaned.length > prevClean.length + 1;
+  if (maxDecimals > 0 && prevClean != null && cleaned.endsWith(",") &&
+      !prevClean.includes(".") && !prevClean.endsWith(",") && digitsOf(cleaned) === digitsOf(prevClean)) {
+    const index = cleaned.length - 1;
+    return { cleaned, decimalIndex: index, caretCleaned: cleaned, caretDecimalIndex: index };
+  }
   const decimalIndex = analyzeCleaned(cleaned, maxDecimals, pasted);
   return { cleaned, decimalIndex, caretCleaned: cleaned, caretDecimalIndex: decimalIndex };
 }

@@ -4,6 +4,8 @@ export type TgWebApp = {
   ready: () => void;
   expand: () => void;
   sendData: (data: string) => void;
+  openLink?: (url: string) => void;
+  openTelegramLink?: (url: string) => void;
 
   // Homescreen shortcuts (Bot API 8.0+)
   addToHomeScreen?: () => void;

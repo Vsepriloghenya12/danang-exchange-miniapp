@@ -118,11 +118,13 @@ export type AdminBlacklistResponse = {
 export type PublishTemplateResponse = {
   ok: boolean;
   template: string;
+  chatId?: string | number | null;
   error?: string;
 };
 
 export type PublishResponse = {
   ok: boolean;
+  message?: string;
   message_id?: number;
   mode?: string;
   warn?: string;

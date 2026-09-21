@@ -20,12 +20,7 @@ export function formatRequestMessage(args: {
   createdAtISO?: string;
 }) {
   const who = formatUser(args.user);
-  // For THB↔RUB we intentionally ignore status markups (treat as standard)
-  const effStatus: UserStatus =
-    (args.sellCurrency === "THB" && args.buyCurrency === "RUB") || (args.sellCurrency === "RUB" && args.buyCurrency === "THB")
-      ? "standard"
-      : args.status;
-  const statusText = statusLabel(effStatus);
+  const statusText = statusLabel(args.status);
   const methodText = methodLabel(args.receiveMethod);
 
   const sell = formatAmount(args.sellCurrency, args.sellAmount);
@@ -88,10 +83,10 @@ function formatUser(u: { id: number; username?: string; first_name?: string; las
   return name || `id ${u.id}`;
 }
 
-// Same format as the calculator: "," groups thousands; USDT and RUB keep up to 2 decimals.
+// Same format as the calculator: "," groups thousands; all currencies except VND keep up to 2 decimals.
 export function formatAmount(cur: string, n: number): string {
   if (!Number.isFinite(n)) return "0";
-  const decimals = cur === "USDT" || cur === "RUB" ? 2 : 0;
+  const decimals = cur === "VND" ? 0 : 2;
   const factor = 10 ** decimals;
   const v = Math.round(n * factor) / factor;
   const sign = v < 0 ? "-" : "";

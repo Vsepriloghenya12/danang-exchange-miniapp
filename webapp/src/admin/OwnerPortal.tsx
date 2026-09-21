@@ -11,6 +11,7 @@ import {
   apiAdminSetBlacklist,
   apiAdminGetPublishTemplate,
   apiAdminSetPublishTemplate,
+  apiAdminSetPublishTarget,
   apiAdminPublish,
   apiAdminUsers,
   apiAdminGetRequests,
@@ -267,6 +268,9 @@ export default function OwnerPortal() {
   const [adminsText, setAdminsText] = useState<string>("");
   const [blacklistText, setBlacklistText] = useState<string>("");
   const [tpl, setTpl] = useState<string>(DEFAULT_TEMPLATE);
+  const [publishTarget, setPublishTarget] = useState("");
+  const [savedPublishTarget, setSavedPublishTarget] = useState("");
+  const [savingPublishTarget, setSavingPublishTarget] = useState(false);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -420,6 +424,8 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
     if (t.status === "fulfilled" && t.value?.ok) {
       const s = String(t.value.template || "").trim();
       setTpl(s || DEFAULT_TEMPLATE);
+      setPublishTarget(String(t.value.chatId ?? ""));
+      setSavedPublishTarget(String(t.value.chatId ?? ""));
     } else if (t.status === "fulfilled" && !t.value?.ok) {
       showErr(t.value?.error || "Ошибка");
     }
@@ -790,19 +796,36 @@ function moveFaq(id: string, dir: -1 | 1) {
     });
   }
 
+  async function savePublishTarget() {
+    setSavingPublishTarget(true);
+    try {
+      const r = await apiAdminSetPublishTarget(token, publishTarget.trim());
+      if (!r.ok) return showErr(r.message || r.error || "Не удалось сохранить канал");
+      const saved = String(r.chatId ?? "");
+      setPublishTarget(saved);
+      setSavedPublishTarget(saved);
+      showOk("Канал для публикации сохранён");
+    } catch {
+      showErr("Не удалось сохранить канал. Проверь соединение и повтори попытку.");
+    } finally {
+      setSavingPublishTarget(false);
+    }
+  }
+
   async function publishNow() {
     if (isPublishing) return;
+    if (publishTarget.trim() !== savedPublishTarget) return showErr("Сначала сохрани выбранный канал.");
     setBanner({ type: "ok", text: "Публикую…" });
     setIsPublishing(true);
     try {
       const r = await apiAdminPublish(token, { template: tpl, imageDataUrl });
       if (!r?.ok) {
-        showErr(r?.error || "Ошибка публикации");
+        showErr(r?.message || r?.error || "Ошибка публикации");
         return;
       }
       showOk(`Опубликовано ✅ (id ${r.message_id || "–"}, ${r.mode || ""}${r.warn ? ", " + String(r.warn).slice(0,80) : ""})`);
     } catch (e: any) {
-      showErr(e?.message || "Ошибка запроса");
+      showErr("Ответ о публикации не получен. Проверь канал перед повторной отправкой: пост мог быть опубликован.");
     } finally {
       setIsPublishing(false);
     }
@@ -1563,8 +1586,17 @@ function moveFaq(id: string, dir: -1 | 1) {
           <div className="vx-sp12" />
 
           <div className="card">
-            <AdxCollapse mobile={isMobileView} title="Публикация в группу">
-            <div className="small"><b>Публикация в группу</b></div>
+            <AdxCollapse mobile={isMobileView} title="Публикация в канал или группу">
+            <div className="small"><b>Публикация в канал или группу</b></div>
+            <div className="vx-sp10" />
+            <label className="small" htmlFor="publish-channel">Канал или группа для курса</label>
+            <div className="row vx-rowWrap vx-gap8 vx-mt6">
+              <input id="publish-channel" className="input" value={publishTarget} placeholder="@channel или -1001234567890" disabled={isPublishing || savingPublishTarget} onChange={(e) => setPublishTarget(e.target.value)} />
+              <button className="btn vx-btnSm" type="button" onClick={savePublishTarget} disabled={savingPublishTarget || isPublishing || !publishTarget.trim()}>
+                {savingPublishTarget ? "Сохраняю…" : "Сохранить канал"}
+              </button>
+            </div>
+            <div className="small vx-mt6">Бот должен быть администратором канала с правом публикации сообщений. Для закрытого канала укажи числовой ID.</div>
             <div className="vx-sp10" />
             <textarea className="vx-revText" rows={10} value={tpl} onChange={(e) => setTpl(e.target.value)} />
 
@@ -1594,7 +1626,7 @@ function moveFaq(id: string, dir: -1 | 1) {
 
 
             <div className="vx-sp10" />
-            <button className="btn" type="button" onClick={publishNow} disabled={isPublishing}>
+            <button className="btn" type="button" onClick={publishNow} disabled={isPublishing || savingPublishTarget}>
               {isPublishing ? "Публикую…" : "Опубликовать"}
             </button>
             </AdxCollapse>

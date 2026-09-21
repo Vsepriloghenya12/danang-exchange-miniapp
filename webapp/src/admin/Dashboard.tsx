@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { getUserStatusLabelRu, USER_STATUS_OPTIONS_RU } from "../domain/status";
 import {
   apiAdminGetRequests,
+  apiAdminGetRatesRange,
   apiAdminSetRequestState,
   apiAdminSetTodayRates,
   apiAdminSetUserStatus,
@@ -445,7 +446,7 @@ export default function Dashboard({ token }: { token: string }) {
                   {filteredRequests.map((r) => {
                     const id = Number(r?.from?.id);
                     const u = usersById.get(id);
-                    const who = displayName(u || ({ id, ...r.from } as any));
+                    const who = displayName(u || r.from);
                     const isSel = r.id === selectedReqId;
                     const pair = `${r.sellCurrency}→${r.buyCurrency}`;
                     const method = r.receiveMethod || "—";

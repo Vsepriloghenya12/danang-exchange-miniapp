@@ -6,6 +6,8 @@
     "webapp"
   ],
   "scripts": {
+    "test": "node --import tsx --test tests/exchange.test.ts tests/api.test.ts",
+    "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p webapp/tsconfig.json --noEmit",
     "dev": "npm -w server run dev",
     "build": "npm -w webapp run build && npm -w server run build",
     "start": "npm -w server run start"

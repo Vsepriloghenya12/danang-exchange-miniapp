@@ -405,7 +405,7 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
           >
             {isEn ? "Calculator" : "Калькулятор"}
           </button>
-          <button type="button" className="btn vx-btnSm" onClick={loadAll}>
+          <button type="button" className="btn vx-btnSm" onClick={() => void loadAll()}>
             {isEn ? "Refresh" : "Обновить"}
           </button>
         </div>

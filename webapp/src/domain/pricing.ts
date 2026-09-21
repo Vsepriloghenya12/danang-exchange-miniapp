@@ -84,11 +84,6 @@ export function receiveMethodLabel(m: ReceiveMethod, isEn = false): string {
   return isEn ? "ATM" : "Банкомат";
 }
 
-// Status markups are intentionally ignored for THB↔RUB (the server stores such requests as standard).
-export function ignoreStatusForPair(a: Currency, b: Currency): boolean {
-  return (a === "THB" && b === "RUB") || (a === "RUB" && b === "THB");
-}
-
 export function currencySymbol(c: Currency): string {
   switch (c) {
     case "RUB": return "₽";
@@ -270,8 +265,7 @@ export function findTier(tiers: BonusesTier[], amount: number): BonusesTier | nu
 
 // Status markup of one tier for a direction (0 when the tier is missing).
 export function tierValue(t: BonusesTier | null, status: UserStatus, from: Currency, to: Currency): number {
-  const effStatus: UserStatus = ignoreStatusForPair(from, to) ? "standard" : status;
-  const v = Number(t?.[effStatus]);
+  const v = Number(t?.[status]);
   return Number.isFinite(v) ? v : 0;
 }
 

@@ -28,6 +28,7 @@ import {
 import { validateTelegramInitData } from "./telegramValidate.js";
 import { getMarketSnapshot } from "./marketRates.js";
 import { HAS_DATABASE, ensureSchema, getPool } from "./db.js";
+import { parsePublishChatId, publishChatId, publishTextHtml, publishErrorMessage } from "./publish.js";
 
 
 
@@ -46,10 +47,6 @@ type PublicReview = {
 function fmtReqAmount(cur: Currency, n: number): string {
   if (!Number.isFinite(n)) return String(n);
   return formatAmount(cur, n);
-}
-
-function ignoreStatusForPair(a: Currency, b: Currency) {
-  return (a === "THB" && b === "RUB") || (a === "RUB" && b === "THB");
 }
 
 
@@ -165,7 +162,7 @@ export function createApiRouter(opts: {
     if (botUsernamePromise) return botUsernamePromise;
     botUsernamePromise = (async () => {
       try {
-        const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/getMe`);
+        const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/getMe`, { signal: AbortSignal.timeout(5_000) });
         const tgJson: any = await tgRes.json();
         const uname = tgJson?.ok ? String(tgJson?.result?.username || "") : "";
         if (uname) cachedBotUsername = uname;
@@ -1316,7 +1313,7 @@ router.post("/admin/faq", async (req, res) => {
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
       const store = await readStore();
       const template = String((store.config as any)?.publishTemplate || "");
-      return res.json({ ok: true, template });
+      return res.json({ ok: true, template, chatId: publishChatId(store.config) });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -1331,6 +1328,19 @@ router.post("/admin/faq", async (req, res) => {
         store.config = { ...(store.config || {}), publishTemplate: template };
       });
       return res.json({ ok: true, template });
+    } catch (e: any) {
+      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+    }
+  });
+
+  router.post("/admin/publish-target", async (req, res) => {
+    try {
+      const { isOwner } = await requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      const chatId = parsePublishChatId(req.body?.chatId);
+      if (chatId === null) return res.status(400).json({ ok: false, error: "bad_chat_id", message: "Укажи @username, ссылку t.me на публичный канал или числовой ID канала." });
+      await mutateStore((store) => { store.config.publishChatId = chatId; });
+      return res.json({ ok: true, chatId });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -1455,18 +1465,15 @@ router.post("/admin/faq", async (req, res) => {
 
       const store = await readStore();
 
-      // Group chat to publish into.
-      // Priority: store.config.groupChatId (editable by owner) -> env GROUP_CHAT_ID
-      const groupChatIdRaw = (store.config as any)?.groupChatId ?? process.env.GROUP_CHAT_ID;
-      const groupChatId = Number(groupChatIdRaw);
-      if (!groupChatId || Number.isNaN(groupChatId)) {
-        return res.status(400).json({ ok: false, error: "group_not_set" });
+      const groupChatId = publishChatId(store.config);
+      if (groupChatId === null) {
+        return res.status(400).json({ ok: false, error: "group_not_set", message: publishErrorMessage("group_not_set") });
       }
 
       const todayKey = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
       const todayRates = store.ratesByDate?.[todayKey]?.rates;
       if (!todayRates?.RUB || !todayRates?.USDT || !todayRates?.USD) {
-        return res.status(400).json({ ok: false, error: "rates_missing" });
+        return res.status(400).json({ ok: false, error: "rates_missing", message: publishErrorMessage("rates_missing") });
       }
 
       const fmtSpaces = (n: number) => String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
@@ -1502,64 +1509,19 @@ router.post("/admin/faq", async (req, res) => {
       // To open the Mini App **inside Telegram** (so initData is present), use the t.me deep link.
       // Docs: https://core.telegram.org/bots/webapps
 
-      const webappUrl = String(process.env.WEBAPP_URL || "").trim();
-
-      // Allow overriding the Telegram deep link if the owner wants.
-      // Example: https://t.me/<botusername>?startapp=rates
-      const overrideTmaLink = String(process.env.TMA_LINK || "").trim();
-
-      // Fetch bot username once (best-effort) to build t.me deep link.
-      let cachedBotUsername: string | null = null;
-      async function getBotUsername(): Promise<string | null> {
-        if (cachedBotUsername) return cachedBotUsername;
-        try {
-          const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/getMe`);
-          const tgJson: any = await tgRes.json();
-          const uname = tgJson?.ok ? String(tgJson?.result?.username || "") : "";
-          if (uname) {
-            cachedBotUsername = uname;
-            return uname;
-          }
-        } catch {}
-        return null;
-      }
-
-      const startParam = "rates";
-      const tmaLink = overrideTmaLink
-        ? overrideTmaLink
-        : (await (async () => {
-            const uname = await getBotUsername();
-            return uname ? `https://t.me/${uname}?startapp=${encodeURIComponent(startParam)}` : "";
-          })());
-
-      // Final link priority:
-      // 1) explicit TMA_LINK
-      // 2) generated t.me deep link from getMe
-      // 3) WEBAPP_URL (will open in browser, but at least it's something)
-      const openLink = tmaLink || webappUrl || "https://t.me";
+      const openLink = await buildMiniAppLink("rates");
       const markupUrl = {
         inline_keyboard: [[{ text: "Открыть приложение", url: openLink }]]
       };
-      const escapeHtml = (s: string) =>
-        String(s)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;");
-      const formatTextWithLinks = (raw: string) => {
-        const escaped = escapeHtml(raw);
-        return escaped.replace(
-          /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-          (_m, label, url) => `<a href="${escapeHtml(url)}">${label}</a>`
-        );
-      };
-      const textHtml = formatTextWithLinks(text);
+      const textHtml = publishTextHtml(text);
+      const publishFailure = (error: string) => res.status(502).json({ ok: false, error, message: publishErrorMessage(error) });
 
       const imageDataUrl = typeof req.body?.imageDataUrl === "string" ? String(req.body.imageDataUrl) : "";
 
       async function tgSendMessage() {
         const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
           method: "POST",
+          signal: AbortSignal.timeout(20_000),
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             chat_id: groupChatId,
@@ -1597,6 +1559,7 @@ router.post("/admin/faq", async (req, res) => {
 
         const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/${method}`, {
           method: "POST",
+          signal: AbortSignal.timeout(20_000),
           body: form as any
         });
         const tgJson: any = await tgRes.json();
@@ -1620,9 +1583,7 @@ router.post("/admin/faq", async (req, res) => {
         if (!tgJson?.ok && /caption/i.test(String(tgJson?.description || ""))) {
           const tgMsg = await sendMessageWithFallbacks();
           if (!tgMsg?.ok) {
-            return res
-              .status(500)
-              .json({ ok: false, error: tgMsg?.description || "tg_send_failed", debug: { photo_error: tgJson, msg_error: tgMsg } });
+            return publishFailure(tgMsg?.description || "tg_send_failed");
           }
           return res.json({
             ok: true,
@@ -1636,11 +1597,7 @@ router.post("/admin/faq", async (req, res) => {
           // Final fallback: send without image so at least the post is published
           const tgMsg = await sendMessageWithFallbacks();
           if (!tgMsg?.ok) {
-            return res.status(500).json({
-              ok: false,
-              error: tgJson?.description || tgMsg?.description || "tg_send_failed",
-              debug: { photo_error: tgJson, msg_error: tgMsg }
-            });
+            return publishFailure(tgMsg?.description || tgJson?.description || "tg_send_failed");
           }
           return res.json({
             ok: true,
@@ -1656,10 +1613,13 @@ router.post("/admin/faq", async (req, res) => {
       // --- Send as a normal message
       const tgJson = await sendMessageWithFallbacks();
       if (!tgJson?.ok) {
-        return res.status(500).json({ ok: false, error: tgJson?.description || "tg_send_failed", debug: { msg_error: tgJson } });
+        return publishFailure(tgJson?.description || "tg_send_failed");
       }
       return res.json({ ok: true, message_id: tgJson?.result?.message_id, mode: "message" });
     } catch (e: any) {
+      if (e?.name === "TimeoutError" || e?.name === "AbortError" || e?.message === "fetch failed") {
+        return res.status(504).json({ ok: false, error: "telegram_unavailable", message: "Telegram не ответил вовремя. Проверь канал перед повторной публикацией: запрос мог дойти до Telegram." });
+      }
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
@@ -2028,10 +1988,7 @@ router.post("/admin/faq", async (req, res) => {
       const needsManualManagerContact = !String(user.username || "").trim();
       const effectiveClientContact = clientContact || String((savedContact as any)?.clientContact || "").trim().replace(/\s+/g, " ").slice(0, 250);
 
-	      // For THB↔RUB we intentionally ignore status markups (treat as standard)
-	      const effStatus: UserStatus = ignoreStatusForPair(sellCurrency, buyCurrency)
-	        ? "standard"
-	        : normalizeStatus(status);
+      const effStatus: UserStatus = normalizeStatus(status);
 
       // Requests are posted into a dedicated managers group (preferred).
       // The bot may also publish rates into another group, so we support 2 separate chat IDs.

@@ -28,10 +28,6 @@ function fmtReqAmount(cur: string, n: number): string {
   return formatAmount(String(cur), n);
 }
 
-function ignoreStatusForPair(a: string, b: string) {
-  return (a === "THB" && b === "RUB") || (a === "RUB" && b === "THB");
-}
-
 function buildWebAppOpenUrl(rawUrl: string): string {
   const source = String(rawUrl || "").trim();
   if (!source) return "";
@@ -303,7 +299,7 @@ export function createBot(opts: {
 
       const sellCur = String(payload.sellCurrency || "");
       const buyCur = String(payload.buyCurrency || "");
-      const effStatus: UserStatus = ignoreStatusForPair(sellCur, buyCur) ? "standard" : normalizeStatus(status);
+      const effStatus: UserStatus = normalizeStatus(status);
 
       const who =
         (ctx.from?.username
