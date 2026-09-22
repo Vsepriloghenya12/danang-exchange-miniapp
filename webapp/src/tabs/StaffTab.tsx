@@ -315,6 +315,10 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
       tg?.showAlert?.(r?.error || (isEn ? "Error" : "Ошибка"));
       return;
     }
+    if (r.notification?.message) {
+      if (tg?.showAlert) tg.showAlert(r.notification.message);
+      else alert(r.notification.message);
+    }
 
     setUsersMap((prev) => ({
       ...prev,

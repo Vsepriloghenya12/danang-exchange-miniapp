@@ -517,7 +517,10 @@ export default function AdminTab({
 
   const setStatus = async (tgId: number, status: string) => {
     const r = await apiAdminSetUserStatus(me.initData, tgId, status);
-    if (r.ok) loadUsers();
+    if (r.ok) {
+      loadUsers();
+      if (r.notification?.message) alert(r.notification.message);
+    }
     else alert(r.error || "Ошибка");
   };
 

@@ -247,6 +247,7 @@ export default function Dashboard({ token }: { token: string }) {
   const setUserStatus = async (tgId: number, status: UserStatus) => {
     const r = await apiAdminSetUserStatus(token, tgId, status);
     if (!r?.ok) alert(r?.error || "Ошибка");
+    else if (r.notification?.message) alert(r.notification.message);
     await loadAll();
   };
 

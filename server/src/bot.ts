@@ -1,6 +1,7 @@
 import { Telegraf, Markup } from "telegraf";
 import { randomUUID } from "node:crypto";
 import { USER_STATUS_LABELS_RU, type UserStatus } from "./domain/status.js";
+import { setUserStatus, notifyStatusChange } from "./userStatus.js";
 import { formatAmount } from "./format.js";
 import {
   readStore,
@@ -206,31 +207,11 @@ export function createBot(opts: {
 
     const now = new Date().toISOString();
 
-    await mutateStore((store) => {
-      const key = String(tgId);
-      if (!store.users[key]) {
-        store.users[key] = {
-          tg_id: tgId,
-          username: undefined,
-          first_name: undefined,
-          last_name: undefined,
-          status: next,
-          created_at: now,
-          last_seen_at: now
-        };
-      } else {
-        store.users[key].status = next;
-        store.users[key].last_seen_at = now;
-      }
-
-      for (const c of store.contacts || []) {
-        if (Number(c?.tg_id) === tgId) {
-          c.status = next;
-          c.updated_at = now;
-        }
-      }
-    });
-    return ctx.reply(`Готово ✅ tg_id=${tgId} → статус ${USER_STATUS_LABELS_RU[next]}`);
+    const { result: change } = await mutateStore(store => setUserStatus(store, tgId, next, now));
+    const notification = await notifyStatusChange(opts.token, change);
+    const delivery = notification.state === "sent" ? "\nКлиенту отправлено уведомление."
+      : notification.message ? "\n" + notification.message : "\nСтатус не изменился, повторное уведомление не отправлено.";
+    return ctx.reply(`Готово ✅ tg_id=${tgId} → статус ${USER_STATUS_LABELS_RU[next]}${delivery}`);
   });
 
 

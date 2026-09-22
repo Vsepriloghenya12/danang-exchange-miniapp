@@ -28,6 +28,7 @@ import {
 import { validateTelegramInitData } from "./telegramValidate.js";
 import { getMarketSnapshot } from "./marketRates.js";
 import { HAS_DATABASE, ensureSchema, getPool } from "./db.js";
+import { setUserStatus, notifyStatusChange, type StatusChange } from "./userStatus.js";
 import { parsePublishChatId, publishChatId, publishTextHtml, publishErrorMessage } from "./publish.js";
 
 
@@ -1372,26 +1373,35 @@ router.post("/admin/faq", async (req, res) => {
       const banks = banksInput !== undefined ? normalizeBankIcons(banksInput) : undefined;
       const status = parseStatusInput(req.body?.status);
 
+      if (tg_id !== undefined && (!Number.isSafeInteger(tg_id) || tg_id <= 0)) {
+        return res.status(400).json({ ok: false, error: "bad_tg_id" });
+      }
       if (!tg_id && !username) return res.status(400).json({ ok: false, error: "tg_id_or_username_required" });
 
       const now = new Date().toISOString();
       const { result } = await mutateStore((store) => {
-        const c = upsertContactRecord(store, {
-          tg_id,
+        const knownContact = findContact(store, { tg_id, username });
+        const knownUser = !tg_id && username
+          ? Object.values(store.users).find(u => normUsername(u.username) === username)
+          : undefined;
+        const resolvedId = tg_id || knownUser?.tg_id || knownContact?.tg_id;
+        const previous = normalizeStatus(knownContact?.status);
+        // Link the contact to its Telegram ID without overwriting the old status.
+        const contact = upsertContactRecord(store, {
+          tg_id: resolvedId,
           username,
           fullName,
           banks: banks !== undefined ? normalizeBankIcons(banks) : undefined,
-          status: status || undefined,
           now
         });
-
-        if (status && tg_id && store.users?.[String(tg_id)]) {
-          store.users[String(tg_id)].status = status;
-        }
-
-        return c;
+        const change: StatusChange | null = !status ? null : resolvedId
+          ? setUserStatus(store, resolvedId, status, now)
+          : previous === status ? null : { previous, next: status };
+        if (status) contact.status = status;
+        return { contact, change };
       });
-      return res.json({ ok: true, contact: result });
+      const notification = await notifyStatusChange(opts.botToken, result.change);
+      return res.json({ ok: true, contact: result.contact, notification });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -1660,43 +1670,9 @@ router.post("/admin/faq", async (req, res) => {
       }
 
       const now = new Date().toISOString();
-      await mutateStore((store) => {
-        const key = String(tgId);
-        const existingUser = store.users?.[key];
-        const relatedContact = (store.contacts || []).find((c) => Number(c?.tg_id) === tgId);
-        const relatedRequest = [...(store.requests || [])]
-          .slice()
-          .reverse()
-          .find((r) => Number((r as any)?.from?.id) === tgId);
-
-        if (!existingUser) {
-          store.users[key] = {
-            tg_id: tgId,
-            username: relatedContact?.username || relatedRequest?.from?.username,
-            first_name: relatedRequest?.from?.first_name,
-            last_name: relatedRequest?.from?.last_name,
-            status: next,
-            created_at: now,
-            last_seen_at: now,
-          };
-        } else {
-          existingUser.status = next;
-          existingUser.last_seen_at = now;
-        }
-
-        const knownUsername = String(store.users[key]?.username || "").trim().toLowerCase();
-        for (const c of store.contacts || []) {
-          const sameTg = Number(c?.tg_id) === tgId;
-          const sameUsername = !!knownUsername && String(c?.username || "").trim().toLowerCase() === knownUsername;
-          if (sameTg || sameUsername) {
-            c.status = next;
-            c.updated_at = now;
-            if (!c.tg_id) c.tg_id = tgId;
-          }
-        }
-      });
-
-      res.json({ ok: true, status: next, statusLabel: USER_STATUS_LABELS_RU[next] });
+      const { result: change } = await mutateStore(store => setUserStatus(store, tgId, next, now));
+      const notification = await notifyStatusChange(opts.botToken, change);
+      res.json({ ok: true, status: next, statusLabel: USER_STATUS_LABELS_RU[next], notification });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }

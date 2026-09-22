@@ -874,7 +874,8 @@ function moveFaq(id: string, dir: -1 | 1) {
     const c = await apiAdminGetContacts(token);
     if (c?.ok) setContacts(c.contacts);
 
-    showOk("Сохранено ✅");
+    if (r.notification?.message) showErr(r.notification.message);
+    else showOk(r.notification?.state === "sent" ? "Сохранено ✅ Клиенту отправлено уведомление." : "Сохранено ✅");
   }
 
   async function runReport() {
