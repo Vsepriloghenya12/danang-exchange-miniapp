@@ -33,6 +33,9 @@ export function publishTextHtml(text: string): string {
 }
 
 export function publishErrorMessage(error: string): string {
+  if (/^(?:error:\s*)?(?:401:\s*)?unauthorized$/i.test(error.trim())) {
+    return "Telegram отклонил токен бота. Проверь BOT_TOKEN в сервисе api: нужен действующий токен этого бота из BotFather. После обновления переменной перезапусти сервис api.";
+  }
   if (error === "group_not_set") return "Укажи канал для публикации: @username или числовой ID.";
   if (error === "rates_missing") return "Сначала сохрани курсы RUB, USDT и USD на сегодня во вкладке «Курс».";
   if (/chat not found/i.test(error)) return "Канал не найден. Проверь @username или ID канала и добавь в него бота.";

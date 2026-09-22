@@ -27,7 +27,7 @@ test("API persists all pairs and publishes with bounded Telegram requests", asyn
   const address = server.address() as { port: number };
   const localFetch = globalThis.fetch;
   const calls: Array<{ method: string; body: any }> = [];
-  let mode: "ok" | "denied" | "timeout" | "photo-rejected" = "ok";
+  let mode: "ok" | "denied" | "unauthorized" | "timeout" | "photo-rejected" = "ok";
   t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
     assert.ok(String(url).startsWith("https://api.telegram.org/"), "Unexpected external request");
     assert.ok(init?.signal, "Telegram requests must have a timeout");
@@ -35,6 +35,7 @@ test("API persists all pairs and publishes with bounded Telegram requests", asyn
     const body = typeof init.body === "string" ? JSON.parse(init.body) : init.body;
     calls.push({ method, body });
     if (mode === "timeout") throw new DOMException("Timed out", "TimeoutError");
+    if (mode === "unauthorized") return Response.json({ ok: false, error_code: 401, description: "Unauthorized" }, { status: 401 });
     if (mode === "denied") return Response.json({ ok: false, description: "Forbidden: bot is not a member of the channel chat" });
     if (mode === "photo-rejected" && method === "sendPhoto") return Response.json({ ok: false, description: "Bad Request: message caption is too long" });
     if (method === "getMe") return Response.json({ ok: true, result: { username: "test_rates_bot" } });
@@ -73,6 +74,17 @@ test("API persists all pairs and publishes with bounded Telegram requests", asyn
   assert.equal(published.data.message_id, 42);
   assert.equal(calls.at(-1)?.body.chat_id, "@other_channel");
   assert.ok(!calls.at(-1)?.body.text.includes("{{"));
+
+  const callsBeforeNoAuth = calls.length;
+  assert.equal((await api("/admin/publish", payload, false)).status, 401);
+  assert.equal(calls.length, callsBeforeNoAuth, "Reject missing admin credentials before contacting Telegram");
+
+  mode = "unauthorized";
+  const unauthorized = await api("/admin/publish", payload);
+  assert.equal(unauthorized.status, 502, "Telegram authentication failure is not an admin login failure");
+  assert.equal(unauthorized.data.error, "Unauthorized");
+  assert.match(unauthorized.data.message, /BOT_TOKEN.*api/);
+  assert.ok(!unauthorized.data.message.includes("test-token"));
 
   mode = "denied";
   const denied = await api("/admin/publish", payload);
