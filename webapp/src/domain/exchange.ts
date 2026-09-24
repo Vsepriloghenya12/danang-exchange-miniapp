@@ -13,6 +13,7 @@ export const EXCHANGE_RATE_PAIRS: RatePair[] = [
   { id: "usd-vnd", base: "USD", quote: "VND", mode: "vnd" },
   { id: "eur-vnd", base: "EUR", quote: "VND", mode: "vnd" },
   { id: "thb-vnd", base: "THB", quote: "VND", mode: "vnd" },
+  { id: "kzt-vnd", base: "KZT", quote: "VND", mode: "vnd" },
   { id: "usdt-rub", base: "USDT", quote: "RUB", mode: "g" },
   { id: "usd-rub", base: "USD", quote: "RUB", mode: "g" },
   { id: "eur-rub", base: "EUR", quote: "RUB", mode: "g" },
@@ -23,6 +24,11 @@ export const EXCHANGE_RATE_PAIRS: RatePair[] = [
   { id: "usd-thb", base: "USD", quote: "THB", mode: "g" },
   { id: "usdt-thb", base: "USDT", quote: "THB", mode: "g" },
   { id: "eur-thb", base: "EUR", quote: "THB", mode: "g" },
+  { id: "kzt-rub", base: "KZT", quote: "RUB", mode: "g" },
+  { id: "usd-kzt", base: "USD", quote: "KZT", mode: "g" },
+  { id: "usdt-kzt", base: "USDT", quote: "KZT", mode: "g" },
+  { id: "eur-kzt", base: "EUR", quote: "KZT", mode: "g" },
+  { id: "thb-kzt", base: "THB", quote: "KZT", mode: "g" },
 ];
 
 export const DEFAULT_G_FORMULAS: GFormulas = {
@@ -36,6 +42,11 @@ export const DEFAULT_G_FORMULAS: GFormulas = {
   "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
   "USDT/THB": { buyMul: 0.95, sellMul: 1.07 },
   "EUR/THB": { buyMul: 0.95, sellMul: 1.07 },
+  "KZT/RUB": { buyMul: 1, sellMul: 1 },
+  "USD/KZT": { buyMul: 1, sellMul: 1 },
+  "USDT/KZT": { buyMul: 1, sellMul: 1 },
+  "EUR/KZT": { buyMul: 1, sellMul: 1 },
+  "THB/KZT": { buyMul: 1, sellMul: 1 },
 };
 
 export const G_FORMULA_KEYS = Object.keys(DEFAULT_G_FORMULAS);
@@ -61,6 +72,7 @@ export function createGFormulaDraft(
 }
 
 export function getGRateDecimals(base: Currency, quote: Currency): number {
+  if (base === "KZT" || quote === "KZT") return 4;
   return base === "USD" && quote === "USDT" ? 3 : 1;
 }
 

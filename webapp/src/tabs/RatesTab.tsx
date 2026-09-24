@@ -4,7 +4,7 @@ import { apiGetGFormulas, apiGetMarketRates } from "../lib/api";
 import type { MarketRatesResponse, TodayRatesResponse } from "../lib/types";
 
 type Lang = "ru" | "en";
-type Cur = "RUB" | "USD" | "USDT" | "EUR" | "THB" | "VND";
+type Cur = "RUB" | "USD" | "USDT" | "EUR" | "THB" | "KZT" | "VND";
 
 function normalizeEnRateSpacing(value: string, lang: Lang) {
   return lang === "en" ? value.replace(/,/g, " ") : value;
@@ -12,7 +12,7 @@ function normalizeEnRateSpacing(value: string, lang: Lang) {
 
 function fmt(pairId: string, quote: Cur, n: number | null, lang: Lang) {
   if (n == null || !Number.isFinite(n)) return "—";
-  const digits = quote === "VND" ? 0 : pairId === "usd-usdt" ? 3 : 1;
+  const digits = pairId.includes("kzt") ? 4 : quote === "VND" ? 0 : pairId === "usd-usdt" ? 3 : 1;
   return normalizeEnRateSpacing(
     new Intl.NumberFormat(lang === "en" ? "en-US" : "ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n),
     lang
@@ -50,6 +50,7 @@ function currencyBadge(cur: Cur): string {
     case "USD": return "$";
     case "EUR": return "€";
     case "THB": return "฿";
+    case "KZT": return "₸";
     case "VND": return "₫";
     default: return cur;
   }
@@ -63,6 +64,7 @@ function currencyHumanName(cur: Cur, lang: Lang): string {
       case "USD": return "Dollar";
       case "EUR": return "Euro";
       case "THB": return "Baht";
+      case "KZT": return "Tenge";
       case "VND": return "Dong";
       default: return cur;
     }
@@ -73,6 +75,7 @@ function currencyHumanName(cur: Cur, lang: Lang): string {
     case "USD": return "Доллар";
     case "EUR": return "Евро";
     case "THB": return "Бат";
+    case "KZT": return "Тенге";
     case "VND": return "Донг";
     default: return cur;
   }

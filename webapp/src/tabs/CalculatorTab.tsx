@@ -59,7 +59,7 @@ type Props = {
   };
 };
 
-const CURRENCY_OPTIONS: Currency[] = ["RUB", "USDT", "USD", "EUR", "THB", "VND"];
+const CURRENCY_OPTIONS: Currency[] = ["RUB", "USDT", "USD", "EUR", "THB", "KZT", "VND"];
 
 function getTg() {
   return (window as any).Telegram?.WebApp;
@@ -324,7 +324,7 @@ const CASH_VND_STEP = 10000;
 const USD_STEP = 100;
 const EUR_STEP = 50;
 const THB_STEP = 100;
-const MIN_SELL_AMOUNTS: Record<Currency, number> = {
+const MIN_SELL_AMOUNTS: Partial<Record<Currency, number>> = {
   RUB: 10_000,
   USDT: 100,
   USD: 100,
@@ -342,7 +342,8 @@ const CASH_DELIVERY_MIN_AMOUNTS: Record<string, number> = {
 };
 
 function minSellAmountLabel(cur: Currency): string {
-  const value = MIN_SELL_AMOUNTS[cur];
+  if (MIN_SELL_AMOUNTS[cur] == null) return "";
+  const value = MIN_SELL_AMOUNTS[cur] ?? 0;
   if (cur === "RUB") return `${fmtAmount(cur, value)} ₽`;
   return `${fmtAmount(cur, value)} ${cur}`;
 }
@@ -686,7 +687,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     sellText.trim() !== "" &&
     sellAmount > 0 &&
     !(sellCurrency === "VND" && buyCurrency === "VND") &&
-    sellAmount < MIN_SELL_AMOUNTS[sellCurrency];
+    sellAmount < (MIN_SELL_AMOUNTS[sellCurrency] ?? 0);
 
   const hasInvalid =
     invalidUsdSell ||
@@ -805,13 +806,13 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   // Admin-only breakdown: "база 300 + статус +1 + перевод +1".
   const rateBreakdown = useMemo(() => {
     if (!isAdminMode || !rateInfo) return null;
-    const sign = rateInfo.quote.side === "buy" ? "+" : "−";
+    const signed = (value: number) => `${value >= 0 ? "+" : ""}${fmtUnitRate(value, isEn)}`;
     const parts = [`${isEn ? "base" : "база"} ${fmtUnitRate(rateInfo.quote.rate, isEn)}`];
     if (rateInfo.quote.manual) parts[0] += isEn ? " (manual)" : " (ручной)";
-    parts.push(`${isEn ? "status" : "статус"} «${getUserStatusLabel(clientStatus, lang)}» ${sign}${fmtUnitRate(rateInfo.tier, isEn)}`);
+    parts.push(`${isEn ? "status" : "статус"} «${getUserStatusLabel(clientStatus, lang)}» ${signed(rateInfo.tier)}`);
     parts.push(
       receiveMethod
-        ? `${uiMethodLabel(receiveMethod).toLowerCase()} ${sign}${fmtUnitRate(rateInfo.method, isEn)}`
+        ? `${uiMethodLabel(receiveMethod).toLowerCase()} ${signed(rateInfo.method)}`
         : isEn ? "receive method not selected" : "способ получения не выбран"
     );
     return parts.join(" · ");

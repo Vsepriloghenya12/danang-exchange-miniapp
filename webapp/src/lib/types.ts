@@ -1,4 +1,4 @@
-export type Currency = "RUB" | "USD" | "USDT" | "EUR" | "THB" | "VND";
+export type Currency = "RUB" | "USD" | "USDT" | "EUR" | "THB" | "KZT" | "VND";
 export type ReceiveMethod = "cash" | "transfer" | "atm";
 export type UserStatus = "standard" | "silver" | "gold";
 
@@ -9,6 +9,7 @@ export type Rates = {
   // новые валюты — могут быть не заданы
   EUR?: { buy_vnd: number; sell_vnd: number };
   THB?: { buy_vnd: number; sell_vnd: number };
+  KZT?: { buy_vnd: number; sell_vnd: number };
 };
 
 // Manual cross-pair rates for the day, keyed like the G formulas ("USDT/RUB").
@@ -217,7 +218,7 @@ export type BonusesTier = {
   gold: number;
 };
 
-export type BonusCurrency = "RUB" | "USD" | "USDT" | "EUR" | "THB";
+export type BonusCurrency = "RUB" | "USD" | "USDT" | "EUR" | "THB" | "KZT";
 
 export type MarkupMethods = Record<ReceiveMethod, number>;
 

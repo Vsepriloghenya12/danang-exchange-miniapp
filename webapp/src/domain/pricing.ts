@@ -19,8 +19,8 @@ import { getGRateDecimals, roundRate } from "./exchange";
 // canonical pair base/quote (VND is always the quote; cross pairs follow the G formula keys):
 //   side "buy"  — the client gives the base currency:  out = amount × rate
 //   side "sell" — the client gives the quote currency: out = amount ÷ rate
-// Markups are expressed in quote-currency units and always favour the client:
-// they are added to a buy rate and subtracted from a sell rate.
+// Modifiers are signed quote-currency amounts: positive raises the displayed rate,
+// negative lowers it, for both buy and sell quotes.
 
 export type PayMethod = "cash" | "transfer";
 export type RateSide = "buy" | "sell";
@@ -38,8 +38,8 @@ export type PairShape = { base: Currency; quote: Currency; side: RateSide };
 export type Quote = PairShape & { rate: number; manual: boolean };
 export type Markup = { tier: number; method: number };
 
-export const PRICING_CURRENCIES: Currency[] = ["RUB", "USDT", "USD", "EUR", "THB", "VND"];
-export const BONUS_CURRENCIES: BonusCurrency[] = ["RUB", "USD", "USDT", "EUR", "THB"];
+export const PRICING_CURRENCIES: Currency[] = ["RUB", "USDT", "USD", "EUR", "THB", "KZT", "VND"];
+export const BONUS_CURRENCIES: BonusCurrency[] = ["RUB", "USD", "USDT", "EUR", "THB", "KZT"];
 export const RECEIVE_METHODS: ReceiveMethod[] = ["cash", "transfer", "atm"];
 
 export function directionKey(from: Currency, to: Currency): string {
@@ -60,6 +60,7 @@ export function parseDirectionKey(key: string): { from: Currency; to: Currency }
 // USD / EUR / THB -> только наличные
 // VND -> наличные или перевод. Через банкомат клиент ничего не передаёт.
 export function allowedPayMethods(sellCurrency: Currency, buyCurrency: Currency): PayMethod[] {
+  if (sellCurrency === "KZT") return ["transfer"];
   if (sellCurrency === "VND" && buyCurrency === "VND") return ["cash", "transfer"];
   if (sellCurrency === "USDT") return ["transfer"];
   if (sellCurrency === "RUB") return ["transfer"];
@@ -72,6 +73,7 @@ export function allowedPayMethods(sellCurrency: Currency, buyCurrency: Currency)
 // способ получения не убирается — вместо этого показывается предупреждение
 // о платной доставке (от 70,000 VND).
 export function allowedReceiveMethods(buyCurrency: Currency): ReceiveMethod[] {
+  if (buyCurrency === "KZT") return ["transfer"];
   if (buyCurrency === "VND") return ["cash", "transfer", "atm"];
   if (buyCurrency === "USDT") return ["transfer"];
   if (buyCurrency === "RUB") return ["cash", "transfer"];
@@ -91,6 +93,7 @@ export function currencySymbol(c: Currency): string {
     case "USD": return "$";
     case "EUR": return "€";
     case "THB": return "฿";
+    case "KZT": return "₸";
     case "VND": return "₫";
     default: return c;
   }
@@ -98,7 +101,7 @@ export function currencySymbol(c: Currency): string {
 
 export function fmtUnitRate(value: number, isEn = false): string {
   if (!Number.isFinite(value)) return "—";
-  const decimals = value < 10 ? 3 : value < 1000 ? 1 : 0;
+  const decimals = Math.abs(value) < 10 ? 4 : Math.abs(value) < 1000 ? 1 : 0;
   const text = new Intl.NumberFormat(isEn ? "en-US" : "ru-RU", {
     minimumFractionDigits: 0,
     maximumFractionDigits: decimals,
@@ -178,7 +181,7 @@ export function resolveQuote(from: Currency, to: Currency, ctx: PricingContext):
 
 export function effectiveRate(q: Pick<Quote, "side" | "rate">, m: Markup): number {
   const total = m.tier + m.method;
-  const rate = q.side === "buy" ? q.rate + total : q.rate - total;
+  const rate = q.rate + total;
   return Number.isFinite(rate) && rate > 0 ? rate : Number.NaN;
 }
 
@@ -217,9 +220,9 @@ export function defaultBonuses(): BonusesConfig {
     { min: 1000, max: 3000, standard: 100, silver: 150, gold: 200 },
     { min: 3000, standard: 150, silver: 200, gold: 250 },
   ];
-  const tiers: Record<BonusCurrency, BonusesTier[]> = { RUB: rub, USD: usd, USDT: usd, EUR: [], THB: [] };
-  const transfer: Record<BonusCurrency, number> = { RUB: 1, USD: 100, USDT: 100, EUR: 0, THB: 0 };
-  const atm: Record<BonusCurrency, number> = { RUB: 1, USD: 100, USDT: 100, EUR: 0, THB: 0 };
+  const tiers: Record<BonusCurrency, BonusesTier[]> = { RUB: rub, USD: usd, USDT: usd, EUR: [], THB: [], KZT: [] };
+  const transfer: Record<BonusCurrency, number> = { RUB: 1, USD: 100, USDT: 100, EUR: 0, THB: 0, KZT: 0 };
+  const atm: Record<BonusCurrency, number> = { RUB: 1, USD: 100, USDT: 100, EUR: 0, THB: 0, KZT: 0 };
 
   const pairs: Record<string, PairMarkup> = {};
   for (const cur of BONUS_CURRENCIES) {

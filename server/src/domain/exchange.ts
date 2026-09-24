@@ -1,9 +1,12 @@
-export type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB";
+export type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB" | "KZT";
 
 export type Rates = {
   USD: { buy_vnd: number; sell_vnd: number };
   RUB: { buy_vnd: number; sell_vnd: number };
   USDT: { buy_vnd: number; sell_vnd: number };
+  EUR?: { buy_vnd: number; sell_vnd: number };
+  THB?: { buy_vnd: number; sell_vnd: number };
+  KZT?: { buy_vnd: number; sell_vnd: number };
 };
 
 export type GFormula = {
@@ -19,7 +22,7 @@ export type BonusesTier = {
   gold: number;
 };
 
-export type BonusCurrency = "RUB" | "USD" | "USDT" | "EUR" | "THB";
+export type BonusCurrency = "RUB" | "USD" | "USDT" | "EUR" | "THB" | "KZT";
 
 export type MarkupMethods = { cash: number; transfer: number; atm: number };
 
@@ -47,9 +50,9 @@ export type BonusesConfig = {
 // Manual cross-pair rates for a day, keyed like the G formulas ("USDT/RUB").
 export type CrossRates = Record<string, { buy: number; sell: number }>;
 
-export const BONUS_CURRENCIES: BonusCurrency[] = ["RUB", "USD", "USDT", "EUR", "THB"];
+export const BONUS_CURRENCIES: BonusCurrency[] = ["RUB", "USD", "USDT", "EUR", "THB", "KZT"];
 
-const PRICING_CURRENCIES: Currency[] = ["RUB", "USDT", "USD", "EUR", "THB", "VND"];
+const PRICING_CURRENCIES: Currency[] = ["RUB", "USDT", "USD", "EUR", "THB", "KZT", "VND"];
 
 export function directionKey(from: Currency, to: Currency): string {
   return `${from}>${to}`;
@@ -71,6 +74,11 @@ export const DEFAULT_G_FORMULAS: Record<string, GFormula> = {
   "USD/THB": { buyMul: 0.95, sellMul: 1.07 },
   "USDT/THB": { buyMul: 0.95, sellMul: 1.07 },
   "EUR/THB": { buyMul: 0.95, sellMul: 1.07 },
+  "KZT/RUB": { buyMul: 1, sellMul: 1 },
+  "USD/KZT": { buyMul: 1, sellMul: 1 },
+  "USDT/KZT": { buyMul: 1, sellMul: 1 },
+  "EUR/KZT": { buyMul: 1, sellMul: 1 },
+  "THB/KZT": { buyMul: 1, sellMul: 1 },
 };
 
 export function defaultGFormulas(): Record<string, GFormula> {
@@ -103,10 +111,11 @@ export function defaultBonuses(): BonusesConfig {
     // EUR/THB have no markup by default — configure in the owner portal if needed.
     EUR: [],
     THB: [],
+    KZT: [],
   };
   const methods = {
-    transfer: { RUB: 1, USD: 100, USDT: 100, EUR: 0, THB: 0 },
-    atm: { RUB: 1, USD: 100, USDT: 100, EUR: 0, THB: 0 },
+    transfer: { RUB: 1, USD: 100, USDT: 100, EUR: 0, THB: 0, KZT: 0 },
+    atm: { RUB: 1, USD: 100, USDT: 100, EUR: 0, THB: 0, KZT: 0 },
   };
 
   // Only "currency → VND" directions have markups by default.

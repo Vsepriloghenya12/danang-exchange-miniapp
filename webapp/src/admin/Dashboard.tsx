@@ -144,6 +144,8 @@ export default function Dashboard({ token }: { token: string }) {
   const [eurSell, setEurSell] = useState("");
   const [thbBuy, setThbBuy] = useState("");
   const [thbSell, setThbSell] = useState("");
+  const [kztBuy, setKztBuy] = useState("");
+  const [kztSell, setKztSell] = useState("");
 
   const usersById = useMemo(() => {
     const m = new Map<number, StoredUser>();
@@ -267,7 +269,9 @@ export default function Dashboard({ token }: { token: string }) {
     setEurBuy("");
     setEurSell("");
     setThbBuy("");
+    setKztBuy("");
     setThbSell("");
+    setKztSell("");
   };
 
   const applyRatesToForm = (rates: any) => {
@@ -296,6 +300,10 @@ export default function Dashboard({ token }: { token: string }) {
     if (rates.THB) {
       setThbBuy(nStr(rates.THB.buy_vnd));
       setThbSell(nStr(rates.THB.sell_vnd));
+    }
+    if (rates.KZT) {
+      setKztBuy(nStr(rates.KZT.buy_vnd));
+      setKztSell(nStr(rates.KZT.sell_vnd));
     }
   };
 
@@ -340,6 +348,9 @@ export default function Dashboard({ token }: { token: string }) {
       if (hasAny(thbBuy, thbSell) && !hasBoth(thbBuy, thbSell)) {
         throw new Error("THB: заполни BUY и SELL (или оставь оба поля пустыми)");
       }
+      if (hasAny(kztBuy, kztSell) && !hasBoth(kztBuy, kztSell)) {
+        throw new Error("KZT: заполни BUY и SELL (или оставь оба поля пустыми)");
+      }
 
       const rates: any = {
         RUB: { buy_vnd: toNumStrict("RUB BUY", rubBuy), sell_vnd: toNumStrict("RUB SELL", rubSell) },
@@ -352,6 +363,9 @@ export default function Dashboard({ token }: { token: string }) {
       }
       if (hasBoth(thbBuy, thbSell)) {
         rates.THB = { buy_vnd: toNumStrict("THB BUY", thbBuy), sell_vnd: toNumStrict("THB SELL", thbSell) };
+      }
+      if (hasBoth(kztBuy, kztSell)) {
+        rates.KZT = { buy_vnd: toNumStrict("KZT BUY", kztBuy), sell_vnd: toNumStrict("KZT SELL", kztSell) };
       }
 
       const r = await apiAdminSetTodayRates(token, rates);
@@ -659,6 +673,7 @@ export default function Dashboard({ token }: { token: string }) {
             <RateRow code="USD" buy={usdBuy} sell={usdSell} setBuy={setUsdBuy} setSell={setUsdSell} />
             <RateRow code="EUR" buy={eurBuy} sell={eurSell} setBuy={setEurBuy} setSell={setEurSell} />
             <RateRow code="THB" buy={thbBuy} sell={thbSell} setBuy={setThbBuy} setSell={setThbSell} />
+            <RateRow code="KZT" buy={kztBuy} sell={kztSell} setBuy={setKztBuy} setSell={setKztSell} />
           </div>
 
           <div className="vx-mt10 row vx-rowWrap vx-gap8">

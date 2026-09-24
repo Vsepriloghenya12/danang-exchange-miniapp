@@ -176,7 +176,8 @@ function normalizeBonuses(input: any): BonusesConfig {
     USD: num(row?.USD, 0),
     USDT: num(row?.USDT, 0),
     EUR: num(row?.EUR, 0),
-    THB: num(row?.THB, 0)
+    THB: num(row?.THB, 0),
+    KZT: num(row?.KZT, 0)
   });
 
   const srcPairs = src.pairs && typeof src.pairs === "object" ? src.pairs : null;
@@ -208,7 +209,8 @@ function normalizeBonuses(input: any): BonusesConfig {
       USD: tierList(src?.tiers?.USD),
       USDT: tierList(src?.tiers?.USDT),
       EUR: tierList(src?.tiers?.EUR),
-      THB: tierList(src?.tiers?.THB)
+      THB: tierList(src?.tiers?.THB),
+      KZT: tierList(src?.tiers?.KZT)
     },
     methods: {
       transfer: methodRow(src?.methods?.transfer),
@@ -217,7 +219,7 @@ function normalizeBonuses(input: any): BonusesConfig {
   };
 }
 
-const VND_RATE_CURRENCIES = ["RUB", "USDT", "USD", "EUR", "THB"] as const;
+const VND_RATE_CURRENCIES = ["RUB", "USDT", "USD", "EUR", "THB", "KZT"] as const;
 
 type AdminSection = "rates" | "users" | "requests" | "bonuses" | "reviews";
 
@@ -255,6 +257,8 @@ export default function AdminTab({
 
   const [thbBuy, setThbBuy] = useState("");
   const [thbSell, setThbSell] = useState("");
+  const [kztBuy, setKztBuy] = useState("");
+  const [kztSell, setKztSell] = useState("");
 
   // Ручные кросс-курсы (без VND): пусто — считается по G × множитель.
   const [crossDraft, setCrossDraft] = useState<CrossDraft>(emptyCrossDraft);
@@ -287,7 +291,8 @@ export default function AdminTab({
     USDT: { buy: usdtBuy, sell: usdtSell },
     USD: { buy: usdBuy, sell: usdSell },
     EUR: { buy: eurBuy, sell: eurSell },
-    THB: { buy: thbBuy, sell: thbSell }
+    THB: { buy: thbBuy, sell: thbSell },
+    KZT: { buy: kztBuy, sell: kztSell }
   };
 
   const clearRates = () => {
@@ -296,6 +301,7 @@ export default function AdminTab({
     setUsdBuy(""); setUsdSell("");
     setEurBuy(""); setEurSell("");
     setThbBuy(""); setThbSell("");
+    setKztBuy(""); setKztSell("");
     setCrossDraft(emptyCrossDraft());
   };
 
@@ -321,6 +327,7 @@ export default function AdminTab({
     if (rates.USDT) { setUsdtBuy(nStr(rates.USDT.buy_vnd)); setUsdtSell(nStr(rates.USDT.sell_vnd)); }
     if (rates.EUR) { setEurBuy(nStr(rates.EUR.buy_vnd)); setEurSell(nStr(rates.EUR.sell_vnd)); }
     if (rates.THB) { setThbBuy(nStr(rates.THB.buy_vnd)); setThbSell(nStr(rates.THB.sell_vnd)); }
+    if (rates.KZT) { setKztBuy(nStr(rates.KZT.buy_vnd)); setKztSell(nStr(rates.KZT.sell_vnd)); }
     const nextCross = emptyCrossDraft();
     if (cross && typeof cross === "object") {
       for (const k of G_FORMULA_KEYS) {
@@ -481,6 +488,9 @@ export default function AdminTab({
       if (hasAny(thbBuy, thbSell) && !hasBoth(thbBuy, thbSell)) {
         throw new Error("THB: заполни BUY и SELL (или оставь оба поля пустыми)");
       }
+      if (hasAny(kztBuy, kztSell) && !hasBoth(kztBuy, kztSell)) {
+        throw new Error("KZT: заполни BUY и SELL (или оставь оба поля пустыми)");
+      }
 
       const rates: any = {
         RUB: { buy_vnd: toNumStrict("RUB BUY", rubBuy), sell_vnd: toNumStrict("RUB SELL", rubSell) },
@@ -493,6 +503,9 @@ export default function AdminTab({
       }
       if (hasBoth(thbBuy, thbSell)) {
         rates.THB = { buy_vnd: toNumStrict("THB BUY", thbBuy), sell_vnd: toNumStrict("THB SELL", thbSell) };
+      }
+      if (hasBoth(kztBuy, kztSell)) {
+        rates.KZT = { buy_vnd: toNumStrict("KZT BUY", kztBuy), sell_vnd: toNumStrict("KZT SELL", kztSell) };
       }
 
       // Кросс-курсы — опционально, по тем же правилам
@@ -555,7 +568,7 @@ export default function AdminTab({
     }
     return { rates, cross, market, formulas };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formHasValues, savedRates, savedCross, market, formulas, rubBuy, rubSell, usdtBuy, usdtSell, usdBuy, usdSell, eurBuy, eurSell, thbBuy, thbSell, crossDraft]);
+  }, [formHasValues, savedRates, savedCross, market, formulas, rubBuy, rubSell, usdtBuy, usdtSell, usdBuy, usdSell, eurBuy, eurSell, thbBuy, thbSell, kztBuy, kztSell, crossDraft]);
 
   const savedCtx = useMemo<PricingContext>(
     () => ({ rates: savedRates, cross: savedCross, market, formulas }),
@@ -668,6 +681,7 @@ export default function AdminTab({
           <RateRow code="USD" buy={usdBuy} sell={usdSell} setBuy={setUsdBuy} setSell={setUsdSell} />
           <RateRow code="EUR" buy={eurBuy} sell={eurSell} setBuy={setEurBuy} setSell={setEurSell} />
           <RateRow code="THB" buy={thbBuy} sell={thbSell} setBuy={setThbBuy} setSell={setThbSell} />
+          <RateRow code="KZT" buy={kztBuy} sell={kztSell} setBuy={setKztBuy} setSell={setKztSell} />
 
           <div className="hr" />
           <div className="small">

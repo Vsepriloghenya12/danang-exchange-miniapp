@@ -48,7 +48,7 @@ async function fetchJson(url: string): Promise<any> {
   }
 }
 
-async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; source: string }> {
+async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; KZT?: number; source: string }> {
   // 1) moneyconvert.net (официальный endpoint, base всегда USD)
   try {
     const j = await fetchJson("https://cdn.moneyconvert.net/api/latest.json");
@@ -56,8 +56,10 @@ async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; 
     const RUB = Number(j?.rates?.RUB);
     const THB = Number(j?.rates?.THB);
     const EUR = Number(j?.rates?.EUR);
+    const kzt = Number(j?.rates?.KZT);
+    const KZT = Number.isFinite(kzt) && kzt > 0 ? kzt : undefined;
     if (base === "USD" && [RUB, THB, EUR].every((n) => Number.isFinite(n) && n > 0)) {
-      return { RUB, THB, EUR, source: "moneyconvert.net" };
+      return { RUB, THB, EUR, KZT, source: "moneyconvert.net" };
     }
   } catch {
     // ignore
@@ -65,12 +67,14 @@ async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; 
 
   // 2) exchangerate.host fallback
   try {
-    const j = await fetchJson("https://api.exchangerate.host/latest?base=USD&symbols=RUB,THB,EUR");
+    const j = await fetchJson("https://api.exchangerate.host/latest?base=USD&symbols=RUB,THB,EUR,KZT");
     const RUB = Number(j?.rates?.RUB);
     const THB = Number(j?.rates?.THB);
     const EUR = Number(j?.rates?.EUR);
+    const kzt = Number(j?.rates?.KZT);
+    const KZT = Number.isFinite(kzt) && kzt > 0 ? kzt : undefined;
     if ([RUB, THB, EUR].every((n) => Number.isFinite(n) && n > 0)) {
-      return { RUB, THB, EUR, source: "exchangerate.host" };
+      return { RUB, THB, EUR, KZT, source: "exchangerate.host" };
     }
   } catch {
     // ignore
@@ -82,8 +86,10 @@ async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; 
     const RUB = Number(j?.rates?.RUB);
     const THB = Number(j?.rates?.THB);
     const EUR = Number(j?.rates?.EUR);
+    const kzt = Number(j?.rates?.KZT);
+    const KZT = Number.isFinite(kzt) && kzt > 0 ? kzt : undefined;
     if ([RUB, THB, EUR].every((n) => Number.isFinite(n) && n > 0)) {
-      return { RUB, THB, EUR, source: "open.er-api.com" };
+      return { RUB, THB, EUR, KZT, source: "open.er-api.com" };
     }
   } catch {
     // ignore
@@ -95,8 +101,10 @@ async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; 
     const RUB = Number(j?.rates?.RUB);
     const THB = Number(j?.rates?.THB);
     const EUR = Number(j?.rates?.EUR);
+    const kzt = Number(j?.rates?.KZT);
+    const KZT = Number.isFinite(kzt) && kzt > 0 ? kzt : undefined;
     if ([RUB, THB, EUR].every((n) => Number.isFinite(n) && n > 0)) {
-      return { RUB, THB, EUR, source: "exchangerate-api.com" };
+      return { RUB, THB, EUR, KZT, source: "exchangerate-api.com" };
     }
   } catch {
     // ignore
@@ -105,7 +113,7 @@ async function fetchUsdBase(): Promise<{ RUB: number; THB: number; EUR: number; 
   throw new Error("market_source_unavailable");
 }
 
-function buildG(usd: { RUB: number; THB: number; EUR: number }): Record<string, number> {
+export function buildG(usd: { RUB: number; THB: number; EUR: number; KZT?: number }): Record<string, number> {
   const USD_RUB = usd.RUB; // 1 USD -> RUB
   const USD_THB = usd.THB; // 1 USD -> THB
   const USD_EUR = usd.EUR; // 1 USD -> EUR
@@ -128,6 +136,14 @@ function buildG(usd: { RUB: number; THB: number; EUR: number }): Record<string, 
     "USDT/THB": USD_THB,
     "EUR/THB": EUR_THB
   };
+
+  if (usd.KZT && usd.KZT > 0) {
+    g["KZT/RUB"] = USD_RUB / usd.KZT;
+    g["USD/KZT"] = usd.KZT;
+    g["USDT/KZT"] = usd.KZT;
+    g["EUR/KZT"] = EUR_USD * usd.KZT;
+    g["THB/KZT"] = usd.KZT / USD_THB;
+  }
 
   for (const k of Object.keys(g)) {
     const v = Number(g[k]);

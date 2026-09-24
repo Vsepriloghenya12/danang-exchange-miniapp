@@ -1,6 +1,6 @@
 import { USER_STATUS_LABELS_RU, type UserStatus } from "./domain/status.js";
 
-type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB";
+type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB" | "KZT";
 type ReceiveMethod = "cash" | "transfer" | "atm";
 
 export function formatRequestMessage(args: {

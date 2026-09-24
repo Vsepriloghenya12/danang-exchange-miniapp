@@ -23,9 +23,7 @@ export function markupUnitHint(from: Currency, to: Currency, formulas: GFormulas
   const shape = pairShape(from, to, formulas);
   if (!shape) return "Для этой пары нет курса.";
   const unit = `${currencySymbol(shape.quote)} за 1 ${shape.base}`;
-  return shape.side === "buy"
-    ? `Надбавка в ${unit}, прибавляется к курсу покупки.`
-    : `Надбавка в ${unit}, вычитается из курса продажи.`;
+  return `Поправка в ${unit}: положительное значение повышает курс, отрицательное — снижает.`;
 }
 
 export function DirectionPicker(props: {
@@ -141,7 +139,7 @@ export function EffectiveRatesTable(props: {
                     const tier = tiersOn ? tierValue(row.tier, status, from, to) : 0;
                     const method = markupFor(from, to, 0, status, m, cfg).method;
                     const rate = effectiveRate(quote, { tier, method });
-                    const delta = quote.side === "buy" ? tier + method : -(tier + method);
+                    const delta = tier + method;
                     return (
                       <td key={m} className="adx-effCell">
                         <span className="adx-effVal">{fmtUnitRate(rate)}</span>

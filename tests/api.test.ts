@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createHmac } from "node:crypto";
 import express from "express";
 import { EXCHANGE_RATE_PAIRS } from "../webapp/src/domain/exchange.ts";
 import { MARKUP_DIRECTIONS, defaultBonuses } from "../webapp/src/domain/pricing.ts";
@@ -63,6 +64,19 @@ test("API persists all pairs and publishes with bounded Telegram requests", asyn
   assert.equal((await api("/admin/bonuses", { bonuses })).status, 200);
   assert.deepEqual((await api("/bonuses")).data.bonuses.pairs, bonuses.pairs);
 
+  await t.test("negative modifiers and KZT rates survive saving and reloading", async () => {
+    bonuses.pairs["RUB>USDT"].tiers[0].silver = -0.5;
+    bonuses.pairs["USD>KZT"].tiers[0].gold = -2;
+    bonuses.pairs["KZT>RUB"].methods.transfer = -0.005;
+    assert.equal((await api("/admin/bonuses", { bonuses })).status, 200);
+    const reloaded = (await api("/bonuses")).data.bonuses;
+    assert.equal(reloaded.pairs["RUB>USDT"].tiers[0].silver, -0.5);
+    assert.equal(reloaded.pairs["USD>KZT"].tiers[0].gold, -2);
+    assert.equal(reloaded.pairs["KZT>RUB"].methods.transfer, -0.005);
+    assert.equal(savedRates.rates.KZT.buy_vnd, 100.25);
+    assert.equal(Object.keys(savedRates.cross).length, 15);
+  });
+
   assert.equal((await api("/admin/publish-template")).data.chatId, "@test_rates_channel");
   assert.equal((await api("/admin/publish-target", { chatId: "@other_channel" }, false)).status, 401);
   assert.equal((await api("/admin/publish-target", { chatId: "invalid" })).status, 400);
@@ -112,6 +126,31 @@ test("API persists all pairs and publishes with bounded Telegram requests", asyn
 
   const { readStore, upsertUserFromTelegram } = await import("../server/src/store.ts");
   await upsertUserFromTelegram({ id: 123, username: "client_one" });
+
+  await t.test("API accepts KZT transfer requests and rejects cash in both directions", async () => {
+    const { mutateStore } = await import("../server/src/store.ts");
+    await mutateStore(store => {
+      store.config.adminTgIds = [987];
+      store.requests.push({ id: "kzt-test", state: "in_progress", sellCurrency: "RUB", buyCurrency: "VND", sellAmount: 10000, buyAmount: 3000000, payMethod: "transfer", receiveMethod: "transfer", from: { id: 123 }, status: "standard", created_at: new Date().toISOString() });
+    });
+    const fields = new URLSearchParams({ auth_date: String(Math.floor(Date.now() / 1000)), user: JSON.stringify({ id: 987, first_name: "Test" }) });
+    const data = [...fields.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join("\n");
+    const secret = createHmac("sha256", "WebAppData").update("test-token").digest();
+    fields.set("hash", createHmac("sha256", secret).update(data).digest("hex"));
+    for (const [sellCurrency, buyCurrency] of [["KZT", "VND"], ["USD", "KZT"]]) {
+      const body = { sellCurrency, buyCurrency, sellAmount: 100, buyAmount: 500, payMethod: sellCurrency === "USD" ? "cash" : "transfer", receiveMethod: "transfer" };
+      for (const invalid of [false, true]) {
+        const payload = invalid ? { ...body, ...(sellCurrency === "KZT" ? { payMethod: "cash" } : { receiveMethod: "cash" }) } : body;
+        const response = await localFetch(`http://127.0.0.1:${address.port}/api/staff/requests/kzt-test`, {
+          method: "POST", headers: { "content-type": "application/json", "x-telegram-init-data": fields.toString() }, body: JSON.stringify(payload),
+        });
+        const result = await response.json() as any;
+        assert.equal(response.status, invalid ? 400 : 200, JSON.stringify(result));
+        if (invalid) assert.equal(result.error, "bad_method");
+        else assert.equal(result.request.buyCurrency, buyCurrency);
+      }
+    }
+  });
 
   await t.test("status saves notify once, including concurrent saves and downgrades", async () => {
     let before = calls.length;

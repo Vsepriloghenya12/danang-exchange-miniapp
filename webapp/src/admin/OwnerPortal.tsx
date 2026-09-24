@@ -330,6 +330,7 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
       USDT: { buy: "", sell: "" },
       EUR: { buy: "", sell: "" },
       THB: { buy: "", sell: "" },
+      KZT: { buy: "", sell: "" },
     };
   });
 
@@ -936,7 +937,7 @@ function moveFaq(id: string, dir: -1 | 1) {
         if (rates && typeof rates === "object") {
           setCashDefaultRates((prev) => {
             const next = { ...(prev || {}) } as any;
-            for (const cur of ["RUB", "USD", "USDT", "EUR", "THB"]) {
+            for (const cur of ["RUB", "USD", "USDT", "EUR", "THB", "KZT"]) {
               const p = next[cur] || { buy: "", sell: "" };
               const r = (rates as any)?.[cur];
               const buy = toNumLoose(r?.buy_vnd);
@@ -998,11 +999,15 @@ function moveFaq(id: string, dir: -1 | 1) {
 
       const EUR = mk("EUR");
       const THB = mk("THB");
+      const KZT = mk("KZT");
       if (Number.isFinite(EUR.buy) && Number.isFinite(EUR.sell) && EUR.buy > 0 && EUR.sell > 0) {
         payload.EUR = { buy_vnd: EUR.buy, sell_vnd: EUR.sell };
       }
       if (Number.isFinite(THB.buy) && Number.isFinite(THB.sell) && THB.buy > 0 && THB.sell > 0) {
         payload.THB = { buy_vnd: THB.buy, sell_vnd: THB.sell };
+      }
+      if (Number.isFinite(KZT.buy) && Number.isFinite(KZT.sell) && KZT.buy > 0 && KZT.sell > 0) {
+        payload.KZT = { buy_vnd: KZT.buy, sell_vnd: KZT.sell };
       }
 
       const r = await apiAdminSetRatesForDate(token, day, payload);
@@ -1127,7 +1132,7 @@ function moveFaq(id: string, dir: -1 | 1) {
     const draftToRates = (draft: any) => {
       if (!draft || typeof draft !== "object") return null;
       const out: any = {};
-      for (const cur of ["RUB", "USD", "USDT", "EUR", "THB"]) {
+      for (const cur of ["RUB", "USD", "USDT", "EUR", "THB", "KZT"]) {
         const d = (draft as any)[cur];
         const buy = toNumLoose(d?.buy);
         const sell = toNumLoose(d?.sell);
@@ -1254,7 +1259,7 @@ function moveFaq(id: string, dir: -1 | 1) {
         if (!date || next[date]) continue;
         const saved = cashRatesByDate?.[date] || null;
         const seeded: any = {};
-        for (const cur of ["RUB", "USD", "USDT", "EUR", "THB"]) {
+        for (const cur of ["RUB", "USD", "USDT", "EUR", "THB", "KZT"]) {
           const sBuy = toNumLoose(saved?.[cur]?.buy_vnd);
           const sSell = toNumLoose(saved?.[cur]?.sell_vnd);
           const def = (cashDefaultRates as any)?.[cur] || {};
@@ -2315,7 +2320,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                 </tr>
               </thead>
               <tbody>
-                {(["RUB", "USD", "USDT", "EUR", "THB"] as const).map((cur) => (
+                {(["RUB", "USD", "USDT", "EUR", "THB", "KZT"] as const).map((cur) => (
                   <tr key={cur}>
                     <td><b>{cur}</b></td>
                     <td>
@@ -2420,7 +2425,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                           </tr>
                         </thead>
                         <tbody>
-                          {(["RUB", "USD", "USDT", "EUR", "THB"] as const).map((cur) => (
+                          {(["RUB", "USD", "USDT", "EUR", "THB", "KZT"] as const).map((cur) => (
                             <tr key={cur}>
                               <td><b>{cur}</b></td>
                               <td>

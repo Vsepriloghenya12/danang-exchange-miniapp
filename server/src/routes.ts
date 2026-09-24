@@ -34,7 +34,7 @@ import { parsePublishChatId, publishChatId, publishTextHtml, publishErrorMessage
 
 
 type ReceiveMethod = "cash" | "transfer" | "atm";
-type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB";
+type Currency = "RUB" | "USD" | "USDT" | "VND" | "EUR" | "THB" | "KZT";
 
 type PublicReview = {
   id: string;
@@ -125,6 +125,7 @@ function isAllowedRequestPair(sellCurrency: Currency, buyCurrency: Currency) {
 }
 
 function allowedRequestPayMethods(sellCurrency: Currency, buyCurrency: Currency) {
+  if (sellCurrency === "KZT") return new Set(["transfer"]);
   if (isSameCurrencyVndPair(sellCurrency, buyCurrency)) return new Set(["cash", "transfer"]);
   if (sellCurrency === "USDT") return new Set(["transfer"]);
   if (sellCurrency === "RUB") return new Set(["transfer"]);
@@ -135,6 +136,7 @@ function allowedRequestPayMethods(sellCurrency: Currency, buyCurrency: Currency)
 // Доставка (наличные) доступна на любую сумму — порог 20 000 ₽ влияет только
 // на платность доставки, о чём мини-приложение предупреждает отдельно.
 function allowedRequestReceiveMethods(buyCurrency: Currency) {
+  if (buyCurrency === "KZT") return new Set(["transfer"]);
   if (buyCurrency === "VND") return new Set(["cash", "transfer", "atm"]);
   if (buyCurrency === "USDT") return new Set(["transfer"]);
   if (buyCurrency === "RUB") return new Set(["cash", "transfer"]);
@@ -898,7 +900,7 @@ router.post("/admin/faq", async (req, res) => {
       // Legacy store: markups existed only for "currency → VND".
       for (const cur of BONUS_CURRENCIES) {
         // EUR/THB may legitimately have no tiers at all (no markup)
-        const allowEmpty = cur === "EUR" || cur === "THB";
+        const allowEmpty = cur === "EUR" || cur === "THB" || cur === "KZT";
         pairs[directionKey(cur, "VND")] = {
           tiers: cleanTierList(src?.tiers?.[cur], base.tiers[cur], allowEmpty),
           methods: {
@@ -1121,6 +1123,7 @@ router.post("/admin/faq", async (req, res) => {
       // EUR/THB — опционально: сохраняем только если обе цифры > 0
       const EUR = rates?.EUR;
       const THB = rates?.THB;
+      const KZT = rates?.KZT;
 
       const eurBuy = num(EUR?.buy_vnd);
       const eurSell = num(EUR?.sell_vnd);
@@ -1132,6 +1135,11 @@ router.post("/admin/faq", async (req, res) => {
       const thbSell = num(THB?.sell_vnd);
       if (Number.isFinite(thbBuy) && Number.isFinite(thbSell) && thbBuy > 0 && thbSell > 0) {
         data.THB = { buy_vnd: thbBuy, sell_vnd: thbSell };
+      }
+      const kztBuy = num(KZT?.buy_vnd);
+      const kztSell = num(KZT?.sell_vnd);
+      if (Number.isFinite(kztBuy) && Number.isFinite(kztSell) && kztBuy > 0 && kztSell > 0) {
+        data.KZT = { buy_vnd: kztBuy, sell_vnd: kztSell };
       }
 
       const required = [
@@ -1196,6 +1204,7 @@ router.post("/admin/faq", async (req, res) => {
       // EUR/THB — optional
       const EUR = rates?.EUR;
       const THB = rates?.THB;
+      const KZT = rates?.KZT;
       const eurBuy = num(EUR?.buy_vnd);
       const eurSell = num(EUR?.sell_vnd);
       if (Number.isFinite(eurBuy) && Number.isFinite(eurSell) && eurBuy > 0 && eurSell > 0) {
@@ -1205,6 +1214,11 @@ router.post("/admin/faq", async (req, res) => {
       const thbSell = num(THB?.sell_vnd);
       if (Number.isFinite(thbBuy) && Number.isFinite(thbSell) && thbBuy > 0 && thbSell > 0) {
         data.THB = { buy_vnd: thbBuy, sell_vnd: thbSell };
+      }
+      const kztBuy = num(KZT?.buy_vnd);
+      const kztSell = num(KZT?.sell_vnd);
+      if (Number.isFinite(kztBuy) && Number.isFinite(kztSell) && kztBuy > 0 && kztSell > 0) {
+        data.KZT = { buy_vnd: kztBuy, sell_vnd: kztSell };
       }
 
       const required = [
@@ -1767,7 +1781,7 @@ router.post("/admin/faq", async (req, res) => {
       const id = String(req.params.id || "");
       if (!id) return res.status(400).json({ ok: false, error: "bad_id" });
 
-      const allowedCurrencies = new Set(["RUB", "USDT", "USD", "EUR", "THB", "VND"]);
+      const allowedCurrencies = new Set(["RUB", "USDT", "USD", "EUR", "THB", "KZT", "VND"]);
 
       const { result } = await mutateStore((store) => {
         const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
@@ -1944,7 +1958,7 @@ router.post("/admin/faq", async (req, res) => {
       const clientContact = String(p.clientContact || "").trim().replace(/\s+/g, " ").slice(0, 250);
       const language = String(p.language || "ru").toLowerCase() === "en" ? "en" : "ru";
 
-      const allowedCur = new Set<Currency>(["RUB", "USD", "USDT", "VND", "EUR", "THB"]);
+      const allowedCur = new Set<Currency>(["RUB", "USD", "USDT", "VND", "EUR", "THB", "KZT"]);
       const allowedPay = allowedRequestPayMethods(sellCurrency, buyCurrency);
       const allowedReceive = allowedRequestReceiveMethods(buyCurrency);
 

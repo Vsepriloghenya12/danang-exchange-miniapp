@@ -593,11 +593,11 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
 
                 <div className="vx-rowWrap" style={{ display: "grid", gap: 8 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <select className="input vx-in" value={editSellCurrency} onChange={(e) => setEditSellCurrency(e.target.value)}>
-                      {["RUB", "USDT", "USD", "EUR", "THB", "VND"].map((c) => <option key={"sell-" + c} value={c}>{c}</option>)}
+                    <select className="input vx-in" value={editSellCurrency} onChange={(e) => { setEditSellCurrency(e.target.value); if (e.target.value === "KZT") setEditPayMethod("transfer"); }}>
+                      {["RUB", "USDT", "USD", "EUR", "THB", "KZT", "VND"].map((c) => <option key={"sell-" + c} value={c}>{c}</option>)}
                     </select>
-                    <select className="input vx-in" value={editBuyCurrency} onChange={(e) => setEditBuyCurrency(e.target.value)}>
-                      {["RUB", "USDT", "USD", "EUR", "THB", "VND"].map((c) => <option key={"buy-" + c} value={c}>{c}</option>)}
+                    <select className="input vx-in" value={editBuyCurrency} onChange={(e) => { setEditBuyCurrency(e.target.value); if (e.target.value === "KZT") setEditReceiveMethod("transfer"); }}>
+                      {["RUB", "USDT", "USD", "EUR", "THB", "KZT", "VND"].map((c) => <option key={"buy-" + c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -606,14 +606,14 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     <select className="input vx-in" value={editPayMethod} onChange={(e) => setEditPayMethod(e.target.value)}>
-                      <option value="cash">{isEn ? "Cash" : "Наличные"}</option>
+                      {editSellCurrency !== "KZT" && <option value="cash">{isEn ? "Cash" : "Наличные"}</option>}
                       <option value="transfer">{isEn ? "Transfer" : "Перевод"}</option>
-                      <option value="atm">{isEn ? "ATM" : "Банкомат"}</option>
+                      {editSellCurrency !== "KZT" && <option value="atm">{isEn ? "ATM" : "Банкомат"}</option>}
                     </select>
                     <select className="input vx-in" value={editReceiveMethod} onChange={(e) => setEditReceiveMethod(e.target.value)}>
-                      <option value="cash">{isEn ? "Cash" : "Наличные"}</option>
+                      {editBuyCurrency !== "KZT" && <option value="cash">{isEn ? "Cash" : "Наличные"}</option>}
                       <option value="transfer">{isEn ? "Transfer" : "Перевод"}</option>
-                      <option value="atm">{isEn ? "ATM" : "Банкомат"}</option>
+                      {editBuyCurrency !== "KZT" && <option value="atm">{isEn ? "ATM" : "Банкомат"}</option>}
                     </select>
                   </div>
                   <textarea
