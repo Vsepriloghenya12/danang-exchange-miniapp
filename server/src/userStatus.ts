@@ -1,5 +1,17 @@
 import { USER_STATUS_LABELS_RU, normalizeStatus, type UserStatus } from "./domain/status.js";
 import { findContact, normUsername, type Store } from "./store.js";
+import { readFile } from "node:fs/promises";
+
+const STATUS_ANIMATIONS = {
+  silver: {
+    filename: "IMG_6060.MP4",
+    caption: 'Ваш статус в приложении изменен на "СЕРЕБРО"\nС этого момента при расчёте курса обмена будет применён дополнительный повышающий коэффициент. Спасибо, что остаётесь с нами!',
+  },
+  gold: {
+    filename: "IMG_6061.MP4",
+    caption: 'Ваш статус в приложении изменен на "ЗОЛОТО"\nС этого момента при расчёте курса обмена дополнительный повышающий коэффициент будет ещё больше. Спасибо, что остаётесь с нами!',
+  },
+} as const;
 
 export type StatusChange = { tgId?: number; previous: UserStatus; next: UserStatus };
 
@@ -41,17 +53,36 @@ export async function notifyStatusChange(botToken: string, change: StatusChange 
     state: "skipped" as const,
     message: "Статус сохранён. Уведомление не отправлено: Telegram ID клиента пока неизвестен. Клиенту нужно открыть бота и нажать «Старт».",
   };
-  try {
-    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: "POST",
-      signal: AbortSignal.timeout(10_000),
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        chat_id: change.tgId,
-        text: `Ваш статус в обменнике изменён: «${USER_STATUS_LABELS_RU[change.previous]}» → «${USER_STATUS_LABELS_RU[change.next]}».\nНовый статус уже действует в приложении.`,
-      }),
+  const animation = change.next === "standard" ? null : STATUS_ANIMATIONS[change.next];
+  let body: FormData | string;
+  if (animation) {
+    let bytes: Buffer;
+    try {
+      // Resolves from both server/src and server/dist, independently of cwd.
+      bytes = await readFile(new URL(`../assets/status/${animation.filename}`, import.meta.url));
+    } catch {
+      console.warn("Status notification animation unavailable", { status: change.next });
+      return { state: "failed" as const, message: "Статус сохранён, но не удалось загрузить анимацию для уведомления. Проверь файлы анимаций на сервере." };
+    }
+    body = new FormData();
+    body.append("chat_id", String(change.tgId));
+    body.append("caption", animation.caption);
+    body.append("show_caption_above_media", "true");
+    body.append("animation", new Blob([new Uint8Array(bytes)], { type: "video/mp4" }), animation.filename);
+  } else {
+    body = JSON.stringify({
+      chat_id: change.tgId,
+      text: `Ваш статус в обменнике изменён: «${USER_STATUS_LABELS_RU[change.previous]}» → «${USER_STATUS_LABELS_RU[change.next]}».\nНовый статус уже действует в приложении.`,
     });
-    const data = await response.json() as { ok?: boolean; error_code?: number };
+  }
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/${animation ? "sendAnimation" : "sendMessage"}`, {
+      method: "POST",
+      signal: AbortSignal.timeout(animation ? 20_000 : 10_000),
+      ...(animation ? {} : { headers: { "content-type": "application/json" } }),
+      body,
+    });
+    const data = await response.json() as { ok?: boolean; error_code?: number; description?: string };
     if (response.ok && data.ok) return { state: "sent" as const };
     const code = data.error_code || response.status;
     // Do not log fetch errors/URLs: they can contain the bot token.
@@ -60,7 +91,7 @@ export async function notifyStatusChange(botToken: string, change: StatusChange 
       state: "failed" as const,
       message: code === 401
         ? "Статус сохранён, но Telegram отклонил токен бота. Проверь BOT_TOKEN сервиса, отправляющего уведомления."
-        : code === 403 || code === 400
+        : code === 403 || (code === 400 && /chat not found/i.test(data.description || ""))
           ? "Статус сохранён, но сообщение не доставлено. Клиенту нужно открыть бота, нажать «Старт» и убедиться, что бот не заблокирован."
           : "Статус сохранён, но Telegram не принял уведомление.",
     };

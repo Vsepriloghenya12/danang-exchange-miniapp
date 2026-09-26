@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createHmac } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import express from "express";
 import { EXCHANGE_RATE_PAIRS } from "../webapp/src/domain/exchange.ts";
 import { MARKUP_DIRECTIONS, defaultBonuses } from "../webapp/src/domain/pricing.ts";
@@ -33,7 +33,12 @@ test("API persists all pairs and publishes with bounded Telegram requests", asyn
     assert.ok(String(url).startsWith("https://api.telegram.org/"), "Unexpected external request");
     assert.ok(init?.signal, "Telegram requests must have a timeout");
     const method = String(url).split("/").at(-1)!;
-    const body = typeof init.body === "string" ? JSON.parse(init.body) : init.body;
+    const body = typeof init.body === "string" ? JSON.parse(init.body)
+      : init.body instanceof FormData ? Object.fromEntries(init.body.entries()) : init.body;
+    if (method === "sendAnimation") {
+      assert.ok(init.body instanceof FormData);
+      assert.equal(new Headers(init.headers).get("content-type"), null, "fetch must generate the multipart boundary");
+    }
     calls.push({ method, body });
     if (mode === "timeout") throw new DOMException("Timed out", "TimeoutError");
     if (mode === "unauthorized") return Response.json({ ok: false, error_code: 401, description: "Unauthorized" }, { status: 401 });
@@ -50,6 +55,28 @@ test("API persists all pairs and publishes with bounded Telegram requests", asyn
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     return { status: response.status, data: await response.json() as any };
+  };
+  const assertStatusAnimation = async (status: "silver" | "gold") => {
+    const call = calls.at(-1)!;
+    assert.equal(call.method, "sendAnimation");
+    assert.equal(call.body.chat_id, "123");
+    assert.equal(call.body.show_caption_above_media, "true");
+    const file = call.body.animation as File;
+    assert.equal(file.type, "video/mp4");
+    const expected = status === "silver" ? {
+      filename: "IMG_6060.MP4",
+      caption: 'Ваш статус в приложении изменен на "СЕРЕБРО"\nС этого момента при расчёте курса обмена будет применён дополнительный повышающий коэффициент. Спасибо, что остаётесь с нами!',
+    } : {
+      filename: "IMG_6061.MP4",
+      caption: 'Ваш статус в приложении изменен на "ЗОЛОТО"\nС этого момента при расчёте курса обмена дополнительный повышающий коэффициент будет ещё больше. Спасибо, что остаётесь с нами!',
+    };
+    assert.equal(file.name, expected.filename);
+    assert.equal(call.body.caption, expected.caption);
+    const { readFile } = await import("node:fs/promises");
+    const bundledFile = await readFile(new URL(`../server/assets/status/${expected.filename}`, import.meta.url));
+    const hash = (data: Uint8Array) => createHash("sha256").update(data).digest("hex");
+    assert.equal(hash(new Uint8Array(await file.arrayBuffer())), hash(bundledFile));
+    assert.ok(file.size > 0);
   };
 
   const rates = Object.fromEntries(EXCHANGE_RATE_PAIRS.filter(p => p.mode === "vnd").map(p => [p.base, { buy_vnd: 100.25, sell_vnd: 110.75 }]));
@@ -163,12 +190,12 @@ test("API persists all pairs and publishes with bounded Telegram requests", asyn
     ]);
     assert.deepEqual(results.map(r => r.data.notification.state).sort(), ["sent", "unchanged"]);
     assert.equal(calls.length, before + 1);
-    assert.equal(calls.at(-1)?.body.chat_id, 123);
-    assert.match(calls.at(-1)?.body.text, /«стандарт» → «золото»/);
+    await assertStatusAnimation("gold");
     assert.equal((await readStore()).users["123"].status, "gold");
     before = calls.length;
     assert.equal((await api("/admin/users/123/status", { status: "standard" })).data.notification.state, "sent");
     assert.equal(calls.length, before + 1);
+    assert.equal(calls.at(-1)?.method, "sendMessage");
     assert.match(calls.at(-1)?.body.text, /«золото» → «стандарт»/);
   });
 
@@ -179,7 +206,7 @@ test("API persists all pairs and publishes with bounded Telegram requests", asyn
     const changed = await api("/admin/contacts/upsert", { username: "@CLIENT_ONE", status: "silver" });
     assert.equal(changed.data.notification.state, "sent");
     assert.equal(changed.data.contact.tg_id, 123);
-    assert.equal(calls.at(-1)?.body.chat_id, 123);
+    await assertStatusAnimation("silver");
     assert.equal((await readStore()).users["123"].status, "silver");
     const before = calls.length;
     await api("/admin/contacts/upsert", { username: "client_one", status: "silver", fullName: "New name" });
@@ -237,7 +264,7 @@ test("API persists all pairs and publishes with bounded Telegram requests", asyn
       await command(1);
       await command(2);
       assert.equal(calls.length, before + 1);
-      assert.equal(calls.at(-1)?.body.chat_id, 123);
+      await assertStatusAnimation("gold");
       assert.equal(replies.length, 2);
       assert.match(replies[0].text, /отправлено уведомление/);
       assert.match(replies[1].text, /не изменился/);
