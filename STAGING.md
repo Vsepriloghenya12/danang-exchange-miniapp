@@ -3,6 +3,22 @@
 Ветка для нового функционала: `codex/new-features`, создана от `main` (`c4408c8`).
 Тестовый бот: [@testcashalot_bot](https://t.me/testcashalot_bot).
 
+## Настроенное окружение
+
+- Проект: «обменник», аккаунт Cash a Lot.
+- [Окружение staging](https://railway.com/project/d17a972f-f605-4d88-a1f0-c5cd911ce2d1?environmentId=0f1345a1-eaec-4a5b-ac62-1b256c0de3b1).
+- Сервис: `cashalot-test`, ветка `codex/new-features` с автоматическим развёртыванием.
+- Адрес: https://cashalot-test-staging.up.railway.app.
+- Отдельная база: `Postgres-ZW5_` в `staging`.
+- `DATABASE_URL` ссылается на `${{Postgres-ZW5_.DATABASE_URL}}`.
+- Файлы приложения сохраняются на отдельном томе в `/data`.
+
+Токен тестового бота задаётся в `BOT_TOKEN` через Railway Variables.
+Для доступа владельца указать его числовой Telegram ID в `OWNER_TG_IDS`.
+Для отдельного входа через `/admin` задать секрет `ADMIN_WEB_KEY`.
+Для проверки доставки заявок и публикации курсов задать тестовые
+`REQUESTS_GROUP_CHAT_ID` и `GROUP_CHAT_ID`.
+
 ## Подключение
 
 1. Сохранить токен бота `@testcashalot_bot` из https://t.me/BotFather
@@ -10,8 +26,10 @@
 2. Ветка `codex/new-features` опубликована в GitHub и готова к подключению.
 3. В проекте Railway создать пустое окружение `staging` и сервис из этого
    репозитория с веткой `codex/new-features`. Использовать корень репозитория.
-4. Задать команду сборки `npm ci --include=dev && npm run build`, команду
+4. Использовать сборщик Railpack, команду сборки `npm run build`, команду
    запуска `npm start`, проверку доступности `/api/health`.
+   Railpack устанавливает зависимости на отдельном шаге; повторный `npm ci`
+   в команде сборки конфликтует с подключённым кешем Vite (`EBUSY`).
 5. Добавить отдельный PostgreSQL в `staging`. Переменная `DATABASE_URL`
    приложения должна ссылаться на эту тестовую базу.
 6. Создать для тестового сервиса HTTPS-домен. Задать его в `WEBAPP_URL`
