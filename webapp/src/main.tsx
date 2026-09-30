@@ -48,26 +48,40 @@ try {
         !["button", "submit", "reset", "checkbox", "radio", "range", "file", "color", "hidden"].includes(el.type)) ||
       (el instanceof HTMLTextAreaElement && !el.readOnly && !el.disabled);
     const keyboard = new KeyboardState(keyboardHeight());
-    const renderKeyboard = () => document.documentElement.classList.toggle("vx-keyboard-open", keyboard.open);
+    let formMotion: Animation | undefined;
+    const renderKeyboard = () => {
+      const root = document.documentElement;
+      if (root.classList.contains("vx-keyboard-open") === keyboard.open) return;
+      const form = document.querySelector<HTMLElement>(".cl-app .mx-homeCalcSection");
+      const before = form?.getBoundingClientRect().top;
+      formMotion?.cancel();
+      root.classList.toggle("vx-keyboard-open", keyboard.open);
+      if (!keyboard.open) window.dispatchEvent(new Event("cashalot:keyboard-closed"));
+      if (form && before !== undefined && window.matchMedia("(max-width: 600px), (pointer: coarse)").matches && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        const distance = before - form.getBoundingClientRect().top;
+        formMotion = form.animate([{ transform: `translateY(${distance}px)` }, { transform: "translateY(0)" }],
+          { duration: 320, easing: "cubic-bezier(.22,1,.36,1)" });
+      }
+    };
 
     const resetViewportState = () => {
       keyboard.viewport(keyboardHeight(), isTextControl(document.activeElement));
       renderKeyboard();
       lockViewport();
       setVh();
-      try {
-        window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
-      } catch {
-        window.scrollTo(0, 0);
-      }
     };
 
     lockViewport();
     setVh();
 
-    window.addEventListener("resize", resetViewportState, { passive: true } as any);
-    window.addEventListener("orientationchange", resetViewportState, { passive: true } as any);
-    window.visualViewport?.addEventListener("resize", resetViewportState, { passive: true } as any);
+    let viewportFrame = 0;
+    const scheduleViewportUpdate = () => {
+      if (viewportFrame) return;
+      viewportFrame = requestAnimationFrame(() => { viewportFrame = 0; resetViewportState(); });
+    };
+    window.addEventListener("resize", scheduleViewportUpdate, { passive: true });
+    window.addEventListener("orientationchange", scheduleViewportUpdate, { passive: true });
+    window.visualViewport?.addEventListener("resize", scheduleViewportUpdate, { passive: true });
 
     const preventGestureZoom = (ev: Event) => {
       ev.preventDefault();
@@ -94,8 +108,7 @@ try {
       keyboard.focus(keyboardHeight());
       renderKeyboard();
       lockViewport();
-      window.setTimeout(resetViewportState, 24);
-      window.setTimeout(resetViewportState, 180);
+      scheduleViewportUpdate();
     };
 
     const handleFocusOut = () => {
@@ -106,9 +119,6 @@ try {
           renderKeyboard();
         }
       }, 220);
-      window.setTimeout(resetViewportState, 24);
-      window.setTimeout(resetViewportState, 220);
-      window.setTimeout(resetViewportState, 420);
     };
 
     document.addEventListener("focusin", handleFocusIn, true);
@@ -120,9 +130,9 @@ try {
 
     // Telegram-specific viewport updates
     if (tg && typeof tg.onEvent === "function") {
-      tg.onEvent("viewportChanged", resetViewportState);
-      tg.onEvent("safeAreaChanged", resetViewportState);
-      tg.onEvent("contentSafeAreaChanged", resetViewportState);
+      tg.onEvent("viewportChanged", scheduleViewportUpdate);
+      tg.onEvent("safeAreaChanged", scheduleViewportUpdate);
+      tg.onEvent("contentSafeAreaChanged", scheduleViewportUpdate);
     }
   }
 } catch {

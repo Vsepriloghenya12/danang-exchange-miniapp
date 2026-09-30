@@ -482,6 +482,10 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     if (!vv) return;
 
     const updateInset = () => {
+      if (document.documentElement.classList.contains("vx-keyboard-open") && window.matchMedia("(max-width: 600px), (pointer: coarse)").matches) {
+        setCommentKeyboardInset(0);
+        return;
+      }
       if (document.activeElement !== commentFieldRef.current) {
         setCommentKeyboardInset(0);
         return;
@@ -1363,7 +1367,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
             ) : null}
           </div>
         ) : (
-          <div style={{ height: 13 }} />
+          <div className="cl-rateSpacer" style={{ height: 13 }} />
         )}
 
         {rateBreakdown ? <div className="cx-bonusLine">{rateBreakdown}</div> : null}
@@ -1452,6 +1456,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                     aria-label={isEn ? "Address, details or comment" : "Адрес, реквизиты или комментарий"}
                     value={requestComment}
                     onFocus={() => {
+                      if (document.documentElement.classList.contains("vx-keyboard-open") && window.matchMedia("(max-width: 600px), (pointer: coarse)").matches) return;
                       window.setTimeout(() => {
                         commentComposerRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
                       }, 140);

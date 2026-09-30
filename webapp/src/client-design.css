@@ -47,6 +47,7 @@ html:has(.cl-app), body.vx-body-client, body.vx-body-client #root { background: 
 .cl-app.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calc { gap: 8px !important; }
 .cl-app .cx-header { height: 48px; margin-bottom: 4px; }
 .cl-headerStage { position: relative; width: 100%; isolation: isolate; }
+.cl-headerContent { display: flow-root; }
 .cl-brand { display: flex; align-items: center; gap: 9px; color: var(--cl-ink); }
 .cl-brand > span { font-family: "Circular Std", "Manrope", sans-serif; font-size: 25px; font-weight: 700; letter-spacing: -1.1px; white-space: nowrap; }
 .cl-brandDot { color: #b59200; }
@@ -178,20 +179,32 @@ html[data-theme="dark"] .cl-app .cx-methodRowChips .cx-methodBtn.is-active { col
 .cl-app .cx-navBtn { border-radius: 12px; gap: 4px; padding: 5px 4px; font-size: 10px; font-weight: 600; background: transparent; color: var(--cl-muted); border: 0; }
 /* Hide before the mobile viewport shrinks so the menu cannot ride above the keyboard. */
 @media (max-width: 600px), (pointer: coarse) {
-  .cl-headerStage .cx-header { position: relative; }
-  .cl-headerStage .cl-brand { position: relative; z-index: 2; flex-shrink: 0; transform-origin: left center; transform: translate3d(0,0,0) scale(1); transition: transform .38s cubic-bezier(.22,1,.36,1); }
+  .cl-headerStage { height: var(--header-rest-height, auto); }
+  .cl-app .cl-headerStage .cx-header { position: relative; height: var(--header-row-height, 48px); }
+  .cl-headerStage .cl-brand { position: relative; z-index: 2; flex-shrink: 0; transform-origin: left center; transform: translate3d(0,0,0) scale(1); transition: transform .32s cubic-bezier(.22,1,.36,1); }
   .cl-headerStage :is(.cx-headerSide, .cl-serviceRow, .cx-segment), .cl-app .cl-hoursNote {
     transform-origin: center top;
-    transform: perspective(600px) translateZ(0) translateY(0);
-    transition: transform .3s cubic-bezier(.22,1,.36,1), opacity .22s ease, filter .3s ease, visibility 0s;
+    transform: translate3d(0,0,0) scale(1);
+    transition: transform .26s cubic-bezier(.22,1,.36,1), opacity .18s ease, visibility 0s;
   }
   html.vx-keyboard-open .cl-headerStage .cl-brand { transform: translate3d(var(--brand-forward-x,0px), var(--brand-forward-y,28px), 0) scale(var(--brand-forward-scale,1.6)); }
   html.vx-keyboard-open .cl-headerStage :is(.cx-headerSide, .cl-serviceRow, .cx-segment),
   html.vx-keyboard-open .cl-app .cl-hoursNote {
-    transform: perspective(600px) translateZ(-130px) translateY(-12px);
-    opacity: 0; filter: blur(2px); visibility: hidden; pointer-events: none;
-    transition-delay: 0s, .04s, 0s, .3s;
+    transform: translate3d(0,-8px,0) scale(.88);
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition-delay: 0s, 0s, .26s;
   }
+  html.vx-keyboard-open .cl-app.theme-client.vx-page.cx-app.mx-homePage { padding-top: max(6px, env(safe-area-inset-top, 0px)); padding-bottom: 8px; }
+  html.vx-keyboard-open .cl-headerStage { height: 72px; }
+  html.vx-keyboard-open .cl-app .cx-calc > .vx-help,
+  html.vx-keyboard-open .cl-app :is(.cl-hoursNote, .cx-rateNote, .cl-rateSpacer, .cx-bonusLine, .cx-methodRow, .cx-rateCard, .cx-consent) { display: none; }
+  html.vx-keyboard-open .cl-app .cx-amountCards > .cx-amtCard { height: 104px; padding: 8px 15px; }
+  html.vx-keyboard-open .cl-app .vx-requestComposer { position: static !important; bottom: auto !important; transform: none; margin-top: 8px; }
+  html.vx-keyboard-open .cl-app .cx-calcSide > .vx-sp12 { display: none; }
+  html.vx-keyboard-open .cl-app .vx-requestComposer > .vx-sp12 { height: 8px; }
+  html.vx-keyboard-open .cl-app .cx-cta { height: 44px; }
+  html.vx-keyboard-open .cl-app .cl-commentRow { min-height: 36px; }
+  html.vx-keyboard-open .cl-app .cx-calc .cl-commentRow textarea.vx-requestCommentInput { height: 38px; min-height: 38px; max-height: 38px; overflow-y: auto; }
   html.vx-keyboard-open .cl-app .cx-nav.mx-bottomNav {
     visibility: hidden;
     opacity: 0;
