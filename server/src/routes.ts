@@ -7,6 +7,7 @@ import { listCanonicalBankIcons, normalizeBankIcons, normalizeContactBanks } fro
 import { USER_STATUS_LABELS_RU, type UserStatus } from "./domain/status.js";
 import { BONUS_CURRENCIES, MARKUP_DIRECTION_KEYS, directionKey, type CrossRates, type PairMarkup } from "./domain/exchange.js";
 import { formatAmount } from "./format.js";
+import { activitySession, clientActivity, loadActivityReport, recordActivity } from "./activity.js";
 import { changeRequestState, ownerReferralReport, prepareReferralRequest, recordBonusPayout, referralSummary, REFERRAL_TERMS } from "./referrals.js";
 import {
   readStore,
@@ -289,6 +290,18 @@ export function createApiRouter(opts: {
 
   router.get("/health", async (_req, res) => res.json({ ok: true }));
 
+  router.get("/admin/activity", async (req, res) => {
+    try {
+      const { isOwner } = await requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      const data = await loadActivityReport(req.query.from, req.query.to, [...(opts.ownerTgIds || []), ...(opts.ownerTgId ? [opts.ownerTgId] : [])]);
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ ok: true, ...data });
+    } catch (e: any) {
+      return res.status(e?.message === "bad_activity_range" ? 400 : 401).json({ ok: false, error: e?.message || "activity_failed" });
+    }
+  });
+
   router.get("/referrals", async (req, res) => {
     try {
       const { user, blocked } = await requireAuth(req);
@@ -336,29 +349,11 @@ export function createApiRouter(opts: {
       const { user, blocked } = await requireAuth(req);
       if (blocked) return res.status(403).json({ ok: false, error: "blocked" });
 
-      const body: any = req.body || {};
-      const name = String(body.name || body.event || "").trim();
-      const sessionId = String(body.sessionId || body.session_id || "").trim() || undefined;
-      const props = typeof body.props === "object" && body.props ? body.props : undefined;
-      const pathStr = String(body.path || "").trim() || undefined;
-      const platform = String(body.platform || "").trim() || undefined;
-      const appVersion = String(body.appVersion || body.app_version || "").trim() || undefined;
-
-      if (!name) return res.status(400).json({ ok: false, error: "missing_name" });
-
-      if (HAS_DATABASE) {
-        await ensureSchema();
-        await getPool().query(
-          "INSERT INTO app_events (tg_id, session_id, event_name, props, app_version, platform, path) VALUES ($1,$2,$3,$4,$5,$6,$7)",
-          [user.id, sessionId || null, name, props || null, appVersion || null, platform || null, pathStr || null]
-        );
-      } else {
-        console.log("[EVENT]", { tg_id: user.id, name, sessionId, platform, appVersion, path: pathStr, props });
-      }
+      await recordActivity(clientActivity(user.id, req.body));
 
       return res.json({ ok: true });
     } catch (e: any) {
-      return res.status(401).json({ ok: false, error: e?.message || "unauthorized" });
+      return res.status(String(e?.message).startsWith("bad_event") ? 400 : 401).json({ ok: false, error: e?.message || "unauthorized" });
     }
   });
 
@@ -2051,6 +2046,7 @@ router.post("/admin/faq", async (req, res) => {
 
       const request: StoredRequest = {
         id: requestId,
+        activity_session_id: activitySession(p.sessionId),
         // By default заявки сразу "в работе"
         state: "in_progress",
         sellCurrency,

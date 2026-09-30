@@ -507,9 +507,10 @@ export async function apiEvent(
   const r = await fetch("/api/events", {
     method: "POST",
     headers: { "content-type": "application/json", "x-telegram-init-data": initData },
-    body: JSON.stringify(payload)
-  });
-  return readJsonSafe(r);
+    body: JSON.stringify({ ...payload, eventId: typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `e_${Date.now()}_${Math.random().toString(16).slice(2)}` }),
+    keepalive: true
+  }).catch(() => null);
+  return r ? readJsonSafe(r) : { ok: false };
 }
 
 // --------------------

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getTg } from "./lib/telegram";
 import { apiAuth, apiEvent, apiWarmup } from "./lib/api";
+import { activitySessionId, trackActivity } from "./lib/activity";
 import type { UserStatus } from "./lib/types";
 
 import RatesTab from "./tabs/RatesTab";
@@ -425,14 +426,23 @@ export default function App() {
   // IMPORTANT: must be declared before any hooks that reference it (avoid TDZ runtime crash).
   const isDemo = useMemo(() => new URLSearchParams(window.location.search).get("demo") === "1", []);
 
-  const sessionId = useMemo(() => {
-    try {
-      // session per app open
-      return (crypto as any).randomUUID ? (crypto as any).randomUUID() : `s_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    } catch {
-      return `s_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    }
-  }, []);
+  const sessionId = useMemo(activitySessionId, []);
+  const ratesCardRef = useRef<HTMLDivElement>(null);
+  const viewedRates = useRef(new Set<string>());
+  useEffect(() => {
+    const element = ratesCardRef.current;
+    if (!element || !me.ok || !me.initData || isDemo || screen !== "home" || homeSection !== "calc") return;
+    const surface = courseExpanded ? "all" : "preview";
+    if (viewedRates.current.has(surface)) return;
+    const observer = new IntersectionObserver(entries => {
+      if (!entries.some(e => e.isIntersecting)) return;
+      viewedRates.current.add(surface);
+      trackActivity(me.initData, "rates_view", { surface });
+      observer.disconnect();
+    }, { threshold: 0.25 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [me.ok, me.initData, isDemo, screen, homeSection, courseExpanded]);
 
   const didTrackOpen = useRef(false);
   useEffect(() => {
@@ -757,7 +767,7 @@ ${msg}`);
                     />
                   </div>
 
-                  <div className="cx-card cx-rateCard" style={{ marginTop: 4 }}>
+                  <div ref={ratesCardRef} className="cx-card cx-rateCard" style={{ marginTop: 4 }}>
                     <div className="cx-rateCardHead">
                       <span className="cx-rateCardTitle">{isEn ? "Rates today" : "Курс сегодня"}</span>
                       <div className="cx-rateCardLinks">

@@ -7,6 +7,7 @@ import { defaultBonuses, defaultGFormulas } from "./domain/exchange.js";
 import type { RequestState, UserStatus } from "./domain/status.js";
 import { normalizeStatus, parseStatusInput } from "./domain/status.js";
 import { attachReferral, type BonusEntry, type ReferralQuote } from "./referrals.js";
+import type { ActivityEvent } from "./activity.js";
 
 export type { BonusesConfig, BonusesTier, CrossRates, GFormula, PairMarkup, Rates } from "./domain/exchange.js";
 export { defaultBonuses, defaultGFormulas } from "./domain/exchange.js";
@@ -72,6 +73,7 @@ export type StoredUser = {
 
 export type Store = {
   config: {
+    activityTrackingSince?: string;
     groupChatId?: number;
     publishChatId?: string | number;
     // Separate group for incoming client requests (can differ from rates publishing group)
@@ -90,6 +92,7 @@ export type Store = {
   };
   users: Record<string, StoredUser>;
   bonusLedger: BonusEntry[];
+  activityEvents: ActivityEvent[];
   ratesByDate: Record<
     string,
     {
@@ -145,6 +148,7 @@ export type StoredReview = {
 };
 
 export type StoredRequest = {
+  activity_session_id?: string;
   referral_quote?: ReferralQuote;
   referral_usd_cents?: number;
   bonus_balance_cents?: number;
@@ -180,6 +184,7 @@ const STORE_PATH =
 function defaultStore(): Store {
   return {
     config: {
+      activityTrackingSince: new Date().toISOString(),
       bonuses: defaultBonuses(),
       adminTgIds: [],
       blacklistUsernames: [],
@@ -190,6 +195,7 @@ function defaultStore(): Store {
     },
     users: {},
     bonusLedger: [],
+    activityEvents: [],
     ratesByDate: {},
     requests: [],
     reviews: [],
@@ -211,6 +217,7 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
     config: { ...(parsed?.config || {}) },
     users: { ...(parsed?.users || {}) },
     bonusLedger: Array.isArray(parsed?.bonusLedger) ? parsed.bonusLedger : [],
+    activityEvents: Array.isArray(parsed?.activityEvents) ? parsed.activityEvents : [],
     ratesByDate: { ...(parsed?.ratesByDate || {}) },
     requests: Array.isArray(parsed?.requests) ? (parsed.requests as any) : [],
     reviews: Array.isArray(parsed?.reviews) ? (parsed.reviews as any) : [],
@@ -650,6 +657,7 @@ export async function upsertUserFromTelegram(u: {
   const { result } = await mutateStore((store) => {
     const key = String(u.id);
     const now = new Date().toISOString();
+    store.config.activityTrackingSince ||= now;
 
     const contact = findContact(store, { tg_id: u.id, username: u.username });
 

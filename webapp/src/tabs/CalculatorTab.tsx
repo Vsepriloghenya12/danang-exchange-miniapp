@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { activitySessionId, trackActivity } from "../lib/activity";
 import {
   amountMaxDecimals,
   fmtAmount,
@@ -390,6 +391,35 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   const sellInputRef = useRef<HTMLInputElement | null>(null);
   const buyInputRef = useRef<HTMLInputElement | null>(null);
   const pendingCaretRef = useRef<PendingCaret | null>(null);
+
+  const activityToken = mode === "client" ? me?.initData || "" : "";
+  const amountActivity = useRef<{ pending?: Record<string, string | number>; sent?: string; timer?: ReturnType<typeof setTimeout> }>({});
+  function flushAmountActivity() {
+    const state = amountActivity.current;
+    clearTimeout(state.timer);
+    if (!state.pending || JSON.stringify(state.pending) === state.sent) return;
+    trackActivity(activityToken, "calculator_amount", state.pending);
+    state.sent = JSON.stringify(state.pending);
+    state.pending = undefined;
+  }
+  function recordAmountInput(field: "sell" | "buy", currency: Currency, amount: number) {
+    if (!activityToken || activityToken === "demo" || !Number.isFinite(amount) || amount <= 0) return;
+    const state = amountActivity.current;
+    state.pending = { field, currency, amount, sellCurrency, buyCurrency };
+    clearTimeout(state.timer);
+    if (!state.sent) flushAmountActivity();
+    else state.timer = setTimeout(flushAmountActivity, 700);
+  }
+  useEffect(() => {
+    const flushOnHide = () => { if (document.visibilityState === "hidden") flushAmountActivity(); };
+    document.addEventListener("visibilitychange", flushOnHide);
+    window.addEventListener("pagehide", flushAmountActivity);
+    return () => {
+      flushAmountActivity();
+      document.removeEventListener("visibilitychange", flushOnHide);
+      window.removeEventListener("pagehide", flushAmountActivity);
+    };
+  }, [activityToken]);
 
   const [payMethod, setPayMethod] = useState<SelectedPayMethod>(null);
   const [receiveMethod, setReceiveMethod] = useState<SelectedReceiveMethod>(null);
@@ -985,6 +1015,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     }
 
     const payload = {
+      sessionId: activitySessionId(),
       sellCurrency,
       buyCurrency,
       sellAmount,
@@ -1056,6 +1087,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   }
 
   async function sendRequest() {
+    flushAmountActivity();
+    trackActivity(activityToken, "request_submit_click", { sellCurrency, buyCurrency });
     if (!payMethod || !receiveMethod) {
       tg?.HapticFeedback?.notificationOccurred?.("error");
       tg?.showAlert?.(
@@ -1194,8 +1227,10 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                   const next = formatted.text;
                   pendingCaretRef.current = makePendingCaret("sell", e.currentTarget, formatted);
                   sellRawRef.current = next.trim() ? parseAmount(sellCurrency, next) : null;
+                  recordAmountInput("sell", sellCurrency, parseAmount(sellCurrency, next));
                   setSellText(next);
                 }}
+                onBlur={flushAmountActivity}
               />
             </div>
           </div>
@@ -1240,8 +1275,10 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                   const next = formatted.text;
                   pendingCaretRef.current = makePendingCaret("buy", e.currentTarget, formatted);
                   buyRawRef.current = next.trim() ? parseAmount(buyCurrency, next) : null;
+                  recordAmountInput("buy", buyCurrency, parseAmount(buyCurrency, next));
                   setBuyText(next);
                 }}
+                onBlur={flushAmountActivity}
               />
             </div>
           </div>

@@ -57,6 +57,8 @@ export async function ensureSchema() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_app_events_ts ON app_events(ts);`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_app_events_event ON app_events(event_name);`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_app_events_tg ON app_events(tg_id);`);
+  await pool.query(`ALTER TABLE app_events ADD COLUMN IF NOT EXISTS event_key TEXT;`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_app_events_key ON app_events(event_key) WHERE event_key IS NOT NULL;`);
 
   _inited = true;
 }

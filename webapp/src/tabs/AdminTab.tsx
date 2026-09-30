@@ -683,6 +683,15 @@ export default function AdminTab({
           <RateRow code="THB" buy={thbBuy} sell={thbSell} setBuy={setThbBuy} setSell={setThbSell} />
           <RateRow code="KZT" buy={kztBuy} sell={kztSell} setBuy={setKztBuy} setSell={setKztSell} />
 
+          <div className="vx-mt10">
+            <div className="row vx-rowWrap vx-gap8">
+              <button className="btn" onClick={saveRates}>Сохранить</button>
+              <button className="btn" onClick={clearRates}>Очистить</button>
+              <button className="btn" onClick={loadYesterdayRates}>Загрузить вчерашний</button>
+              <button className="btn" onClick={loadRates}>Загрузить текущий</button>
+            </div>
+          </div>
+
           <div className="hr" />
           <div className="small">
             Кросс-курсы без VND (BUY/SELL) — необязательно. Пустые поля — курс считается автоматически по G × множитель
@@ -702,15 +711,6 @@ export default function AdminTab({
               sellPlaceholder={autoCrossPlaceholder(k, "sell")}
             />
           ))}
-
-          <div className="vx-mt10">
-            <div className="row vx-rowWrap vx-gap8">
-              <button className="btn" onClick={saveRates}>Сохранить</button>
-              <button className="btn" onClick={clearRates}>Очистить</button>
-              <button className="btn" onClick={loadYesterdayRates}>Загрузить вчерашний</button>
-              <button className="btn" onClick={loadRates}>Загрузить текущий</button>
-            </div>
-          </div>
 
           <div className="hr" />
           <div className="h3">Итоговый курс с надбавками</div>

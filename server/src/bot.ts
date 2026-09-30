@@ -1,6 +1,7 @@
 import { Telegraf, Markup } from "telegraf";
 import { randomUUID } from "node:crypto";
 import { prepareReferralRequest } from "./referrals.js";
+import { activitySession, recordActivity } from "./activity.js";
 import { USER_STATUS_LABELS_RU, type UserStatus } from "./domain/status.js";
 import { setUserStatus, notifyStatusChange } from "./userStatus.js";
 import { formatAmount } from "./format.js";
@@ -90,6 +91,10 @@ export function createBot(opts: {
 
   bot.start(async (ctx) => {
     if (ctx.from) await upsertUserFromTelegram(ctx.from, ctx.chat?.type === "private" ? ctx.startPayload : undefined);
+    if (ctx.from && ctx.chat?.type === "private") {
+      try { await recordActivity({ id: `bot_start:${ctx.update.update_id}`, tg_id: ctx.from.id, ts: new Date().toISOString(), name: "bot_start" }); }
+      catch { console.error("Failed to record bot start activity"); }
+    }
 
     const webappUrl = buildWebAppOpenUrl(opts.webappUrl || "");
 
@@ -293,6 +298,7 @@ export function createBot(opts: {
       const id = randomUUID();
       const reqObj: StoredRequest = {
         id,
+        activity_session_id: activitySession(payload.sessionId),
         state: "in_progress",
         sellCurrency: sellCur as any,
         buyCurrency: buyCur as any,
