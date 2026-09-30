@@ -60,9 +60,11 @@ export default function ReferralsMenu({ initData, isEn, onClose }: { initData: s
         {demo && <p className="rf-muted">{isEn ? "Preview. Open the app in Telegram for your personal link." : "Предпросмотр. Для личной ссылки откройте приложение в Telegram."}</p>}
         {data.referralRejected && <p>{isEn ? "This invitation exceeded the daily limit. A welcome bonus is not available." : "Для этого приглашения превышен дневной лимит. Приветственный бонус недоступен."}</p>}
         {page === "invite" && <>
+          <div className="cl-referralOffers">
           <div className="rf-offer"><span>{isEn ? "For your friend" : "Другу"}</span><strong>50 000 VND</strong><p>{isEn ? "Credited in USD after their first exchange" : "В USD на бонусный счёт после первого обмена"}</p></div>
           <div className="rf-offer rf-offer-secondary"><span>{isEn ? "For you" : "Вам"}</span><strong>0,5%</strong><p>{isEn ? "Of the amount your friend exchanges for the first time" : "От суммы первого обмена друга"}</p></div>
-          <button className="btn rf-share" disabled={!data.link} onClick={share}>{isEn ? "Share in Telegram" : "Пригласить друга в Telegram"}</button>
+          </div>
+          <button className="rf-share" disabled={!data.link} onClick={share}><svg viewBox="0 0 24 24" fill="none" width="20" height="20" aria-hidden="true"><path d="m21 3-7 18-4-7-7-4L21 3Zm0 0L10 14" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" /></svg>{isEn ? "Share in Telegram" : "Пригласить друга в Telegram"}</button>
           {data.link && <div className="rf-link"><input aria-label={isEn ? "Your invitation link" : "Ваша ссылка приглашения"} readOnly value={data.link} onFocus={e => e.currentTarget.select()} /><button className="btn" onClick={copy}>{copied ? (isEn ? "Copied" : "Скопировано") : (isEn ? "Copy" : "Копировать")}</button></div>}
           {!data.link && !demo && <p>{isEn ? "The bot link is unavailable. Please try again later." : "Ссылка бота пока недоступна. Попробуйте обновить страницу позже."}</p>}
           <p className="rf-muted">{isEn ? "For new clients only. Bonuses are credited once, after the manager confirms the completed exchange and receipt of funds. Up to 20 new invitations per day (UTC)." : "Для новых клиентов. Бонусы начисляются один раз, когда менеджер подтвердит завершение обмена и получение денег. До 20 новых приглашений в сутки (UTC)."}</p>

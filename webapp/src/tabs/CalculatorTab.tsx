@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { createPortal } from "react-dom";
 import { activitySessionId, trackActivity } from "../lib/activity";
 import WhaleMark from "../components/WhaleMark";
+import CurrencyPicker from "../components/CurrencyPicker";
 import {
   amountMaxDecimals,
   fmtAmount,
@@ -1206,7 +1207,10 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
               ) : null}
             </div>
             <div className="cx-amtRow">
-              <span className="cx-curChip">
+              {!isAdminMode ? <CurrencyPicker value={sellCurrency} side="sell" lang={lang} onChange={currency => {
+                preserveSwappedValuesRef.current = false;
+                setSellCurrency(currency);
+              }} /> : <span className="cx-curChip">
                 <span className="cx-curCircle" data-cur={sellCurrency} aria-hidden="true">{currencySymbol(sellCurrency)}</span>
                 <span className="cx-curCode">{sellCurrency}</span>
                 <ChevronDownIcon />
@@ -1225,7 +1229,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                     </option>
                   ))}
                 </select>
-              </span>
+              </span>}
 
               <input
                 ref={sellInputRef}
@@ -1250,11 +1254,17 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
           </div>
 
           <div className="cx-amtCard cx-amtCardGet">
+            {!isAdminMode && <svg className="cl-oceanLines" viewBox="0 0 360 120" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M140 130C175 92 169 30 226 22S305 60 372 0M154 140C189 102 183 40 240 32S319 70 386 10M168 150C203 112 197 50 254 42S333 80 400 20M182 160C217 122 211 60 268 52S347 90 414 30M196 170C231 132 225 70 282 62S361 100 428 40" />
+            </svg>}
             <div className="cx-amtLabel">
               <span>{isEn ? "You get" : "Вы получаете"}</span>
             </div>
             <div className="cx-amtRow">
-              <span className="cx-curChip">
+              {!isAdminMode ? <CurrencyPicker value={buyCurrency} side="buy" lang={lang} onChange={currency => {
+                preserveSwappedValuesRef.current = false;
+                setBuyCurrency(currency);
+              }} /> : <span className="cx-curChip">
                 <span className="cx-curCircle" data-cur={buyCurrency} aria-hidden="true">{currencySymbol(buyCurrency)}</span>
                 <span className="cx-curCode">{buyCurrency}</span>
                 <ChevronDownIcon />
@@ -1273,7 +1283,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                     </option>
                   ))}
                 </select>
-              </span>
+              </span>}
 
               <input
                 ref={buyInputRef}

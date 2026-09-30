@@ -20,6 +20,7 @@ import OwnerPortal from "./admin/OwnerPortal";
 import ReferralsMenu from "./tabs/ReferralsMenu";
 import WhaleMark from "./components/WhaleMark";
 import Sheet from "./components/Sheet";
+import StatusSheet from "./components/StatusSheet";
 
 type Me = {
   ok: boolean;
@@ -362,6 +363,7 @@ export default function App() {
   const [screen, setScreen] = useState<ScreenKey>("home");
   const [homeSection, setHomeSection] = useState<HomeSection>("calc");
   const [courseExpanded, setCourseExpanded] = useState(false);
+  const [showStatus, setShowStatus] = useState(false);
   const [visited, setVisited] = useState<Record<string, boolean>>({ home: true });
   const homeCalcRef = useRef<HTMLDivElement | null>(null);
 
@@ -560,40 +562,6 @@ export default function App() {
     setScreen(next);
   };
 
-  const showStatusInfo = () => {
-    const st = normalizeStatus(me.status);
-    const title = isEn
-      ? `Your status: ${st === "gold" ? "Gold" : st === "silver" ? "Silver" : "Standard"}`
-      : `Ваш статус: ${statusTitle(st)}`;
-    const msg = isEn
-      ? st === "gold"
-        ? "Your exchange rate is even better."
-        : st === "silver"
-          ? "You have an improved rate."
-          : "• Standard conditions\n• All app functions are available"
-      : st === "gold"
-        ? "Курс стал ещё лучше."
-        : st === "silver"
-          ? "Повышенный курс."
-          : "• Базовые условия\n• Все функции приложения доступны";
-
-    if (tg?.showPopup) {
-      tg.showPopup({
-        title,
-        message: msg,
-        buttons: [{ type: "close", text: isEn ? "OK" : "Ок" }],
-      });
-    } else if (tg?.showAlert) {
-      tg.showAlert(`${title}
-
-${msg}`);
-    } else {
-      alert(`${title}
-
-${msg}`);
-    }
-  };
-
   const statusKey = normalizeStatus(me.status);
   const statusChipLabel = isEn
     ? statusKey === "gold" ? "Gold" : statusKey === "silver" ? "Silver" : "Standard"
@@ -602,22 +570,24 @@ ${msg}`);
   return (
     <div className={`vx-page theme-client cx-app cl-app ${screen === "home" ? "mx-homePage" : ""}`}>
       {showReferrals && <ReferralsMenu initData={me.initData} isEn={isEn} onClose={closeReferrals} />}
+      {showStatus && <StatusSheet status={statusKey} lang={lang} onClose={() => setShowStatus(false)} />}
       <div className="container">
         <ScreenPane active={screen === "home"}>
           <div className="mx-homeLayout">
             <div className="mx-homeLead">
               <div className="cx-header">
                 <div className="cl-brand" aria-label="Cash a Lot">
-                  <WhaleMark light={theme === "dark"} />
+                  <WhaleMark />
                   <span>Cash a Lot<span className="cl-brandDot">.</span></span>
                 </div>
                 <div className="cx-headerSide">
                   <button type="button" className="cx-chip cl-lang" onClick={toggleLang} aria-label={isEn ? "Switch to Russian" : "Переключить на английский"}>{isEn ? "RU" : "EN"}</button>
-                  <button type="button" className="cx-chip cx-chipIcon" onClick={toggleTheme} aria-label={theme === "dark" ? (isEn ? "Switch to light theme" : "Включить светлую тему") : (isEn ? "Switch to dark theme" : "Включить тёмную тему")}>
-                    {theme === "dark" ? <IconSun className="cx-themeIcon" /> : <IconMoon className="cx-themeIcon" />}
+                  <button type="button" className="cx-chip cl-themeSwitch" role="switch" aria-checked={theme === "dark"} onClick={toggleTheme} aria-label={isEn ? "Dark theme" : "Тёмная тема"} title={theme === "dark" ? (isEn ? "Switch to light theme" : "Включить светлую тему") : (isEn ? "Switch to dark theme" : "Включить тёмную тему")}>
+                    <span className="cl-themeTrack" aria-hidden="true"><span className="cl-themeThumb" /><IconSun className="cl-themeSun" /><IconMoon className="cl-themeMoon" /></span>
                   </button>
                   <button type="button" className="cx-chip cx-chipIcon cl-friends" onClick={() => setShowReferrals(true)} aria-label={isEn ? "Invite a friend" : "Пригласить друга"} title={isEn ? "Friends & bonuses" : "Друзья и бонусы"}>
-                    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="9" cy="7" r="3.5"/><path d="M2 21v-2a7 7 0 0 1 14 0v2M19 7v6m-3-3h6"/></svg>
+                    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="10" cy="7.5" r="3.5"/><path d="M3 21v-2a7 7 0 0 1 14 0v2"/></svg>
+                    <span className="cl-invitePlus" aria-hidden="true">+</span>
                   </button>
                 </div>
               </div>
@@ -627,7 +597,7 @@ ${msg}`);
                   <span>{isEn ? "Da Nang" : "Дананг"}<span className="cl-serviceHours">10:00–22:00</span></span>
                 </div>
                 <div className="cl-serviceActions">
-                  <button type="button" className={`cx-statusChip is-${statusKey}`} onClick={showStatusInfo} aria-label={isEn ? "Your status" : "Ваш статус"}><IconStar /><span>{statusChipLabel}</span></button>
+                  <button type="button" className={`cx-statusChip cl-statusButton is-${statusKey}`} onClick={() => setShowStatus(true)} aria-label={isEn ? "Your status" : "Ваш статус"} aria-haspopup="dialog"><span className="cl-statusButtonMedal"><IconStar /></span><span>{statusChipLabel}</span><svg className="cl-statusChevron" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="m4.5 3 3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
                   <button type="button" className="cl-info" onClick={() => setShowConditions(true)} aria-label={isEn ? "Exchange conditions" : "Условия обмена"}>i</button>
                 </div>
               </div>
