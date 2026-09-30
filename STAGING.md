@@ -1,12 +1,13 @@
 # Тестовая версия в Telegram
 
 Ветка для нового функционала: `codex/new-features`, создана от `main` (`c4408c8`).
+Тестовый бот: [@testcashalot_bot](https://t.me/testcashalot_bot).
 
 ## Подключение
 
-1. Создать отдельного бота командой `/newbot` в https://t.me/BotFather.
-   Сохранить его токен в переменной `BOT_TOKEN` тестового сервиса Railway.
-2. Опубликовать ветку в GitHub после подтверждения владельца репозитория.
+1. Сохранить токен бота `@testcashalot_bot` из https://t.me/BotFather
+   в переменной `BOT_TOKEN` тестового сервиса Railway.
+2. Ветка `codex/new-features` опубликована в GitHub и готова к подключению.
 3. В проекте Railway создать пустое окружение `staging` и сервис из этого
    репозитория с веткой `codex/new-features`. Использовать корень репозитория.
 4. Задать команду сборки `npm ci --include=dev && npm run build`, команду
