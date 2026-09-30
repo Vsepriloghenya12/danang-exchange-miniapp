@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./styles.css";
+import "./client-design.css";
 import App from "./App";
 
 // Apply black background class immediately (prevents any "blue bleed" before React mounts)

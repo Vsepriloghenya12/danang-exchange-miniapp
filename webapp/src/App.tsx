@@ -18,6 +18,8 @@ import ContactsTab from "./tabs/ContactsTab";
 import PaymentsTab from "./tabs/PaymentsTab";
 import OwnerPortal from "./admin/OwnerPortal";
 import ReferralsMenu from "./tabs/ReferralsMenu";
+import WhaleMark from "./components/WhaleMark";
+import Sheet from "./components/Sheet";
 
 type Me = {
   ok: boolean;
@@ -173,61 +175,6 @@ function getDanangHour(nowMs: number): number {
 
 function ScreenPane({ active, children }: { active: boolean; children: React.ReactNode }) {
   return <div className={"mx-screenPane " + (active ? "is-active" : "is-hidden")}>{children}</div>;
-}
-
-function MainLogo({ theme }: { theme: "light" | "dark" }) {
-  // Separate logo files for light/dark themes. Easy to replace later.
-  const bust = theme === "dark" ? "v31-dark" : "v31-light";
-  const candidates = useMemo(
-    () =>
-      theme === "dark"
-        ? [
-            "/brand/main-logo-dark.png",
-            "/brand/main-logo.png",
-            "/brand/main-logo.webp",
-            "/brand/main-logo.jpg",
-            "/brand/logo.png",
-            "/brand/logo.webp",
-            "/brand/logo.jpg",
-          ]
-        : [
-            "/brand/main-logo-light.png",
-            "/brand/main-logo.png",
-            "/brand/main-logo.webp",
-            "/brand/main-logo.jpg",
-            "/brand/logo.png",
-            "/brand/logo.webp",
-            "/brand/logo.jpg",
-          ],
-    [theme]
-  );
-  const [idx, setIdx] = useState(0);
-  const [ok, setOk] = useState(false);
-
-  useEffect(() => {
-    setIdx(0);
-    setOk(false);
-  }, [theme]);
-
-  const src = `${candidates[Math.min(idx, candidates.length - 1)]}?${bust}`;
-
-  return (
-    <div className="mx-mainLogoWrap" aria-label="Cash A Lot">
-      <img
-        key={src}
-        className="mx-mainLogoImg"
-        src={src}
-        alt=""
-        loading="eager"
-        decoding="async"
-        onLoad={() => setOk(true)}
-        onError={() => {
-          setOk(false);
-          setIdx((x) => (x < candidates.length - 1 ? x + 1 : x));
-        }}
-      />
-    </div>
-  );
 }
 
 function normalizeStatus(s: any): UserStatus {
@@ -432,7 +379,7 @@ export default function App() {
   useEffect(() => {
     const element = ratesCardRef.current;
     if (!element || !me.ok || !me.initData || isDemo || screen !== "home" || homeSection !== "calc") return;
-    const surface = courseExpanded ? "all" : "preview";
+    const surface = "preview";
     if (viewedRates.current.has(surface)) return;
     const observer = new IntersectionObserver(entries => {
       if (!entries.some(e => e.isIntersecting)) return;
@@ -442,7 +389,7 @@ export default function App() {
     }, { threshold: 0.25 });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [me.ok, me.initData, isDemo, screen, homeSection, courseExpanded]);
+  }, [me.ok, me.initData, isDemo, screen, homeSection]);
 
   const didTrackOpen = useRef(false);
   useEffect(() => {
@@ -490,9 +437,9 @@ export default function App() {
           ok: true,
           initData: useInit,
           user: { id: 123456, username: "demo_user", first_name: "Demo" },
-          status: "gold",
-          isOwner: true,
-          isAdmin: true,
+          status: "standard",
+          isOwner: false,
+          isAdmin: false,
           adminChat: { tgId: 123456, username: "demo_admin" },
           blocked: false,
           hasSavedContact: true,
@@ -581,7 +528,7 @@ export default function App() {
     }
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
-        homeCalcRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        window.scrollTo({ top: 0, behavior: "smooth" });
       });
     });
   };
@@ -653,82 +600,41 @@ ${msg}`);
     : statusTitle(statusKey);
 
   return (
-    <div className={`vx-page theme-client cx-app ${screen === "home" ? "mx-homePage" : ""}`}>
+    <div className={`vx-page theme-client cx-app cl-app ${screen === "home" ? "mx-homePage" : ""}`}>
       {showReferrals && <ReferralsMenu initData={me.initData} isEn={isEn} onClose={closeReferrals} />}
       <div className="container">
         <ScreenPane active={screen === "home"}>
           <div className="mx-homeLayout">
             <div className="mx-homeLead">
               <div className="cx-header">
-                <div className="cx-headerSide">
-                  <button
-                    type="button"
-                    className="cx-chip"
-                    onClick={toggleLang}
-                    aria-label={isEn ? "Switch to Russian" : "Переключить на английский"}
-                    title={isEn ? "Switch to Russian" : "Переключить на английский"}
-                  >
-                    {isEn ? "RU" : "EN"}
-                  </button>
-                  <button
-                    type="button"
-                    className="cx-chip cx-chipIcon"
-                    onClick={toggleTheme}
-                    aria-label={theme === "dark" ? (isEn ? "Dark theme" : "Тёмная тема") : (isEn ? "Light theme" : "Светлая тема")}
-                  >
-                    {theme === "dark" ? <IconMoon className="cx-themeIcon" /> : <IconSun className="cx-themeIcon" />}
-                  </button>
+                <div className="cl-brand" aria-label="Cash a Lot">
+                  <WhaleMark light={theme === "dark"} />
+                  <span>Cash a Lot<span className="cl-brandDot">.</span></span>
                 </div>
-
-                <MainLogo theme={theme} />
-
                 <div className="cx-headerSide">
-                  <button type="button" className="cx-chip cx-chipIcon" onClick={() => setShowReferrals(true)} aria-label={isEn ? "Invite a friend" : "Пригласить друга"} title={isEn ? "Friends & bonuses" : "Друзья и бонусы"}>
+                  <button type="button" className="cx-chip cl-lang" onClick={toggleLang} aria-label={isEn ? "Switch to Russian" : "Переключить на английский"}>{isEn ? "RU" : "EN"}</button>
+                  <button type="button" className="cx-chip cx-chipIcon" onClick={toggleTheme} aria-label={theme === "dark" ? (isEn ? "Switch to light theme" : "Включить светлую тему") : (isEn ? "Switch to dark theme" : "Включить тёмную тему")}>
+                    {theme === "dark" ? <IconSun className="cx-themeIcon" /> : <IconMoon className="cx-themeIcon" />}
+                  </button>
+                  <button type="button" className="cx-chip cx-chipIcon cl-friends" onClick={() => setShowReferrals(true)} aria-label={isEn ? "Invite a friend" : "Пригласить друга"} title={isEn ? "Friends & bonuses" : "Друзья и бонусы"}>
                     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="9" cy="7" r="3.5"/><path d="M2 21v-2a7 7 0 0 1 14 0v2M19 7v6m-3-3h6"/></svg>
                   </button>
-                  <button
-                    type="button"
-                    className="cx-chip cx-chipIcon"
-                    onClick={() => setShowConditions(true)}
-                    aria-label={isEn ? "Exchange conditions" : "Условия обмена"}
-                    title={isEn ? "Exchange conditions" : "Условия обмена"}
-                  >
-                    i
-                  </button>
-                  <button
-                    type="button"
-                    className={`cx-statusChip is-${statusKey}`}
-                    onClick={showStatusInfo}
-                    aria-label={isEn ? "Your status" : "Ваш статус"}
-                  >
-                    <IconStar />
-                    <span>{statusChipLabel}</span>
-                  </button>
                 </div>
               </div>
-
-              {showConditions ? (
-                <div className="vx-modalOverlay" onClick={() => setShowConditions(false)}>
-                  <div className="vx-modalCard" onClick={(e) => e.stopPropagation()}>
-                    <div className="row vx-between vx-center">
-                      <div className="vx-modalTitle">{isEn ? "Exchange conditions" : "Условия обмена"}</div>
-                      <button type="button" className="btn vx-btnSm" onClick={() => setShowConditions(false)}>{isEn ? "Close" : "Закрыть"}</button>
-                    </div>
-                    <div className="vx-conditionsList">
-                      {conditionsItems.map((item) => (
-                        <div key={item} className="vx-conditionsItem">• {item}</div>
-                      ))}
-                    </div>
-                  </div>
+              <div className="cl-serviceRow">
+                <div className="cx-trust">
+                  <span className={"cx-liveDot" + (serviceOnline ? "" : " is-off")} aria-hidden="true" />
+                  <span>{isEn ? "Da Nang" : "Дананг"}<span className="cl-serviceHours">10:00–22:00</span></span>
                 </div>
-              ) : null}
-
-              <div className="cx-trust">
-                <span className={"cx-liveDot" + (serviceOnline ? "" : " is-off")} aria-hidden="true" />
-                {serviceOnline
-                  ? (isEn ? "Online · open 10:00–22:00 · Da Nang" : "Онлайн · работаем 10:00–22:00 · Дананг")
-                  : (isEn ? "Offline · open 10:00–22:00 · Da Nang" : "Офлайн · работаем 10:00–22:00 · Дананг")}
+                <div className="cl-serviceActions">
+                  <button type="button" className={`cx-statusChip is-${statusKey}`} onClick={showStatusInfo} aria-label={isEn ? "Your status" : "Ваш статус"}><IconStar /><span>{statusChipLabel}</span></button>
+                  <button type="button" className="cl-info" onClick={() => setShowConditions(true)} aria-label={isEn ? "Exchange conditions" : "Условия обмена"}>i</button>
+                </div>
               </div>
+              {showConditions && <Sheet title={isEn ? "Exchange conditions" : "Условия обмена"} closeLabel={isEn ? "Close" : "Закрыть"} onClose={() => setShowConditions(false)}>
+                <ul className="cl-conditions">{conditionsItems.map(item => <li key={item}>{item}</li>)}</ul>
+              </Sheet>}
+              {courseExpanded && <Sheet title={isEn ? "All exchange rates" : "Все курсы обмена"} closeLabel={isEn ? "Close" : "Закрыть"} onClose={() => setCourseExpanded(false)}><RatesTab lang={lang} /></Sheet>}
 
               <div className="cx-segment" role="tablist" aria-label={isEn ? "Home sections" : "Разделы главной"}>
                 <button
@@ -737,7 +643,7 @@ ${msg}`);
                   onClick={scrollToHomeCalc}
                   aria-current={homeSection === "calc" ? "page" : undefined}
                 >
-                  {isEn ? "Calculator" : "Калькулятор"}
+                  {isEn ? "Exchange" : "Обмен"}
                 </button>
                 <button
                   type="button"
@@ -776,7 +682,7 @@ ${msg}`);
                             {isEn ? "Admin" : "Админ"}
                           </button>
                         ) : null}
-                        <button type="button" className="cx-linkBtn" onClick={() => setCourseExpanded((v) => !v)}>
+                        <button type="button" className="cx-linkBtn" onClick={() => { setCourseExpanded(true); trackActivity(me.initData, "rates_view", { surface: "all" }); }}>
                           {courseExpanded ? (isEn ? "Collapse" : "Свернуть") : (isEn ? "All rates" : "Все курсы")}
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                             <path d="M9 6l6 6-6 6" />
@@ -785,7 +691,7 @@ ${msg}`);
                       </div>
                     </div>
 
-                    <RatesTab embedded limit={courseExpanded ? undefined : 3} lang={lang} />
+                    <RatesTab embedded limit={3} lang={lang} />
                   </div>
                 </>
               ) : null}
@@ -896,6 +802,10 @@ ${msg}`);
       </div>
 
       <div className="mx-bottomNav cx-nav" role="navigation" aria-label={isEn ? "Bottom menu" : "Нижнее меню"}>
+        <button type="button" className={"cx-navBtn " + (screen === "home" ? "is-on" : "")} onClick={scrollToHomeCalc} title={isEn ? "Exchange" : "Обмен"}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4" /></svg>
+          <span>{isEn ? "Exchange" : "Обмен"}</span>
+        </button>
         <button
           type="button"
           className={"cx-navBtn " + (screen === "pay" ? "is-on" : "")}

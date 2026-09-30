@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
 import { HAS_DATABASE, ensureSchema, getPool } from "./db.js";
 import type { BonusesConfig, BonusesTier, CrossRates, GFormula, Rates } from "./domain/exchange.js";
 import { defaultBonuses, defaultGFormulas } from "./domain/exchange.js";
@@ -494,7 +495,15 @@ async function readStoreFile(): Promise<Store> {
 
 async function writeStoreFile(store: Store) {
   ensureDir();
-  await fs.promises.writeFile(STORE_PATH, JSON.stringify(store, null, 2), "utf-8");
+  // Readers may run outside fileQueue. Replace a complete file so they never
+  // observe the empty/partial JSON produced by truncating the live store.
+  const temporaryPath = `${STORE_PATH}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await fs.promises.writeFile(temporaryPath, JSON.stringify(store, null, 2), "utf-8");
+    await fs.promises.rename(temporaryPath, STORE_PATH);
+  } finally {
+    await fs.promises.unlink(temporaryPath).catch(() => {});
+  }
 }
 
 async function readStoreDb(): Promise<Store> {

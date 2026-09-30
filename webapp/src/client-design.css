@@ -1,0 +1,222 @@
+/* Cash a Lot client UI. Kept separate from the owner portal and legacy layouts. */
+:root {
+  --cl-bg: #f4f6f7;
+  --cl-surface: #ffffff;
+  --cl-ink: #002333;
+  --cl-muted: #60747d;
+  --cl-line: #dee5e8;
+  --cl-soft: #edf1f3;
+  --cl-yellow: #f6c600;
+  --cl-receive: #fffdf1;
+  --cl-selected: #fff3ba;
+}
+html[data-theme="dark"] {
+  --cl-bg: #10242d;
+  --cl-surface: #19343f;
+  --cl-ink: #eef5f6;
+  --cl-muted: #a2b7bf;
+  --cl-line: #2c4752;
+  --cl-soft: #203c47;
+  --cl-receive: #223a3c;
+  --cl-selected: #41432d;
+}
+html:has(.cl-app), body.vx-body-client, body.vx-body-client #root { background: var(--cl-bg) !important; }
+.cl-app.theme-client.vx-page.cx-app {
+  --font: "Manrope", system-ui, sans-serif;
+  --cxText: var(--cl-ink);
+  --cxText2: var(--cl-muted);
+  --cxText3: var(--cl-muted);
+  --cxCardBg: var(--cl-surface);
+  --cxCardBorder: var(--cl-line);
+  --cxCardShadow: none;
+  --cxChipBg: var(--cl-soft);
+  --cxChipBorder: var(--cl-line);
+  --cxMoney: var(--cl-ink);
+  --cxMoneyGlow: none;
+  --cxAccentText: var(--cl-ink);
+  --cxMonoFont: "Manrope", system-ui, sans-serif;
+  background: var(--cl-bg);
+  color: var(--cl-ink);
+  padding: max(10px, env(safe-area-inset-top, 0px)) 18px calc(72px + env(safe-area-inset-bottom, 0px));
+  font-family: var(--font);
+  min-height: 100dvh;
+}
+.cl-app.theme-client.vx-page .container { max-width: 480px; width: 100%; padding: 0; margin: 0 auto; }
+.cl-app.theme-client.vx-page.mx-homePage .mx-homeLead { gap: 0 !important; width: 100%; }
+.cl-app .mx-homeLayout, .cl-app .mx-homeCalcSection { min-width: 0; }
+.cl-app.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calc { gap: 8px !important; }
+.cl-app .cx-header { height: 48px; margin-bottom: 4px; }
+.cl-brand { display: flex; align-items: center; gap: 8px; color: var(--cl-ink); }
+.cl-brand > span { font-family: "Circular Std", "Manrope", sans-serif; font-size: 25px; font-weight: 700; letter-spacing: -1.3px; white-space: nowrap; }
+.cl-brandDot { color: #b59200; }
+html[data-theme="dark"] .cl-brandDot { color: var(--cl-yellow); }
+.cl-whale { display: block; flex: none; width: 38px; height: 36px; overflow: hidden; }
+.cl-app .cx-headerSide { gap: 3px; align-items: center; }
+.cl-app .cx-chip { border: 0; background: transparent; box-shadow: none; height: 40px; min-width: 36px; padding: 0 8px; color: var(--cl-muted); border-radius: 12px; letter-spacing: 0; }
+.cl-app .cx-chipIcon { width: 38px; padding: 0; }
+.cl-app .cx-themeIcon { width: 19px; height: 19px; }
+.cl-app .cl-friends { background: var(--cl-surface); color: var(--cl-ink); border: 1px solid var(--cl-line); margin-left: 3px; }
+.cl-serviceRow { display: flex; align-items: center; justify-content: space-between; min-height: 30px; margin-bottom: 9px; }
+.cl-app .cx-trust { margin: 0; font-size: 11px; gap: 6px; font-weight: 600; }
+.cl-serviceHours { margin-left: 9px; color: var(--cl-muted); font-weight: 500; }
+.cl-app .cx-liveDot { width: 6px; height: 6px; box-shadow: none; animation: none; }
+.cl-serviceActions { display: flex; align-items: center; gap: 8px; }
+.cl-app .cx-statusChip { height: 30px; border: 0; padding: 0; background: transparent; color: var(--cl-muted); font-size: 11px; font-weight: 600; box-shadow: none; gap: 4px; }
+.cl-app .cx-statusChip span { display: inline; }
+.cl-app .cx-statusChip.is-gold { color: #9a7500; }
+html[data-theme="dark"] .cl-app .cx-statusChip.is-gold { color: var(--cl-yellow); }
+.cl-info { width: 30px; height: 30px; border: 0; background: transparent; color: var(--cl-muted); font-size: 16px; border-radius: 50%; cursor: pointer; }
+.cl-app .cx-segment { margin: 0 0 12px; border: 0; border-radius: 0; background: transparent; box-shadow: none; padding: 0; gap: 22px; border-bottom: 1px solid var(--cl-line); }
+.cl-app .cx-segmentBtn { flex: none; padding: 9px 0 12px; font-size: 13px; font-weight: 600; background: none; border-radius: 0; color: var(--cl-muted); position: relative; }
+.cl-app .cx-segmentBtn.is-active { color: var(--cl-ink); background: none; box-shadow: none; font-weight: 800; }
+html[data-theme="dark"] .cl-app.theme-client.vx-page.cx-app { background: var(--cl-bg); }
+html[data-theme="dark"] .cl-app .cx-segmentBtn.is-active { color: var(--cl-ink); }
+html[data-theme="dark"] .cl-app .cx-calc textarea.vx-requestCommentInput::placeholder { color: var(--cl-muted); -webkit-text-fill-color: var(--cl-muted); }
+.cl-app .cx-segmentBtn.is-active::after { content: ""; position: absolute; bottom: -1px; left: 0; right: 0; height: 3px; border-radius: 3px; background: var(--cl-yellow); }
+.cl-app .cx-calcBody { display: block; }
+.cl-app .cx-amountCards { border-radius: 22px; border: 1px solid var(--cl-line); background: var(--cl-surface); box-shadow: 0 3px 12px #00233305; position: relative; }
+.cl-app .cx-amtCard { border: 0; padding: 15px 18px 14px; border-radius: 22px 22px 0 0; background: transparent; box-shadow: none; }
+.cl-app .cx-amtCard + .cx-amtCard { margin-top: 0; }
+.cl-app .cx-amtCardGet { border-radius: 0 0 22px 22px; background: var(--cl-receive); border-top: 1px solid var(--cl-line); box-shadow: none; padding-top: 14px; }
+.cl-app .cx-amtLabel { font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; margin-bottom: 6px; color: var(--cl-muted); }
+.cl-app .cx-amtLabelHint { font-size: 10px; color: var(--cl-muted); }
+.cl-app .cx-amtRow { flex-direction: row-reverse; gap: 10px; min-height: 41px; }
+.cl-app .cx-curChip { background: var(--cl-soft); border: 0; padding: 7px 9px; min-height: 40px; border-radius: 12px; gap: 7px; }
+.cl-app .cx-curCircle { background: none !important; color: var(--cl-ink) !important; width: 18px; height: 24px; font-size: 17px; font-weight: 600; }
+.cl-app .cx-curCircle[data-cur="USDT"] { color: #16805f !important; }
+html[data-theme="dark"] .cl-app .cx-curCircle[data-cur="USDT"] { color: #78d8bd !important; }
+.cl-app .cx-curCode { font-size: 13px; font-weight: 800; }
+.cl-app .cx-curChevron { width: 12px; height: 12px; }
+.cl-app.theme-client.vx-page.cx-app .cx-amtInput {
+  font-family: "Manrope", system-ui, sans-serif; font-size: 29px; font-weight: 700; letter-spacing: -1.2px;
+  text-align: left; color: var(--cl-ink); height: 42px; line-height: 42px; width: 0; min-width: 0;
+  background: transparent; border: 0; box-shadow: none; text-shadow: none; padding: 0;
+}
+.cl-app.theme-client.vx-page.cx-app .cx-amtInput::placeholder { color: var(--cl-muted); opacity: .55; }
+.cl-app.theme-client.vx-page.cx-app .cx-amtCardGet .cx-amtInput { color: var(--cl-ink); font-size: 29px; text-shadow: none; }
+.cl-app.theme-client.vx-page.cx-app .cx-amtInput.cx-amtInvalid { color: #c43e3e; }
+.cl-app .cx-swapFab { width: 32px; height: 32px; right: 50%; margin-right: -16px; border: 1px solid var(--cl-line); background: var(--cl-surface); color: var(--cl-muted); box-shadow: none; }
+.cl-app .cx-swapFab svg { width: 16px; height: 16px; }
+.cl-app .cx-swapFab:active svg { transform: none; }
+.cl-app .cx-rateNote { margin: 9px 2px 13px; justify-content: space-between; gap: 5px; font-size: 10px; font-weight: 500; min-height: 14px; }
+.cl-app .cx-rateNote .cx-rateValue { color: var(--cl-ink); font-size: 11px; font-weight: 700; }
+.cl-app .cx-rateNoteDot, .cl-app .cx-rateNote .cx-freshDot { display: none; }
+.cl-app .cx-bonusLine { color: var(--cl-muted); font-size: 11px; }
+.cl-app .cx-methodRow { margin-bottom: 7px; gap: 10px; min-height: 34px; }
+.cl-app .cx-methodRowLabel { font-size: 11px; width: 72px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+.cl-app .cx-methodRowChips { gap: 4px; justify-content: flex-end; }
+.cl-app .cx-methodRowChips .cx-methodBtn { min-height: 34px; border-radius: 9px; font-size: 11px; padding: 6px 8px; font-weight: 600; background: transparent; border: 1px solid var(--cl-line); color: var(--cl-muted); flex: 1; }
+.cl-app .cx-methodRowChips .cx-methodBtn:only-child { flex: 0 1 auto; min-width: 82px; }
+.cl-app .cx-methodRowChips .cx-methodBtn.is-active { background: var(--cl-selected); border-color: #c6a520; color: var(--cl-ink); }
+.cl-app .cx-calc .vx-sp12 { height: 7px; }
+.cl-commentRow { display: flex; align-items: center; border: 1px solid var(--cl-line); background: var(--cl-surface); border-radius: 12px; min-height: 40px; }
+.cl-app .cx-calc .cl-commentRow textarea.vx-requestCommentInput { resize: none; flex: 1; min-width: 0; background: transparent; border: 0; border-radius: 12px; min-height: 38px; padding: 9px 11px; font: 12px/20px "Manrope", sans-serif; color: var(--cl-ink); box-shadow: none; }
+.cl-app .cx-calc .cl-commentRow textarea::placeholder { color: var(--cl-muted); opacity: .8; }
+.cl-app .cx-calc .cl-commentRow textarea:focus { min-height: 72px; }
+.cl-commentRow:focus-within { outline: 2px solid #b79512; outline-offset: 2px; }
+.cl-app .cx-attachBtn { width: 38px; height: 38px; border: 0; background: transparent; border-radius: 10px; color: var(--cl-muted); }
+.cl-app .cx-attachBtn.is-active { color: var(--cl-ink); background: var(--cl-selected); }
+.cl-app .cx-cta { height: 52px; background: var(--cl-yellow); border-radius: 14px; box-shadow: none; font-size: 14px; font-weight: 800; gap: 10px; color: #002333; padding: 0 17px; transition: transform .18s ease, background .18s ease; }
+.cl-app .cx-cta span { flex: 1; text-align: center; }
+.cl-app .cx-cta .cl-ctaWhale { width: 29px; height: 27px; }
+.cl-app .cx-cta > svg:last-child { width: 18px; height: 18px; }
+.cl-app .cx-cta:hover:not(:disabled) { background: #ffda32; }
+.cl-app .cx-cta:hover:not(:disabled) .cl-ctaWhale { animation: cl-whale-nod .5s ease; }
+.cl-app .cx-cta:active:not(:disabled) { transform: scale(.985); }
+.cl-app .cx-cta.is-disabled, .cl-app .cx-cta:disabled { opacity: .6; box-shadow: none; }
+.cl-app .cx-consent { margin: 8px 3px 0; font-size: 9px; line-height: 1.5; color: var(--cl-muted); text-align: center; }
+.cl-app .cx-consentLink { color: inherit; text-decoration-color: var(--cl-muted); font-size: inherit; }
+.cl-app .cx-calc .cl-hoursNote { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin: 0 0 1px; background: var(--cl-soft); border: 0; border-radius: 10px; font-size: 10px; color: var(--cl-muted); line-height: 1.4 !important; }
+.cl-hoursNote > span:first-child { font-size: 20px; }
+.cl-app .vx-note, .cl-app .vx-warn { padding: 8px 10px; font-size: 11px; border-radius: 10px; box-shadow: none; }
+.cl-app .cx-rateCard { background: transparent; border: 0; border-top: 1px solid var(--cl-line); border-radius: 0; box-shadow: none; padding: 12px 1px 2px; margin-top: 16px !important; }
+.cl-app .cx-rateCardHead { margin: 0 0 10px; align-items: center; }
+.cl-app .cx-rateCardTitle { font-size: 11px; font-weight: 600; color: var(--cl-muted); }
+.cl-app .cx-linkBtn { color: var(--cl-ink); font-size: 11px; font-weight: 700; min-height: 24px; }
+.cl-app .cx-miniRates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+.cl-app .cx-miniRateRow { display: flex; flex-direction: column; gap: 5px; padding-left: 16px; border-left: 1px solid var(--cl-line); }
+.cl-app .cx-miniRateRow:first-child { padding-left: 0; border: 0; }
+.cl-app .cx-miniRateRow .cx-miniPair { font-size: 10px; font-weight: 500; }
+.cl-app .cx-miniRateRow .cx-miniVal { font-size: 16px; font-weight: 700; letter-spacing: -.4px; }
+.cl-app .cx-nav.mx-bottomNav, html[data-theme="dark"] .cl-app .cx-nav.mx-bottomNav {
+  left: 50%; right: auto; transform: translateX(-50%); bottom: 0; width: min(100%, 516px); max-width: none;
+  height: calc(66px + env(safe-area-inset-bottom, 0px)); padding: 6px 14px calc(6px + env(safe-area-inset-bottom, 0px));
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; border: 0; border-top: 1px solid var(--cl-line); border-radius: 0;
+  background: var(--cl-bg); box-shadow: none; backdrop-filter: none;
+}
+.cl-app .cx-navBtn { border-radius: 12px; gap: 4px; padding: 5px 4px; font-size: 10px; font-weight: 600; background: transparent; color: var(--cl-muted); border: 0; }
+.cl-app .cx-navBtn svg { width: 21px; height: 21px; }
+.cl-app .cx-navBtn.is-on { color: var(--cl-ink); background: var(--cl-selected); box-shadow: none; }
+.cl-app :is(button,select,input,textarea):focus-visible { outline: 2px solid #ae8c00; outline-offset: 3px; }
+.cl-app .cx-curChip:focus-within { outline: 2px solid #ae8c00; outline-offset: 3px; }
+.cl-app .cx-amtCard:focus-within { box-shadow: inset 3px 0 0 var(--cl-yellow); }
+.cl-app .cx-screenHeader { padding: 12px 0; margin-bottom: 12px; }
+.cl-app .cx-screenTitle { font-size: 24px; letter-spacing: -.8px; }
+.cl-app .cx-card, .cl-app .cx-histItem { box-shadow: none; }
+.cl-app .cx-backChip { background: var(--cl-surface); border-color: var(--cl-line); box-shadow: none; }
+.cl-app.theme-client .mx-navCard { background: var(--cl-surface) !important; border: 1px solid var(--cl-line) !important; border-radius: 15px; box-shadow: none !important; }
+.cl-app.theme-client .mx-navTitle { color: var(--cl-ink) !important; }
+.cl-app.theme-client .mx-navSub { color: var(--cl-muted) !important; }
+.cl-app .rf-overlay { align-items: flex-end; padding: 0; backdrop-filter: none; background: #00233366; }
+.cl-app .rf-panel { border-radius: 24px 24px 0 0; padding: 22px; box-shadow: none; --cxAccentSoftBg: var(--cl-receive); --cxBorder: var(--cl-line); }
+.cl-app .rf-heading h2 { letter-spacing: -.5px; }
+.cl-app .rf-offer { border-color: var(--cl-line); }
+.cl-sheetOverlay { position: fixed; inset: 0; z-index: 10000; background: #00233366; display: flex; align-items: flex-end; justify-content: center; padding: 0; animation: cl-overlay-in .2s ease; }
+.cl-sheet { width: min(100%, 520px); max-height: min(90dvh, 840px); background: var(--cl-surface); color: var(--cl-ink); border-radius: 24px 24px 0 0; display: flex; flex-direction: column; padding: 10px 20px max(24px, env(safe-area-inset-bottom)); font-family: "Manrope", sans-serif; outline: none; animation: cl-sheet-in .28s cubic-bezier(.2,.8,.2,1); }
+.cl-sheetHandle { width: 32px; height: 4px; border-radius: 5px; background: var(--cl-line); margin: 0 auto 12px; flex: none; }
+.cl-sheet > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 15px; }
+.cl-sheet h2 { font-size: 20px; letter-spacing: -.6px; margin: 0; color: var(--cl-ink); }
+.cl-sheet > header button { width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--cl-soft); color: var(--cl-ink); font-size: 25px; cursor: pointer; }
+.cl-sheetContent { overflow-y: auto; overscroll-behavior: contain; min-height: 0; --cxText: var(--cl-ink); --cxText2: var(--cl-muted); --cxCardBg: var(--cl-soft); --cxCardShadow: none; --cxMoney: var(--cl-ink); --cxMoneyGlow: none; --cxMonoFont: "Manrope", sans-serif; }
+.cl-conditions { padding: 0 0 0 18px; margin: 0; font-size: 13px; line-height: 1.6; }
+.cl-conditions li { padding: 0 0 14px 5px; }
+.cl-conditions li::marker { color: #b28f00; }
+@keyframes cl-sheet-in { from { transform: translateY(32px); opacity: .5; } to { transform: translateY(0); opacity: 1; } }
+@keyframes cl-overlay-in { from { background: #00233300; } to { background: #00233366; } }
+@keyframes cl-whale-nod { 50% { transform: translateY(-3px) rotate(-8deg); } }
+@media (max-height: 740px) {
+  .cl-app.theme-client.vx-page.cx-app { padding-top: max(4px, env(safe-area-inset-top, 0px)); padding-bottom: calc(67px + env(safe-area-inset-bottom, 0px)); }
+  .cl-app .cx-header { height: 44px; margin-bottom: 0; }
+  .cl-serviceRow { margin-bottom: 3px; }
+  .cl-app .cx-segment { margin-bottom: 9px; }
+  .cl-app .cx-segmentBtn { padding-top: 6px; padding-bottom: 9px; }
+  .cl-app .cx-amtCard { padding: 11px 15px; }
+  .cl-app .cx-amtLabel { margin-bottom: 3px; }
+  .cl-app .cx-rateNote { margin-top: 7px; margin-bottom: 9px; }
+  .cl-app .cx-methodRow { margin-bottom: 5px; }
+  .cl-app .cx-calc .vx-sp12 { height: 5px; }
+  .cl-app .cx-cta { height: 47px; }
+  .cl-app .cx-rateCard { margin-top: 10px !important; padding-top: 7px; }
+  .cl-app .cx-rateCardHead { margin-bottom: 6px; }
+  .cl-app .cx-consent { margin-top: 5px; }
+  .cl-app .cx-nav.mx-bottomNav, html[data-theme="dark"] .cl-app .cx-nav.mx-bottomNav { height: calc(58px + env(safe-area-inset-bottom, 0px)); padding-top: 3px; padding-bottom: calc(3px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 370px) {
+  .cl-app.theme-client.vx-page.cx-app { padding-left: 12px; padding-right: 12px; }
+  .cl-brand > span { font-size: 23px; }
+  .cl-brand { gap: 5px; }
+  .cl-brand .cl-whale { width: 32px; }
+  .cl-app .cx-methodRowLabel { width: 63px; }
+  .cl-app .cx-methodRowChips .cx-methodBtn { padding-left: 5px; padding-right: 5px; }
+  .cl-app.theme-client.vx-page.cx-app .cx-amtInput, .cl-app.theme-client.vx-page.cx-app .cx-amtCardGet .cx-amtInput { font-size: 25px; }
+}
+@media (max-height: 680px) {
+  .cl-app.theme-client.vx-page.cx-app { padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px)); }
+  .cl-app .cx-header { height: 40px; }
+  .cl-serviceRow { min-height: 26px; margin-bottom: 0; }
+  .cl-app .cx-statusChip, .cl-info { height: 26px; }
+  .cl-app .cx-segment { margin-bottom: 7px; }
+  .cl-app .cx-amtCard { padding-top: 6px; padding-bottom: 6px; }
+  .cl-app .cx-rateNote .cx-rateValue { font-size: 10px; }
+  .cl-app .cx-rateNote { margin-top: 6px; margin-bottom: 7px; }
+  .cl-app .cx-rateCard { margin-top: 8px !important; padding-top: 5px; }
+  .cl-app .cx-rateCardHead { margin-bottom: 4px; }
+  .cl-app .cx-miniRateRow { gap: 2px; }
+  .cl-app .cx-calc .vx-sp12 { height: 4px; }
+  .cl-app .cx-calc .cl-hoursNote { padding-top: 5px; padding-bottom: 5px; }
+  .cl-app .cl-hoursNote > span:first-child { font-size: 16px; line-height: 1; }
+  .cl-app.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calc { gap: 5px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cl-app *, .cl-sheet, .cl-sheetOverlay { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

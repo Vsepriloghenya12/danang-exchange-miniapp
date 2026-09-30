@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { activitySessionId, trackActivity } from "../lib/activity";
+import WhaleMark from "../components/WhaleMark";
 import {
   amountMaxDecimals,
   fmtAmount,
@@ -376,6 +377,19 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
   const [sellCurrency, setSellCurrency] = useState<Currency>("RUB");
   const [buyCurrency, setBuyCurrency] = useState<Currency>("VND");
+  const pairElement = useRef<HTMLDivElement>(null);
+  const previousPair = useRef(`${sellCurrency}/${buyCurrency}`);
+  useEffect(() => {
+    const pair = `${sellCurrency}/${buyCurrency}`;
+    if (previousPair.current === pair) return;
+    previousPair.current = pair;
+    if (isAdminMode || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const animations = [...(pairElement.current?.querySelectorAll<HTMLElement>(".cx-amtRow") || [])].map((el, i) =>
+      el.animate([{ opacity: .3, transform: `translateY(${i ? -7 : 7}px)` }, { opacity: 1, transform: "translateY(0)" }], { duration: 260, easing: "cubic-bezier(.2,.7,.3,1)" }));
+    const arrow = pairElement.current?.querySelector(".cx-swapFab svg");
+    if (arrow) animations.push(arrow.animate([{ transform: "rotate(-180deg)" }, { transform: "rotate(0)" }], { duration: 320, easing: "ease-out" }));
+    return () => animations.forEach(a => a.cancel());
+  }, [sellCurrency, buyCurrency, isAdminMode]);
 
   const [sellText, setSellText] = useState("");
   const [buyText, setBuyText] = useState("");
@@ -1167,8 +1181,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       {!loading && (!rates || (!market && gMode)) && <div className="vx-help">{isEn ? "Rates are not loaded." : "Курсы не загружены."}</div>}
 
       {!isAdminMode && managerOffline ? (
-        <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
-          {isEn ? `Thank you for contacting us. It is now ${danangTime.label} in Da Nang. You can create a request during working hours.` : `Спасибо за обращение. Сейчас в Дананге ${danangTime.label}. Оставить заявку Вы можете в рабочее время.`}
+        <div className="vx-note vx-noteWarn cl-hoursNote">
+          <span aria-hidden="true">◷</span><span>{isEn ? `Da Nang ${danangTime.label}. Requests open 10:00–22:00.` : `В Дананге ${danangTime.label}. Приём заявок 10:00–22:00.`}</span>
         </div>
       ) : !isAdminMode && deliveryClosed ? (
         <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
@@ -1183,7 +1197,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       ) : null}
 
       <div className="cx-calcBody">
-        <div className="cx-amountCards">
+        <div className="cx-amountCards" ref={pairElement}>
           <div className="cx-amtCard">
             <div className="cx-amtLabel">
               <span>{isEn ? "You give" : "Вы отдаёте"}</span>
@@ -1319,6 +1333,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                     key={m}
                     type="button"
                     className={"cx-methodBtn" + (payMethod === m ? " is-active" : "")}
+                    aria-pressed={payMethod === m}
                     onClick={() => {
                       preserveSwappedValuesRef.current = false;
                       payMethodAutoSelectedRef.current = false;
@@ -1341,6 +1356,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                     key={m}
                     type="button"
                     className={"cx-methodBtn" + (receiveMethod === m ? " is-active" : "")}
+                    aria-pressed={receiveMethod === m}
                     onClick={() => {
                       preserveSwappedValuesRef.current = false;
                       receiveMethodAutoSelectedRef.current = false;
@@ -1380,11 +1396,13 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                   className={"vx-requestComposer" + (commentKeyboardInset > 0 ? " is-lifted" : "")}
                   style={commentKeyboardInset > 0 ? { bottom: `${commentKeyboardInset}px` } : undefined}
                 >
+                  <div className="cl-commentRow">
                   <textarea
                     ref={commentFieldRef}
                     className="input vx-in vx-requestCommentInput"
                     rows={1}
-                    placeholder={uiCommentPlaceholder(receiveMethod)}
+                    placeholder={uiCommentPlaceholder(receiveMethod) || (isEn ? "Comment for your request" : "Комментарий к заявке")}
+                    aria-label={isEn ? "Address, details or comment" : "Адрес, реквизиты или комментарий"}
                     value={requestComment}
                     onFocus={() => {
                       window.setTimeout(() => {
@@ -1396,6 +1414,16 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                     }}
                     onChange={(e) => setRequestComment(e.target.value.slice(0, 300))}
                   />
+                    <button
+                      type="button"
+                      className={"cx-attachBtn" + (requestAttachmentImageDataUrl ? " is-active" : "")}
+                      onClick={() => requestAttachmentInputRef.current?.click()}
+                      aria-label={isEn ? "Attach image" : "Прикрепить фото"}
+                      title={isEn ? "Attach image" : "Прикрепить фото"}
+                    >
+                      <PaperclipIcon className="vx-requestAttachIcon" />
+                    </button>
+                  </div>
 
                   <input
                     ref={requestAttachmentInputRef}
@@ -1441,35 +1469,28 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                       aria-disabled={!canSend}
                       onClick={sendRequest}
                     >
-                      {isEn ? "Send request" : "Отправить заявку"}
+                      <WhaleMark className="cl-ctaWhale" />
+                      <span>{isEn ? "Send request" : "Отправить заявку"}</span>
                       <ArrowRightIcon />
                     </button>
 
-                    <button
-                      type="button"
-                      className={"cx-attachBtn" + (requestAttachmentImageDataUrl ? " is-active" : "")}
-                      onClick={() => requestAttachmentInputRef.current?.click()}
-                      aria-label={isEn ? "Attach image" : "Прикрепить фото"}
-                      title={isEn ? "Attach image" : "Прикрепить фото"}
-                    >
-                      <PaperclipIcon className="vx-requestAttachIcon" />
-                    </button>
+
                   </div>
 
                   <div className="cx-consent">
                     {isEn ? (
                       <>
-                        By sending a request you consent to the{" "}
+                        By sending, you consent to{" "}
                         <button type="button" className="cx-consentLink" onClick={() => onOpenDoc?.("privacy")}>processing of personal data</button>
                         {" "}and accept the{" "}
                         <button type="button" className="cx-consentLink" onClick={() => onOpenDoc?.("terms")}>terms of service</button>.
                       </>
                     ) : (
                       <>
-                        Отправляя заявку, вы даёте согласие на{" "}
+                        Отправляя заявку, соглашаюсь на{" "}
                         <button type="button" className="cx-consentLink" onClick={() => onOpenDoc?.("privacy")}>обработку персональных данных</button>
-                        {" "}и принимаете{" "}
-                        <button type="button" className="cx-consentLink" onClick={() => onOpenDoc?.("terms")}>пользовательское соглашение</button>.
+                        {" "}и принимаю{" "}
+                        <button type="button" className="cx-consentLink" onClick={() => onOpenDoc?.("terms")} aria-label="Пользовательское соглашение">соглашение</button>.
                       </>
                     )}
                   </div>
