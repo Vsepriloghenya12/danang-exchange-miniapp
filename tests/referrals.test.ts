@@ -122,7 +122,7 @@ test("referrals: signed attribution, completed exchanges and an atomic USD ledge
     const a = await api("/requests", { ...order, sellCurrency: "RUB", sellAmount: 100_000, payMethod: "transfer" }, 8);
     const b = await api("/requests", order, 8);
     const results = await Promise.all([api(`/staff/requests/${a.data.id}/state`, { state: "done", fundsReceived: true }, 800), api(`/admin/requests/${b.data.id}/state`, { state: "done", fundsReceived: true })]);
-    results.forEach(r => assert.equal(r.status, 200));
+    results.forEach(r => assert.equal(r.status, 200, JSON.stringify(r.data)));
     const s = await readStore();
     assert.equal(s.bonusLedger.filter(e => e.id === "welcome:8").length, 1);
     assert.equal(s.bonusLedger.filter(e => e.id === "referrer:8").length, 1);

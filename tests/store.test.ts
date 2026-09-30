@@ -41,4 +41,24 @@ test("file store readers retain staff permissions while a new snapshot is being 
   const after = await readStore();
   assert.deepEqual(after.config.adminTgIds, [800]);
   assert.equal(after.config.adminUsername, "updated");
+
+  await t.test("temporary Windows locks preserve the old snapshot until replacement succeeds", { skip: process.platform !== "win32" }, async () => {
+    const originalRename = fs.promises.rename.bind(fs.promises);
+    let attempts = 0;
+    const mockedRename = t.mock.method(fs.promises, "rename", async (from: any, to: any) => {
+      attempts++;
+      if (attempts <= 2) {
+        assert.equal((await readStore()).config.adminUsername, "updated");
+        throw Object.assign(new Error("Destination temporarily locked"), { code: "EPERM" });
+      }
+      return originalRename(from, to);
+    });
+    try {
+      await mutateStore(s => { s.config.adminUsername = "after-lock"; });
+      assert.equal(attempts, 3);
+      assert.equal((await readStore()).config.adminUsername, "after-lock");
+    } finally {
+      mockedRename.mock.restore();
+    }
+  });
 });

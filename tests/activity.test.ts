@@ -34,7 +34,7 @@ test("owner activity: authenticated events, unique people and request outcomes",
   await t.test("untrusted events cannot impersonate people, starts or successful exchanges", async () => {
     const payload = { name: "calculator_amount", eventId: "event-000001", sessionId: "visit-000001", tg_id: 999, props: { amount: 10_000, currency: "RUB", field: "sell", comment: "private", initData: "private" } };
     const results = await Promise.all(Array.from({ length: 4 }, () => api("/events", payload, 101)));
-    results.forEach(r => assert.equal(r.status, 200));
+    results.forEach(r => assert.equal(r.status, 200, JSON.stringify(r.data)));
     const saved = (await readStore()).activityEvents;
     assert.equal(saved.length, 1);
     assert.equal(saved[0].tg_id, 101);

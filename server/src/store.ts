@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import { HAS_DATABASE, ensureSchema, getPool } from "./db.js";
 import type { BonusesConfig, BonusesTier, CrossRates, GFormula, Rates } from "./domain/exchange.js";
 import { defaultBonuses, defaultGFormulas } from "./domain/exchange.js";
@@ -500,7 +501,17 @@ async function writeStoreFile(store: Store) {
   const temporaryPath = `${STORE_PATH}.${process.pid}.${randomUUID()}.tmp`;
   try {
     await fs.promises.writeFile(temporaryPath, JSON.stringify(store, null, 2), "utf-8");
-    await fs.promises.rename(temporaryPath, STORE_PATH);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await fs.promises.rename(temporaryPath, STORE_PATH);
+        break;
+      } catch (error: any) {
+        // Windows can briefly deny replacement while a reader or virus scanner
+        // holds the destination open. Keep the old file intact while retrying.
+        if (process.platform !== "win32" || attempt >= 8 || !["EPERM", "EACCES", "EBUSY"].includes(error?.code)) throw error;
+        await delay(25 * (attempt + 1));
+      }
+    }
   } finally {
     await fs.promises.unlink(temporaryPath).catch(() => {});
   }
