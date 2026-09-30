@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { activitySessionId, trackActivity } from "../lib/activity";
 import WhaleMark from "../components/WhaleMark";
@@ -361,6 +361,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   const tg = getTg();
   const isEn = lang === "en";
   const isAdminMode = mode === "admin";
+  const amountNoticesId = useId();
   const uiMethodLabel = (m: ReceiveMethod | PayMethod) => isEn ? (m === "cash" ? "Cash" : m === "transfer" ? "Transfer" : "ATM") : methodLabel(m);
   const uiAmountPlaceholder = (prefix: string, cur: Currency, same = false) => { const min = same && cur === "VND" ? null : minSellAmountLabel(cur); return min ? `${prefix} (${isEn ? "min." : "мин."} ${min})` : prefix; };
   const uiCommentPlaceholder = (rm: SelectedReceiveMethod) =>
@@ -922,6 +923,27 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     needsCashDeliveryWarning(sellCurrency, sellAmount) ||
     needsCashDeliveryWarning(buyCurrency, buyAmount);
 
+  // Keep related guidance together and show each rule once inside the result card.
+  const amountNotices: { key: string; text: string; warning: boolean }[] = [];
+  if (minSellNote) amountNotices.push({ key: "minimum", text: minSellNote, warning: true });
+  if (usdNote) amountNotices.push({ key: "usd", warning: invalidUsdSell || invalidUsdBuy,
+    text: isEn ? "USD: multiples of 100. New-series $100 cash notes only, without marks or defects." : "USD: сумма кратна 100. Только наличные купюры по 100 $ нового образца, без надписей и дефектов." });
+  if (eurNote) amountNotices.push({ key: "eur", warning: invalidEurSell || invalidEurBuy,
+    text: isEn ? "EUR: multiples of 50. New-series €50/€100/€200 cash notes only, without marks or defects." : "EUR: сумма кратна 50. Только наличные купюры по 50/100/200 € нового образца, без надписей и дефектов." });
+  if (thbNote) amountNotices.push({ key: "thb", text: thbNote, warning: invalidThbSell || invalidThbBuy });
+  if (vndNote) amountNotices.push({ key: "vnd", text: vndNote, warning: false });
+  if (invalidVndSellCash) amountNotices.push({ key: "vnd-cash", warning: true,
+    text: isEn ? `VND cash payment must be in multiples of ${fmtAmount("VND", CASH_VND_STEP)}.` : `Оплата наличными VND должна быть кратна ${fmtAmount("VND", CASH_VND_STEP)}.` });
+  if (vndAtmNote) amountNotices.push({ key: "atm", text: vndAtmNote, warning: invalidVndBuyAtm });
+  if (showCashDeliveryNote) amountNotices.push({ key: "delivery-cost", warning: false,
+    text: isEn ? "Delivery will cost from 70,000 VND." : "Стоимость доставки — от 70 000 VND." });
+  if (managerOffline) amountNotices.push({ key: "hours", warning: false,
+    text: isEn ? `Da Nang ${danangTime.label}. Requests open 10:00–22:00.` : `В Дананге ${danangTime.label}. Приём заявок 10:00–22:00.` });
+  else if (deliveryClosed) amountNotices.push({ key: "delivery-hours", warning: false,
+    text: isEn ? `Da Nang ${danangTime.label}. After 20:00 cash delivery is unavailable. Only remote exchange is available.` : `В Дананге ${danangTime.label}. После 20:00 доставка наличных недоступна. Только дистанционный обмен.` });
+  if (receiveMethodUnavailableByHours) amountNotices.push({ key: "payout-hours", warning: true,
+    text: isEn ? "After 20:00 only Transfer or ATM receive methods are available. Payout for the selected currency is currently unavailable." : "После 20:00 доступны только «Перевод» или «Банкомат». Выдача выбранной валюты сейчас недоступна." });
+
   function swapCurrencies() {
     const nextSellCurrency = buyCurrency;
     const nextBuyCurrency = sellCurrency;
@@ -1181,17 +1203,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       {loading && <div className="vx-help">{isEn ? "Loading rates…" : "Загрузка курсов…"}</div>}
       {!loading && (!rates || (!market && gMode)) && <div className="vx-help">{isEn ? "Rates are not loaded." : "Курсы не загружены."}</div>}
 
-      {!isAdminMode && managerOffline ? (
-        <div className="vx-note vx-noteWarn cl-hoursNote">
-          <span aria-hidden="true">◷</span><span>{isEn ? `Da Nang ${danangTime.label}. Requests open 10:00–22:00.` : `В Дананге ${danangTime.label}. Приём заявок 10:00–22:00.`}</span>
-        </div>
-      ) : !isAdminMode && deliveryClosed ? (
-        <div className="vx-note vx-noteWarn" style={{ marginBottom: 10 }}>
-          {isEn ? `After 20:00 in Da Nang, cash delivery is unavailable. It is now ${danangTime.label} in Da Nang. Only remote exchange is available.` : `После 20:00 по Данангу доставка уже не работает. Сейчас в Дананге ${danangTime.label}. Доступен только дистанционный обмен.`}
-        </div>
-      ) : null}
-
-      {receiveMethodUnavailableByHours ? (
+      {isAdminMode && receiveMethodUnavailableByHours ? (
         <div className="vx-warn" style={{ marginBottom: 10 }}>
           {isEn ? "After 20:00 only Transfer or ATM receive methods are available. Payout for the selected currency is currently unavailable." : "После 20:00 доступны только способы получения «Перевод» или «Банкомат». Для выбранной валюты выдача сейчас недоступна."}
         </div>
@@ -1234,6 +1246,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
               <input
                 ref={sellInputRef}
                 aria-label={isEn ? "Amount you give" : "Сумма, которую отдаёте"}
+                aria-invalid={invalidUsdSell || invalidEurSell || invalidThbSell || invalidVndSellCash || invalidMinSell}
+                aria-describedby={!isAdminMode && amountNotices.length ? amountNoticesId : undefined}
                 inputMode={amountMaxDecimals(sellCurrency) > 0 ? "decimal" : "numeric"}
                 placeholder="0"
                 value={sellText}
@@ -1252,6 +1266,12 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
               />
             </div>
           </div>
+
+          {!isAdminMode && <div className="cl-swapAnchor">
+            <button type="button" className="cx-swapFab" onClick={swapCurrencies} title={isEn ? "Swap" : "Поменять местами"} aria-label={isEn ? "Swap currencies" : "Поменять валюты местами"}>
+              <SwapIcon />
+            </button>
+          </div>}
 
           <div className="cx-amtCard cx-amtCardGet">
             {!isAdminMode && <svg className="cl-oceanLines" viewBox="0 0 360 120" preserveAspectRatio="none" aria-hidden="true">
@@ -1288,6 +1308,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
               <input
                 ref={buyInputRef}
                 aria-label={isEn ? "Amount you get" : "Сумма, которую получаете"}
+                aria-invalid={invalidUsdBuy || invalidEurBuy || invalidThbBuy || invalidVndBuyCash || invalidVndBuyAtm}
+                aria-describedby={!isAdminMode && amountNotices.length ? amountNoticesId : undefined}
                 inputMode={amountMaxDecimals(buyCurrency) > 0 ? "decimal" : "numeric"}
                 placeholder="0"
                 value={buyText}
@@ -1305,11 +1327,17 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                 onBlur={flushAmountActivity}
               />
             </div>
+            {!isAdminMode && <div className="cl-amountNotices" id={amountNoticesId} role="status" aria-live="polite" aria-atomic="true">
+              {amountNotices.map(note => <div key={note.key} className={`cl-amountNotice${note.warning ? " is-warning" : ""}`}>
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.3" /><path d={note.warning ? "M10 6v5m0 3v.1" : "M10 9v5m0-8v.1"} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                <span>{note.text}</span>
+              </div>)}
+            </div>}
           </div>
 
-          <button type="button" className="cx-swapFab" onClick={swapCurrencies} title={isEn ? "Swap" : "Поменять местами"} aria-label={isEn ? "Swap currencies" : "Поменять валюты местами"}>
+          {isAdminMode && <button type="button" className="cx-swapFab" onClick={swapCurrencies} title={isEn ? "Swap" : "Поменять местами"} aria-label={isEn ? "Swap currencies" : "Поменять валюты местами"}>
             <SwapIcon />
-          </button>
+          </button>}
         </div>
 
         {unitRate || rateUpdatedLabel ? (
@@ -1380,6 +1408,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
             </div>
           ) : null}
 
+            {isAdminMode && <>
             {usdNote ? <div className="vx-note">{usdNote}</div> : null}
             {eurNote ? <div className="vx-note">{eurNote}</div> : null}
             {vndNote ? <div className="vx-note">{vndNote}</div> : null}
@@ -1396,6 +1425,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                 {isEn ? "Delivery will cost from 70,000 VND." : "Стоимость доставки составит от 70,000 VND."}
               </div>
             ) : null}
+            </>}
 
             {!isAdminMode ? (
               <>
