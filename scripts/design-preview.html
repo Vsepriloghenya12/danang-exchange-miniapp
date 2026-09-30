@@ -3,14 +3,14 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#e9edef;color:#002333;font:14px/1.6 system-ui,sans-serif}main{max-width:1040px;margin:auto;padding:38px 24px;display:grid;grid-template-columns:1fr 460px;gap:50px;align-items:start}aside{padding-top:60px}h1{font-size:46px;letter-spacing:-2.5px;line-height:1.08;margin:20px 0}h1 span{display:block;font-weight:400}p{color:#60747d;max-width:350px}b{color:#002333}.tag{display:inline-block;padding:6px 12px;border-radius:30px;background:#f6c600;font-size:12px;font-weight:700}.controls{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0}button,select,a{font:inherit}button,select{border:1px solid #cad5da;background:#ffffff;color:#002333;border-radius:10px;padding:9px 13px;cursor:pointer}button[aria-pressed=true]{background:#002333;color:white;border-color:#002333}.note{font-size:12px;margin-top:26px;padding-top:18px;border-top:1px solid #ccd6da}.device{width:406px;margin:auto;border:8px solid #002333;border-radius:34px;overflow:hidden;background:#f4f6f7;box-shadow:0 20px 65px #0023331a}iframe{display:block;width:390px;max-width:100%;height:780px;border:0}.caption{text-align:center;font-size:11px;color:#60747d;margin-top:12px}a{color:#002333;text-underline-offset:4px}@media(max-width:800px){main{display:flex;flex-direction:column;align-items:center;gap:20px;padding:20px 10px}aside{padding:0;width:min(100%,430px)}h1{font-size:30px;margin:12px 0}.controls{margin:12px 0}.note{margin:12px 0}.device{max-width:100%;border-width:5px}.caption{margin-bottom:20px}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
 </style></head><body><main><aside>
-<span class="tag">Предупреждения · локально</span>
-<h1>Cash a Lot<span>Подсказки в карточке.</span></h1>
-<p>Ограничения суммы и условия обмена появляются внутри синего блока, прямо под результатом.</p>
+<span class="tag">Анимация подсказок · локально</span>
+<h1>Cash a Lot<span>Один блок. Два состояния.</span></h1>
+<p>Все условия видны сразу. Сумма плавно поднимается и меняет размер под объём текста. Высота карточки не меняется при вводе.</p>
 <div class="controls"><button id="light" aria-pressed="true">Светлая</button><button id="dark" aria-pressed="false">Тёмная</button></div>
 <div class="controls"><select id="size" aria-label="Размер телефона"><option value="390,780">Телефон · 390 × 780</option><option value="375,667">Компактный · 375 × 667</option><option value="430,860">Большой · 430 × 860</option></select><select id="time" aria-label="Режим работы"><option value="day">Рабочее время</option><option value="night">После закрытия</option></select></div>
-<p>Введите <b>5 000 RUB</b>, чтобы увидеть минимальную сумму. Затем введите <b>25 000 RUB</b> и выберите банкомат — появится условие кратности.</p>
+<p>Меняйте <b>25 000 RUB</b> на <b>5 000 RUB</b> и обратно. Для нескольких условий выберите <b>USD</b> и введите <b>50</b>.</p>
 <a href="/?demo=1&lang=ru&previewTheme=light" target="_blank">Открыть приложение отдельно</a>
-<p class="note">Демонстрационные курсы и время. Заявки не отправляются. Изменения ещё не опубликованы.</p>
+<p class="note">Демонстрационные курсы и время. Заявки не отправляются. Вариант согласован для тестового приложения.</p>
 </aside><section><div class="device"><iframe id="app" title="Предпросмотр Cash a Lot" src="/?demo=1&lang=ru&previewTheme=light"></iframe></div><div class="caption">Живой интерфейс — все элементы можно нажимать</div></section></main>
 <script>
 const frame=document.querySelector('#app');let theme='light';

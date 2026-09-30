@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { activitySessionId, trackActivity } from "../lib/activity";
 import WhaleMark from "../components/WhaleMark";
 import CurrencyPicker from "../components/CurrencyPicker";
+import ExchangeGuidance, { type ExchangeNotice } from "../components/ExchangeGuidance";
+import useFitAmount from "../components/useFitAmount";
 import {
   amountMaxDecimals,
   fmtAmount,
@@ -924,25 +926,32 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     needsCashDeliveryWarning(buyCurrency, buyAmount);
 
   // Keep related guidance together and show each rule once inside the result card.
-  const amountNotices: { key: string; text: string; warning: boolean }[] = [];
-  if (minSellNote) amountNotices.push({ key: "minimum", text: minSellNote, warning: true });
-  if (usdNote) amountNotices.push({ key: "usd", warning: invalidUsdSell || invalidUsdBuy,
-    text: isEn ? "USD: multiples of 100. New-series $100 cash notes only, without marks or defects." : "USD: сумма кратна 100. Только наличные купюры по 100 $ нового образца, без надписей и дефектов." });
-  if (eurNote) amountNotices.push({ key: "eur", warning: invalidEurSell || invalidEurBuy,
-    text: isEn ? "EUR: multiples of 50. New-series €50/€100/€200 cash notes only, without marks or defects." : "EUR: сумма кратна 50. Только наличные купюры по 50/100/200 € нового образца, без надписей и дефектов." });
-  if (thbNote) amountNotices.push({ key: "thb", text: thbNote, warning: invalidThbSell || invalidThbBuy });
-  if (vndNote) amountNotices.push({ key: "vnd", text: vndNote, warning: false });
+  const amountNotices: ExchangeNotice[] = [];
+  if (minSellNote) amountNotices.push({ key: "minimum", warning: true,
+    text: isEn ? `Minimum: ${minSellAmountLabel(sellCurrency)}.` : `Минимум — ${minSellAmountLabel(sellCurrency)}.` });
+  if (usdNote || eurNote) amountNotices.push({ key: "banknotes", warning: invalidUsdSell || invalidUsdBuy || invalidEurSell || invalidEurBuy,
+    text: [
+      isEn ? "New-series cash notes only, without marks or defects." : "Только наличные нового образца, без надписей и дефектов.",
+      usdNote ? (isEn ? "USD: $100 notes; multiples of 100." : "USD: купюры $100; сумма кратна 100.") : "",
+      eurNote ? (isEn ? "EUR: €50/100/200 notes; multiples of 50." : "EUR: купюры €50/100/200; сумма кратна 50.") : "",
+    ].filter(Boolean).join(" ") });
+  if (thbNote) amountNotices.push({ key: "thb", warning: invalidThbSell || invalidThbBuy,
+    text: isEn ? "THB: cash only, multiples of 100 baht." : "THB: только наличные, кратно 100 бат." });
+  if (vndNote) amountNotices.push({ key: "vnd", warning: false,
+    text: isEn ? "VND → VND: pay by cash/transfer; receive by cash/transfer/ATM. Fee: 2%, at least 100,000 VND." : "VND → VND: оплата наличными/переводом; выдача наличными/переводом/в банкомате. Комиссия 2%, минимум 100 000 VND." });
   if (invalidVndSellCash) amountNotices.push({ key: "vnd-cash", warning: true,
-    text: isEn ? `VND cash payment must be in multiples of ${fmtAmount("VND", CASH_VND_STEP)}.` : `Оплата наличными VND должна быть кратна ${fmtAmount("VND", CASH_VND_STEP)}.` });
-  if (vndAtmNote) amountNotices.push({ key: "atm", text: vndAtmNote, warning: invalidVndBuyAtm });
+    text: isEn ? `VND cash payment: multiples of ${fmtAmount("VND", CASH_VND_STEP)}.` : `Оплата наличными VND: кратно ${fmtAmount("VND", CASH_VND_STEP)}.` });
+  if (vndAtmNote) amountNotices.push({ key: "atm", warning: invalidVndBuyAtm,
+    text: isEn ? `ATM payout: multiples of ${fmtAmount("VND", ATM_VND_STEP)} VND.` : `Банкомат: выдача кратно ${fmtAmount("VND", ATM_VND_STEP)} VND.` });
   if (showCashDeliveryNote) amountNotices.push({ key: "delivery-cost", warning: false,
     text: isEn ? "Delivery will cost from 70,000 VND." : "Стоимость доставки — от 70 000 VND." });
-  if (managerOffline) amountNotices.push({ key: "hours", warning: false,
-    text: isEn ? `Da Nang ${danangTime.label}. Requests open 10:00–22:00.` : `В Дананге ${danangTime.label}. Приём заявок 10:00–22:00.` });
-  else if (deliveryClosed) amountNotices.push({ key: "delivery-hours", warning: false,
-    text: isEn ? `Da Nang ${danangTime.label}. After 20:00 cash delivery is unavailable. Only remote exchange is available.` : `В Дананге ${danangTime.label}. После 20:00 доставка наличных недоступна. Только дистанционный обмен.` });
-  if (receiveMethodUnavailableByHours) amountNotices.push({ key: "payout-hours", warning: true,
-    text: isEn ? "After 20:00 only Transfer or ATM receive methods are available. Payout for the selected currency is currently unavailable." : "После 20:00 доступны только «Перевод» или «Банкомат». Выдача выбранной валюты сейчас недоступна." });
+  useFitAmount(sellInputRef, sellText, !isAdminMode);
+  useFitAmount(buyInputRef, buyText, !isAdminMode);
+  const hoursNotice = managerOffline
+    ? (isEn ? `Da Nang ${danangTime.label}. Requests open 10:00–22:00.` : `В Дананге ${danangTime.label}. Приём заявок 10:00–22:00.`)
+    : deliveryClosed
+      ? (isEn ? `Da Nang ${danangTime.label}. After 20:00: no cash delivery, remote exchange only.` : `Дананг ${danangTime.label}. После 20:00 — без доставки наличных, только дистанционный обмен.`)
+      : "";
 
   function swapCurrencies() {
     const nextSellCurrency = buyCurrency;
@@ -1210,6 +1219,9 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       ) : null}
 
       <div className="cx-calcBody">
+        {!isAdminMode && hoursNotice && <div className="cl-hoursNote" role="status">
+          <span aria-hidden="true">◷</span><span>{hoursNotice}{receiveMethodUnavailableByHours && (isEn ? ` ${buyCurrency} payout is unavailable.` : ` Выдача ${buyCurrency} недоступна.`)}</span>
+        </div>}
         <div className="cx-amountCards" ref={pairElement}>
           <div className="cx-amtCard">
             <div className="cx-amtLabel">
@@ -1273,7 +1285,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
             </button>
           </div>}
 
-          <div className="cx-amtCard cx-amtCardGet">
+          <div className={`cx-amtCard cx-amtCardGet${!isAdminMode ? ` cl-compactReceive${amountNotices.length ? " has-guidance" : ""}` : ""}`}>
             {!isAdminMode && <svg className="cl-oceanLines" viewBox="0 0 360 120" preserveAspectRatio="none" aria-hidden="true">
               <path d="M140 130C175 92 169 30 226 22S305 60 372 0M154 140C189 102 183 40 240 32S319 70 386 10M168 150C203 112 197 50 254 42S333 80 400 20M182 160C217 122 211 60 268 52S347 90 414 30M196 170C231 132 225 70 282 62S361 100 428 40" />
             </svg>}
@@ -1327,12 +1339,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                 onBlur={flushAmountActivity}
               />
             </div>
-            {!isAdminMode && <div className="cl-amountNotices" id={amountNoticesId} role="status" aria-live="polite" aria-atomic="true">
-              {amountNotices.map(note => <div key={note.key} className={`cl-amountNotice${note.warning ? " is-warning" : ""}`}>
-                <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.3" /><path d={note.warning ? "M10 6v5m0 3v.1" : "M10 9v5m0-8v.1"} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
-                <span>{note.text}</span>
-              </div>)}
-            </div>}
+            {!isAdminMode && <ExchangeGuidance notices={amountNotices} id={amountNoticesId} />}
           </div>
 
           {isAdminMode && <button type="button" className="cx-swapFab" onClick={swapCurrencies} title={isEn ? "Swap" : "Поменять местами"} aria-label={isEn ? "Swap currencies" : "Поменять валюты местами"}>

@@ -111,28 +111,34 @@ html[data-theme="dark"] .cl-app .cx-curCircle[data-cur="USDT"] { color: #78d8bd 
 .cl-app .cx-swapFab:active svg { transform: none; }
 .cl-swapAnchor { position: relative; height: 0; z-index: 3; }
 .cl-app .cl-swapAnchor .cx-swapFab { top: 0; }
-.cl-app .cx-amtCardGet .cl-amountNotices { display: grid; gap: 8px; }
-.cl-app .cl-amountNotices:not(:empty) { margin-top: 12px; padding-top: 10px; border-top: 1px solid #ffffff24; }
-.cl-app .cl-amountNotice { display: flex; align-items: flex-start; gap: 7px; color: #b2c7cf; font-size: 11px; line-height: 1.5; text-align: left; }
-.cl-app .cl-amountNotice > svg { flex: none; margin-top: 1px; }
-.cl-app .cl-amountNotice.is-warning { color: #ffe297; }
-.cl-app .cl-amountNotice > span { min-width: 0; }
-@media (max-height: 680px) {
-  .cl-app .cl-amountNotices:not(:empty) { margin-top: 8px; padding-top: 8px; }
-  .cl-app .cx-amtCardGet .cl-amountNotices { gap: 6px; }
-}
-.cl-app .cx-rateNote { margin: 9px 2px 13px; justify-content: space-between; gap: 5px; font-size: 10px; font-weight: 500; min-height: 14px; }
+/* A fixed reserve keeps every condition visible without moving the form. */
+.cl-app .cx-amountCards > .cx-amtCard { height: 112px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
+.cl-app.theme-client.vx-page.cx-app .cx-amountCards .cx-amtInput { font-size: var(--amount-font, 36px); letter-spacing: -.025em; }
+.cl-app .cl-compactReceive .cx-amtLabel { transition: opacity .18s ease, translate .36s cubic-bezier(.22,1,.36,1); }
+.cl-app .cl-compactReceive .cx-amtRow { transition: translate .42s cubic-bezier(.22,1,.36,1); }
+.cl-app .cl-compactReceive .cx-amtInput { transform-origin: left top; transition: scale .42s cubic-bezier(.22,1,.36,1); }
+.cl-app .cl-compactReceive .cl-currencyTrigger { transform-origin: right top; transition: scale .42s cubic-bezier(.22,1,.36,1); }
+.cl-app .cl-compactReceive.has-guidance .cx-amtLabel { opacity: 0; translate: 0 -6px; }
+.cl-app .cl-compactReceive.has-guidance .cx-amtRow { translate: 0 var(--guidance-row-lift, -28px); }
+.cl-app .cl-compactReceive.has-guidance .cx-amtInput { scale: var(--guidance-number-scale, .8); }
+.cl-app .cl-compactReceive.has-guidance .cl-currencyTrigger { scale: .78; }
+.cl-app .cl-swapAnchor .cx-swapFab { right: 50%; margin-right: -17px; }
+.cl-app .cx-amtCardGet > .cl-guidancePreview { position: absolute; left: 15px; right: 15px; top: var(--guidance-text-top, 65px); color: #b2c7cf; opacity: 0; visibility: hidden; translate: 0 7px; transition: opacity .24s ease, translate .36s cubic-bezier(.22,1,.36,1), visibility .24s; }
+.cl-app .cl-compactReceive.has-guidance > .cl-guidancePreview { opacity: 1; visibility: visible; translate: 0 0; transition-delay: .08s; }
+.cl-app .cl-guidancePreview p { margin: 0; font: 500 var(--guidance-font, 11px)/1.3 "Manrope", sans-serif; text-align: left; overflow-wrap: anywhere; }
+.cl-app .cl-guidancePreview .is-warning { color: #ffe297; }
+.cl-app .cx-rateNote { margin: 7px 2px 9px; justify-content: space-between; gap: 5px; font-size: 10px; font-weight: 500; min-height: 14px; }
 .cl-app .cx-rateNote .cx-rateValue { color: var(--cl-ink); font-size: 11px; font-weight: 700; }
 .cl-app .cx-rateNoteDot, .cl-app .cx-rateNote .cx-freshDot { display: none; }
 .cl-app .cx-bonusLine { color: var(--cl-muted); font-size: 11px; }
-.cl-app .cx-methodRow { margin-bottom: 7px; gap: 10px; min-height: 34px; }
+.cl-app .cx-methodRow { margin-bottom: 5px; gap: 10px; min-height: 34px; }
 .cl-app .cx-methodRowLabel { font-size: 11px; width: 72px; text-transform: none; letter-spacing: 0; font-weight: 500; }
 .cl-app .cx-methodRowChips { gap: 4px; justify-content: flex-end; }
 .cl-app .cx-methodRowChips .cx-methodBtn { min-height: 34px; border-radius: 9px; font-size: 11px; padding: 6px 8px; font-weight: 600; background: transparent; border: 1px solid var(--cl-line); color: var(--cl-muted); flex: 1; transition: background .18s ease, color .18s ease, border-color .18s ease; }
 .cl-app .cx-methodRowChips .cx-methodBtn:only-child { flex: 0 1 auto; min-width: 82px; }
 .cl-app .cx-methodRowChips .cx-methodBtn.is-active { background: var(--cl-ink); border-color: var(--cl-ink); color: var(--cl-bg); }
 html[data-theme="dark"] .cl-app .cx-methodRowChips .cx-methodBtn.is-active { color: var(--cl-bg); }
-.cl-app .cx-calc .vx-sp12 { height: 7px; }
+.cl-app .cx-calc .vx-sp12 { height: 4px; }
 .cl-commentRow { display: flex; align-items: center; border: 1px solid var(--cl-line); background: var(--cl-surface); border-radius: 12px; min-height: 40px; }
 .cl-app .cx-calc .cl-commentRow textarea.vx-requestCommentInput { resize: none; flex: 1; min-width: 0; background: transparent; border: 0; border-radius: 12px; min-height: 38px; padding: 9px 11px; font: 12px/20px "Manrope", sans-serif; color: var(--cl-ink); box-shadow: none; }
 .cl-app .cx-calc .cl-commentRow textarea::placeholder { color: var(--cl-muted); opacity: .8; }
@@ -148,12 +154,12 @@ html[data-theme="dark"] .cl-app .cx-methodRowChips .cx-methodBtn.is-active { col
 .cl-app .cx-cta:hover:not(:disabled) .cl-ctaWhale { animation: cl-whale-nod .5s ease; }
 .cl-app .cx-cta:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 1px 0 #fff6b3, 0 1px 0 #c9a300; }
 .cl-app .cx-cta.is-disabled, .cl-app .cx-cta:disabled { opacity: .6; box-shadow: none; }
-.cl-app .cx-consent { margin: 8px 3px 0; font-size: 9px; line-height: 1.5; color: var(--cl-muted); text-align: center; }
+.cl-app .cx-consent { margin: 5px 3px 0; font-size: 9px; line-height: 1.5; color: var(--cl-muted); text-align: center; }
 .cl-app .cx-consentLink { color: inherit; text-decoration-color: var(--cl-muted); font-size: inherit; }
 .cl-app .cx-calc .cl-hoursNote { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin: 0 0 1px; background: var(--cl-soft); border: 0; border-radius: 10px; font-size: 10px; color: var(--cl-muted); line-height: 1.4 !important; }
 .cl-hoursNote > span:first-child { font-size: 20px; }
 .cl-app .vx-note, .cl-app .vx-warn { padding: 8px 10px; font-size: 11px; border-radius: 10px; box-shadow: none; }
-.cl-app .cx-rateCard { background: transparent; border: 0; border-top: 1px solid var(--cl-line); border-radius: 0; box-shadow: none; padding: 12px 1px 2px; margin-top: 16px !important; }
+.cl-app .cx-rateCard { background: transparent; border: 0; border-top: 1px solid var(--cl-line); border-radius: 0; box-shadow: none; padding: 8px 1px 2px; margin-top: 10px !important; }
 .cl-app .cx-rateCardHead { margin: 0 0 10px; align-items: center; }
 .cl-app .cx-rateCardTitle { font-size: 11px; font-weight: 600; color: var(--cl-muted); }
 .cl-app .cx-linkBtn { color: var(--cl-ink); font-size: 11px; font-weight: 700; min-height: 24px; }
@@ -233,13 +239,19 @@ html[data-theme="dark"] .cl-app .cx-methodRowChips .cx-methodBtn.is-active { col
   .cl-serviceRow { min-height: 26px; margin-bottom: 0; }
   .cl-app .cx-statusChip, .cl-info { height: 26px; }
   .cl-app .cx-segment { margin-bottom: 7px; }
-  .cl-app .cx-amtCard { padding-top: 6px; padding-bottom: 6px; }
+  .cl-app .cx-amtCard { padding-top: 4px; padding-bottom: 4px; }
+  .cl-app .cx-amountCards > .cx-amtCard { height: 104px; }
   .cl-app .cx-rateNote .cx-rateValue { font-size: 10px; }
-  .cl-app .cx-rateNote { margin-top: 6px; margin-bottom: 7px; }
-  .cl-app .cx-rateCard { margin-top: 8px !important; padding-top: 5px; }
-  .cl-app .cx-rateCardHead { margin-bottom: 4px; }
-  .cl-app .cx-miniRateRow { gap: 2px; }
-  .cl-app .cx-calc .vx-sp12 { height: 4px; }
+  .cl-app .cx-rateNote { margin-top: 2px; margin-bottom: 3px; }
+  .cl-app .cx-rateCard { margin-top: 3px !important; padding-top: 5px; display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 8px; align-items: center; }
+  .cl-app .cx-rateCardHead { margin-bottom: 0; flex-direction: column; align-items: flex-start; gap: 0; }
+  .cl-app .cx-rateCardTitle { font-size: 10px; }
+  .cl-app .cx-miniRateRow { gap: 2px; padding-left: 7px; }
+  .cl-app .cx-miniRateRow .cx-miniPair { font-size: 9px; }
+  .cl-app .cx-miniRateRow .cx-miniVal { font-size: 14px; }
+  .cl-app .cx-calc .vx-sp12 { height: 1px; }
+  .cl-app .cx-methodRow { margin-bottom: 1px; }
+  .cl-app .cx-consent { margin-top: 3px; }
   .cl-app .cx-calc .cl-hoursNote { padding-top: 5px; padding-bottom: 5px; }
   .cl-app .cl-hoursNote > span:first-child { font-size: 16px; line-height: 1; }
   .cl-app.theme-client.vx-page.mx-homePage .mx-homeCalcSection .vx-calc { gap: 5px !important; }
