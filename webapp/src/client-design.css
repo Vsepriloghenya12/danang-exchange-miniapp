@@ -194,17 +194,21 @@ html[data-theme="dark"] .cl-app .cx-methodRowChips .cx-methodBtn.is-active { col
     opacity: 0; visibility: hidden; pointer-events: none;
     transition-delay: 0s, 0s, .26s;
   }
-  html.vx-keyboard-open .cl-app.theme-client.vx-page.cx-app.mx-homePage { padding-top: max(6px, env(safe-area-inset-top, 0px)); padding-bottom: 8px; }
-  html.vx-keyboard-open .cl-headerStage { height: 72px; }
+  html.vx-keyboard-open .cl-app.theme-client.vx-page.cx-app.mx-homePage { padding-top: max(6px, env(safe-area-inset-top, 0px)); padding-bottom: 4px; }
+  html.vx-keyboard-open .cl-headerStage { height: 64px; }
   html.vx-keyboard-open .cl-app .cx-calc > .vx-help,
-  html.vx-keyboard-open .cl-app :is(.cl-hoursNote, .cx-rateNote, .cl-rateSpacer, .cx-bonusLine, .cx-methodRow, .cx-rateCard, .cx-consent) { display: none; }
+  html.vx-keyboard-open .cl-app :is(.cl-hoursNote, .cx-rateNote, .cl-rateSpacer, .cx-bonusLine, .cx-rateCard, .cx-consent) { display: none; }
   html.vx-keyboard-open .cl-app .cx-amountCards > .cx-amtCard { height: 104px; padding: 8px 15px; }
-  html.vx-keyboard-open .cl-app .vx-requestComposer { position: static !important; bottom: auto !important; transform: none; margin-top: 8px; }
+  html.vx-keyboard-open .cl-app .cx-methodRow { min-height: 24px; margin: 2px 0 0; gap: 6px; }
+  html.vx-keyboard-open .cl-app .cx-methodRowLabel { width: 62px; font-size: 10px; }
+  html.vx-keyboard-open .cl-app .cx-methodRowChips .cx-methodBtn { min-height: 24px; padding: 2px 7px; font-size: 10px; }
+  html.vx-keyboard-open .cl-app .vx-requestComposer { position: static !important; bottom: auto !important; transform: none; margin-top: 4px; }
   html.vx-keyboard-open .cl-app .cx-calcSide > .vx-sp12 { display: none; }
-  html.vx-keyboard-open .cl-app .vx-requestComposer > .vx-sp12 { height: 8px; }
-  html.vx-keyboard-open .cl-app .cx-cta { height: 44px; }
+  html.vx-keyboard-open .cl-app .vx-requestComposer > .vx-sp12 { height: 4px; }
+  html.vx-keyboard-open .cl-app .cx-cta { height: 40px; }
   html.vx-keyboard-open .cl-app .cl-commentRow { min-height: 36px; }
-  html.vx-keyboard-open .cl-app .cx-calc .cl-commentRow textarea.vx-requestCommentInput { height: 38px; min-height: 38px; max-height: 38px; overflow-y: auto; }
+  html.vx-keyboard-open .cl-app .cx-calc .cl-commentRow textarea.vx-requestCommentInput { height: 34px; min-height: 34px; max-height: 34px; padding: 7px 11px; overflow-y: auto; }
+  html.vx-keyboard-open .cl-app .cx-attachBtn { width: 34px; height: 34px; }
   html.vx-keyboard-open .cl-app .cx-nav.mx-bottomNav {
     visibility: hidden;
     opacity: 0;

@@ -1383,6 +1383,9 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                     type="button"
                     className={"cx-methodBtn" + (payMethod === m ? " is-active" : "")}
                     aria-pressed={payMethod === m}
+                    onPointerDown={(e) => {
+                      if (e.isPrimary && e.button === 0 && document.documentElement.classList.contains("vx-keyboard-open")) e.preventDefault();
+                    }}
                     onClick={() => {
                       preserveSwappedValuesRef.current = false;
                       payMethodAutoSelectedRef.current = false;
@@ -1406,6 +1409,9 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                     type="button"
                     className={"cx-methodBtn" + (receiveMethod === m ? " is-active" : "")}
                     aria-pressed={receiveMethod === m}
+                    onPointerDown={(e) => {
+                      if (e.isPrimary && e.button === 0 && document.documentElement.classList.contains("vx-keyboard-open")) e.preventDefault();
+                    }}
                     onClick={() => {
                       preserveSwappedValuesRef.current = false;
                       receiveMethodAutoSelectedRef.current = false;
