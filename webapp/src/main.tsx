@@ -75,8 +75,10 @@ try {
     const isTextControl = (el: EventTarget | null) =>
       el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement;
 
+    let restoreMenuTimer: number | undefined;
     const handleFocusIn = (ev: Event) => {
       if (!isTextControl(ev.target)) return;
+      window.clearTimeout(restoreMenuTimer);
       document.documentElement.classList.add("vx-keyboard-open");
       lockViewport();
       window.setTimeout(resetViewportState, 24);
@@ -84,7 +86,12 @@ try {
     };
 
     const handleFocusOut = () => {
-      document.documentElement.classList.remove("vx-keyboard-open");
+      window.clearTimeout(restoreMenuTimer);
+      restoreMenuTimer = window.setTimeout(() => {
+        if (!isTextControl(document.activeElement)) {
+          document.documentElement.classList.remove("vx-keyboard-open");
+        }
+      }, 220);
       window.setTimeout(resetViewportState, 24);
       window.setTimeout(resetViewportState, 220);
       window.setTimeout(resetViewportState, 420);

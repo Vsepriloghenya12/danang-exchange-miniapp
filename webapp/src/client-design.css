@@ -175,6 +175,15 @@ html[data-theme="dark"] .cl-app .cx-methodRowChips .cx-methodBtn.is-active { col
   background: var(--cl-surface); box-shadow: 0 4px 24px #0023330d; backdrop-filter: none;
 }
 .cl-app .cx-navBtn { border-radius: 12px; gap: 4px; padding: 5px 4px; font-size: 10px; font-weight: 600; background: transparent; color: var(--cl-muted); border: 0; }
+/* Hide before the mobile viewport shrinks so the menu cannot ride above the keyboard. */
+@media (max-width: 600px), (pointer: coarse) {
+  html.vx-keyboard-open .cl-app .cx-nav.mx-bottomNav {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: none;
+  }
+}
 .cl-app .cx-navBtn svg { width: 21px; height: 21px; }
 .cl-app .cx-navBtn.is-on { color: var(--cl-ink); background: transparent; box-shadow: none; }
 .cl-app .cx-navBtn svg { padding: 3px 10px; width: 21px; height: 19px; box-sizing: content-box; border-radius: 9px; transition: background .18s ease; }
