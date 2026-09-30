@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import "./styles.css";
 import "./client-design.css";
 import App from "./App";
+import { KeyboardState } from "./lib/keyboardState";
 
 // Apply black background class immediately (prevents any "blue bleed" before React mounts)
 try {
@@ -37,7 +38,21 @@ try {
       document.documentElement.style.setProperty("--vh", `${vh}px`);
     };
 
+    const keyboardHeight = () => Math.min(
+      window.innerHeight,
+      window.visualViewport?.height || window.innerHeight,
+      tg?.viewportHeight || window.innerHeight,
+    );
+    const isTextControl = (el: EventTarget | null) =>
+      (el instanceof HTMLInputElement && !el.readOnly && !el.disabled &&
+        !["button", "submit", "reset", "checkbox", "radio", "range", "file", "color", "hidden"].includes(el.type)) ||
+      (el instanceof HTMLTextAreaElement && !el.readOnly && !el.disabled);
+    const keyboard = new KeyboardState(keyboardHeight());
+    const renderKeyboard = () => document.documentElement.classList.toggle("vx-keyboard-open", keyboard.open);
+
     const resetViewportState = () => {
+      keyboard.viewport(keyboardHeight(), isTextControl(document.activeElement));
+      renderKeyboard();
       lockViewport();
       setVh();
       try {
@@ -72,14 +87,12 @@ try {
       { passive: false } as any,
     );
 
-    const isTextControl = (el: EventTarget | null) =>
-      el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement;
-
     let restoreMenuTimer: number | undefined;
     const handleFocusIn = (ev: Event) => {
       if (!isTextControl(ev.target)) return;
       window.clearTimeout(restoreMenuTimer);
-      document.documentElement.classList.add("vx-keyboard-open");
+      keyboard.focus(keyboardHeight());
+      renderKeyboard();
       lockViewport();
       window.setTimeout(resetViewportState, 24);
       window.setTimeout(resetViewportState, 180);
@@ -89,7 +102,8 @@ try {
       window.clearTimeout(restoreMenuTimer);
       restoreMenuTimer = window.setTimeout(() => {
         if (!isTextControl(document.activeElement)) {
-          document.documentElement.classList.remove("vx-keyboard-open");
+          keyboard.viewport(keyboardHeight(), false);
+          renderKeyboard();
         }
       }, 220);
       window.setTimeout(resetViewportState, 24);
@@ -98,6 +112,10 @@ try {
     };
 
     document.addEventListener("focusin", handleFocusIn, true);
+    // A dismissed keyboard can reopen on the already-focused input without focusin.
+    document.addEventListener("pointerdown", (ev) => {
+      if (ev.target === document.activeElement && !keyboard.open) handleFocusIn(ev);
+    }, true);
     document.addEventListener("focusout", handleFocusOut, true);
 
     // Telegram-specific viewport updates

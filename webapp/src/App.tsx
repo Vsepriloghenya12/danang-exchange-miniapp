@@ -19,6 +19,7 @@ import PaymentsTab from "./tabs/PaymentsTab";
 import OwnerPortal from "./admin/OwnerPortal";
 import ReferralsMenu from "./tabs/ReferralsMenu";
 import WhaleMark from "./components/WhaleMark";
+import AnimatedHeader from "./components/AnimatedHeader";
 import Sheet from "./components/Sheet";
 import StatusSheet from "./components/StatusSheet";
 
@@ -575,8 +576,7 @@ export default function App() {
         <ScreenPane active={screen === "home"}>
           <div className="mx-homeLayout">
             <div className="mx-homeLead">
-              <div className="cl-headerStage">
-              <div className="cl-headerBackdrop">
+              <AnimatedHeader>
               <div className="cx-header">
                 <div className="cl-brand" aria-label="Cash a Lot">
                   <WhaleMark />
@@ -635,12 +635,7 @@ export default function App() {
                 </button>
               </div>
 
-              </div>
-              <button type="button" className="cl-focusBrand" aria-label={isEn ? "Finish entering amount" : "Завершить ввод"}
-                onClick={() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); }}>
-                <span className="cl-brand" aria-hidden="true"><WhaleMark /><span>Cash a Lot<span className="cl-brandDot">.</span></span></span>
-              </button>
-              </div>
+              </AnimatedHeader>
 
               {homeSection === "calc" ? (
                 <>
