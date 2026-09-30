@@ -575,6 +575,8 @@ export default function App() {
         <ScreenPane active={screen === "home"}>
           <div className="mx-homeLayout">
             <div className="mx-homeLead">
+              <div className="cl-headerStage">
+              <div className="cl-headerBackdrop">
               <div className="cx-header">
                 <div className="cl-brand" aria-label="Cash a Lot">
                   <WhaleMark />
@@ -631,6 +633,13 @@ export default function App() {
                 >
                   {isEn ? "Reviews" : "Отзывы"}
                 </button>
+              </div>
+
+              </div>
+              <button type="button" className="cl-focusBrand" aria-label={isEn ? "Finish entering amount" : "Завершить ввод"}
+                onClick={() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); }}>
+                <span className="cl-brand" aria-hidden="true"><WhaleMark /><span>Cash a Lot<span className="cl-brandDot">.</span></span></span>
+              </button>
               </div>
 
               {homeSection === "calc" ? (
