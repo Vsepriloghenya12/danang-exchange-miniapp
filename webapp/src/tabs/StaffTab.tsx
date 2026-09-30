@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import CalculatorTab from "./CalculatorTab";
+import { referralError } from "../lib/referrals";
 import { getUserStatusLabel, USER_STATUS_OPTIONS_RU } from "../domain/status";
 import {
   apiGetBankIcons,
@@ -254,9 +255,10 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
 
   async function changeState(next: string) {
     if (!selectedReq) return;
-    const r = await apiStaffSetRequestState(initData, String(selectedReq.id), next);
+    if (next === "done" && !window.confirm(isEn ? "Have all funds been received and the exchange completed? This closes the exchange and credits referral bonuses." : "Деньги получены в полном объёме и обмен завершён? После подтверждения начислятся реферальные бонусы, а сделка будет закрыта.")) return;
+    const r = await apiStaffSetRequestState(initData, String(selectedReq.id), next, next === "done");
     if (!r?.ok) {
-      tg?.showAlert?.(r?.error || (isEn ? "Error" : "Ошибка"));
+      tg?.showAlert?.(referralError(r?.error));
       return;
     }
     await loadAll();

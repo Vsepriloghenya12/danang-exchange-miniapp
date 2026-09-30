@@ -6,6 +6,7 @@ import type { BonusesConfig, BonusesTier, CrossRates, GFormula, Rates } from "./
 import { defaultBonuses, defaultGFormulas } from "./domain/exchange.js";
 import type { RequestState, UserStatus } from "./domain/status.js";
 import { normalizeStatus, parseStatusInput } from "./domain/status.js";
+import { attachReferral, type BonusEntry, type ReferralQuote } from "./referrals.js";
 
 export type { BonusesConfig, BonusesTier, CrossRates, GFormula, PairMarkup, Rates } from "./domain/exchange.js";
 export { defaultBonuses, defaultGFormulas } from "./domain/exchange.js";
@@ -54,6 +55,12 @@ export type SupportDialog = {
 };
 
 export type StoredUser = {
+  referral_code?: string;
+  referred_by?: number;
+  referred_at?: string;
+  referral_rejected?: "daily_limit";
+  referral_reward_request_id?: string;
+  referral_rewarded_at?: string;
   tg_id: number;
   username?: string;
   first_name?: string;
@@ -82,6 +89,7 @@ export type Store = {
     gFormulas?: Record<string, GFormula>;
   };
   users: Record<string, StoredUser>;
+  bonusLedger: BonusEntry[];
   ratesByDate: Record<
     string,
     {
@@ -137,6 +145,11 @@ export type StoredReview = {
 };
 
 export type StoredRequest = {
+  referral_quote?: ReferralQuote;
+  referral_usd_cents?: number;
+  bonus_balance_cents?: number;
+  funds_received_at?: string;
+  funds_received_by?: number;
   id: string;
   state: RequestState;
   state_updated_at?: string;
@@ -176,6 +189,7 @@ function defaultStore(): Store {
       gFormulas: defaultGFormulas()
     },
     users: {},
+    bonusLedger: [],
     ratesByDate: {},
     requests: [],
     reviews: [],
@@ -196,6 +210,7 @@ function normalizeStore(parsed: any): { store: Store; dirty: boolean } {
     ...parsed,
     config: { ...(parsed?.config || {}) },
     users: { ...(parsed?.users || {}) },
+    bonusLedger: Array.isArray(parsed?.bonusLedger) ? parsed.bonusLedger : [],
     ratesByDate: { ...(parsed?.ratesByDate || {}) },
     requests: Array.isArray(parsed?.requests) ? (parsed.requests as any) : [],
     reviews: Array.isArray(parsed?.reviews) ? (parsed.reviews as any) : [],
@@ -505,13 +520,15 @@ export async function mutateStore<T>(fn: (store: Store) => T | Promise<T>): Prom
   if (!HAS_DATABASE) {
     // serialize writes in-process
     let result!: T;
-    fileQueue = fileQueue.then(async () => {
+    const operation = fileQueue.then(async () => {
       const store = await readStoreFile();
       result = await fn(store);
       await writeStoreFile(store);
       return null;
     });
-    await fileQueue;
+    // A rejected mutation must not poison every subsequent write.
+    fileQueue = operation.catch(() => null);
+    await operation;
     const store = await readStoreFile();
     return { store, result };
   }
@@ -629,7 +646,7 @@ export async function upsertUserFromTelegram(u: {
   username?: string;
   first_name?: string;
   last_name?: string;
-}): Promise<StoredUser> {
+}, referralPayload?: string): Promise<StoredUser> {
   const { result } = await mutateStore((store) => {
     const key = String(u.id);
     const now = new Date().toISOString();
@@ -647,6 +664,7 @@ export async function upsertUserFromTelegram(u: {
         created_at: now,
         last_seen_at: now
       };
+      attachReferral(store, store.users[key], referralPayload, now);
     } else {
       existing.username = u.username ?? existing.username;
       existing.first_name = u.first_name ?? existing.first_name;
@@ -658,6 +676,7 @@ export async function upsertUserFromTelegram(u: {
       existing.last_seen_at = now;
     }
 
+    store.users[key].referral_code ||= String(u.id);
     return store.users[key];
   });
 

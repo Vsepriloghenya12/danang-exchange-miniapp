@@ -7426,3 +7426,7 @@ html[data-theme="light"] .cx-histSumDiv{ background: rgba(9,23,33,.10); }
   width: auto;
   padding: 0 24px;
 }
+
+/* Keep the invitation button beside the logo without overlapping at phone widths. */
+.cx-app .cx-header .mx-mainLogoWrap{position:relative !important;left:auto !important;top:auto !important;transform:none !important;flex:1 1 auto;min-width:40px;width:auto !important;max-width:150px;margin:0 6px}
+@media(max-width:480px){.cx-app .cx-headerSide{gap:5px}.cx-app .cx-statusChip{padding:0 8px}.cx-app .cx-statusChip span{display:none}.cx-app .cx-header .mx-mainLogoWrap{max-width:120px}}

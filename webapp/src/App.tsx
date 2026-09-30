@@ -16,6 +16,7 @@ import FaqTab from "./tabs/FaqTab";
 import ContactsTab from "./tabs/ContactsTab";
 import PaymentsTab from "./tabs/PaymentsTab";
 import OwnerPortal from "./admin/OwnerPortal";
+import ReferralsMenu from "./tabs/ReferralsMenu";
 
 type Me = {
   ok: boolean;
@@ -357,6 +358,8 @@ export default function App() {
   const danangHour = getDanangHour(nowMs);
   const serviceOnline = danangHour >= 10 && danangHour < 22;
 
+  const [showReferrals, setShowReferrals] = useState(false);
+  const closeReferrals = React.useCallback(() => setShowReferrals(false), []);
   // Exchange conditions modal, opened from the "i" chip in the header.
   const [showConditions, setShowConditions] = useState(false);
 
@@ -641,6 +644,7 @@ ${msg}`);
 
   return (
     <div className={`vx-page theme-client cx-app ${screen === "home" ? "mx-homePage" : ""}`}>
+      {showReferrals && <ReferralsMenu initData={me.initData} isEn={isEn} onClose={closeReferrals} />}
       <div className="container">
         <ScreenPane active={screen === "home"}>
           <div className="mx-homeLayout">
@@ -669,6 +673,9 @@ ${msg}`);
                 <MainLogo theme={theme} />
 
                 <div className="cx-headerSide">
+                  <button type="button" className="cx-chip cx-chipIcon" onClick={() => setShowReferrals(true)} aria-label={isEn ? "Invite a friend" : "Пригласить друга"} title={isEn ? "Friends & bonuses" : "Друзья и бонусы"}>
+                    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="9" cy="7" r="3.5"/><path d="M2 21v-2a7 7 0 0 1 14 0v2M19 7v6m-3-3h6"/></svg>
+                  </button>
                   <button
                     type="button"
                     className="cx-chip cx-chipIcon"

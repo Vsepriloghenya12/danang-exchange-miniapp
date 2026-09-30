@@ -1007,7 +1007,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       });
       const json = await res.json().catch(() => ({}));
       if (!json?.ok) {
-        const err = String(json?.error || "fail");
+        const err = json?.error === "referral_rates_missing" ? (isEn ? "Referral bonus rates are not set yet. Please contact the manager." : "Курс для реферального бонуса ещё не задан. Обратитесь к менеджеру.") : String(json?.error || "fail");
         tg?.HapticFeedback?.notificationOccurred?.("error");
         tg?.showAlert?.(`Ошибка: ${err}`);
         return null;

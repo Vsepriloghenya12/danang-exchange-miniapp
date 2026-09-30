@@ -7,6 +7,7 @@ import { listCanonicalBankIcons, normalizeBankIcons, normalizeContactBanks } fro
 import { USER_STATUS_LABELS_RU, type UserStatus } from "./domain/status.js";
 import { BONUS_CURRENCIES, MARKUP_DIRECTION_KEYS, directionKey, type CrossRates, type PairMarkup } from "./domain/exchange.js";
 import { formatAmount } from "./format.js";
+import { changeRequestState, ownerReferralReport, prepareReferralRequest, recordBonusPayout, referralSummary, REFERRAL_TERMS } from "./referrals.js";
 import {
   readStore,
   mutateStore,
@@ -113,6 +114,10 @@ function parseRequestState(s: any): RequestState | null {
   if (["done", "готово", "готова", "выполнена"].includes(v)) return "done";
   if (["canceled", "cancelled", "отменена", "отмена"].includes(v)) return "canceled";
   return null;
+}
+
+function requestErrorStatus(message: string) {
+  return message.startsWith("referral_") || message === "funds_received_required" ? 400 : message === "not_admin" ? 403 : 401;
 }
 
 function isSameCurrencyVndPair(sellCurrency: Currency, buyCurrency: Currency) {
@@ -234,7 +239,7 @@ export function createApiRouter(opts: {
 
     const v = validateTelegramInitData(initData, opts.botToken);
 
-    const up = await upsertUserFromTelegram(v.user);
+    const up = await upsertUserFromTelegram(v.user, v.raw.start_param);
     const status = (up?.status ?? "standard") as UserStatus;
     const isOwner = isOwnerId(v.user.id);
 
@@ -283,6 +288,44 @@ export function createApiRouter(opts: {
   }
 
   router.get("/health", async (_req, res) => res.json({ ok: true }));
+
+  router.get("/referrals", async (req, res) => {
+    try {
+      const { user, blocked } = await requireAuth(req);
+      if (blocked) return res.status(403).json({ ok: false, error: "blocked" });
+      const store = await readStore();
+      const username = String(process.env.BOT_USERNAME || await getBotUsername() || "").replace(/^@/, "");
+      const account = store.users[String(user.id)];
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ ok: true, ...referralSummary(store, user.id),
+        link: username ? `https://t.me/${username}?start=ref_${account.referral_code}` : null,
+        terms: REFERRAL_TERMS, referred: !!account.referred_by, rewarded: !!account.referral_reward_request_id,
+        referralRejected: account.referral_rejected,
+        history: store.bonusLedger.filter(e => e.tg_id === user.id).reverse().map(({ id, cents, kind, created_at, request_id }) => ({ id, cents, kind, created_at, request_id })),
+      });
+    } catch (e: any) { return res.status(401).json({ ok: false, error: e?.message || "auth_failed" }); }
+  });
+
+  router.get("/admin/referrals", async (req, res) => {
+    try {
+      const { isOwner } = await requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ ok: true, ...ownerReferralReport(await readStore()) });
+    } catch (e: any) { return res.status(401).json({ ok: false, error: e?.message || "auth_failed" }); }
+  });
+
+  router.post("/admin/referrals/payout", async (req, res) => {
+    try {
+      const { isOwner, user } = await requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      const { result } = await mutateStore(store => recordBonusPayout(store, {
+        id: String(req.body?.id || ""), tgId: Number(req.body?.tgId), cents: Number(req.body?.cents),
+        note: String(req.body?.note || "").trim().slice(0, 300),
+      }, user.id));
+      return res.json({ ok: true, entry: result });
+    } catch (e: any) { return res.status(String(e?.message).startsWith("referral_") ? 400 : 401).json({ ok: false, error: e?.message || "auth_failed" }); }
+  });
 
   // --------------------
   // Analytics events (tab opens, clicks, sessions)
@@ -631,7 +674,8 @@ export function createApiRouter(opts: {
       const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true })
+        body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
+        signal: AbortSignal.timeout(5_000)
       });
       return await tgRes.json();
     };
@@ -657,7 +701,8 @@ export function createApiRouter(opts: {
 
       const tgRes = await fetch(`https://api.telegram.org/bot${opts.botToken}/${method}`, {
         method: 'POST',
-        body: form as any
+        body: form as any,
+        signal: AbortSignal.timeout(5_000)
       });
       const tgJson: any = await tgRes.json();
       if (tgJson?.ok) return tgJson;
@@ -1658,7 +1703,7 @@ router.post("/admin/faq", async (req, res) => {
       if (!isOwner && !isAdmin) return res.status(403).json({ ok: false, error: "forbidden" });
 
       const store = await readStore();
-      res.json({ ok: true, users: Object.values(store.users || {}) });
+      res.json({ ok: true, users: Object.values(store.users || {}).map(u => ({ ...u, referral: referralSummary(store, u.tg_id) })) });
     } catch (e: any) {
       res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }
@@ -1743,15 +1788,14 @@ router.post("/admin/faq", async (req, res) => {
         const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
         if (!r) return { notFound: true as const };
 
-        r.state = next;
-        r.state_updated_at = new Date().toISOString();
-        r.state_updated_by = user.id;
-        return { notFound: false as const, request: { ...r } };
+        const changed = changeRequestState(store, r, next, user.id, req.body?.fundsReceived === true);
+        return { notFound: false as const, request: { ...r }, changed };
       });
       if (result.notFound) return res.status(404).json({ ok: false, error: "not_found" });
       const r = result.request as StoredRequest;
 
       // notify user
+      if (!result.changed) return res.json({ ok: true, request: r });
       try {
         const shortId = id.slice(-6);
         const text =
@@ -1765,13 +1809,14 @@ router.post("/admin/faq", async (req, res) => {
         await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ chat_id: r.from.id, text, disable_web_page_preview: true })
+          body: JSON.stringify({ chat_id: r.from.id, text, disable_web_page_preview: true }),
+          signal: AbortSignal.timeout(5_000)
         });
       } catch {}
 
       return res.json({ ok: true, request: r });
     } catch (e: any) {
-      return res.status(e?.message === "not_admin" ? 403 : 401).json({ ok: false, error: e?.message || "auth_failed" });
+      return res.status(requestErrorStatus(String(e?.message))).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
@@ -1902,15 +1947,14 @@ router.post("/admin/faq", async (req, res) => {
         const r = (store.requests || []).find((x) => String((x as any).id) === id) as StoredRequest | undefined;
         if (!r) return { notFound: true as const };
 
-        r.state = next;
-        r.state_updated_at = new Date().toISOString();
-        r.state_updated_by = user.id;
-        return { notFound: false as const, request: { ...r } };
+        const changed = changeRequestState(store, r, next, user.id, req.body?.fundsReceived === true);
+        return { notFound: false as const, request: { ...r }, changed };
       });
       if (result.notFound) return res.status(404).json({ ok: false, error: "not_found" });
       const r = result.request as StoredRequest;
 
       // Уведомление пользователю (это и будет "push" на телефоне через Telegram)
+      if (!result.changed) return res.json({ ok: true, request: r });
       const shortId = id.slice(-6);
       const text =
         `📣 Статус заявки обновлён\n` +
@@ -1928,9 +1972,10 @@ router.post("/admin/faq", async (req, res) => {
           chat_id: r.from.id,
           text,
           disable_web_page_preview: true
-        })
-      });
-      const tgJson: any = await tgRes.json();
+        }),
+        signal: AbortSignal.timeout(5_000)
+      }).catch(() => null);
+      const tgJson: any = await tgRes?.json().catch(() => null);
       if (!tgJson?.ok) {
         // не фейлим весь запрос, но возвращаем предупреждение
         return res.json({ ok: true, request: r, warn: tgJson?.description || "tg_send_failed" });
@@ -1938,7 +1983,7 @@ router.post("/admin/faq", async (req, res) => {
 
       return res.json({ ok: true, request: r });
     } catch (e: any) {
-      return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
+      return res.status(requestErrorStatus(String(e?.message))).json({ ok: false, error: e?.message || "auth_failed" });
     }
   });
 
@@ -1965,7 +2010,7 @@ router.post("/admin/faq", async (req, res) => {
       if (!allowedCur.has(sellCurrency) || !allowedCur.has(buyCurrency) || !isAllowedRequestPair(sellCurrency, buyCurrency)) {
         return res.status(400).json({ ok: false, error: "bad_currency" });
       }
-      if (!(sellAmount > 0) || !(buyAmount > 0)) {
+      if (!Number.isFinite(sellAmount) || !Number.isFinite(buyAmount) || !(sellAmount > 0) || !(buyAmount > 0)) {
         return res.status(400).json({ ok: false, error: "bad_amount" });
       }
       if (!allowedPay.has(payMethod) || !allowedReceive.has(receiveMethod)) {
@@ -2024,6 +2069,7 @@ router.post("/admin/faq", async (req, res) => {
       };
       const { result } = await mutateStore((store) => {
         store.requests = store.requests || [];
+        prepareReferralRequest(store, request);
         store.requests.push(request);
         if (effectiveClientContact) {
           upsertContactRecord(store, {
@@ -2062,6 +2108,8 @@ router.post("/admin/faq", async (req, res) => {
           `🆔 #${shortId}
 ` +
           `👤 ${who}
+` +
+          `🎁 Бонусы: ${((request.bonus_balance_cents || 0) / 100).toFixed(2)} USD
 ` +
           `🔁 ${sellCurrency} → ${buyCurrency}
 ` +
@@ -2110,7 +2158,7 @@ router.post("/admin/faq", async (req, res) => {
       if (message === "bad_image") {
         return res.status(400).json({ ok: false, error: "bad_image" });
       }
-      res.status(401).json({ ok: false, error: message });
+      res.status(requestErrorStatus(message)).json({ ok: false, error: message });
     }
   });
 

@@ -1,5 +1,6 @@
 import { Telegraf, Markup } from "telegraf";
 import { randomUUID } from "node:crypto";
+import { prepareReferralRequest } from "./referrals.js";
 import { USER_STATUS_LABELS_RU, type UserStatus } from "./domain/status.js";
 import { setUserStatus, notifyStatusChange } from "./userStatus.js";
 import { formatAmount } from "./format.js";
@@ -88,7 +89,7 @@ export function createBot(opts: {
   };
 
   bot.start(async (ctx) => {
-    if (ctx.from) await upsertUserFromTelegram(ctx.from);
+    if (ctx.from) await upsertUserFromTelegram(ctx.from, ctx.chat?.type === "private" ? ctx.startPayload : undefined);
 
     const webappUrl = buildWebAppOpenUrl(opts.webappUrl || "");
 
@@ -303,8 +304,13 @@ export function createBot(opts: {
         status: effStatus,
         created_at: new Date().toISOString()
       };
+      if (!ctx.from || !["RUB", "USD", "USDT", "EUR", "THB", "KZT", "VND"].includes(sellCur) || !["RUB", "USD", "USDT", "EUR", "THB", "KZT", "VND"].includes(buyCur) || !Number.isFinite(reqObj.sellAmount) || reqObj.sellAmount <= 0 || !Number.isFinite(reqObj.buyAmount) || reqObj.buyAmount <= 0) {
+        await ctx.reply("Проверьте валюты и суммы обмена.");
+        return;
+      }
       const { store } = await mutateStore((store) => {
         store.requests = store.requests || [];
+        prepareReferralRequest(store, reqObj);
         store.requests.push(reqObj);
       });
 
@@ -315,6 +321,8 @@ export function createBot(opts: {
         `🆔 #${shortId}
 ` +
         `👤 ${who}
+` +
+        `🎁 Бонусы: ${((reqObj.bonus_balance_cents || 0) / 100).toFixed(2)} USD
 ` +
         `🔁 ${sellCur} → ${buyCur}
 ` +

@@ -204,11 +204,11 @@ export async function apiAdminGetRequests(initData: string) {
   return r.json();
 }
 
-export async function apiAdminSetRequestState(initData: string, id: string, state: string) {
+export async function apiAdminSetRequestState(initData: string, id: string, state: string, fundsReceived = false) {
   const r = await fetch(`/api/admin/requests/${encodeURIComponent(id)}/state`, {
     method: "POST",
     headers: { "content-type": "application/json", ...adminAuthHeaders(initData) },
-    body: JSON.stringify({ state })
+    body: JSON.stringify({ state, fundsReceived })
   });
   return r.json();
 }
@@ -340,11 +340,11 @@ export async function apiStaffGetRequests(initData: string): Promise<StaffReques
   return r.json();
 }
 
-export async function apiStaffSetRequestState(initData: string, id: string, state: string) {
+export async function apiStaffSetRequestState(initData: string, id: string, state: string, fundsReceived = false) {
   const r = await fetch(`/api/staff/requests/${encodeURIComponent(id)}/state`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-telegram-init-data": initData },
-    body: JSON.stringify({ state })
+    body: JSON.stringify({ state, fundsReceived })
   });
   return r.json();
 }

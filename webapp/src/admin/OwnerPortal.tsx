@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./admin-theme.css";
 import AdminTab from "../tabs/AdminTab";
+import ReferralAdmin from "./ReferralAdmin";
+import { referralError, usd } from "../lib/referrals";
 import CalculatorTab from "../tabs/CalculatorTab";
 import { createGFormulaDraft, DEFAULT_G_FORMULAS, G_FORMULA_KEYS } from "../domain/exchange";
 import { getUserStatusLabelRu, USER_STATUS_OPTIONS_RU } from "../domain/status";
@@ -190,7 +192,7 @@ export default function OwnerPortal() {
   const token = useMemo(() => (key ? `adminkey:${key}` : ""), [key]);
   const me = useMemo(() => ({ initData: token }), [token]);
 
-  type Tab = "rates" | "bonuses" | "reviews" | "clients" | "requests" | "faq" | "cashbox" | "reports" | "analytics";
+  type Tab = "rates" | "bonuses" | "reviews" | "clients" | "requests" | "faq" | "cashbox" | "reports" | "analytics" | "referrals";
   const [tab, setTab] = useState<Tab>("rates");
 
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -1357,9 +1359,10 @@ function moveFaq(id: string, dir: -1 | 1) {
 
   async function setReqState(next: "in_progress" | "done" | "canceled") {
     if (!reqSelected) return;
-    const r = await apiAdminSetRequestState(token, String(reqSelected.id), next);
+    if (next === "done" && !window.confirm("Деньги получены в полном объёме и обмен завершён? После подтверждения начислятся реферальные бонусы, а сделка будет закрыта.")) return;
+    const r = await apiAdminSetRequestState(token, String(reqSelected.id), next, next === "done");
     if (!r?.ok) {
-      showErr(r?.error || "Ошибка");
+      showErr(referralError(r?.error));
       return;
     }
     await loadClients();
@@ -1501,6 +1504,7 @@ function moveFaq(id: string, dir: -1 | 1) {
             <button className={tab === "bonuses" ? "on" : ""} onClick={() => setTab("bonuses")}>Надбавки</button>
             <button className={tab === "reviews" ? "on" : ""} onClick={() => setTab("reviews")}>Отзывы</button>
             <button className={tab === "clients" ? "on" : ""} onClick={() => setTab("clients")}>Клиенты</button>
+            <button className={tab === "referrals" ? "on" : ""} onClick={() => setTab("referrals")}>Рефералы</button>
             <button className={tab === "requests" ? "on" : ""} onClick={() => setTab("requests")}>Заявки</button>
             <button className={tab === "faq" ? "on" : ""} onClick={() => setTab("faq")}>FAQ</button>
             <button className={tab === "cashbox" ? "on" : ""} onClick={() => setTab("cashbox")}>Касса</button>
@@ -1688,6 +1692,8 @@ function moveFaq(id: string, dir: -1 | 1) {
 
       {tab === "reviews" ? <AdminTab me={me} forcedSection="reviews" hideHeader hideSeg /> : null}
 
+      {tab === "referrals" ? <ReferralAdmin token={token} /> : null}
+
       {tab === "clients" ? (
         <>
           <div className="card">
@@ -1724,6 +1730,9 @@ function moveFaq(id: string, dir: -1 | 1) {
             </div>
 
             <div className="vx-sp8" />
+            {users.find(u => String(u.tg_id) === cTgId)?.referral && <div style={{ marginBottom: 12 }}>
+              Бонусы: <b>{usd(users.find(u => String(u.tg_id) === cTgId)!.referral.balanceCents)}</b> · Приглашено: <b>{users.find(u => String(u.tg_id) === cTgId)!.referral.invitedCount}</b>
+            </div>}
             <input
               className="input vx-in"
               value={cFullName}
@@ -1841,6 +1850,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                           <div className="vx-muted adx-collapsible" style={{ marginTop: 2 }}>
                             Имя (админ): <b>{adminName}</b>
                           </div>
+                          <div style={{ marginTop: 4 }}>Бонусы: <b>{usd(u?.referral?.balanceCents || 0)}</b> · Приглашено: <b>{u?.referral?.invitedCount || 0}</b></div>
                           {row.kind !== "user" ? (
                             <div className="vx-muted adx-collapsible" style={{ marginTop: 2 }}>Ещё не заходил в мини‑приложение</div>
                           ) : null}
