@@ -68,7 +68,9 @@ html[data-theme="dark"] .cl-brandDot { color: var(--cl-yellow); }
 .cl-app .cx-statusChip span { display: inline; }
 .cl-app .cx-statusChip.is-gold { color: #9a7500; }
 html[data-theme="dark"] .cl-app .cx-statusChip.is-gold { color: var(--cl-yellow); }
-.cl-info { width: 30px; height: 30px; border: 0; background: transparent; color: var(--cl-muted); font-size: 16px; border-radius: 50%; cursor: pointer; }
+.cl-info { display: grid; place-items: center; flex: none; width: 32px; height: 32px; padding: 0; border: 1px solid var(--cl-line); background: transparent; color: var(--cl-muted); font-family: Georgia, "Times New Roman", serif; font-size: 22px; font-weight: 700; line-height: 1; border-radius: 10px; cursor: pointer; }
+.cl-info:hover, .cl-info:active { border-color: var(--cl-muted); color: var(--cl-ink); }
+.cl-info:focus-visible { outline: 2px solid var(--cl-ink); outline-offset: 3px; }
 .cl-app .cx-segment { margin: 0 0 12px; border: 0; border-radius: 0; background: transparent; box-shadow: none; padding: 0; gap: 22px; border-bottom: 1px solid var(--cl-line); }
 .cl-app .cx-segmentBtn { flex: none; padding: 9px 0 12px; font-size: 13px; font-weight: 600; background: none; border-radius: 0; color: var(--cl-muted); position: relative; }
 .cl-app .cx-segmentBtn.is-active { color: var(--cl-ink); background: none; box-shadow: none; font-weight: 800; }
@@ -278,7 +280,8 @@ html[data-theme="dark"] .cl-app .cx-methodRowChips .cx-methodBtn.is-active { col
   .cl-app.theme-client.vx-page.cx-app { padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px)); }
   .cl-app .cx-header { height: 40px; }
   .cl-serviceRow { min-height: 26px; margin-bottom: 0; }
-  .cl-app .cx-statusChip, .cl-info { height: 26px; }
+  .cl-app .cx-statusChip { height: 26px; }
+  .cl-info { width: 30px; height: 28px; font-size: 20px; border-radius: 9px; }
   .cl-app .cx-segment { margin-bottom: 7px; }
   .cl-app .cx-amtCard { padding-top: 4px; padding-bottom: 4px; }
   .cl-app .cx-amountCards > .cx-amtCard { height: 104px; }

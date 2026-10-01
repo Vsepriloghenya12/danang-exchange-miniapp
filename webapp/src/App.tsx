@@ -600,7 +600,7 @@ export default function App() {
                 </div>
                 <div className="cl-serviceActions">
                   <button type="button" className={`cx-statusChip cl-statusButton is-${statusKey}`} onClick={() => setShowStatus(true)} aria-label={isEn ? "Your status" : "Ваш статус"} aria-haspopup="dialog"><span className="cl-statusButtonMedal"><IconStar /></span><span>{statusChipLabel}</span><svg className="cl-statusChevron" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="m4.5 3 3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
-                  <button type="button" className="cl-info" onClick={() => setShowConditions(true)} aria-label={isEn ? "Exchange conditions" : "Условия обмена"}>i</button>
+                  <button type="button" className="cl-info" onClick={() => setShowConditions(true)} aria-label={isEn ? "Exchange conditions" : "Условия обмена"} aria-haspopup="dialog" title={isEn ? "Exchange conditions" : "Условия обмена"}><span aria-hidden="true">i</span></button>
                 </div>
               </div>
               {showConditions && <Sheet title={isEn ? "Exchange conditions" : "Условия обмена"} closeLabel={isEn ? "Close" : "Закрыть"} onClose={() => setShowConditions(false)}>
