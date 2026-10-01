@@ -38,7 +38,7 @@ export default function ReferralsMenu({ initData, isEn, onClose }: { initData: s
   }, [onClose]);
   function share() {
     if (!data?.link) return;
-    const message = isEn ? "Join Cash a Lot! Get a bonus worth 50,000 VND after your first completed exchange." : "Приглашаю в Cash a Lot! Получи бонус на сумму 50 000 VND после первого завершённого обмена.";
+    const message = isEn ? "Join Cash a Lot! Get a bonus worth 50,000 VND after your first completed exchange." : "Присоединяйся к Cash A Lot и получай бонусы!";
     const url = `https://t.me/share/url?url=${encodeURIComponent(data.link)}&text=${encodeURIComponent(message)}`;
     const tg = getTg();
     if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, "_blank", "noopener,noreferrer");
