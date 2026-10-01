@@ -40,6 +40,89 @@
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Owner editors: compact clients and a balanced markup workspace. */
+.adx .adx-clientsHeader { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
+.adx .adx-clientsHeader h2 { margin: 0; font-size: 20px; }
+.adx .adx-clientsHeader p { margin: 4px 0 0; }
+.adx .adx-count { color: var(--tx-muted); font-size: 14px; font-weight: 400; margin-left: 6px; }
+.adx .btn.adx-newClient { background: #f6c600 !important; border-color: #f6c600 !important; color: #002333 !important; font-weight: 600; }
+.adx .adx-clientSearch { display: flex; gap: 10px; align-items: center; margin: 20px 0 16px; flex-wrap: wrap; }
+.adx .adx-clientSearch input { flex: 1 1 280px; min-width: 0; }
+.adx .adx-clientSearch > span { white-space: nowrap; }
+.adx .adx-clientGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; align-items: start; }
+.adx .adx-clientCard { display: flex; flex-direction: column; gap: 10px; width: 100%; min-width: 0; padding: 14px; text-align: left; font: inherit; color: var(--tx); background: var(--surface-elevated); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
+.adx .adx-clientCard:hover { background: var(--surface-hover); border-color: var(--tx-subtle); }
+.adx .adx-clientCard:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.adx .adx-clientIdentity { display: flex; gap: 9px; align-items: center; min-width: 0; width: 100%; }
+.adx .adx-clientAvatar { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; font-weight: 600; color: #f6c600; }
+.adx .adx-clientName { display: grid; min-width: 0; gap: 2px; }
+.adx .adx-clientName b { font-size: 14px; overflow-wrap: anywhere; }
+.adx .adx-clientName small { color: var(--tx-muted); font-size: 11px; overflow-wrap: anywhere; }
+.adx .adx-clientEdit { margin-left: auto; color: var(--tx-muted); }
+.adx .adx-clientMeta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--tx-muted); }
+.adx .adx-clientMeta .vx-tag { margin: 0; font-size: 11px; padding: 3px 7px; }
+.adx .adx-clientVolumes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid var(--border); padding-top: 9px; width: 100%; }
+.adx .adx-clientVolumes > span { display: grid; gap: 3px; align-content: start; }
+.adx .adx-clientVolumes small { color: var(--tx-muted); font-size: 11px; }
+.adx .adx-clientVolumes b { font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.adx .adx-clientFooter { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--tx-muted); }
+.adx .adx-clientFooter b { color: var(--tx); }
+.adx .adx-clientBanks { display: flex; gap: 5px; align-items: center; }
+.adx .adx-clientBanks img { width: 24px; height: 24px; object-fit: contain; background: #fff; padding: 3px; border-radius: 5px; }
+.adx .adx-clientPending { color: var(--tx-muted); font-size: 11px; }
+.adx .adx-clientEmpty { text-align: center; padding: 36px 16px; color: var(--tx-muted); }
+.adx .adx-clientDialog { box-sizing: border-box; width: min(540px, calc(100vw - 24px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0; margin: auto; overflow: auto; color: var(--tx); background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 24px 80px #0006; font: 14px/1.5 var(--font-ui); }
+.adx .adx-clientDialog::backdrop { background: #0009; }
+.adx .adx-dialogBody { padding: 22px; }
+.adx .adx-dialogHeader { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.adx .adx-dialogHeader h2 { margin: 0; font-size: 20px; }
+.adx .adx-dialogHeader .btn { width: 34px; padding: 0; font-size: 24px; }
+.adx .adx-clientFields { display: grid; gap: 14px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.adx .adx-clientFields label { display: grid; gap: 5px; min-width: 0; font-size: 12px; color: var(--tx-muted); }
+.adx .adx-clientFields input, .adx .adx-clientFields select { width: 100%; min-width: 0; box-sizing: border-box; }
+.adx .adx-clientIdentifiers { display: flex; gap: 4px 16px; flex-wrap: wrap; color: var(--tx-muted); overflow-wrap: anywhere; font-size: 12px; }
+.adx .adx-clientFormRow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.adx .adx-clientFormHint { margin: -8px 0 0; font-size: 12px; }
+.adx .adx-bankHeading, .adx .adx-clientBonusSummary { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; justify-content: space-between; }
+.adx .adx-bankHeading { margin-bottom: 8px; }
+.adx .adx-bankHeading span { font-size: 12px; }
+.adx .adx-clientBonusSummary { padding: 10px 12px; background: var(--surface-elevated); border-radius: 8px; font-size: 12px; }
+.adx .vx-bankGrid.adx-bankPicker { display: grid; grid-template-columns: repeat(auto-fill, 44px); gap: 8px; justify-content: start; }
+.adx .adx-bankPicker .vx-bankBtn { display: grid; place-items: center; position: relative; width: 44px; height: 44px; min-height: 44px; padding: 5px; }
+.adx .adx-bankPicker .vx-bankBtn.is-on { border: 2px solid #f6c600 !important; background: #f6c60020 !important; }
+.adx .adx-bankPicker .vx-bankBtn.is-on::after { content: "✓"; position: absolute; right: -3px; top: -5px; display: grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; background: #f6c600; color: #002333; font: 700 10px/1 var(--font-ui); }
+.adx .adx-bankPicker .vx-bankImg { box-sizing: border-box; width: 30px; height: 30px; max-width: 30px; object-fit: contain; }
+.adx .adx-dialogFooter { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
+.adx .adx-clientError { color: var(--negative); margin: 14px 0 0; }
+.adx .adx-bonusEditor .adx-bonusGrid { display: grid; grid-template-areas: "methods" "tiers" "preview"; gap: 16px; align-items: start; }
+.adx .adx-bonusGrid .adx-bonusMethods { grid-area: methods; }
+.adx .adx-bonusGrid .adx-bonusTiers { grid-area: tiers; width: 100%; margin: 0; box-sizing: border-box; }
+.adx .adx-bonusGrid .adx-bonusPreview { grid-area: preview; }
+.adx .adx-bonusPanel { padding: 18px; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.adx .adx-bonusEditor .adx-bonusDirection { padding: 16px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.adx .adx-bonusEditor .adx-bonusPanel .vx-tableWrap, .adx .adx-bonusEditor .adx-bonusPanel .adx-table { width: 100%; }
+.adx .adx-bonusEditor .adx-bonusPanel .adx-table td input { width: 100%; max-width: none; min-width: 58px; box-sizing: border-box; }
+.adx .adx-bonusPanel .adx-table td:nth-child(1) input, .adx .adx-bonusPanel .adx-table td:nth-child(2) input { min-width: 90px; }
+.adx .adx-bonusEditor .h3 { font-size: 15px; text-transform: none; letter-spacing: 0; }
+.adx .adx-bonusEditor .adx-tierHead { flex-wrap: wrap; }
+@media (min-width: 1200px) {
+  .adx .adx-bonusEditor .adx-bonusGrid { grid-template-columns: minmax(580px, 1.35fr) minmax(380px, 1fr); grid-template-areas: "methods preview" "tiers preview"; }
+}
+@media (min-width: 800px) {
+  .adx .adx-bonusDirection { display: grid; grid-template-columns: minmax(270px, .65fr) minmax(0, 1fr); column-gap: 32px; align-items: center; }
+  .adx .adx-bonusDirection > .h3 { grid-column: 1; grid-row: 1; margin: 0; }
+  .adx .adx-bonusDirection > .adx-dirPicker { grid-column: 1; grid-row: 2; }
+  .adx .adx-bonusDirection > .adx-dirChips { grid-column: 2; grid-row: 1; margin: 0; }
+  .adx .adx-bonusDirection > .small { grid-column: 2; grid-row: 2; }
+}
+@media (max-width: 640px) {
+  .adx .adx-dialogBody { padding: 16px; }
+  .adx .adx-clientFormRow { grid-template-columns: 1fr; }
+  .adx .adx-bonusPanel { padding: 12px; }
+  .adx .adx-clientsHeader > .row { width: 100%; }
+  .adx .adx-clientsHeader > .row .btn { flex: 1; }
+}
+
 /* ── Полотно страницы ─────────────────────────────────────────────────────── */
 
 body:has(.adx),

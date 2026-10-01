@@ -3,6 +3,7 @@ import "./admin-theme.css";
 import AdminTab from "../tabs/AdminTab";
 import ReferralAdmin from "./ReferralAdmin";
 import OwnerActivity from "./OwnerActivity";
+import OwnerDialog from "./OwnerDialog";
 import { referralError, usd } from "../lib/referrals";
 import CalculatorTab from "../tabs/CalculatorTab";
 import { createGFormulaDraft, DEFAULT_G_FORMULAS, G_FORMULA_KEYS } from "../domain/exchange";
@@ -296,6 +297,9 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
   const [cFullName, setCFullName] = useState<string>("");
   const [cStatus, setCStatus] = useState<UserStatus>("standard");
   const [cBanks, setCBanks] = useState<string[]>([]);
+  const [clientEditor, setClientEditor] = useState<"new" | "edit" | null>(null);
+  const [clientSaving, setClientSaving] = useState(false);
+  const [clientError, setClientError] = useState("");
 
   const [repFrom, setRepFrom] = useState<string>(() => shiftISO(-7));
   const [repTo, setRepTo] = useState<string>(() => todayISO());
@@ -338,7 +342,6 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
       return;
     }
   }, []);
-  const [expandedClient, setExpandedClient] = useState<string>("");
 
   async function loadAll() {
     if (!token) return;
@@ -719,7 +722,8 @@ function moveFaq(id: string, dir: -1 | 1) {
     setCFullName(c?.fullName || "");
     setCStatus((c?.status as any) || (u.status as any) || "standard");
     setCBanks(Array.isArray(c?.banks) ? c!.banks! : []);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setClientError("");
+    setClientEditor("edit");
   }
 
   function openContactOnlyEditor(c: any) {
@@ -728,7 +732,13 @@ function moveFaq(id: string, dir: -1 | 1) {
     setCFullName(String(c?.fullName || ""));
     setCStatus((c?.status as any) || "standard");
     setCBanks(Array.isArray(c?.banks) ? c.banks : []);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setClientError("");
+    setClientEditor("edit");
+  }
+
+  function openNewClient() {
+    setCUsername(""); setCTgId(""); setCFullName(""); setCStatus("standard"); setCBanks([]);
+    setClientError(""); setClientEditor("new");
   }
 
   function toggleBank(name: string) {
@@ -774,50 +784,36 @@ function moveFaq(id: string, dir: -1 | 1) {
   }
 
   async function upsertContact() {
+    if (clientSaving) return;
+    setClientError("");
     const username = normU(cUsername);
-    const tgIdRaw = String(cTgId || "").trim();
-    const tgIdNum = tgIdRaw ? Number(tgIdRaw) : undefined;
-    const tg_id = Number.isFinite(tgIdNum as any) && Number(tgIdNum) > 0 ? Number(tgIdNum) : undefined;
-
-    // if tg_id not specified, try to infer it from known users by username
-    let inferredTgId: number | undefined = tg_id;
-    if (!inferredTgId && username) {
-      const u = (users || []).find((x: any) => String(x?.username || "").toLowerCase() === String(username).toLowerCase());
-      const maybe = u?.tg_id ? Number(u.tg_id) : undefined;
-      if (Number.isFinite(maybe) && Number(maybe) > 0) inferredTgId = Number(maybe);
+    const rawId = cTgId.trim();
+    const tgId = rawId ? Number(rawId) : undefined;
+    if (rawId && (!Number.isSafeInteger(tgId) || Number(tgId) <= 0)) {
+      setClientError("Telegram ID должен быть целым положительным числом."); return;
     }
-
-    if (!username && !inferredTgId) {
-      showErr("Укажи username или tg_id");
-      return;
-    }
-
-    const payload: any = {
-      ...(username ? { username } : {}),
-      ...(inferredTgId ? { tg_id: inferredTgId } : {}),
-      fullName: cFullName,
-      status: cStatus,
-      banks: cBanks
-    };
-
-    const r = await apiAdminUpsertContact(token, payload);
-
-    if (!r?.ok) {
-      showErr(r?.error || "Ошибка");
-      return;
-    }
-
-    setCUsername("");
-    setCTgId("");
-    setCFullName("");
-    setCStatus("standard");
-    setCBanks([]);
-
-    const c = await apiAdminGetContacts(token);
-    if (c?.ok) setContacts(c.contacts);
-
-    if (r.notification?.message) showErr(r.notification.message);
-    else showOk(r.notification?.state === "sent" ? "Сохранено ✅ Клиенту отправлено уведомление." : "Сохранено ✅");
+    if (!username && !tgId) { setClientError("Укажите username или Telegram ID."); return; }
+    const known = users.find(u => String(u.username || "").toLowerCase() === username.toLowerCase());
+    const resolvedId = tgId || (username && known?.tg_id ? Number(known.tg_id) : undefined);
+    setClientSaving(true);
+    try {
+      const r = await apiAdminUpsertContact(token, {
+        ...(username ? { username } : {}), ...(resolvedId ? { tg_id: resolvedId } : {}),
+        fullName: cFullName.trim(), status: cStatus, banks: cBanks,
+      });
+      if (!r?.ok) { setClientError(humanizeErr(r?.error || "Не удалось сохранить клиента.")); return; }
+      if (r.contact) {
+        const saved = r.contact as Contact;
+        setContacts(prev => [saved, ...prev.filter(c => c.id !== saved.id
+          && !(saved.tg_id && c.tg_id === saved.tg_id)
+          && !(saved.username && normU(c.username || "").toLowerCase() === normU(saved.username).toLowerCase()))]);
+      }
+      setClientEditor(null);
+      if (r.notification?.message) showErr(r.notification.message);
+      else showOk(r.notification?.state === "sent" ? "Клиент сохранён. Уведомление отправлено." : "Клиент сохранён.");
+    } catch {
+      setClientError("Не удалось сохранить клиента. Проверьте соединение и повторите попытку.");
+    } finally { setClientSaving(false); }
   }
 
   async function runReport() {
@@ -1356,208 +1352,57 @@ function moveFaq(id: string, dir: -1 | 1) {
       {tab === "activity" ? <OwnerActivity token={token} /> : null}
 
       {tab === "clients" ? (
-        <>
-          <div className="card">
-            <div className="row vx-between vx-center">
-              <div className="small"><b>Карточка клиента (username или tg_id)</b></div>
-              <button className="btn vx-btnSm" type="button" onClick={loadClients} disabled={clientsLoading}>
-                {clientsLoading ? "Обновляю…" : "Обновить"}
-              </button>
-            </div>
-            <div className="vx-sp10" />
-
-            <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <input
-                className="input vx-in"
-                value={cUsername}
-                onChange={(e) => setCUsername(e.target.value)}
-                placeholder="username (без @)"
-                style={{ flex: "1 1 220px" }}
-              />
-              <input
-                className="input vx-in"
-                value={cTgId}
-                onChange={(e) => setCTgId(e.target.value)}
-                placeholder="tg_id (опц.)"
-                style={{ flex: "1 1 140px" }}
-              />
-              <select className="input vx-in" value={cStatus} onChange={(e) => setCStatus(e.target.value as any)}>
-                {USER_STATUS_OPTIONS_RU.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="vx-sp8" />
-            {users.find(u => String(u.tg_id) === cTgId)?.referral && <div style={{ marginBottom: 12 }}>
-              Бонусы: <b>{usd(users.find(u => String(u.tg_id) === cTgId)!.referral.balanceCents)}</b> · Приглашено: <b>{users.find(u => String(u.tg_id) === cTgId)!.referral.invitedCount}</b>
-            </div>}
-            <input
-              className="input vx-in"
-              value={cFullName}
-              onChange={(e) => setCFullName(e.target.value)}
-              placeholder="Имя клиента (как подписывает админ)"
-            />
-
-            <div className="vx-sp10" />
-
-            <div className="small">Банки</div>
-            {bankIcons.length === 0 ? (
-              <div className="vx-muted">Иконок нет (файлы в webapp/public/banks).</div>
-            ) : (
-              <div className="vx-bankGrid">
-                {bankIcons.map((ic) => {
-                  const on = cBanks.includes(ic);
-                  return (
-                    <button
-                      key={ic}
-                      type="button"
-                      className={"vx-bankBtn " + (on ? "is-on" : "")}
-                      onClick={() => toggleBank(ic)}
-                      title={ic}
-                    >
-                      <img src={bankIconUrl(ic)} alt="" className="vx-bankImg" onError={(e) => { const p = (e.currentTarget as HTMLImageElement).parentElement as HTMLElement | null; if (p) p.style.display = "none"; }} />
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="vx-sp10" />
-            <button className="btn" type="button" onClick={upsertContact}>
-              Сохранить
-            </button>
-
-            <div className="hr" />
-            <div className="small"><b>Клиенты</b></div>
-            <div className="vx-muted" style={{ marginTop: 4 }}>Нажмите на клиента, чтобы открыть его карточку для редактирования имени, статуса и банков.</div>
-            <div className="vx-sp10" />
-            <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-              <input
-                className="input vx-in"
-                value={clientSearch}
-                onChange={(e) => setClientSearch(e.target.value)}
-                placeholder="Поиск: username, tg_id, имя, статус, банк"
-                style={{ flex: "1 1 280px" }}
-              />
-              {clientSearch ? (
-                <button className="btn vx-btnSm" type="button" onClick={() => setClientSearch("")}>
-                  Сбросить
-                </button>
-              ) : null}
-              <div className="vx-muted">Найдено: <b>{filteredClientRows.length}</b></div>
-            </div>
-            <div className="vx-sp10" />
-            {manualClientRows.length === 0 ? (
-              <div className="vx-muted">Пока нет клиентов. Можно добавить клиента вручную по username или tg_id — он сохранится даже без сделок.</div>
-            ) : filteredClientRows.length === 0 ? (
-              <div className="vx-muted">По вашему запросу клиенты не найдены.</div>
-            ) : (
-              <div className="vx-contactList">
-                {filteredClientRows.map((row) => {
-                  const u = row.kind === "user" ? row.u : null;
-                  const c = row.c;
-                  const tgId = row.tgId;
-                  const uname = (u?.username || c?.username) ? String(u?.username || c?.username).toLowerCase() : "";
-                  const agg = tgId ? (reqAgg[String(tgId)] || { cnt: 0, sell: {}, buy: {} }) : { cnt: 0, sell: {}, buy: {} };
-                  const isNew = agg.cnt === 1;
-                  const userTitle = [u?.first_name, u?.last_name].filter(Boolean).join(" ").trim();
-                  const who = uname ? "@" + uname : (c?.fullName || userTitle || (tgId ? `id ${tgId}` : "Клиент без Telegram ID"));
-                  const adminName = c?.fullName ? c.fullName : "—";
-                  const banks = Array.isArray(c?.banks) ? c.banks : [];
-
-                  const sumSellText = (() => {
-                    const sell: Record<string, number> = (agg as any).sell || {};
-                    const items = Object.entries(sell)
-                      .filter(([, v]) => Number(v) > 0)
-                      .sort((a: any, b: any) => String(a[0]).localeCompare(String(b[0])));
-                    return items.length ? items.map(([k, v]: any) => `${k}: ${fmtNum(v)}`).join(' • ') : '—';
-                  })();
-
-                  const sumBuyText = (() => {
-                    const buy: Record<string, number> = (agg as any).buy || {};
-                    const items = Object.entries(buy)
-                      .filter(([, v]) => Number(v) > 0)
-                      .sort((a: any, b: any) => String(a[0]).localeCompare(String(b[0])));
-                    return items.length ? items.map(([k, v]: any) => `${k}: ${fmtNum(v)}`).join(' • ') : '—';
-                  })();
-
-                  const isEditing = (tgId && String(cTgId || "") === String(tgId)) || (!tgId && uname && String(cUsername || "").toLowerCase() === uname);
-                  const clickHandler = row.kind === "user"
-                    ? () => openClientEditor(u, c, Number(tgId))
-                    : () => openContactOnlyEditor(c);
-
-                  const rowKey = String(c?.id || tgId || uname);
-                  const expanded = expandedClient === rowKey;
-                  const onRowClick = () => {
-                    if (isMobileView) {
-                      setExpandedClient(expanded ? "" : rowKey);
-                      return;
-                    }
-                    clickHandler();
-                  };
-
-                  return (
-                    <div key={rowKey} className={"vx-contactRow is-clickable" + (isEditing ? " vx-cardSel" : "") + (expanded ? " is-open" : "")} onClick={onRowClick}>
-                      <div className="row vx-between vx-center" style={{ gap: 8, flexWrap: "wrap" }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div>
-                            <b>{who}</b>{tgId ? <span className="vx-muted"> • id:{tgId}</span> : null}
-                            {isNew ? <span className="vx-tag vx-tagNew">Новый</span> : null}
-                            {isMobileView ? <span className={"adx-caret" + (expanded ? " is-open" : "")} aria-hidden="true">▾</span> : null}
-                          </div>
-                          <div className="vx-muted adx-collapsible" style={{ marginTop: 2 }}>
-                            Имя (админ): <b>{adminName}</b>
-                          </div>
-                          <div style={{ marginTop: 4 }}>Бонусы: <b>{usd(u?.referral?.balanceCents || 0)}</b> · Приглашено: <b>{u?.referral?.invitedCount || 0}</b></div>
-                          {row.kind !== "user" ? (
-                            <div className="vx-muted adx-collapsible" style={{ marginTop: 2 }}>Ещё не заходил в мини‑приложение</div>
-                          ) : null}
-                          {banks.length ? (
-                            <div className="vx-bankInline adx-collapsible" style={{ marginTop: 6 }}>
-                              {banks.slice(0, 6).map((ic: string) => (
-                                <img key={ic} src={bankIconUrl(ic)} alt="" className="vx-bankInlineImg" title={ic} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className="adx-collapsible" style={{ textAlign: "right", maxWidth: 420 }}>
-                          <div className="vx-muted">Отдал</div>
-                          <div><b>{sumSellText}</b></div>
-                          <div className="vx-muted" style={{ marginTop: 4 }}>Получил</div>
-                          <div><b>{sumBuyText}</b></div>
-                          <div className="vx-muted" style={{ marginTop: 6 }}>Сделок: <b>{fmtNum(agg.cnt)}</b></div>
-                        </div>
-                      </div>
-
-                      <div className="vx-sp8 adx-collapsible" />
-
-                      <div className="row vx-rowWrap vx-gap6" style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                        <span className="vx-tag">Статус: <b>{getUserStatusLabelRu((c?.status as any) || (u?.status as any) || "standard")}</b></span>
-                        {!isMobileView ? <span className="vx-tag">Нажмите для редактирования</span> : null}
-                        {isMobileView && expanded ? (
-                          <button
-                            type="button"
-                            className="btn vx-btnSm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              clickHandler();
-                            }}
-                          >
-                            Редактировать
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+        <section className="card adx-clients">
+          <div className="adx-clientsHeader">
+            <div><h2>Клиенты <span className="adx-count">{manualClientRows.length}</span></h2><p className="vx-muted">Нажмите на карточку, чтобы посмотреть и изменить данные клиента.</p></div>
+            <div className="row vx-gap6"><button className="btn" type="button" onClick={loadClients} disabled={clientsLoading}>{clientsLoading ? "Обновляю…" : "Обновить"}</button><button className="btn adx-newClient" type="button" onClick={openNewClient}>+ Новый клиент</button></div>
           </div>
-        </>
+          <div className="adx-clientSearch">
+            <input className="input vx-in" aria-label="Поиск клиентов" value={clientSearch} onChange={e => setClientSearch(e.target.value)} placeholder="Имя, username, Telegram ID, статус или банк" />
+            {clientSearch && <button className="btn" type="button" onClick={() => setClientSearch("")}>Сбросить</button>}
+            <span className="vx-muted">Найдено: {filteredClientRows.length}</span>
+          </div>
+          {manualClientRows.length === 0 ? <div className="adx-clientEmpty"><h3>Клиентов пока нет</h3><p>Добавьте первого клиента по username или Telegram ID — даже если он ещё не совершал обмен.</p><button className="btn" type="button" onClick={openNewClient}>Новый клиент</button></div>
+          : filteredClientRows.length === 0 ? <p className="adx-clientEmpty">По вашему запросу клиенты не найдены.</p>
+          : <div className="adx-clientGrid">{filteredClientRows.map(row => {
+            const u = row.kind === "user" ? row.u : null, c = row.c, tgId = row.tgId;
+            const username = String(u?.username || c?.username || "");
+            const title = c?.fullName || [u?.first_name, u?.last_name].filter(Boolean).join(" ") || (username ? "@" + username : "Клиент");
+            const agg = (tgId && reqAgg[String(tgId)]) || { cnt: 0, sell: {}, buy: {} };
+            const sums = (values: Record<string, number>) => Object.entries(values).filter(([,v]) => Number(v)>0).sort(([a],[b]) => a.localeCompare(b)).map(([currency,value]) => currency + ": " + fmtNum(value)).join(" · ") || "—";
+            const banks = Array.isArray(c?.banks) ? c.banks : [];
+            return <button key={String(c?.id || tgId || username)} type="button" className="adx-clientCard" aria-label={"Редактировать клиента: " + title} onClick={() => row.kind === "user" ? openClientEditor(u,c,Number(tgId)) : openContactOnlyEditor(c)}>
+              <span className="adx-clientIdentity"><span className="adx-clientAvatar" aria-hidden="true">{title.replace(/^@/,"").slice(0,1).toUpperCase()}</span><span className="adx-clientName"><b>{title}</b><small>{username ? "@" + username : "Без username"}{tgId ? " · " + tgId : ""}</small></span><span className="adx-clientEdit" aria-hidden="true">↗</span></span>
+              <span className="adx-clientMeta"><span className="vx-tag">{getUserStatusLabelRu(c?.status || u?.status || "standard")}</span><span>Сделок: {fmtNum(agg.cnt)}</span>{agg.cnt === 1 && <span className="vx-tag vx-tagNew">Новый</span>}</span>
+              <span className="adx-clientVolumes"><span><small>Отдал</small><b>{sums(agg.sell)}</b></span><span><small>Получил</small><b>{sums(agg.buy)}</b></span></span>
+              <span className="adx-clientFooter"><span>Бонусы <b>{usd(u?.referral?.balanceCents || 0)}</b></span><span>Приглашено <b>{u?.referral?.invitedCount || 0}</b></span></span>
+              {banks.length > 0 && <span className="adx-clientBanks">{banks.slice(0,6).map((ic: string) => <img key={ic} src={bankIconUrl(ic)} alt={ic.replace(/\.[^.]+$/,"")} title={ic} />)}{banks.length>6 && <small>+{banks.length-6}</small>}</span>}
+              {row.kind !== "user" && <small className="adx-clientPending">Ещё не заходил в мини-приложение</small>}
+            </button>;
+          })}</div>}
+          {clientEditor && <OwnerDialog title={clientEditor === "new" ? "Новый клиент" : "Карточка клиента"} busy={clientSaving} onClose={() => setClientEditor(null)}>
+            <form onSubmit={event => { event.preventDefault(); void upsertContact(); }}>
+              <fieldset disabled={clientSaving} className="adx-clientFields">
+                {clientEditor === "new" ? <>
+                  <div className="adx-clientFormRow">
+                    <label>Username<input className="input vx-in" value={cUsername} onChange={e => setCUsername(e.target.value)} placeholder="Без @" autoComplete="off" /></label>
+                    <label>Telegram ID<input className="input vx-in" value={cTgId} onChange={e => setCTgId(e.target.value)} placeholder="Например, 123456789" inputMode="numeric" /></label>
+                  </div>
+                  <p className="vx-muted adx-clientFormHint">Достаточно указать username или Telegram ID.</p>
+                </> : <div className="adx-clientIdentifiers"><span>{cUsername ? "@" + cUsername : "Без username"}</span>{cTgId && <span>Telegram ID: {cTgId}</span>}</div>}
+                <label>Имя клиента<input className="input vx-in" value={cFullName} onChange={e => setCFullName(e.target.value)} placeholder="Как подписать клиента" /></label>
+                <label>Статус<select className="input vx-in" value={cStatus} onChange={e => setCStatus(e.target.value as UserStatus)}>{USER_STATUS_OPTIONS_RU.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
+                {clientEditor === "edit" && <div className="adx-clientBonusSummary"><span>Бонусы <b>{usd(users.find(u => String(u.tg_id) === cTgId)?.referral?.balanceCents || 0)}</b></span><span>Приглашено <b>{users.find(u => String(u.tg_id) === cTgId)?.referral?.invitedCount || 0}</b></span></div>}
+                <div><div className="adx-bankHeading">Банки <span className="vx-muted">Выбрано: {cBanks.length}</span></div>
+                  <div className="vx-bankGrid adx-bankPicker">{bankIcons.map(ic => <button key={ic} type="button" className={"vx-bankBtn " + (cBanks.includes(ic) ? "is-on" : "")} aria-label={ic.replace(/\.[^.]+$/,"")} aria-pressed={cBanks.includes(ic)} onClick={() => toggleBank(ic)} title={ic.replace(/\.[^.]+$/,"")}><img src={bankIconUrl(ic)} alt="" className="vx-bankImg" /></button>)}</div>
+                  {bankIcons.length === 0 && <p className="vx-muted">Банки пока не добавлены.</p>}
+                </div>
+              </fieldset>
+              {clientError && <p className="adx-clientError" role="alert">{clientError}</p>}
+              <footer className="adx-dialogFooter"><button className="btn" type="button" disabled={clientSaving} onClick={() => setClientEditor(null)}>Отмена</button><button className="btn adx-newClient" type="submit" disabled={clientSaving}>{clientSaving ? "Сохраняю…" : "Сохранить клиента"}</button></footer>
+            </form>
+          </OwnerDialog>}
+        </section>
       ) : null}
 
       {tab === "requests" ? (

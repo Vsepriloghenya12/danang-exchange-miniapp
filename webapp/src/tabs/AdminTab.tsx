@@ -725,7 +725,7 @@ export default function AdminTab({
       ) : null}
 
       {section === "bonuses" ? (
-        <div className="vx-mt10 vx-adminSection">
+        <div className="vx-mt10 vx-adminSection adx-bonusEditor">
           <div className="row vx-between vx-center">
             <div className="small">Надбавки (статусы / способ получения)</div>
             <div className="row vx-rowWrap vx-gap6">
@@ -774,7 +774,8 @@ export default function AdminTab({
 
               <div className="vx-sp12" />
 
-              <div className="h3">Направление</div>
+              <div className="adx-bonusDirection">
+              <div className="h3">Направление обмена</div>
               <DirectionPicker from={bonusDir.from} to={bonusDir.to} onChange={(from, to) => setBonusDir({ from, to })} />
               {configuredDirections.length ? (
                 <div className="adx-dirChips" aria-label="Направления с надбавками">
@@ -791,9 +792,12 @@ export default function AdminTab({
                 </div>
               ) : null}
               <div className="small vx-mt6">{markupUnitHint(bonusDir.from, bonusDir.to, formulas)}</div>
+              </div>
 
               <div className="hr" />
 
+              <div className="adx-bonusGrid">
+              <section className="adx-bonusMethods adx-bonusPanel">
               <div className="h3">Надбавки за способ получения — {bonusDir.from} → {bonusDir.to}</div>
               <div className="vx-tableWrap vx-mt10">
                 <table className="adx-table adx-matrix">
@@ -820,9 +824,8 @@ export default function AdminTab({
                 </table>
               </div>
 
-              <div className="hr" />
-
-              <div className="adx-tierGroup">
+              </section>
+              <section className="adx-tierGroup adx-bonusTiers adx-bonusPanel">
                 <div className="adx-tierHead">
                   <span className="h3 vx-m0">Надбавки по статусам и сумме, {bonusDir.from}</span>
                   <button className="btn vx-btnSm" type="button" onClick={() => addTier(bonusKey)} disabled={bonusesBusy}>
@@ -884,12 +887,13 @@ export default function AdminTab({
                     </table>
                   </div>
                 )}
-              </div>
-
-              <div className="hr" />
+              </section>
+              <section className="adx-bonusPreview adx-bonusPanel">
               <div className="h3">Итоговый курс — {bonusDir.from} → {bonusDir.to}</div>
               <div className="small">По сохранённому курсу на сегодня и надбавкам на этой странице (включая несохранённые правки).</div>
               <EffectiveRatesTable from={bonusDir.from} to={bonusDir.to} bonuses={bonuses} ctx={savedCtx} />
+              </section>
+              </div>
             </>
           )}
         </div>
