@@ -327,7 +327,7 @@ export function createApiRouter(opts: {
         terms: REFERRAL_TERMS, referred: !!account.referred_by, rewarded: !!account.referral_reward_request_id,
         referralRejected: account.referral_rejected,
         welcomeAvailable: welcomeAvailable(store, user.id), walletQuote: captureCoinQuote(store, new Date().toISOString()),
-        history: store.bonusLedger.filter(e => e.tg_id === user.id).reverse().map(({ id, cents, kind, created_at, request_id }) => ({ id, cents, kind, created_at, request_id })),
+        history: store.bonusLedger.filter(e => e.tg_id === user.id).reverse().map(({ id, cents, currency, kind, created_at, request_id }) => ({ id, cents, currency: currency || "USD", kind, created_at, request_id })),
       });
     } catch (e: any) { return res.status(401).json({ ok: false, error: e?.message || "auth_failed" }); }
   });

@@ -1,5 +1,5 @@
-export type BonusEntry = { id: string; tg_id?: number; cents: number; kind: "welcome" | "referrer" | "payout" | "redemption" | "test_credit"; created_at: string; request_id?: string; note?: string };
-export type BonusSummary = { balanceCents: number; availableCents?: number; reservedCents?: number; invitedCount: number; completedCount: number; earnedCents: number; paidCents: number };
+export type BonusEntry = { id: string; tg_id?: number; cents: number; currency?: "CashCoin" | "USD"; kind: "welcome" | "referrer" | "payout" | "redemption" | "test_credit"; created_at: string; request_id?: string; note?: string };
+export type BonusSummary = { legacyUsdCents?: number; balanceCents: number; availableCents?: number; reservedCents?: number; invitedCount: number; completedCount: number; earnedCents: number; paidCents: number };
 export type MyReferrals = BonusSummary & { welcomeAvailable?: boolean; walletQuote?: { ratesDate: string; rates: Record<string, number>; key: string }; link: string | null; referred: boolean; rewarded: boolean; referralRejected?: string; history: BonusEntry[] };
 export type ReferralReport = {
   testCreditsEnabled?: boolean;
@@ -31,3 +31,5 @@ export async function referralApi<T>(token: string, path: string, body?: unknown
   if (!response.ok || !data.ok) throw new Error(referralError(data.error));
   return data as T;
 }
+
+export const bonusEntryAmount = (entry: BonusEntry) => entry.currency === "CashCoin" ? cashcoin(entry.cents) : `${(entry.cents / 100).toFixed(2)} USD`;

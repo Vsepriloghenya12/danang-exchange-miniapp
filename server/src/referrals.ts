@@ -55,7 +55,10 @@ function rate(quote: CoinQuote, from: string, to: string) {
 export function migrateLegacyBonuses(store: Store, now = new Date().toISOString()) {
   const legacy = store.bonusLedger.filter(e => e.currency !== "CashCoin");
   if (!legacy.length) return;
-  const conversion = rate(captureCoinQuote(store, now), "USD", "RUB");
+  const conversion = captureCoinQuote(store, now).rates["USD>RUB"];
+  // Leave USD entries intact until the owner sets today's conversion rate.
+  // Existing CashCoin balances and operations remain available independently.
+  if (!validRate(conversion)) return;
   const running = new Map<number, { usd: number; coins: number }>();
   for (const e of legacy) {
     const previous = running.get(e.tg_id) || { usd: 0, coins: 0 };
@@ -91,7 +94,8 @@ export function referralSummary(store: Store, tgId: number) {
   const entries = store.bonusLedger.filter(e => e.tg_id === tgId && e.currency === "CashCoin");
   const invited = Object.values(store.users).filter(u => u.referred_by === tgId);
   const balance = balanceCents(store, tgId), reserved = reservedCents(store, tgId);
-  return { currency: "CashCoin" as const, balanceCents: balance, reservedCents: reserved, availableCents: balance - reserved,
+  const legacyUsdCents = store.bonusLedger.filter(e => e.tg_id === tgId && e.currency !== "CashCoin").reduce((sum, e) => sum + e.cents, 0);
+  return { currency: "CashCoin" as const, legacyUsdCents, balanceCents: balance, reservedCents: reserved, availableCents: balance - reserved,
     invitedCount: invited.length, completedCount: invited.filter(u => u.referral_reward_request_id).length,
     earnedCents: entries.filter(e => e.cents > 0).reduce((s, e) => s + e.cents, 0),
     paidCents: -entries.filter(e => e.cents < 0).reduce((s, e) => s + e.cents, 0) };

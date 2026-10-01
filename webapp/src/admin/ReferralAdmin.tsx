@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { referralApi, cashcoin, type ReferralReport } from "../lib/referrals";
+import { referralApi, cashcoin, bonusEntryAmount, type ReferralReport } from "../lib/referrals";
 import "./referral-admin.css";
 
 export default function ReferralAdmin({ token }: { token: string }) {
@@ -51,6 +51,7 @@ export default function ReferralAdmin({ token }: { token: string }) {
       <p className="vx-muted">1 CashCoin = 1 ₽. Пересчёт по ручной кросс-паре дня, а если её нет — через покупку исходной валюты и продажу получаемой валюты в VND. Курс сохраняется в заявке. Резерв по активным заявкам недоступен для повторного списания.</p>
       {error && <p role="alert" className="ra-error">{error}</p>}
       {notice && <p role="status">{notice}</p>}
+      {data?.accounts.some(a => a.legacyUsdCents) && <p role="status">Старые бонусы в USD сохраняются отдельно. После заполнения курса USD → RUB на сегодня они автоматически перейдут в CashCoin. Доступные CashCoin можно использовать уже сейчас.</p>}
       {data && <div className="ra-totals"><div><span>Приглашено</span><strong>{data.referrals.length}</strong></div><div><span>Первый обмен завершён</span><strong>{data.referrals.filter(r => r.status === "credited").length}</strong></div><div><span>Начислено CashCoin</span><strong>{cashcoin(data.accounts.reduce((s, a) => s + a.earnedCents, 0))}</strong></div><div><span>Остаток бонусов</span><strong>{cashcoin(data.accounts.reduce((s, a) => s + a.balanceCents, 0))}</strong></div></div>}
       <div className="ra-filters"><input className="input vx-in" aria-label="Поиск приглашений" placeholder="Имя, username или Telegram ID" value={search} onChange={e => setSearch(e.target.value)} /><select className="input vx-in" aria-label="Статус приглашения" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Все приглашения</option><option value="invited">Ждут первого обмена</option><option value="credited">Бонусы начислены</option></select></div>
       <div className="ra-tableWrap"><table className="ra-table"><thead><tr><th>Кто пригласил</th><th>Друг</th><th>Приглашён / начислено</th><th>Статус</th><th>Обменял за всё время</th><th>Бонусы</th></tr></thead><tbody>
@@ -64,6 +65,6 @@ export default function ReferralAdmin({ token }: { token: string }) {
       <label>Комментарий к выдаче<input className="input vx-in" maxLength={300} value={note} disabled={busy} onChange={e => setNote(e.target.value)} placeholder="Например: выдано 125 000 VND наличными" /></label>
       <button className="btn" style={{ marginTop: 12 }} disabled={busy || !selected} onClick={payout}>{busy ? "Записываем…" : operation === "test-credit" ? "Начислить тестовые CashCoin" : "Записать выдачу бонусов"}</button>
     </div>
-    <div className="card"><h3>История начислений и выдач</h3><div className="ra-tableWrap"><table className="ra-table"><thead><tr><th>Дата</th><th>Клиент</th><th>Операция</th><th>Сумма</th><th>Заявка / комментарий</th></tr></thead><tbody>{data?.ledger.filter(e => !tgId || e.tg_id === Number(tgId)).map(e => <tr key={e.id}><td>{new Date(e.created_at).toLocaleString("ru-RU")}</td><td>{names.get(e.tg_id!)}<small>ID {e.tg_id}</small></td><td>{e.kind === "welcome" ? "Первый обмен" : e.kind === "referrer" ? "Приглашение друга" : e.kind === "test_credit" ? "Тестовое начисление" : e.kind === "redemption" ? "Использованы в обмене" : "Бонусы выданы"}</td><td>{e.cents > 0 ? "+" : ""}{cashcoin(e.cents)}</td><td>{e.note || (e.request_id ? `#${e.request_id.slice(-6)}` : "—")}</td></tr>)}{!data?.ledger.length && <tr><td colSpan={5}>Операций пока нет.</td></tr>}</tbody></table></div></div>
+    <div className="card"><h3>История начислений и выдач</h3><div className="ra-tableWrap"><table className="ra-table"><thead><tr><th>Дата</th><th>Клиент</th><th>Операция</th><th>Сумма</th><th>Заявка / комментарий</th></tr></thead><tbody>{data?.ledger.filter(e => !tgId || e.tg_id === Number(tgId)).map(e => <tr key={e.id}><td>{new Date(e.created_at).toLocaleString("ru-RU")}</td><td>{names.get(e.tg_id!)}<small>ID {e.tg_id}</small></td><td>{e.kind === "welcome" ? "Первый обмен" : e.kind === "referrer" ? "Приглашение друга" : e.kind === "test_credit" ? "Тестовое начисление" : e.kind === "redemption" ? "Использованы в обмене" : "Бонусы выданы"}</td><td>{e.cents > 0 ? "+" : ""}{bonusEntryAmount(e)}</td><td>{e.note || (e.request_id ? `#${e.request_id.slice(-6)}` : "—")}</td></tr>)}{!data?.ledger.length && <tr><td colSpan={5}>Операций пока нет.</td></tr>}</tbody></table></div></div>
   </div>;
 }

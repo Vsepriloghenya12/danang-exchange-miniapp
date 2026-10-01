@@ -94,6 +94,20 @@ export function verifyCashCoin() {
     migrateLegacyBonuses(s, now);
     assert.equal(balanceCents(s, 1), 45000);
   });
+  check("missing daily rates defer USD migration without blocking CashCoin credits", () => {
+    const s = fixture(), rates = s.ratesByDate; s.ratesByDate = {};
+    s.bonusLedger.push({ id: "old-usd", tg_id: 1, cents: 108, kind: "referrer", created_at: now });
+    migrateLegacyBonuses(s, now);
+    recordTestBonusCredit(s, { id: "midnight-test-credit", tgId: 1, cents: 100000, note: "Approved test credit" }, 9);
+    assert.equal(referralSummary(s, 1).legacyUsdCents, 108);
+    assert.equal(balanceCents(s, 1), 100000);
+    assert.equal(s.bonusLedger[0].currency, undefined);
+    s.ratesByDate = rates; migrateLegacyBonuses(s, now);
+    assert.equal(balanceCents(s, 1), 109720);
+    assert.equal(referralSummary(s, 1).legacyUsdCents, 0);
+    migrateLegacyBonuses(s, now);
+    assert.equal(balanceCents(s, 1), 109720);
+  });
   check("staff edits recalculate the gift without adding it twice", () => {
     const s = fixture(), r = create(s, request("edit"));
     r.sellAmount = 20_000;
