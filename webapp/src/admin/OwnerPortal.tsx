@@ -313,14 +313,17 @@ const [faqLoaded, setFaqLoaded] = useState<boolean>(false);
   const [anLoading, setAnLoading] = useState<boolean>(false);
   const [anData, setAnData] = useState<any>(null);
 
-  // Requests (owner portal): list -> details, like in the staff tab.
-  type ReqView = "active" | "rejected" | "history" | "detail";
+  // Keep the selected list and its scroll position behind the request dialog.
+  type ReqView = "active" | "rejected" | "history";
   const [reqView, setReqView] = useState<ReqView>("active");
   const [reqSelectedId, setReqSelectedId] = useState<string>("");
   const [reqHistFrom, setReqHistFrom] = useState<string>(() => shiftISO(-7));
   const [reqHistTo, setReqHistTo] = useState<string>(() => todayISO());
   const [reqFullName, setReqFullName] = useState<string>("");
   const [reqBanks, setReqBanks] = useState<string[]>([]);
+  const [reqBusy, setReqBusy] = useState(false);
+  const [reqError, setReqError] = useState("");
+  const [reqNotice, setReqNotice] = useState("");
 
   const saveTplTimer = useRef<number | null>(null);
 
@@ -1003,34 +1006,42 @@ function moveFaq(id: string, dir: -1 | 1) {
     return s.length > 6 ? s.slice(-6) : s;
   }
 
+  function reqAmount(value: any) {
+    const amount = Number(value);
+    return value != null && value !== "" && Number.isFinite(amount)
+      ? amount.toLocaleString("ru-RU", { maximumFractionDigits: 20 }) : "—";
+  }
+
   function openReqDetails(id: string) {
     setReqSelectedId(String(id));
-    setReqView("detail");
-    try {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch {
-      // ignore
-    }
+    setReqError("");
+    setReqNotice("");
   }
 
   async function setReqState(next: "in_progress" | "done" | "canceled") {
-    if (!reqSelected) return;
+    if (!reqSelected || reqBusy) return;
     if (next === "done" && !window.confirm("Деньги получены в полном объёме и обмен завершён? После подтверждения начислятся реферальные бонусы, а сделка будет закрыта.")) return;
-    const r = await apiAdminSetRequestState(token, String(reqSelected.id), next, next === "done");
-    if (!r?.ok) {
-      showErr(referralError(r?.error));
-      return;
-    }
-    await loadClients();
-    if (next === "done") setReqView("history");
-    if (next === "canceled") setReqView("rejected");
-    showOk("Сохранено ✅");
+    setReqBusy(true);
+    setReqError("");
+    setReqNotice("");
+    try {
+      const r = await apiAdminSetRequestState(token, String(reqSelected.id), next, next === "done");
+      if (!r?.ok) {
+        setReqError(referralError(r?.error));
+        return;
+      }
+      await loadClients();
+      if (next === "done") setReqView("history");
+      if (next === "canceled") setReqView("rejected");
+      setReqNotice("Статус сохранён");
+    } catch { setReqError("Не удалось изменить статус. Попробуйте ещё раз."); }
+    finally { setReqBusy(false); }
   }
 
   async function saveReqContact() {
-    if (!reqSelected) return;
+    if (!reqSelected || reqBusy) return;
     if (!selectedTgId && !selectedUsername) {
-      showErr("Нет tg_id/username");
+      setReqError("Нет tg_id/username");
       return;
     }
 
@@ -1041,14 +1052,20 @@ function moveFaq(id: string, dir: -1 | 1) {
       banks: reqBanks,
     };
 
-    const r = await apiAdminUpsertContact(token, payload);
-    if (!r?.ok) {
-      showErr(r?.error || "Ошибка");
-      return;
-    }
-    const c = await apiAdminGetContacts(token);
-    if (c?.ok) setContacts(Array.isArray(c.contacts) ? c.contacts : []);
-    showOk("Сохранено ✅");
+    setReqBusy(true);
+    setReqError("");
+    setReqNotice("");
+    try {
+      const r = await apiAdminUpsertContact(token, payload);
+      if (!r?.ok) {
+        setReqError(r?.error || "Ошибка");
+        return;
+      }
+      const c = await apiAdminGetContacts(token);
+      if (c?.ok) setContacts(Array.isArray(c.contacts) ? c.contacts : []);
+      setReqNotice("Контакт сохранён");
+    } catch { setReqError("Не удалось сохранить контакт. Попробуйте ещё раз."); }
+    finally { setReqBusy(false); }
   }
 
   function toggleReqBank(name: string) {
@@ -1454,206 +1471,71 @@ function moveFaq(id: string, dir: -1 | 1) {
             </>
           ) : null}
 
-          {reqView !== "detail" ? (
-            <div className="row vx-rowWrap vx-gap6">
-              <button className={"btn vx-btnSm " + (reqView === "active" ? "vx-btnOn" : "")} onClick={() => setReqView("active")}>
-                Активные ({reqActive.length})
-              </button>
-              <button className={"btn vx-btnSm " + (reqView === "rejected" ? "vx-btnOn" : "")} onClick={() => setReqView("rejected")}>
-                Отклонённые ({reqRejected.length})
-              </button>
-              <button className={"btn vx-btnSm " + (reqView === "history" ? "vx-btnOn" : "")} onClick={() => setReqView("history")}>
-                История ({reqHistoryAll.length})
-              </button>
-            </div>
-          ) : null}
+          <div className="row vx-rowWrap vx-gap6" aria-label="Категории заявок">
+            <button className={"btn vx-btnSm " + (reqView === "active" ? "vx-btnOn" : "")} onClick={() => setReqView("active")}>Активные ({reqActive.length})</button>
+            <button className={"btn vx-btnSm " + (reqView === "rejected" ? "vx-btnOn" : "")} onClick={() => setReqView("rejected")}>Отклонённые ({reqRejected.length})</button>
+            <button className={"btn vx-btnSm " + (reqView === "history" ? "vx-btnOn" : "")} onClick={() => setReqView("history")}>История ({reqHistoryAll.length})</button>
+          </div>
 
-          <div className="vx-sp10" />
+          {reqView === "history" && <div className="adx-requestDates">
+            <label>С<input className="input vx-in" type="date" value={reqHistFrom} onChange={e => setReqHistFrom(e.target.value)} /></label>
+            <label>По<input className="input vx-in" type="date" value={reqHistTo} onChange={e => setReqHistTo(e.target.value)} /></label>
+          </div>}
 
-          {reqView === "active" ? (
-            reqActive.length === 0 ? (
-              <div className="vx-muted">Активных заявок нет.</div>
-            ) : (
-              <div className="vx-reqList">
-                {reqActive.slice(0, 60).map((r) => {
-                  const whoText = who(r);
-                  const sid = reqShortId(r.id);
-                  const st = String(r?.state) === "new" ? "in_progress" : String(r?.state);
-                  return (
-                    <button key={r.id} type="button" className="vx-reqRow" onClick={() => openReqDetails(String(r.id))}>
-                      <div className="vx-reqTop">
-                        <b>#{sid}</b>
-                        <span className="vx-muted">{fmtDt(r.created_at)}</span>
-                      </div>
-                      <div className="vx-muted">{whoText}</div>
-                      <div>
-                        <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
-                        <span className="vx-tag">{stateRu(st)}</span>
-                      </div>
-                    </button>
-                  );
-                })}
+          <div className="adx-requestGrid">
+            {(reqView === "active" ? reqActive.slice(0, 60) : reqView === "rejected" ? reqRejected.slice(0, 120) : reqHistory.slice(0, 200)).map(r => {
+              const contact = contactsByTg[String(r.from?.id)] || contactsByUsername[String(r.from?.username || "").toLowerCase()];
+              return <button key={r.id} type="button" className="adx-requestCard" onClick={() => openReqDetails(String(r.id))}>
+                <span className="adx-requestCardHead"><b>#{reqShortId(r.id)}</b><span className="adx-requestState" data-state={r.state}>{stateRu(r.state)}</span></span>
+                <span className="adx-requestClient"><b>{contact?.fullName || who(r)}</b>{contact?.fullName && <small>{who(r)}</small>}</span>
+                <span className="adx-requestAmounts">
+                  <span><small>Отдаёт</small><strong>{reqAmount(r.sellAmount)} <em>{r.sellCurrency}</em></strong></span>
+                  <span><small>Получает</small><strong>{reqAmount(r.buyAmount)} <em>{r.buyCurrency}</em></strong></span>
+                </span>
+                <span className="adx-requestCardFoot"><time dateTime={r.created_at}>{fmtDt(r.created_at)}</time><span aria-hidden="true">↗</span></span>
+              </button>;
+            })}
+          </div>
+          {(reqView === "active" ? !reqActive.length : reqView === "rejected" ? !reqRejected.length : !reqHistory.length) && <p className="vx-muted">{reqView === "active" ? "Активных заявок нет." : reqView === "rejected" ? "Отклонённых заявок нет." : "В выбранном диапазоне нет заявок."}</p>}
+
+          {reqSelectedId && <OwnerDialog title={`Заявка #${reqShortId(reqSelectedId)}`} className="adx-requestDialog" busy={reqBusy} onClose={() => setReqSelectedId("")}>
+            {!reqSelected ? <p className="vx-muted">Заявка не найдена.</p> : <>
+              <div className="adx-requestIdentity">
+                <div><b>{reqSelectedContact?.fullName || who(reqSelected)}</b><small>{reqSelectedContact?.fullName ? `${who(reqSelected)} · ` : ""}ID {selectedTgId || "—"}</small></div>
+                <time dateTime={reqSelected.created_at}>{fmtDt(reqSelected.created_at)}</time>
               </div>
-            )
-          ) : null}
-
-          {reqView === "rejected" ? (
-            reqRejected.length === 0 ? (
-              <div className="vx-muted">Отклонённых заявок нет.</div>
-            ) : (
-              <div className="vx-reqList">
-                {reqRejected.slice(0, 120).map((r) => {
-                  const whoText = who(r);
-                  const sid = reqShortId(r.id);
-                  return (
-                    <button key={r.id} type="button" className="vx-reqRow" onClick={() => openReqDetails(String(r.id))}>
-                      <div className="vx-reqTop">
-                        <b>#{sid}</b>
-                        <span className="vx-muted">{fmtDt(r.created_at)}</span>
-                      </div>
-                      <div className="vx-muted">{whoText}</div>
-                      <div>
-                        <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
-                        <span className="vx-tag">{stateRu(r.state)}</span>
-                        
-                      </div>
-                    </button>
-                  );
-                })}
+              <div className="adx-requestAmounts adx-requestExchange">
+                <div><small>Отдаёт · {methodRu(reqSelected.payMethod)}</small><strong>{reqAmount(reqSelected.sellAmount)} <em>{reqSelected.sellCurrency}</em></strong></div>
+                <div><small>Получает · {methodRu(reqSelected.receiveMethod)}</small><strong>{reqAmount(reqSelected.buyAmount)} <em>{reqSelected.buyCurrency}</em></strong></div>
               </div>
-            )
-          ) : null}
-
-          {reqView === "history" ? (
-            <>
-              <div className="vx-rowWrap" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <div style={{ flex: "1 1 160px" }}>
-                  <div className="vx-muted">С</div>
-                  <input className="input vx-in" type="date" value={reqHistFrom} onChange={(e) => setReqHistFrom(e.target.value)} />
-                </div>
-                <div style={{ flex: "1 1 160px" }}>
-                  <div className="vx-muted">По</div>
-                  <input className="input vx-in" type="date" value={reqHistTo} onChange={(e) => setReqHistTo(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="vx-sp10" />
-
-              {reqHistory.length === 0 ? (
-                <div className="vx-muted">В выбранном диапазоне нет заявок.</div>
-              ) : (
-                <div className="vx-reqList">
-                  {reqHistory.slice(0, 200).map((r) => {
-                    const whoText = who(r);
-                    const sid = reqShortId(r.id);
-                    return (
-                      <button key={r.id} type="button" className="vx-reqRow" onClick={() => openReqDetails(String(r.id))}>
-                        <div className="vx-reqTop">
-                          <b>#{sid}</b>
-                          <span className="vx-muted">{fmtDt(r.created_at)}</span>
-                        </div>
-                        <div className="vx-muted">{whoText}</div>
-                        <div>
-                          <span className="vx-tag">{r.sellCurrency}→{r.buyCurrency}</span>
-                          <span className="vx-tag">{stateRu(r.state)}</span>
-                          
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          ) : null}
-
-          {reqView === "detail" ? (
-            !reqSelected ? (
-              <>
-                <button className="btn vx-btnSm" type="button" onClick={() => setReqView("active")}>← Назад</button>
-                <div className="vx-sp10" />
-                <div className="vx-muted">Заявка не найдена.</div>
-              </>
-            ) : (
-              <>
-                <div className="row vx-between vx-center">
-                  <button className="btn vx-btnSm" type="button" onClick={() => setReqView("active")}>← Назад</button>
-                  <div className="vx-muted">{fmtDt(reqSelected.created_at)}</div>
-                </div>
-
-                <div className="vx-sp10" />
-                <div className="h3 vx-m0">Заявка #{reqShortId(reqSelected.id)}</div>
-                <div className="vx-muted" style={{ marginTop: 4 }}>
-                  Клиент: {selectedUsername ? "@" + selectedUsername : ""} {selectedTgId ? "• id:" + selectedTgId : ""}
-                </div>
-                <div className="vx-sp10" />
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div>🔁 <b>{reqSelected.sellCurrency} → {reqSelected.buyCurrency}</b></div>
-                  <div>💸 Отдаёт: <b>{reqSelected.sellAmount}</b></div>
-                  <div>🎯 Получит: <b>{reqSelected.buyAmount}</b></div>
-                  <div>💳 Оплата: <b>{methodRu(reqSelected.payMethod)}</b></div>
-                  <div>📦 Получение: <b>{methodRu(reqSelected.receiveMethod)}</b></div>
-                  {reqSelected.comment ? <div>📝 Комментарий: <b>{reqSelected.comment}</b></div> : null}
-                  {reqSelected.attachmentImageUrl ? (
-                    <div className="vx-requestAttachmentBlock">
-                      <a
-                        className="vx-requestAttachmentLabel vx-requestAttachmentLabelLink"
-                        href={String(reqSelected.attachmentImageUrl)}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="Открыть прикреплённое фото"
-                      >
-                        📎 Прикреплённое фото
-                      </a>
-                    </div>
-                  ) : null}
-                  {reqSelected.language ? <div>🌐 Язык: <b>{reqSelected.language === "en" ? "English" : "Русский"}</b></div> : null}
-                  {reqSelected.clientContact ? <div>☎️ Контакт: <b>{reqSelected.clientContact}</b></div> : null}
-                </div>
-
-                <div className="hr" />
-
-                <div className="small">Статус</div>
-                <div className="vx-sp8" />
+              {(reqSelected.comment || reqSelected.clientContact || reqSelected.language || reqSelected.attachmentImageUrl) && <dl className="adx-requestDetails">
+                {reqSelected.comment && <div><dt>Комментарий</dt><dd>{reqSelected.comment}</dd></div>}
+                {reqSelected.clientContact && <div><dt>Контакт</dt><dd>{reqSelected.clientContact}</dd></div>}
+                {reqSelected.language && <div><dt>Язык</dt><dd>{reqSelected.language === "en" ? "English" : "Русский"}</dd></div>}
+                {reqSelected.attachmentImageUrl && <div><dt>Фото</dt><dd><a href={String(reqSelected.attachmentImageUrl)} target="_blank" rel="noreferrer">Открыть вложение ↗</a></dd></div>}
+              </dl>}
+              <fieldset className="adx-requestSection" disabled={reqBusy}>
+                <legend>Статус заявки</legend>
                 <div className="row vx-rowWrap vx-gap6">
-                  <button className={"btn vx-btnSm " + ((String(reqSelected.state) === "new" || String(reqSelected.state) === "in_progress") ? "vx-btnOn" : "")} onClick={() => setReqState("in_progress")}>В работе</button>
-                  <button className={"btn vx-btnSm " + (String(reqSelected.state) === "done" ? "vx-btnOn" : "")} onClick={() => setReqState("done")}>Готово</button>
-                  <button className={"btn vx-btnSm " + (String(reqSelected.state) === "canceled" ? "vx-btnOn" : "")} onClick={() => setReqState("canceled")}>Отклонена</button>
+                  {(["in_progress", "done", "canceled"] as const).map(state => <button key={state} type="button" className={"btn vx-btnSm " + ((reqSelected.state === state || (state === "in_progress" && reqSelected.state === "new")) ? "vx-btnOn" : "")} aria-pressed={reqSelected.state === state || (state === "in_progress" && reqSelected.state === "new")} onClick={() => setReqState(state)}>{stateRu(state)}</button>)}
                 </div>
+              </fieldset>
+              <fieldset className="adx-requestSection adx-requestContact" disabled={reqBusy}>
+                <legend>Контакт клиента</legend>
+                <label className="adx-requestName">Имя клиента<input className="input vx-in" value={reqFullName} onChange={e => setReqFullName(e.target.value)} placeholder="Как подписать клиента" /></label>
+                <div className="adx-bankHeading"><span>Банки клиента</span><small className="vx-muted">Выбрано: {reqBanks.length}</small></div>
+                {bankIcons.length ? <div className="vx-bankGrid adx-bankPicker">
+                  {bankIcons.map(ic => <button key={ic} type="button" className={"vx-bankBtn " + (reqBanks.includes(ic) ? "is-on" : "")} aria-label={ic.replace(/\.[^.]+$/, "")} aria-pressed={reqBanks.includes(ic)} title={ic.replace(/\.[^.]+$/, "")} onClick={() => toggleReqBank(ic)}>
+                    <img src={bankIconUrl(ic)} alt="" className="vx-bankImg" onError={e => { e.currentTarget.style.visibility = "hidden"; }} />
+                  </button>)}
+                </div> : <p className="vx-muted">Банки не загружены.</p>}
+              </fieldset>
+              {reqError && <p className="adx-clientError" role="alert">{reqError}</p>}
+              {reqNotice && <p className="adx-requestNotice" role="status">{reqNotice}</p>}
+              <footer className="adx-dialogFooter"><button className="btn" type="button" disabled={reqBusy} onClick={() => setReqSelectedId("")}>Закрыть</button><button className="btn" type="button" disabled={reqBusy} onClick={saveReqContact}>{reqBusy ? "Сохранение…" : "Сохранить контакт"}</button></footer>
+            </>}
+          </OwnerDialog>}
 
-                <div className="hr" />
-
-                <div className="small">Контакт клиента</div>
-                <div className="vx-sp8" />
-                <input className="input vx-in" value={reqFullName} onChange={(e) => setReqFullName(e.target.value)} placeholder="Имя клиента (как подписывает админ)" />
-
-                <div className="vx-sp10" />
-                <div className="small">Банки</div>
-                {bankIcons.length === 0 ? (
-                  <div className="vx-muted">Иконок нет (файлы в webapp/public/banks).</div>
-                ) : (
-                  <div className="vx-bankGrid">
-                    {bankIcons.map((ic) => {
-                      const on = reqBanks.includes(ic);
-                      return (
-                        <button
-                          key={ic}
-                          type="button"
-                          className={"vx-bankBtn " + (on ? "is-on" : "")}
-                          onClick={() => toggleReqBank(ic)}
-                          title={ic}
-                        >
-                          <img src={bankIconUrl(ic)} alt="" className="vx-bankImg" onError={(e) => { const p = (e.currentTarget as HTMLImageElement).parentElement as HTMLElement | null; if (p) p.style.display = "none"; }} />
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                <div className="vx-sp10" />
-                <button className="btn" type="button" onClick={saveReqContact}>Сохранить контакт</button>
-              </>
-            )
-          ) : null}
         </div>
       ) : null}
 

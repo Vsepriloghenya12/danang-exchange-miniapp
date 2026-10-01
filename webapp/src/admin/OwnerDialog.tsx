@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useRef } from "react";
 
-export default function OwnerDialog({ title, busy, onClose, children }: {
-  title: string; busy?: boolean; onClose: () => void; children: React.ReactNode;
+export default function OwnerDialog({ title, busy, onClose, children, className = "" }: {
+  title: string; busy?: boolean; onClose: () => void; children: React.ReactNode; className?: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -16,7 +16,7 @@ export default function OwnerDialog({ title, busy, onClose, children }: {
       previous?.focus();
     };
   }, []);
-  return <dialog className="adx-clientDialog" ref={dialog} aria-labelledby={titleId}
+  return <dialog className={`adx-clientDialog ${className}`} ref={dialog} aria-labelledby={titleId}
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}
     onClick={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
     <div className="adx-dialogBody">

@@ -123,6 +123,52 @@
   .adx .adx-clientsHeader > .row .btn { flex: 1; }
 }
 
+/* Requests share the client's compact bank picker and dialog. */
+.adx .adx-requestGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; margin-top: 14px; align-items: start; }
+.adx .adx-requestCard { display: grid; gap: 12px; min-width: 0; padding: 14px; text-align: left; font: inherit; color: var(--tx); border: 1px solid var(--border); border-radius: 12px; background: var(--surface-elevated); cursor: pointer; }
+.adx .adx-requestCard:hover { border-color: var(--tx-subtle); background: var(--surface-hover); }
+.adx .adx-requestCard:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.adx .adx-requestCardHead, .adx .adx-requestCardFoot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.adx .adx-requestCardHead > b { font-size: 12px; color: var(--tx-muted); }
+.adx .adx-requestState { font-size: 11px; border-radius: 6px; padding: 3px 7px; background: var(--surface); color: var(--tx-muted); }
+.adx .adx-requestState:is([data-state="new"], [data-state="in_progress"]) { background: #f6c60018; color: #f6d65e; }
+.adx .adx-requestState[data-state="done"] { background: #71cbaa15; color: #8ad1b3; }
+.adx .adx-requestClient { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.adx .adx-requestClient b { font-size: 14px; }
+.adx .adx-requestClient small, .adx .adx-requestCardFoot { color: var(--tx-muted); font-size: 11px; }
+.adx .adx-requestAmounts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.adx .adx-requestAmounts > :is(span,div) { display: grid; align-content: start; gap: 4px; min-width: 0; }
+.adx .adx-requestAmounts small { font-size: 11px; color: var(--tx-muted); }
+.adx .adx-requestAmounts strong { font-size: 16px; line-height: 1.35; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.adx .adx-requestAmounts em { font-size: 11px; font-style: normal; font-weight: 500; color: var(--tx-muted); }
+.adx .adx-requestCardFoot { padding-top: 9px; border-top: 1px solid var(--border); }
+.adx .adx-requestDates { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+.adx .adx-requestDates label { display: grid; gap: 4px; font-size: 12px; color: var(--tx-muted); max-width: 100%; }
+.adx .adx-requestDates input { width: 180px; max-width: 100%; box-sizing: border-box; }
+.adx .adx-clientDialog.adx-requestDialog { width: min(620px, calc(100vw - 24px)); }
+.adx .adx-requestDialog .adx-dialogHeader { margin-bottom: 12px; }
+.adx .adx-requestDialog .adx-dialogHeader h2 { font-size: 18px; }
+.adx .adx-requestIdentity { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; margin-bottom: 14px; font-size: 13px; overflow-wrap: anywhere; }
+.adx .adx-requestIdentity > div { display: grid; gap: 2px; }
+.adx .adx-requestIdentity small, .adx .adx-requestIdentity time { font-size: 11px; color: var(--tx-muted); }
+.adx .adx-requestExchange { background: var(--surface-elevated); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.adx .adx-requestExchange strong { font-size: 21px; }
+.adx .adx-requestDetails { display: grid; gap: 7px; margin: 14px 0; font-size: 12px; }
+.adx .adx-requestDetails > div { display: grid; grid-template-columns: 90px minmax(0,1fr); gap: 10px; }
+.adx .adx-requestDetails dt { color: var(--tx-muted); }
+.adx .adx-requestDetails dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.adx .adx-requestDetails a { color: var(--tx); text-underline-offset: 3px; }
+.adx .adx-requestSection { min-width: 0; padding: 10px 0 0; margin: 16px 0 0; border: 0; border-top: 1px solid var(--border); }
+.adx .adx-requestSection legend { padding: 0 8px 0 0; font-size: 12px; font-weight: 600; }
+.adx .adx-requestName { display: grid; gap: 4px; font-size: 11px; color: var(--tx-muted); margin-bottom: 12px; }
+.adx .adx-requestName input { width: 100%; min-width: 0; box-sizing: border-box; }
+.adx .adx-requestDialog .adx-dialogFooter { margin-top: 14px; padding-top: 12px; flex-wrap: wrap; }
+.adx .adx-requestNotice { margin: 12px 0 0; color: #8ad1b3; font-size: 12px; }
+@media (max-width: 400px) {
+  .adx .adx-requestDetails > div { grid-template-columns: 1fr; gap: 2px; }
+  .adx .adx-requestExchange strong { font-size: 18px; }
+}
+
 /* ── Полотно страницы ─────────────────────────────────────────────────────── */
 
 body:has(.adx),
