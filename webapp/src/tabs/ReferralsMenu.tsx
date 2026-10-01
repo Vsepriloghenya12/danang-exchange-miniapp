@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { referralApi, usd, type MyReferrals } from "../lib/referrals";
+import { referralApi, cashcoin, type MyReferrals } from "../lib/referrals";
 import { getTg } from "../lib/telegram";
 import "./referrals.css";
 
@@ -38,7 +38,7 @@ export default function ReferralsMenu({ initData, isEn, onClose }: { initData: s
   }, [onClose]);
   function share() {
     if (!data?.link) return;
-    const message = isEn ? "Join Cash a Lot! Get a bonus worth 50,000 VND after your first completed exchange." : "Присоединяйся к Cash A Lot и получай бонусы!";
+    const message = isEn ? "Join Cash A Lot and earn bonuses!" : "Присоединяйся к Cash A Lot и получай бонусы!";
     const url = `https://t.me/share/url?url=${encodeURIComponent(data.link)}&text=${encodeURIComponent(message)}`;
     const tg = getTg();
     if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, "_blank", "noopener,noreferrer");
@@ -61,21 +61,22 @@ export default function ReferralsMenu({ initData, isEn, onClose }: { initData: s
         {data.referralRejected && <p>{isEn ? "This invitation exceeded the daily limit. A welcome bonus is not available." : "Для этого приглашения превышен дневной лимит. Приветственный бонус недоступен."}</p>}
         {page === "invite" && <>
           <div className="cl-referralOffers">
-          <div className="rf-offer"><span>{isEn ? "For your friend" : "Другу"}</span><strong>50 000 VND</strong><p>{isEn ? "Credited in USD after their first exchange" : "В USD на бонусный счёт после первого обмена"}</p></div>
-          <div className="rf-offer rf-offer-secondary"><span>{isEn ? "For you" : "Вам"}</span><strong>0,5%</strong><p>{isEn ? "Of the amount your friend exchanges for the first time" : "От суммы первого обмена друга"}</p></div>
+          <div className="rf-offer"><span>{isEn ? "For your friend" : "Другу"}</span><strong>+0,5%</strong><p>{isEn ? "Added to the amount they give in their first exchange" : "К сумме, которую он отдаёт в первом обмене"}</p></div>
+          <div className="rf-offer rf-offer-secondary"><span>{isEn ? "For you" : "Вам"}</span><strong>0,5%</strong><p>{isEn ? "Of the amount your friend receives in their first exchange, in CashCoin" : "От суммы, полученной другом в первом обмене, в CashCoin"}</p></div>
           </div>
           <button className="rf-share" disabled={!data.link} onClick={share}><svg viewBox="0 0 24 24" fill="none" width="20" height="20" aria-hidden="true"><path d="m21 3-7 18-4-7-7-4L21 3Zm0 0L10 14" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" /></svg>{isEn ? "Share in Telegram" : "Пригласить друга в Telegram"}</button>
           {data.link && <div className="rf-link"><input aria-label={isEn ? "Your invitation link" : "Ваша ссылка приглашения"} readOnly value={data.link} onFocus={e => e.currentTarget.select()} /><button className="btn" onClick={copy}>{copied ? (isEn ? "Copied" : "Скопировано") : (isEn ? "Copy" : "Копировать")}</button></div>}
           {!data.link && !demo && <p>{isEn ? "The bot link is unavailable. Please try again later." : "Ссылка бота пока недоступна. Попробуйте обновить страницу позже."}</p>}
-          <p className="rf-muted">{isEn ? "For new clients only. Bonuses are credited once, after the manager confirms the completed exchange and receipt of funds. Up to 20 new invitations per day (UTC)." : "Для новых клиентов. Бонусы начисляются один раз, когда менеджер подтвердит завершение обмена и получение денег. До 20 новых приглашений в сутки (UTC)."}</p>
+          <p className="rf-muted">{isEn ? "For new clients only. Your friend gets the extra amount in their first exchange. Your CashCoin is credited after the manager confirms completion. 1 CashCoin = 1 RUB; conversions use the exchange office’s daily rates. Up to 20 invitations per day (UTC)." : "Для новых клиентов. Друг получает прибавку в первом обмене, а вы — CashCoin после подтверждения сделки. 1 CashCoin = 1 ₽. Пересчёт по курсам обменника на день заявки. До 20 приглашений в сутки (UTC)."}</p>
         </>}
         {page === "balance" && <>
-          <div className="rf-offer"><span>{isEn ? "Available" : "Доступно"}</span><strong>{usd(data.balanceCents)}</strong><p>{isEn ? "Bonus account" : "Бонусный счёт"}</p></div>
-          <dl className="rf-stats"><div><dt>{isEn ? "Invited" : "Приглашено"}</dt><dd>{data.invitedCount}</dd></div><div><dt>{isEn ? "Completed first exchange" : "Совершили первый обмен"}</dt><dd>{data.completedCount}</dd></div><div><dt>{isEn ? "Earned" : "Начислено"}</dt><dd>{usd(data.earnedCents)}</dd></div><div><dt>{isEn ? "Received" : "Выдано"}</dt><dd>{usd(data.paidCents)}</dd></div></dl>
-          {data.referred && !data.rewarded && <p>{isEn ? "Your welcome bonus is waiting for your first completed exchange." : "Ваш приветственный бонус ждёт первого завершённого обмена."}</p>}
-          <p className="rf-muted">{isEn ? "Contact your manager to use your bonuses. They will agree on the payout currency and conversion with you." : "Чтобы использовать бонусы, обратитесь к менеджеру. Он согласует с вами валюту и пересчёт при выдаче."}</p>
+          <div className="rf-offer"><span>{isEn ? "Available" : "Доступно"}</span><strong>{cashcoin(data.availableCents ?? data.balanceCents)}</strong><p>{isEn ? "Bonus account" : "Бонусный счёт"}</p></div>
+          <dl className="rf-stats"><div><dt>{isEn ? "Invited" : "Приглашено"}</dt><dd>{data.invitedCount}</dd></div><div><dt>{isEn ? "Completed first exchange" : "Совершили первый обмен"}</dt><dd>{data.completedCount}</dd></div><div><dt>{isEn ? "Earned" : "Начислено"}</dt><dd>{cashcoin(data.earnedCents)}</dd></div><div><dt>{isEn ? "Received" : "Выдано"}</dt><dd>{cashcoin(data.paidCents)}</dd></div></dl>
+          {!!data.reservedCents && <p>{isEn ? "Reserved in requests: " : "В заявках: "}{cashcoin(data.reservedCents)}</p>}
+          {data.referred && !data.rewarded && <p>{isEn ? "Your first exchange includes an extra 0.5%." : "В первом обмене к вашей сумме добавится 0,5%."}</p>}
+          <p className="rf-muted">{isEn ? "Use CashCoin with the button next to the comment field. Coins reserved for an active request become available again if it is canceled." : "Используйте CashCoin кнопкой рядом с комментарием к обмену. Коины в активной заявке резервируются; при отмене они снова доступны."}</p>
         </>}
-        {page === "history" && (data.history.length ? <ul className="rf-history">{data.history.map(e => <li key={e.id}><div><b>{e.kind === "welcome" ? (isEn ? "First exchange bonus" : "Бонус за первый обмен") : e.kind === "referrer" ? (isEn ? "Friend’s first exchange" : "Первый обмен друга") : (isEn ? "Bonus payout" : "Выдача бонусов")}</b><small>{new Date(e.created_at).toLocaleString(isEn ? "en-GB" : "ru-RU")}{e.request_id ? ` · #${e.request_id.slice(-6)}` : ""}</small></div><strong>{e.cents > 0 ? "+" : ""}{usd(e.cents)}</strong></li>)}</ul> : <div className="rf-empty"><h3>{isEn ? "Your invitation history will appear here" : "Здесь отобразится история ваших приглашений"}</h3><p>{isEn ? "Invite a friend. Their first completed exchange will appear here." : "Пригласите друга. Когда он завершит первый обмен, здесь появится начисление."}</p></div>)}
+        {page === "history" && (data.history.length ? <ul className="rf-history">{data.history.map(e => <li key={e.id}><div><b>{e.kind === "welcome" ? (isEn ? "First exchange bonus" : "Бонус за первый обмен") : e.kind === "referrer" ? (isEn ? "Friend’s first exchange" : "Первый обмен друга") : e.kind === "test_credit" ? (isEn ? "Test credit" : "Тестовое начисление") : e.kind === "redemption" ? (isEn ? "Used in exchange" : "Использованы в обмене") : (isEn ? "Bonus payout" : "Выдача бонусов")}</b><small>{new Date(e.created_at).toLocaleString(isEn ? "en-GB" : "ru-RU")}{e.request_id ? ` · #${e.request_id.slice(-6)}` : ""}</small></div><strong>{e.cents > 0 ? "+" : ""}{cashcoin(e.cents)}</strong></li>)}</ul> : <div className="rf-empty"><h3>{isEn ? "Your invitation history will appear here" : "Здесь отобразится история ваших приглашений"}</h3><p>{isEn ? "Invite a friend. Their first completed exchange will appear here." : "Пригласите друга. Когда он завершит первый обмен, здесь появится начисление."}</p></div>)}
       </>}
     </div>
   </div>;

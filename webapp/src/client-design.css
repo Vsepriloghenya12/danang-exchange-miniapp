@@ -143,7 +143,14 @@ html[data-theme="dark"] .cl-app .cx-curCircle[data-cur="USDT"] { color: #78d8bd 
 .cl-app .cx-methodRowChips .cx-methodBtn.is-active { background: var(--cl-ink); border-color: var(--cl-ink); color: var(--cl-bg); }
 html[data-theme="dark"] .cl-app .cx-methodRowChips .cx-methodBtn.is-active { color: var(--cl-bg); }
 .cl-app .cx-calc .vx-sp12 { height: 4px; }
-.cl-commentRow { display: flex; align-items: center; border: 1px solid var(--cl-line); background: var(--cl-surface); border-radius: 12px; min-height: 40px; }
+.cl-commentAndBonus { display: flex; align-items: stretch; gap: 6px; min-width: 0; }
+.cl-commentRow { display: flex; flex: 1; min-width: 0; align-items: center; border: 1px solid var(--cl-line); background: var(--cl-surface); border-radius: 12px; min-height: 40px; }
+.cl-redeemCoins { flex: 0 0 auto; max-width: 46%; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 3px 9px; border: 1px solid var(--cl-line); border-radius: 12px; background: var(--cl-surface); color: var(--cl-ink); font: 10px/1.25 "Manrope", sans-serif; cursor: pointer; transition: background .16s ease, border-color .16s ease; }
+.cl-redeemCoins b { font-size: 11px; overflow-wrap: anywhere; }
+.cl-redeemCoins.is-active { background: var(--cl-yellow); color: #002333; border-color: #d8af00; }
+.cl-redeemCoins:disabled { opacity: .5; cursor: default; }
+.cl-redeemCoins:focus-visible { outline: 2px solid #b79512; outline-offset: 2px; }
+html.vx-keyboard-open .cl-redeemCoins { height: 36px; min-height: 36px; }
 .cl-app .cx-calc .cl-commentRow textarea.vx-requestCommentInput { resize: none; flex: 1; min-width: 0; background: transparent; border: 0; border-radius: 12px; min-height: 38px; padding: 9px 11px; font: 12px/20px "Manrope", sans-serif; color: var(--cl-ink); box-shadow: none; }
 .cl-app .cx-calc .cl-commentRow textarea::placeholder { color: var(--cl-muted); opacity: .8; }
 .cl-app .cx-calc .cl-commentRow textarea:focus { min-height: 72px; }

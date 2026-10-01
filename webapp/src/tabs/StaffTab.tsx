@@ -1,3 +1,4 @@
+import RequestBonusDetails from "../components/RequestBonusDetails";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import CalculatorTab from "./CalculatorTab";
 import { referralError } from "../lib/referrals";
@@ -197,7 +198,7 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
     setEditSellCurrency(String(selectedReq.sellCurrency || ""));
     setEditBuyCurrency(String(selectedReq.buyCurrency || ""));
     setEditSellAmount(String(selectedReq.sellAmount ?? ""));
-    setEditBuyAmount(String(selectedReq.buyAmount ?? ""));
+    setEditBuyAmount(String(selectedReq.cashcoin?.baseBuyAmount ?? selectedReq.buyAmount ?? ""));
     setEditPayMethod(String(selectedReq.payMethod || "transfer"));
     setEditReceiveMethod(String(selectedReq.receiveMethod || "cash"));
     setEditComment(String(selectedReq.comment || ""));
@@ -278,6 +279,7 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
     }
 
     const payload = {
+      amountsExcludeBonus: true,
       sellCurrency: String(editSellCurrency || "").trim().toUpperCase(),
       buyCurrency: String(editBuyCurrency || "").trim().toUpperCase(),
       sellAmount: Number(String(editSellAmount || "").replace(",", ".")),
@@ -565,6 +567,7 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
               <div>🔁 <b>{selectedReq.sellCurrency} → {selectedReq.buyCurrency}</b></div>
               <div>💸 {isEn ? "Pays" : "Отдаёт"}: <b>{selectedReq.sellAmount}</b></div>
               <div>🎯 {isEn ? "Gets" : "Получит"}: <b>{selectedReq.buyAmount}</b></div>
+              <RequestBonusDetails bonus={selectedReq.cashcoin} sellCurrency={selectedReq.sellCurrency} buyCurrency={selectedReq.buyCurrency} isEn={isEn} />
               <div>💳 {isEn ? "Payment" : "Оплата"}: <b>{methodLabel(String(selectedReq.payMethod || ""), lang)}</b></div>
               <div>📦 {isEn ? "Receiving" : "Получение"}: <b>{methodLabel(String(selectedReq.receiveMethod || ""), lang)}</b></div>
               {selectedReq.comment ? <div>📝 {isEn ? "Comment" : "Комментарий"}: <b>{selectedReq.comment}</b></div> : null}
@@ -604,7 +607,7 @@ export default function StaffTab({ me, lang = "ru" }: { me: any; lang?: Lang }) 
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     <input className="input vx-in" inputMode="decimal" value={editSellAmount} onChange={(e) => setEditSellAmount(e.target.value)} placeholder={isEn ? "Amount the client pays" : "Сумма, которую отдаёт клиент"} />
-                    <input className="input vx-in" inputMode="decimal" value={editBuyAmount} onChange={(e) => setEditBuyAmount(e.target.value)} placeholder={isEn ? "Amount the client receives" : "Сумма, которую получает клиент"} />
+                    <input className="input vx-in" inputMode="decimal" value={editBuyAmount} onChange={(e) => setEditBuyAmount(e.target.value)} placeholder={isEn ? "Payout before bonuses" : "Сумма получения без бонусов"} />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     <select className="input vx-in" value={editPayMethod} onChange={(e) => setEditPayMethod(e.target.value)}>

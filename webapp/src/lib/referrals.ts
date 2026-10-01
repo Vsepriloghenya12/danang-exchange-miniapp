@@ -1,18 +1,26 @@
-export type BonusEntry = { id: string; tg_id?: number; cents: number; kind: "welcome" | "referrer" | "payout"; created_at: string; request_id?: string; note?: string };
-export type BonusSummary = { balanceCents: number; invitedCount: number; completedCount: number; earnedCents: number; paidCents: number };
-export type MyReferrals = BonusSummary & { link: string | null; referred: boolean; rewarded: boolean; referralRejected?: string; history: BonusEntry[] };
+export type BonusEntry = { id: string; tg_id?: number; cents: number; kind: "welcome" | "referrer" | "payout" | "redemption" | "test_credit"; created_at: string; request_id?: string; note?: string };
+export type BonusSummary = { balanceCents: number; availableCents?: number; reservedCents?: number; invitedCount: number; completedCount: number; earnedCents: number; paidCents: number };
+export type MyReferrals = BonusSummary & { welcomeAvailable?: boolean; walletQuote?: { ratesDate: string; rates: Record<string, number>; key: string }; link: string | null; referred: boolean; rewarded: boolean; referralRejected?: string; history: BonusEntry[] };
 export type ReferralReport = {
+  testCreditsEnabled?: boolean;
   accounts: (BonusSummary & { tgId: number; name: string })[];
-  referrals: { inviter: { tgId: number; name: string }; friend: { tgId: number; name: string }; invitedAt: string; rewardedAt?: string; firstRequestId?: string; status: string; completedCount: number; volume: Record<string, number>; inviterCents: number; friendCents: number }[];
+  referrals: { inviter: { tgId: number; name: string }; friend: { tgId: number; name: string }; invitedAt: string; rewardedAt?: string; firstRequestId?: string; status: string; completedCount: number; volume: Record<string, number>; inviterCents: number; friendCents: number; friendBonus?: { amount: number; currency: string; received: number; receiveCurrency: string } }[];
   ledger: BonusEntry[];
 };
-export const usd = (cents: number) => `${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+export const cashcoin = (cents: number) => `${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CashCoin`;
 const errors: Record<string, string> = {
-  referral_rates_missing: "Для расчёта бонуса нужен курс USD и валюты обмена на дату заявки. Проверьте курсы и создайте новую заявку.",
+  referral_currency_changed: "Бонусы теперь учитываются в CashCoin. Обновите страницу перед списанием.",
+  referral_base_amount_required: "Обновите страницу. В редакторе указываются суммы без бонусов; бонусы пересчитываются отдельно.",
+  referral_test_only: "Тестовые начисления доступны только владельцу в тестовом сервисе.",
+  referral_quote_changed: "Курс или бонусы изменились. Проверьте обновлённые суммы и отправьте заявку ещё раз.",
+  referral_first_pending: "Бонус первого обмена уже использован или закреплён за другой заявкой. Обновите список заявок.",
+  referral_bonus_too_small: "Этого количества CashCoin пока недостаточно для выбранной валюты.",
+  referral_bad_amount: "Проверьте сумму обмена.",
+  referral_rates_missing: "Для расчёта CashCoin нужны курсы обменника на сегодня. Обратитесь к менеджеру.",
   referral_completed_locked: "Деньги по этой заявке подтверждены. Завершённую сделку нельзя открыть повторно или отменить.",
   funds_received_required: "Подтвердите получение денег и завершение обмена.",
   referral_insufficient_balance: "На бонусном счёте недостаточно средств.",
-  referral_bad_payout: "Укажите клиента, сумму с точностью до цента и комментарий к выдаче.",
+  referral_bad_payout: "Укажите клиента, сумму с точностью до 0,01 CashCoin и комментарий к выдаче.",
   referral_payout_conflict: "Эта выдача уже записана с другими данными. Обновите историю.",
 };
 export function referralError(error: string) { return errors[error] || error || "Не удалось загрузить данные. Попробуйте ещё раз."; }

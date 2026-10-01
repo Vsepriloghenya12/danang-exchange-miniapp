@@ -1,10 +1,11 @@
+import RequestBonusDetails from "../components/RequestBonusDetails";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./admin-theme.css";
 import AdminTab from "../tabs/AdminTab";
 import ReferralAdmin from "./ReferralAdmin";
 import OwnerActivity from "./OwnerActivity";
 import OwnerDialog from "./OwnerDialog";
-import { referralError, usd } from "../lib/referrals";
+import { referralError, cashcoin } from "../lib/referrals";
 import CalculatorTab from "../tabs/CalculatorTab";
 import { createGFormulaDraft, DEFAULT_G_FORMULAS, G_FORMULA_KEYS } from "../domain/exchange";
 import { getUserStatusLabelRu, USER_STATUS_OPTIONS_RU } from "../domain/status";
@@ -1392,7 +1393,7 @@ function moveFaq(id: string, dir: -1 | 1) {
               <span className="adx-clientIdentity"><span className="adx-clientAvatar" aria-hidden="true">{title.replace(/^@/,"").slice(0,1).toUpperCase()}</span><span className="adx-clientName"><b>{title}</b><small>{username ? "@" + username : "Без username"}{tgId ? " · " + tgId : ""}</small></span><span className="adx-clientEdit" aria-hidden="true">↗</span></span>
               <span className="adx-clientMeta"><span className="vx-tag">{getUserStatusLabelRu(c?.status || u?.status || "standard")}</span><span>Сделок: {fmtNum(agg.cnt)}</span>{agg.cnt === 1 && <span className="vx-tag vx-tagNew">Новый</span>}</span>
               <span className="adx-clientVolumes"><span><small>Отдал</small><b>{sums(agg.sell)}</b></span><span><small>Получил</small><b>{sums(agg.buy)}</b></span></span>
-              <span className="adx-clientFooter"><span>Бонусы <b>{usd(u?.referral?.balanceCents || 0)}</b></span><span>Приглашено <b>{u?.referral?.invitedCount || 0}</b></span></span>
+              <span className="adx-clientFooter"><span>Бонусы <b>{cashcoin(u?.referral?.balanceCents || 0)}</b></span><span>Приглашено <b>{u?.referral?.invitedCount || 0}</b></span></span>
               {banks.length > 0 && <span className="adx-clientBanks">{banks.slice(0,6).map((ic: string) => <img key={ic} src={bankIconUrl(ic)} alt={ic.replace(/\.[^.]+$/,"")} title={ic} />)}{banks.length>6 && <small>+{banks.length-6}</small>}</span>}
               {row.kind !== "user" && <small className="adx-clientPending">Ещё не заходил в мини-приложение</small>}
             </button>;
@@ -1409,7 +1410,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                 </> : <div className="adx-clientIdentifiers"><span>{cUsername ? "@" + cUsername : "Без username"}</span>{cTgId && <span>Telegram ID: {cTgId}</span>}</div>}
                 <label>Имя клиента<input className="input vx-in" value={cFullName} onChange={e => setCFullName(e.target.value)} placeholder="Как подписать клиента" /></label>
                 <label>Статус<select className="input vx-in" value={cStatus} onChange={e => setCStatus(e.target.value as UserStatus)}>{USER_STATUS_OPTIONS_RU.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
-                {clientEditor === "edit" && <div className="adx-clientBonusSummary"><span>Бонусы <b>{usd(users.find(u => String(u.tg_id) === cTgId)?.referral?.balanceCents || 0)}</b></span><span>Приглашено <b>{users.find(u => String(u.tg_id) === cTgId)?.referral?.invitedCount || 0}</b></span></div>}
+                {clientEditor === "edit" && <div className="adx-clientBonusSummary"><span>Бонусы <b>{cashcoin(users.find(u => String(u.tg_id) === cTgId)?.referral?.balanceCents || 0)}</b></span><span>Приглашено <b>{users.find(u => String(u.tg_id) === cTgId)?.referral?.invitedCount || 0}</b></span></div>}
                 <div><div className="adx-bankHeading">Банки <span className="vx-muted">Выбрано: {cBanks.length}</span></div>
                   <div className="vx-bankGrid adx-bankPicker">{bankIcons.map(ic => <button key={ic} type="button" className={"vx-bankBtn " + (cBanks.includes(ic) ? "is-on" : "")} aria-label={ic.replace(/\.[^.]+$/,"")} aria-pressed={cBanks.includes(ic)} onClick={() => toggleBank(ic)} title={ic.replace(/\.[^.]+$/,"")}><img src={bankIconUrl(ic)} alt="" className="vx-bankImg" /></button>)}</div>
                   {bankIcons.length === 0 && <p className="vx-muted">Банки пока не добавлены.</p>}
@@ -1508,6 +1509,7 @@ function moveFaq(id: string, dir: -1 | 1) {
                 <div><small>Отдаёт · {methodRu(reqSelected.payMethod)}</small><strong>{reqAmount(reqSelected.sellAmount)} <em>{reqSelected.sellCurrency}</em></strong></div>
                 <div><small>Получает · {methodRu(reqSelected.receiveMethod)}</small><strong>{reqAmount(reqSelected.buyAmount)} <em>{reqSelected.buyCurrency}</em></strong></div>
               </div>
+              <RequestBonusDetails bonus={reqSelected.cashcoin} sellCurrency={reqSelected.sellCurrency} buyCurrency={reqSelected.buyCurrency} />
               {(reqSelected.comment || reqSelected.clientContact || reqSelected.language || reqSelected.attachmentImageUrl) && <dl className="adx-requestDetails">
                 {reqSelected.comment && <div><dt>Комментарий</dt><dd>{reqSelected.comment}</dd></div>}
                 {reqSelected.clientContact && <div><dt>Контакт</dt><dd>{reqSelected.clientContact}</dd></div>}

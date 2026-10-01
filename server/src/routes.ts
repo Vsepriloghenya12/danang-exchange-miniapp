@@ -8,7 +8,7 @@ import { USER_STATUS_LABELS_RU, type UserStatus } from "./domain/status.js";
 import { BONUS_CURRENCIES, MARKUP_DIRECTION_KEYS, directionKey, type CrossRates, type PairMarkup } from "./domain/exchange.js";
 import { formatAmount } from "./format.js";
 import { activitySession, clientActivity, loadActivityReport, recordActivity } from "./activity.js";
-import { changeRequestState, ownerReferralReport, prepareReferralRequest, recordBonusPayout, referralSummary, REFERRAL_TERMS } from "./referrals.js";
+import { captureCoinQuote, changeRequestState, migrateLegacyBonuses, ownerReferralReport, prepareReferralRequest, previewCashCoin, recordBonusPayout, recordTestBonusCredit, referralSummary, repriceCashCoinRequest, requestBonusAmounts, welcomeAvailable, REFERRAL_TERMS } from "./referrals.js";
 import {
   readStore,
   mutateStore,
@@ -119,6 +119,18 @@ function parseRequestState(s: any): RequestState | null {
 
 function requestErrorStatus(message: string) {
   return message.startsWith("referral_") || message === "funds_received_required" ? 400 : message === "not_admin" ? 403 : 401;
+}
+
+function testBonusCreditsEnabled() {
+  // Test balances must never be available in the production service.
+  return process.env.RAILWAY_ENVIRONMENT_ID === "0f1345a1-eaec-4a5b-ac62-1b256c0de3b1" &&
+    process.env.RAILWAY_SERVICE_ID === "1c1b2d05-972a-458a-b30c-606e2264e467";
+}
+
+async function readCashCoinStore() {
+  const store = await readStore();
+  if (!store.bonusLedger.some(entry => entry.currency !== "CashCoin")) return store;
+  return (await mutateStore(s => migrateLegacyBonuses(s))).store;
 }
 
 function isSameCurrencyVndPair(sellCurrency: Currency, buyCurrency: Currency) {
@@ -306,7 +318,7 @@ export function createApiRouter(opts: {
     try {
       const { user, blocked } = await requireAuth(req);
       if (blocked) return res.status(403).json({ ok: false, error: "blocked" });
-      const store = await readStore();
+      const store = await readCashCoinStore();
       const username = String(process.env.BOT_USERNAME || await getBotUsername() || "").replace(/^@/, "");
       const account = store.users[String(user.id)];
       res.setHeader("Cache-Control", "no-store");
@@ -314,6 +326,7 @@ export function createApiRouter(opts: {
         link: username ? `https://t.me/${username}?start=ref_${account.referral_code}` : null,
         terms: REFERRAL_TERMS, referred: !!account.referred_by, rewarded: !!account.referral_reward_request_id,
         referralRejected: account.referral_rejected,
+        welcomeAvailable: welcomeAvailable(store, user.id), walletQuote: captureCoinQuote(store, new Date().toISOString()),
         history: store.bonusLedger.filter(e => e.tg_id === user.id).reverse().map(({ id, cents, kind, created_at, request_id }) => ({ id, cents, kind, created_at, request_id })),
       });
     } catch (e: any) { return res.status(401).json({ ok: false, error: e?.message || "auth_failed" }); }
@@ -324,14 +337,28 @@ export function createApiRouter(opts: {
       const { isOwner } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
       res.setHeader("Cache-Control", "no-store");
-      return res.json({ ok: true, ...ownerReferralReport(await readStore()) });
+      const store = await readCashCoinStore();
+      return res.json({ ok: true, testCreditsEnabled: testBonusCreditsEnabled(), ...ownerReferralReport(store) });
     } catch (e: any) { return res.status(401).json({ ok: false, error: e?.message || "auth_failed" }); }
+  });
+
+  router.post("/admin/referrals/test-credit", async (req, res) => {
+    try {
+      const { isOwner, user } = await requireAdmin(req);
+      if (!isOwner || !testBonusCreditsEnabled()) return res.status(403).json({ ok: false, error: "referral_test_only" });
+      const { result } = await mutateStore(store => recordTestBonusCredit(store, {
+        id: String(req.body?.id || ""), tgId: Number(req.body?.tgId), cents: Number(req.body?.cents),
+        note: String(req.body?.note || "").trim().slice(0, 300),
+      }, user.id));
+      return res.json({ ok: true, entry: result });
+    } catch (e: any) { return res.status(String(e?.message).startsWith("referral_") ? 400 : 401).json({ ok: false, error: e?.message || "auth_failed" }); }
   });
 
   router.post("/admin/referrals/payout", async (req, res) => {
     try {
       const { isOwner, user } = await requireAdmin(req);
       if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      if (req.body?.currency !== "CashCoin") return res.status(400).json({ ok: false, error: "referral_currency_changed" });
       const { result } = await mutateStore(store => recordBonusPayout(store, {
         id: String(req.body?.id || ""), tgId: Number(req.body?.tgId), cents: Number(req.body?.cents),
         note: String(req.body?.note || "").trim().slice(0, 300),
@@ -1797,8 +1824,8 @@ router.post("/admin/faq", async (req, res) => {
           `📣 Статус заявки обновлён\n` +
           `🆔 #${shortId}\n` +
           `🔁 ${r.sellCurrency} → ${r.buyCurrency}\n` +
-          `💸 Отдаёте: ${r.sellAmount}\n` +
-          `🎯 Получаете: ${r.buyAmount}\n` +
+          `💸 Отдаёте: ${requestBonusAmounts(r, formatAmount).sell}\n` +
+          `🎯 Получаете: ${requestBonusAmounts(r, formatAmount).buy}\n` +
           `📌 Сейчас: ${requestStateLabel[next]}`;
 
         await fetch(`https://api.telegram.org/bot${opts.botToken}/sendMessage`, {
@@ -1831,6 +1858,9 @@ router.post("/admin/faq", async (req, res) => {
         if (curState !== "in_progress" && curState !== "new") {
           return { error: "request_not_editable" as const };
         }
+        if ((r.cashcoin?.welcomeSell || r.cashcoin?.redeemMinor) && req.body?.amountsExcludeBonus !== true) {
+          throw new Error("referral_base_amount_required");
+        }
 
         const sellCurrency = String(req.body?.sellCurrency || r.sellCurrency || "").toUpperCase().trim();
         const buyCurrency = String(req.body?.buyCurrency || r.buyCurrency || "").toUpperCase().trim();
@@ -1859,6 +1889,7 @@ router.post("/admin/faq", async (req, res) => {
         r.payMethod = payMethod;
         r.receiveMethod = receiveMethod;
         r.comment = comment || undefined;
+        repriceCashCoinRequest(store, r, buyAmount);
         r.state_updated_at = new Date().toISOString();
         return { request: { ...r } };
       });
@@ -1955,8 +1986,8 @@ router.post("/admin/faq", async (req, res) => {
         `📣 Статус заявки обновлён\n` +
         `🆔 #${shortId}\n` +
         `🔁 ${r.sellCurrency} → ${r.buyCurrency}\n` +
-        `💸 Отдаёте: ${r.sellAmount}\n` +
-        `🎯 Получаете: ${r.buyAmount}\n` +
+        `💸 Отдаёте: ${requestBonusAmounts(r, formatAmount).sell}\n` +
+        `🎯 Получаете: ${requestBonusAmounts(r, formatAmount).buy}\n` +
         `📌 Сейчас: ${requestStateLabel[next]}`;
 
       // бот может писать пользователю только если он уже нажал /start (в нашем случае это так)
@@ -1980,6 +2011,21 @@ router.post("/admin/faq", async (req, res) => {
     } catch (e: any) {
       return res.status(requestErrorStatus(String(e?.message))).json({ ok: false, error: e?.message || "auth_failed" });
     }
+  });
+
+  router.post("/referrals/quote", async (req, res) => {
+    try {
+      const { user, blocked } = await requireAuth(req);
+      if (blocked) return res.status(403).json({ ok: false, error: "blocked" });
+      const p = req.body || {};
+      const store = await readCashCoinStore();
+      const bonus = previewCashCoin(store, {
+        tgId: user.id, sellCurrency: String(p.sellCurrency), buyCurrency: String(p.buyCurrency),
+        sellAmount: Number(p.sellAmount), buyAmount: Number(p.buyAmount), redeemMinor: Number(p.redeemMinor ?? 0),
+      });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ ok: true, bonus });
+    } catch (e: any) { return res.status(requestErrorStatus(String(e?.message))).json({ ok: false, error: e?.message || "auth_failed" }); }
   });
 
   router.post("/requests", async (req, res) => {
@@ -2065,7 +2111,7 @@ router.post("/admin/faq", async (req, res) => {
       };
       const { result } = await mutateStore((store) => {
         store.requests = store.requests || [];
-        prepareReferralRequest(store, request);
+        prepareReferralRequest(store, request, { redeemMinor: Number(p.redeemMinor ?? 0), quoteKey: String(p.bonusQuoteKey || "") });
         store.requests.push(request);
         if (effectiveClientContact) {
           upsertContactRecord(store, {
@@ -2098,6 +2144,7 @@ router.post("/admin/faq", async (req, res) => {
 
         const payMap: Record<string, string> = { cash: "наличные", transfer: "перевод", atm: "банкомат", other: "другое" };
 
+        const amounts = requestBonusAmounts(request, formatAmount);
         const text =
           `💱 Новая заявка (в работе)
 ` +
@@ -2105,13 +2152,11 @@ router.post("/admin/faq", async (req, res) => {
 ` +
           `👤 ${who}
 ` +
-          `🎁 Бонусы: ${((request.bonus_balance_cents || 0) / 100).toFixed(2)} USD
-` +
           `🔁 ${sellCurrency} → ${buyCurrency}
 ` +
-          `💸 Отдаёт: ${fmtReqAmount(sellCurrency, sellAmount)}
+          `💸 Отдаёт: ${amounts.sell}
 ` +
-          `🎯 Получит: ${fmtReqAmount(buyCurrency, buyAmount)}
+          `🎯 Получит: ${amounts.buy}
 ` +
           `💳 Оплата: ${payMap[payMethod] || payMethod || "—"}
 ` +
@@ -2148,7 +2193,7 @@ router.post("/admin/faq", async (req, res) => {
         }
       } catch {}
 
-      res.json({ ok: true, id: request.id, state: request.state, hasSavedContact, needsManualManagerContact });
+      res.json({ ok: true, id: request.id, state: request.state, hasSavedContact, needsManualManagerContact, cashcoin: request.cashcoin });
     } catch (e: any) {
       const message = String(e?.message || "auth_failed");
       if (message === "bad_image") {

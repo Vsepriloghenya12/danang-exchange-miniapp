@@ -1,6 +1,9 @@
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { activitySessionId, trackActivity } from "../lib/activity";
+import { referralApi, referralError } from "../lib/referrals";
+import useCashCoin from "../lib/useCashCoin";
+import { cashCoinPreview, type CashCoinBonus } from "../lib/cashcoin";
 import WhaleMark from "../components/WhaleMark";
 import CurrencyPicker from "../components/CurrencyPicker";
 import ExchangeGuidance, { type ExchangeNotice } from "../components/ExchangeGuidance";
@@ -363,6 +366,9 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   const tg = getTg();
   const isEn = lang === "en";
   const isAdminMode = mode === "admin";
+  const { wallet, refresh: refreshWallet } = useCashCoin(tg?.initData || me?.initData || "", !isAdminMode);
+  const [redeemCoins, setRedeemCoins] = useState(false);
+  const [buyTotalDraft, setBuyTotalDraft] = useState<string | null>(null);
   const amountNoticesId = useId();
   const uiMethodLabel = (m: ReceiveMethod | PayMethod) => isEn ? (m === "cash" ? "Cash" : m === "transfer" ? "Transfer" : "ATM") : methodLabel(m);
   const uiAmountPlaceholder = (prefix: string, cur: Currency, same = false) => { const min = same && cur === "VND" ? null : minSellAmountLabel(cur); return min ? `${prefix} (${isEn ? "min." : "мин."} ${min})` : prefix; };
@@ -669,6 +675,10 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
   const sellAmount = useMemo(() => parseAmount(sellCurrency, sellText), [sellCurrency, sellText]);
   const buyAmount = useMemo(() => parseAmount(buyCurrency, buyText), [buyCurrency, buyText]);
+  const coinPreview = cashCoinPreview(wallet, redeemCoins, sellCurrency, buyCurrency, sellAmount, buyAmount);
+  const hasCoinBonus = coinPreview.welcomeBuy > 0 || coinPreview.redeemBuy > 0;
+  const receiveDisplay = buyTotalDraft ?? (buyText.trim() && hasCoinBonus ? fmtAmount(buyCurrency, coinPreview.totalBuy) : buyText);
+  useEffect(() => setBuyTotalDraft(null), [sellCurrency, buyCurrency, redeemCoins, payMethod, receiveMethod]);
 
   // Re-format inputs when currency changes (e.g. USDT may have decimals)
   useEffect(() => {
@@ -949,8 +959,10 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     text: isEn ? `ATM payout: multiples of ${fmtAmount("VND", ATM_VND_STEP)} VND.` : `Банкомат: выдача кратно ${fmtAmount("VND", ATM_VND_STEP)} VND.` });
   if (showCashDeliveryNote) amountNotices.push({ key: "delivery-cost", warning: false,
     text: isEn ? "Delivery will cost from 70,000 VND." : "Стоимость доставки — от 70 000 VND." });
+  if (hasCoinBonus) amountNotices.push({ key: "cashcoin", warning: false,
+    text: isEn ? `Bonus included: +${fmtAmount(buyCurrency, coinPreview.welcomeBuy + coinPreview.redeemBuy)} ${buyCurrency}.` : `Бонус включён: +${fmtAmount(buyCurrency, coinPreview.welcomeBuy + coinPreview.redeemBuy)} ${buyCurrency}.` });
   useFitAmount(sellInputRef, sellText, !isAdminMode);
-  useFitAmount(buyInputRef, buyText, !isAdminMode);
+  useFitAmount(buyInputRef, receiveDisplay, !isAdminMode);
   const hoursNotice = managerOffline
     ? (isEn ? `Da Nang ${danangTime.label}. Requests open 10:00–22:00.` : `В Дананге ${danangTime.label}. Приём заявок 10:00–22:00.`)
     : deliveryClosed
@@ -989,12 +1001,12 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     setBuyText("");
   }
 
-  function buildRequestCopyText(requestId: string) {
+  function buildRequestCopyText(requestId: string, bonus?: CashCoinBonus) {
     const lines = [
       `${isEn ? "Request" : "Заявка"} #${requestId}`,
       `${isEn ? "Exchange" : "Обмен"}: ${sellCurrency} → ${buyCurrency}`,
-      `${isEn ? "You give" : "Отдаю"}: ${fmtAmount(sellCurrency, sellAmount || 0)}`,
-      `${isEn ? "You get" : "Получаю"}: ${fmtAmount(buyCurrency, buyAmount || 0)}`,
+      `${isEn ? "You give" : "Отдаю"}: ${fmtAmount(sellCurrency, sellAmount || 0)}${bonus?.welcomeSell ? ` + ${fmtAmount(sellCurrency, bonus.welcomeSell)} б = ${fmtAmount(sellCurrency, sellAmount + bonus.welcomeSell)}` : ""}`,
+      `${isEn ? "You get" : "Получаю"}: ${fmtAmount(buyCurrency, bonus?.totalBuy ?? coinPreview.totalBuy)}${bonus && (bonus.welcomeBuy + bonus.redeemBuy) > 0 ? ` (${isEn ? "bonus included" : "включая бонус"}: ${fmtAmount(buyCurrency, bonus.welcomeBuy + bonus.redeemBuy)})` : ""}`,
       `${isEn ? "Payment" : "Оплата"}: ${payMethod ? uiMethodLabel(payMethod) : (isEn ? "Not selected" : "Не выбрано")}`,
       `${isEn ? "Receive" : "Получение"}: ${receiveMethod ? uiMethodLabel(receiveMethod) : (isEn ? "Not selected" : "Не выбрано")}`,
     ];
@@ -1064,6 +1076,10 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       return null;
     }
 
+    if (redeemCoins && !coinPreview.canRedeem) {
+      tg?.showAlert?.(isEn ? "Today’s CashCoin rate is unavailable. Contact your manager or turn off CashCoin." : "Курс CashCoin на сегодня не задан. Обратитесь к менеджеру или отключите списание.");
+      return null;
+    }
     const payload = {
       sessionId: activitySessionId(),
       sellCurrency,
@@ -1075,9 +1091,18 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       comment: requestComment.trim(),
       attachmentImageDataUrl: requestAttachmentImageDataUrl || undefined,
       language: lang,
+      redeemMinor: coinPreview.redeemMinor,
+      bonusQuoteKey: "",
     };
 
     try {
+      const quote = await referralApi<{ bonus: CashCoinBonus }>(initData, "/referrals/quote", payload);
+      if (quote.bonus.totalBuy !== coinPreview.totalBuy || quote.bonus.welcomeSell !== coinPreview.welcomeSell || quote.bonus.redeemMinor !== coinPreview.redeemMinor) {
+        await refreshWallet();
+        tg?.showAlert?.(isEn ? "Bonuses or rates changed. Check the updated amounts and submit again." : referralError("referral_quote_changed"));
+        return null;
+      }
+      payload.bonusQuoteKey = quote.bonus.key;
       const res = await fetch("/api/requests", {
         method: "POST",
         headers: {
@@ -1088,7 +1113,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       });
       const json = await res.json().catch(() => ({}));
       if (!json?.ok) {
-        const err = json?.error === "referral_rates_missing" ? (isEn ? "Referral bonus rates are not set yet. Please contact the manager." : "Курс для реферального бонуса ещё не задан. Обратитесь к менеджеру.") : String(json?.error || "fail");
+        const err = referralError(String(json?.error || "fail"));
+        void refreshWallet().catch(() => {});
         tg?.HapticFeedback?.notificationOccurred?.("error");
         tg?.showAlert?.(`Ошибка: ${err}`);
         return null;
@@ -1099,6 +1125,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
         state: String(json?.state || ""),
         needsManualManagerContact: !!json?.needsManualManagerContact,
         hasSavedContact: !!json?.hasSavedContact,
+        cashcoin: json?.cashcoin as CashCoinBonus | undefined,
       };
     } catch (e: any) {
       tg?.HapticFeedback?.notificationOccurred?.("error");
@@ -1107,7 +1134,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     }
   }
 
-  async function afterRequestSent(result: { id: string; state: string; needsManualManagerContact?: boolean; hasSavedContact?: boolean }) {
+  async function afterRequestSent(result: { id: string; state: string; needsManualManagerContact?: boolean; hasSavedContact?: boolean; cashcoin?: CashCoinBonus }) {
     const requestId = String(result?.id || "");
     const serverDecision = typeof result?.needsManualManagerContact === "boolean" ? result.needsManualManagerContact : undefined;
     const fallbackNeedsManualManagerContact = !String(me?.user?.username || "").trim();
@@ -1115,7 +1142,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     if (requestId) {
       setRequestSuccessModal({
         requestId,
-        copyText: buildRequestCopyText(requestId),
+        copyText: buildRequestCopyText(requestId, result.cashcoin),
         needsManualManagerContact,
       });
     } else {
@@ -1128,6 +1155,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     setSellText("");
     setBuyText("");
     setRequestComment("");
+    setRedeemCoins(false);
+    void refreshWallet().catch(() => {});
     clearRequestAttachment();
     setPayMethod(null);
     setReceiveMethod(null);
@@ -1271,6 +1300,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                 onChange={(e) => {
                   preserveSwappedValuesRef.current = false;
                   lastEdited.current = "sell";
+                  setBuyTotalDraft(null);
                   const formatted = formatAmountInput(sellCurrency, e.currentTarget.value, sellText, inputHintFromEvent(e));
                   const next = formatted.text;
                   pendingCaretRef.current = makePendingCaret("sell", e.currentTarget, formatted);
@@ -1328,19 +1358,24 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                 aria-describedby={!isAdminMode && amountNotices.length ? amountNoticesId : undefined}
                 inputMode={amountMaxDecimals(buyCurrency) > 0 ? "decimal" : "numeric"}
                 placeholder="0"
-                value={buyText}
+                value={receiveDisplay}
                 className={"cx-amtInput" + (invalidUsdBuy || invalidEurBuy || invalidThbBuy || invalidVndBuyCash || invalidVndBuyAtm ? " cx-amtInvalid" : "")}
                 onChange={(e) => {
                   preserveSwappedValuesRef.current = false;
                   lastEdited.current = "buy";
-                  const formatted = formatAmountInput(buyCurrency, e.currentTarget.value, buyText, inputHintFromEvent(e));
-                  const next = formatted.text;
+                  const formatted = formatAmountInput(buyCurrency, e.currentTarget.value, receiveDisplay, inputHintFromEvent(e));
+                  setBuyTotalDraft(hasCoinBonus ? formatted.text : null);
+                  const entered = parseAmount(buyCurrency, formatted.text);
+                  const fraction = sellAmount > 0 ? coinPreview.welcomeSell / sellAmount : 0;
+                  const next = hasCoinBonus && formatted.text.trim()
+                    ? fmtAmount(buyCurrency, Math.max(0, (entered - coinPreview.redeemBuy) / (1 + fraction)))
+                    : formatted.text;
                   pendingCaretRef.current = makePendingCaret("buy", e.currentTarget, formatted);
                   buyRawRef.current = next.trim() ? parseAmount(buyCurrency, next) : null;
                   recordAmountInput("buy", buyCurrency, parseAmount(buyCurrency, next));
                   setBuyText(next);
                 }}
-                onBlur={flushAmountActivity}
+                onBlur={() => { setBuyTotalDraft(null); flushAmountActivity(); }}
               />
             </div>
             {!isAdminMode && <ExchangeGuidance notices={amountNotices} id={amountNoticesId} />}
@@ -1453,6 +1488,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                   className={"vx-requestComposer" + (commentKeyboardInset > 0 ? " is-lifted" : "")}
                   style={commentKeyboardInset > 0 ? { bottom: `${commentKeyboardInset}px` } : undefined}
                 >
+                  <div className="cl-commentAndBonus">
                   <div className="cl-commentRow">
                   <textarea
                     ref={commentFieldRef}
@@ -1481,6 +1517,14 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                     >
                       <PaperclipIcon className="vx-requestAttachIcon" />
                     </button>
+                  </div>
+                  {(wallet?.availableCents ?? wallet?.balanceCents ?? 0) > 0 && <button
+                    type="button" className={"cl-redeemCoins" + (redeemCoins ? " is-active" : "")}
+                    disabled={!coinPreview.canRedeem && !redeemCoins} aria-pressed={redeemCoins}
+                    title={isEn ? "1 CashCoin = 1 RUB. Converted at today's exchange office rates." : "1 CashCoin = 1 ₽. Пересчёт по курсу дня обменника."}
+                    onPointerDown={e => { if (e.isPrimary && e.button === 0 && document.documentElement.classList.contains("vx-keyboard-open")) e.preventDefault(); }}
+                    onClick={() => { setRedeemCoins(value => !value); tg?.HapticFeedback?.selectionChanged?.(); }}
+                  ><span>{redeemCoins ? (isEn ? "Applied · undo" : "Учтено · отменить") : (isEn ? "Use bonuses" : "Списать бонусы")}</span><b>{((wallet?.availableCents ?? wallet?.balanceCents ?? 0) / 100).toLocaleString(isEn ? "en-US" : "ru-RU", { maximumFractionDigits: 2 })} CashCoin</b></button>}
                   </div>
 
                   <input

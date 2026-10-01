@@ -8,7 +8,7 @@ import type { BonusesConfig, BonusesTier, CrossRates, GFormula, Rates } from "./
 import { defaultBonuses, defaultGFormulas } from "./domain/exchange.js";
 import type { RequestState, UserStatus } from "./domain/status.js";
 import { normalizeStatus, parseStatusInput } from "./domain/status.js";
-import { attachReferral, type BonusEntry, type ReferralQuote } from "./referrals.js";
+import { attachReferral, type BonusEntry, type ReferralQuote, type CashCoinBonus } from "./referrals.js";
 import type { ActivityEvent } from "./activity.js";
 
 export type { BonusesConfig, BonusesTier, CrossRates, GFormula, PairMarkup, Rates } from "./domain/exchange.js";
@@ -154,6 +154,7 @@ export type StoredRequest = {
   referral_quote?: ReferralQuote;
   referral_usd_cents?: number;
   bonus_balance_cents?: number;
+  cashcoin?: CashCoinBonus;
   funds_received_at?: string;
   funds_received_by?: number;
   id: string;

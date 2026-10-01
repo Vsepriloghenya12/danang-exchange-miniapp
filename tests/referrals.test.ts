@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { createHmac } from "node:crypto";
 import express from "express";
 
-test("referrals: signed attribution, completed exchanges and an atomic USD ledger", async t => {
+test("referrals: signed attribution, completed exchanges and an atomic CashCoin ledger", async t => {
   const dir = await mkdtemp(join(tmpdir(), "cashalot-referrals-"));
   process.env.STORE_PATH = join(dir, "store.json");
   delete process.env.DATABASE_URL;
@@ -15,7 +15,7 @@ test("referrals: signed attribution, completed exchanges and an atomic USD ledge
   const botToken = "123:test-token";
   const { createApiRouter } = await import("../server/src/routes.ts");
   const { mutateStore, readStore, upsertUserFromTelegram } = await import("../server/src/store.ts");
-  const { captureReferralQuote } = await import("../server/src/referrals.ts");
+  const { captureCoinQuote } = await import("../server/src/referrals.ts");
   const app = express(); app.use(express.json()); app.use("/api", createApiRouter({ botToken, ownerTgIds: [900] }));
   const server = app.listen(0, "127.0.0.1");
   await new Promise<void>(resolve => server.once("listening", resolve));
@@ -36,6 +36,11 @@ test("referrals: signed attribution, completed exchanges and an atomic USD ledge
     return params.toString();
   }
   const api = async (path: string, body?: any, user?: number | string) => {
+    if (path === "/requests" && body && body.bonusQuoteKey === undefined) {
+      const quote = await api("/referrals/quote", body, user);
+      if (quote.status !== 200) return quote;
+      body = { ...body, bonusQuoteKey: quote.data.bonus.key };
+    }
     const response = await localFetch(`http://127.0.0.1:${(server.address() as any).port}/api${path}`, {
       method: body === undefined ? "GET" : "POST", headers: { "content-type": "application/json", ...(user === undefined ? { "x-admin-key": "referral-test-key" } : { "x-telegram-init-data": typeof user === "number" ? signed(user) : user }) },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -94,64 +99,93 @@ test("referrals: signed attribution, completed exchanges and an atomic USD ledge
     assert.equal((await readStore()).bonusLedger.length, 0);
     const created = await api("/requests", order, 2); firstId = created.data.id;
     assert.equal(created.status, 200);
-    assert.ok(notifications.some(n => n.text?.includes("Бонусы: 0.00 USD")));
+    assert.ok(notifications.some(n => n.text?.includes("Отдаёт: 1,000 + 5 б = 1,005") && n.text?.includes("Получит: 24,000,000 + 120,000 б = 24,120,000")));
     assert.equal((await api(`/admin/requests/${firstId}/state`, { state: "done" })).data.error, "funds_received_required");
     await mutateStore(s => { s.ratesByDate[date].rates.USD.sell_vnd = 50_000; });
     assert.equal((await readStore()).bonusLedger.length, 0);
     const results = await Promise.all(Array.from({ length: 6 }, () => api(`/admin/requests/${firstId}/state`, { state: "done", fundsReceived: true })));
     for (const r of results) assert.equal(r.status, 200);
     const s = await readStore();
-    assert.equal(s.bonusLedger.length, 2);
-    assert.equal(s.bonusLedger.find(e => e.kind === "welcome")?.cents, 200);
-    assert.equal(s.bonusLedger.find(e => e.kind === "referrer")?.cents, 500);
+    assert.equal(s.bonusLedger.length, 1);
+    assert.equal(s.bonusLedger.find(e => e.kind === "welcome"), undefined);
+    assert.equal(s.requests.find(r => r.id === firstId)?.cashcoin?.welcomeSell, 5);
+    assert.equal(s.bonusLedger.find(e => e.kind === "referrer")?.cents, 46385);
     assert.equal((await api(`/admin/requests/${firstId}/state`, { state: "canceled" })).data.error, "referral_completed_locked");
     assert.equal((await api(`/staff/requests/${firstId}`, { ...order, sellAmount: 2 }, 800)).data.error, "request_not_editable");
     const second = await api("/requests", order, 2);
     assert.equal((await api(`/staff/requests/${second.data.id}/state`, { state: "done", fundsReceived: true }, 800)).status, 200);
-    assert.equal((await readStore()).bonusLedger.length, 2);
+    assert.equal((await readStore()).bonusLedger.length, 1);
     const report = (await api("/admin/referrals")).data;
     const row = report.referrals.find((r: any) => r.friend.tgId === 2);
     assert.deepEqual(row.volume, { USD: 2000 });
     assert.equal(row.completedCount, 2);
-    assert.equal(row.inviterCents, 500);
-    assert.equal((await api("/admin/users")).data.users.find((u: any) => u.tg_id === 1).referral.balanceCents, 500);
+    assert.equal(row.inviterCents, 46385);
+    assert.equal((await api("/admin/users")).data.users.find((u: any) => u.tg_id === 1).referral.balanceCents, 46385);
   });
 
-  await t.test("two first orders completed concurrently earn one reward pair via staff and owner", async () => {
+  await t.test("a first gift is reserved for one order, and staff completion credits once", async () => {
     await api("/auth", {}, signed(8, "ref_1"));
     const a = await api("/requests", { ...order, sellCurrency: "RUB", sellAmount: 100_000, payMethod: "transfer" }, 8);
+    assert.equal(a.status, 200);
     const b = await api("/requests", order, 8);
-    const results = await Promise.all([api(`/staff/requests/${a.data.id}/state`, { state: "done", fundsReceived: true }, 800), api(`/admin/requests/${b.data.id}/state`, { state: "done", fundsReceived: true })]);
+    assert.equal(b.data.error, "referral_first_pending");
+    const results = await Promise.all([api(`/staff/requests/${a.data.id}/state`, { state: "done", fundsReceived: true }, 800), api(`/admin/requests/${a.data.id}/state`, { state: "done", fundsReceived: true })]);
     results.forEach(r => assert.equal(r.status, 200, JSON.stringify(r.data)));
     const s = await readStore();
-    assert.equal(s.bonusLedger.filter(e => e.id === "welcome:8").length, 1);
+    assert.equal(s.bonusLedger.filter(e => e.id === "welcome:8").length, 0);
     assert.equal(s.bonusLedger.filter(e => e.id === "referrer:8").length, 1);
-    const quote = captureReferralQuote(s, new Date().toISOString())!;
-    assert.equal(quote.usdPerUnit.USD, 1);
-    assert.equal(quote.usdPerUnit.VND, 1 / 50_000);
-    assert.equal(quote.usdPerUnit.RUB, 250 / 50_000);
-    assert.equal(quote.usdPerUnit.USDT, .5);
-    assert.equal(quote.usdPerUnit.EUR, .55);
-    assert.equal(quote.usdPerUnit.THB, .015);
-    assert.equal(quote.usdPerUnit.KZT, .001);
+    const quote = captureCoinQuote(s, new Date().toISOString());
+    assert.equal(quote.rates["RUB>VND"], 250);
+    assert.equal(quote.rates["VND>RUB"], 1 / 260);
+    assert.equal(quote.rates["USDT>RUB"], 25_000 / 260);
   });
 
-  await t.test("payouts are authorized, bounded by balance and idempotent", async () => {
-    const payout = { id: "test-payout-000001", tgId: 2, cents: 150, note: "Выдано 37 500 VND" };
+  await t.test("payouts are authorized, bounded by available coins and idempotent", async () => {
+    assert.equal((await api("/admin/referrals/payout", { id: "legacy-payout-001", tgId: 1, cents: 1, note: "old USD client" })).data.error, "referral_currency_changed");
+    const before = (await api("/referrals", undefined, 1)).data.balanceCents;
+    const payout = { currency: "CashCoin", id: "test-payout-000001", tgId: 1, cents: 150, note: "Выдано 375 VND" };
     const results = await Promise.all(Array.from({ length: 5 }, () => api("/admin/referrals/payout", payout)));
     results.forEach(r => assert.equal(r.status, 200));
-    assert.equal((await api("/referrals", undefined, 2)).data.balanceCents, 50);
+    assert.equal((await api("/referrals", undefined, 1)).data.balanceCents, before - 150);
     assert.equal((await api("/admin/referrals/payout", { ...payout, cents: 100 })).data.error, "referral_payout_conflict");
-    assert.equal((await api("/admin/referrals/payout", { ...payout, id: "test-payout-000002", cents: 51 })).data.error, "referral_insufficient_balance");
+    assert.equal((await api("/admin/referrals/payout", { ...payout, id: "test-payout-000002", cents: before })).data.error, "referral_insufficient_balance");
     assert.equal((await api("/admin/referrals/payout", { ...payout, id: "test-payout-000003", cents: -1 })).data.error, "referral_bad_payout");
     assert.equal((await api("/admin/referrals/payout", { ...payout, id: "test-payout-000004", cents: 1.5 })).status, 400);
-    const mine = (await api("/referrals", undefined, 2)).data;
-    assert.equal(mine.history.length, 2);
+    const mine = (await api("/referrals", undefined, 1)).data;
     assert.equal(mine.paidCents, 150);
     assert.ok(mine.history.every((e: any) => e.peer_id === undefined && e.note === undefined));
-    const request = await api("/requests", order, 2);
-    assert.equal(request.status, 200);
-    assert.ok(notifications.some(n => n.text?.includes("Бонусы: 0.50 USD")));
+  });
+
+  await t.test("parallel requests cannot spend the same coins; cancellation releases the reservation", async () => {
+    const available = (await api("/referrals", undefined, 1)).data.availableCents;
+    const quote = (await api("/referrals/quote", { ...order, redeemMinor: available }, 1)).data.bonus;
+    const payload = { ...order, redeemMinor: available, bonusQuoteKey: quote.key };
+    const results = await Promise.all([api("/requests", payload, 1), api("/requests", payload, 1)]);
+    assert.equal(results.filter(r => r.status === 200).length, 1);
+    const id = results.find(r => r.status === 200)!.data.id;
+    assert.equal((await api("/referrals", undefined, 1)).data.availableCents, 0);
+    assert.equal((await api("/admin/referrals/payout", { currency: "CashCoin", id: "test-payout-reserved", tgId: 1, cents: 1, note: "reserved" })).data.error, "referral_insufficient_balance");
+    await api(`/admin/requests/${id}/state`, { state: "canceled" });
+    assert.equal((await api("/referrals", undefined, 1)).data.availableCents, available);
+    const replacement = await api("/requests", payload, 1);
+    assert.equal(replacement.status, 200);
+    assert.equal((await api(`/admin/requests/${id}/state`, { state: "in_progress" })).data.error, "referral_insufficient_balance");
+    const done = () => api(`/admin/requests/${replacement.data.id}/state`, { state: "done", fundsReceived: true });
+    await Promise.all([done(), done()]);
+    assert.equal((await api("/referrals", undefined, 1)).data.balanceCents, 0);
+    assert.equal((await readStore()).bonusLedger.filter(e => e.id === `redemption:${replacement.data.id}`).length, 1);
+  });
+
+  await t.test("only the owner in the dedicated staging service can create an idempotent test credit", async () => {
+    const credit = { id: "cashcoin-test-credit-01", tgId: 3, cents: 100000, note: "Test coins" };
+    assert.equal((await api("/admin/referrals/test-credit", credit)).status, 403);
+    process.env.RAILWAY_ENVIRONMENT_ID = "0f1345a1-eaec-4a5b-ac62-1b256c0de3b1";
+    process.env.RAILWAY_SERVICE_ID = "1c1b2d05-972a-458a-b30c-606e2264e467";
+    assert.equal((await api("/admin/referrals/test-credit", credit, 3)).status, 403);
+    const results = await Promise.all([api("/admin/referrals/test-credit", credit), api("/admin/referrals/test-credit", credit)]);
+    results.forEach(r => assert.equal(r.status, 200));
+    assert.equal((await api("/referrals", undefined, 3)).data.balanceCents, 100000);
+    delete process.env.RAILWAY_ENVIRONMENT_ID; delete process.env.RAILWAY_SERVICE_ID;
   });
 
   await t.test("bot /start preserves attribution when the miniapp opens later", async () => {
