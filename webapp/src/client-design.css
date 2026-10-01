@@ -189,18 +189,19 @@ html[data-theme="dark"] .cl-app .cx-methodRowChips .cx-methodBtn.is-active { col
     transform: translate3d(0,0,0) scale(1);
     transition: transform .26s cubic-bezier(.22,1,.36,1), opacity .18s ease, visibility 0s;
   }
-  html.vx-keyboard-open .cl-headerStage .cl-brand { transform: translate3d(var(--brand-forward-x,0px), var(--brand-forward-y,28px), 0) scale(var(--brand-forward-scale,1.6)); }
+  html.vx-keyboard-open .cl-headerStage .cl-brand { transform: translate3d(var(--brand-forward-x,0px), var(--brand-forward-y,0px), 0) scale(var(--brand-forward-scale,1.1)); }
   html.vx-keyboard-open .cl-headerStage :is(.cx-headerSide, .cl-serviceRow, .cx-segment),
   html.vx-keyboard-open .cl-app .cl-hoursNote {
     transform: translate3d(0,-8px,0) scale(.88);
     opacity: 0; visibility: hidden; pointer-events: none;
     transition-delay: 0s, 0s, .26s;
   }
-  html.vx-keyboard-open .cl-app.theme-client.vx-page.cx-app.mx-homePage { padding-top: max(6px, env(safe-area-inset-top, 0px)); padding-bottom: 4px; }
-  html.vx-keyboard-open .cl-headerStage { height: 64px; }
+  /* Override the legacy mobile page's !important top padding during entry. */
+  html.vx-keyboard-open .cl-app.theme-client.vx-page.cx-app.mx-homePage { padding-top: max(2px, env(safe-area-inset-top, 0px)) !important; padding-bottom: 4px; }
+  html.vx-keyboard-open .cl-headerStage { height: 44px; }
   html.vx-keyboard-open .cl-app .cx-calc > .vx-help,
   html.vx-keyboard-open .cl-app :is(.cl-hoursNote, .cx-rateNote, .cl-rateSpacer, .cx-bonusLine, .cx-rateCard, .cx-consent) { display: none; }
-  html.vx-keyboard-open .cl-app .cx-amountCards > .cx-amtCard { height: 104px; padding: 8px 15px; }
+  html.vx-keyboard-open .cl-app .cx-amountCards > .cx-amtCard { height: 96px; padding: 8px 15px; }
   html.vx-keyboard-open .cl-app .cx-methodRow { min-height: 24px; margin: 2px 0 0; gap: 6px; }
   html.vx-keyboard-open .cl-app .cx-methodRowLabel { width: 62px; font-size: 10px; }
   html.vx-keyboard-open .cl-app .cx-methodRowChips .cx-methodBtn { min-height: 24px; padding: 2px 7px; font-size: 10px; }

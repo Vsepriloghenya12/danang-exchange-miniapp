@@ -14,12 +14,13 @@ export default function AnimatedHeader({ children }: { children: React.ReactNode
       // Keyboard height changes must not retarget an animation already in flight.
       if (document.documentElement.classList.contains("vx-keyboard-open") || !brand.offsetWidth || !root.clientWidth) return;
       measuredWidth = root.clientWidth;
-      const scale = Math.min(1.45, (root.clientWidth - 24) / brand.offsetWidth);
+      const scale = Math.min(1.1, (root.clientWidth - 24) / brand.offsetWidth);
       root.style.setProperty("--header-rest-height", `${content.offsetHeight}px`);
       root.style.setProperty("--header-row-height", `${header.offsetHeight}px`);
       root.style.setProperty("--brand-forward-scale", String(scale));
       root.style.setProperty("--brand-forward-x", `${(root.clientWidth - brand.offsetWidth * scale) / 2}px`);
-      root.style.setProperty("--brand-forward-y", `${32 - header.offsetHeight / 2}px`);
+      // Center inside the 44px keyboard header, leaving room for the submit button.
+      root.style.setProperty("--brand-forward-y", `${22 - header.offsetHeight / 2}px`);
     };
     measure();
     const observer = new ResizeObserver(() => { if (root.clientWidth !== measuredWidth) measure(); });
