@@ -907,7 +907,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   const validReceiveMethod = !!receiveMethod && allowedRecv.includes(receiveMethod);
   const canSend = canSendBase && !hasInvalid && !managerOffline && !receiveMethodUnavailableByHours && validPayMethod && validReceiveMethod;
   const canShowMethodSelectionAlertOnClick = canSendBase && !hasInvalid && !managerOffline && !receiveMethodUnavailableByHours && !hasSelectedMethods;
-  const sendButtonDisabled = sendingRequest || (!canSend && !canShowMethodSelectionAlertOnClick);
+  const sendButtonDisabled = sendingRequest || !!requestSuccessModal || (!canSend && !canShowMethodSelectionAlertOnClick);
 
   const usdNote =
     sellCurrency === "USD" || buyCurrency === "USD"
@@ -1122,7 +1122,6 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
         tg?.showAlert?.(`Ошибка: ${err}`);
         return null;
       }
-      tg?.HapticFeedback?.notificationOccurred?.("success");
       return {
         id: String(json?.id || ""),
         state: String(json?.state || ""),
@@ -1141,6 +1140,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   }
 
   async function afterRequestSent(result: { id: string; state: string; needsManualManagerContact?: boolean; hasSavedContact?: boolean; cashcoin?: CashCoinBonus }) {
+    // A successful server response must be acknowledged even if Telegram feedback fails.
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     const requestId = String(result?.id || "");
     const serverDecision = typeof result?.needsManualManagerContact === "boolean" ? result.needsManualManagerContact : undefined;
     const fallbackNeedsManualManagerContact = !String(me?.user?.username || "").trim();
@@ -1169,9 +1170,11 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     payMethodAutoSelectedRef.current = false;
     receiveMethodAutoSelectedRef.current = false;
     setCommentKeyboardInset(0);
+    try { tg?.HapticFeedback?.notificationOccurred?.("success"); } catch {}
   }
 
   async function sendRequest() {
+    if (requestSuccessModal) return;
     await submitOnce.current(async () => {
       flushAmountActivity();
       trackActivity(activityToken, "request_submit_click", { sellCurrency, buyCurrency });
@@ -1195,20 +1198,21 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
   const requestDoneModal = requestSuccessModal && typeof document !== "undefined"
     ? createPortal(
-        <div className="vx-modalOverlay vx-contactModalOverlay" role="dialog" aria-modal="true" aria-label={isEn ? "Request accepted" : "Заявка принята"}>
+        <div className="vx-modalOverlay vx-contactModalOverlay vx-requestDoneOverlay theme-client" role="dialog" aria-modal="true" aria-label={isEn ? "Request accepted" : "Заявка принята"}>
           <div className="vx-modalCard vx-contactModalCard vx-requestDoneCard" onClick={(e) => e.stopPropagation()}>
             <div className="vx-requestDoneHero" aria-hidden="true">✓</div>
             <div className="vx-modalTitle">
-              {isEn ? "Request accepted" : "Заявка принята"}
+              {isEn ? "Your request is with the manager" : "Заявка в работе у менеджера"}
             </div>
+            <div className="vx-requestIdBar">#{requestSuccessModal.requestId.slice(-6)}</div>
             <div className="vx-requestDoneText">
               {requestSuccessModal.needsManualManagerContact
                 ? (isEn
                   ? "Since you do not have a username, please copy the request details and contact the manager."
                   : "Так как у вас отсутствует юзернейм, пожалуйста скопируйте данные заявки и свяжитесь с менеджером")
                 : (isEn
-                  ? "A manager will contact you soon."
-                  : "В ближайшее время с вами свяжется менеджер.")}
+                  ? "A manager will contact you soon. You do not need to send this request again."
+                  : "В ближайшее время с вами свяжется менеджер. Повторно отправлять заявку не нужно.")}
             </div>
             {requestSuccessModal.needsManualManagerContact ? (
               <>
@@ -1234,6 +1238,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
               <button
                 type="button"
                 className="vx-primary vx-requestManagerBtn"
+                autoFocus
                 onClick={() => setRequestSuccessModal(null)}
               >
                 {isEn ? "OK" : "Понятно"}
@@ -1584,7 +1589,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                       onClick={sendRequest}
                     >
                       <WhaleMark className="cl-ctaWhale" />
-                      <span>{sendingRequest ? (isEn ? "Sending…" : "Отправляем…") : (isEn ? "Send request" : "Отправить заявку")}</span>
+                      <span>{requestSuccessModal ? (isEn ? "Request sent" : "Заявка отправлена") : sendingRequest ? (isEn ? "Sending…" : "Отправляем…") : (isEn ? "Send request" : "Отправить заявку")}</span>
                       <ArrowRightIcon />
                     </button>
 
