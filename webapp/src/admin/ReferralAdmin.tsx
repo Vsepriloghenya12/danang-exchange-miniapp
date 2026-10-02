@@ -47,7 +47,7 @@ export default function ReferralAdmin({ token }: { token: string }) {
   return <div className="ra-section">
     <div className="card">
       <div className="row vx-between vx-center"><h2>Реферальная программа</h2><button className="btn" disabled={loading || busy} onClick={load}>{loading ? "Обновляем…" : "Обновить"}</button></div>
-      <p className="vx-muted">Другу — +0,5% к отдаваемой сумме в первом обмене. Пригласившему — 0,5% от полученной другом суммы в бонусах после завершения сделки. Лимит — 20 приглашений в сутки (UTC).</p>
+      <p className="vx-muted">Другу — +0,5% к сумме получения в первом обмене. Пригласившему — 0,5% от полученной другом суммы в бонусах после завершения сделки. Лимит — 20 приглашений в сутки (UTC).</p>
       <p className="vx-muted">1 бонус = 1 ₽. Пересчёт по ручной кросс-паре дня, а если её нет — через покупку исходной валюты и продажу получаемой валюты в VND. Курс сохраняется в заявке. Резерв по активным заявкам недоступен для повторного списания.</p>
       {error && <p role="alert" className="ra-error">{error}</p>}
       {notice && <p role="status">{notice}</p>}
