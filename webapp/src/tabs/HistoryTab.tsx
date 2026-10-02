@@ -1,17 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Sheet from "../components/Sheet";
+import { vndEquivalent } from "../domain/loyalty";
 import RequestBonusDetails from "../components/RequestBonusDetails";
 import { apiGetMyRequests, apiGetTodayRates } from "../lib/api";
 
 type Lang = "ru" | "en";
-type StatusKey = "standard" | "silver" | "gold";
+
 
 function getTg() { return (window as any).Telegram?.WebApp; }
 
-/* Loyalty thresholds: total VND received over all completed exchanges.
-   Tune these two numbers to change when Silver / Gold are granted. */
-const SILVER_AT_VND = 100_000_000;
-const GOLD_AT_VND = 300_000_000;
 
 function fmtVnd(n: number, lang: Lang): string {
   const text = new Intl.NumberFormat(lang === "en" ? "en-US" : "ru-RU", { maximumFractionDigits: 0 }).format(Math.round(n));
@@ -57,30 +54,6 @@ function groupLabel(d: Date, now: Date, lang: Lang): string {
 
 function timeLabel(d: Date, lang: Lang): string {
   return d.toLocaleTimeString(lang === "en" ? "en-GB" : "ru-RU", { hour: "2-digit", minute: "2-digit" });
-}
-
-/* VND value of one exchange: prefer the VND side of the deal; for cross
-   pairs fall back to today's buy rate of the received currency. */
-function vndEquivalent(r: any, rates: any): number | null {
-  const buyCur = String(r?.buyCurrency || "");
-  const sellCur = String(r?.sellCurrency || "");
-  const buyAmt = Number(String(r?.buyAmount ?? "").toString().replace(/[^\d.]/g, ""));
-  const sellAmt = Number(String(r?.sellAmount ?? "").toString().replace(/[^\d.]/g, ""));
-  if (buyCur === "VND" && Number.isFinite(buyAmt) && buyAmt > 0) return buyAmt;
-  if (sellCur === "VND" && Number.isFinite(sellAmt) && sellAmt > 0) return sellAmt;
-  const buyRate = Number(rates?.[buyCur]?.buy_vnd);
-  if (Number.isFinite(buyRate) && buyRate > 0 && Number.isFinite(buyAmt) && buyAmt > 0) return buyAmt * buyRate;
-  const sellRate = Number(rates?.[sellCur]?.buy_vnd);
-  if (Number.isFinite(sellRate) && sellRate > 0 && Number.isFinite(sellAmt) && sellAmt > 0) return sellAmt * sellRate;
-  return null;
-}
-
-function StarIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 2l2.9 6.3 6.9.7-5.1 4.7 1.4 6.8L12 17.8 5.9 21.3l1.4-6.8L2.2 9l6.9-.7z" />
-    </svg>
-  );
 }
 
 function SwapIcon() {
@@ -164,12 +137,7 @@ export default function HistoryTab({ me, lang = "ru", onExchange }: { me: any; l
       }
     }
 
-    const status: StatusKey = totalDoneVnd >= GOLD_AT_VND ? "gold" : totalDoneVnd >= SILVER_AT_VND ? "silver" : "standard";
-    const progress = Math.max(0, Math.min(1, totalDoneVnd / GOLD_AT_VND));
-    const nextAt = status === "standard" ? SILVER_AT_VND : status === "silver" ? GOLD_AT_VND : null;
-    const remaining = nextAt != null ? Math.max(0, nextAt - totalDoneVnd) : 0;
-
-    return { totalDoneVnd, monthCount, monthVnd, pendingCount, status, progress, nextAt, remaining };
+    return { totalDoneVnd, monthCount, monthVnd, pendingCount };
   }, [list, rates]);
 
   const groups = useMemo(() => {
@@ -190,52 +158,17 @@ export default function HistoryTab({ me, lang = "ru", onExchange }: { me: any; l
     return <div className="small">{isEn ? "Open this tab inside Telegram." : "Откройте вкладку «Моя история» внутри Telegram."}</div>;
   }
 
-  const statusLabel = (s: StatusKey) =>
-    isEn ? (s === "gold" ? "Gold" : s === "silver" ? "Silver" : "Standard")
-      : (s === "gold" ? "Золото" : s === "silver" ? "Серебро" : "Стандарт");
 
   const monthName = new Date().toLocaleDateString(isEn ? "en-GB" : "ru-RU", { month: "long" });
-  const silverPct = (SILVER_AT_VND / GOLD_AT_VND) * 100;
 
   const showEmpty = !loading && !error && list.length === 0;
 
   return (
     <div className="cx-hist cp-history">
-      {/* status + progress toward the next tier */}
-      <div className="cx-card cx-histStatusCard">
-        <div className="cx-histStatusTop">
-          <span className="cx-histCaps">{isEn ? "Your status" : "Ваш статус"}</span>
-          <span className={`cx-statusChip is-${stats.status}`}>
-            <StarIcon />
-            <span>{statusLabel(stats.status)}</span>
-          </span>
-        </div>
-
-        <div className="cx-histTotalRow">
-          <span className="cx-histTotal">{fmtVnd(stats.totalDoneVnd, lang)} ₫</span>
-          <span className="cx-histTotalSub">{isEn ? "exchanged in total" : "обменяно всего"}</span>
-        </div>
-
-        <div className="cx-histBar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(stats.progress * 100)}>
-          <div className="cx-histBarFill" style={{ width: `${Math.max(stats.progress * 100, stats.totalDoneVnd > 0 ? 2 : 0)}%` }} />
-          <span className="cx-histBarMark" style={{ left: `${silverPct}%` }} aria-hidden="true" />
-        </div>
-        <div className="cx-histBarLabels" aria-hidden="true">
-          <span className={stats.status === "standard" ? "is-on" : ""}>{statusLabel("standard")}</span>
-          <span className={stats.status === "silver" ? "is-on" : ""} style={{ position: "absolute", left: `${silverPct}%`, transform: "translateX(-50%)" }}>{statusLabel("silver")}</span>
-          <span className={stats.status === "gold" ? "is-on" : ""}>{statusLabel("gold")}</span>
-        </div>
-
-        <div className="cx-histNext">
-          {stats.nextAt != null ? (
-            isEn
-              ? <>Exchange <b>{fmtVnd(stats.remaining, lang)} ₫</b> more to reach {statusLabel(stats.status === "standard" ? "silver" : "gold")}</>
-              : <>До статуса «{statusLabel(stats.status === "standard" ? "silver" : "gold")}» осталось обменять <b>{fmtVnd(stats.remaining, lang)} ₫</b></>
-          ) : (
-            isEn ? "Maximum status — thank you for staying with us!" : "Максимальный статус — спасибо, что вы с нами!"
-          )}
-        </div>
-      </div>
+      {!loading && !error && <div className="cl-historyTotal">
+        <span>{isEn ? "Exchanged in total" : "Обменяно всего"}</span>
+        <strong>{fmtVnd(stats.totalDoneVnd, lang)} ₫</strong>
+      </div>}
 
       {/* month summary */}
       {list.length > 0 ? (

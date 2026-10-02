@@ -572,7 +572,7 @@ export default function App() {
   return (
     <div className={`vx-page theme-client cx-app cl-app ${screen === "home" ? "mx-homePage" : ""}`}>
       {showReferrals && <ReferralsMenu initData={me.initData} isEn={isEn} onClose={closeReferrals} />}
-      {showStatus && <StatusSheet status={statusKey} lang={lang} onClose={() => setShowStatus(false)} />}
+      {showStatus && <StatusSheet key={me.user?.id || "guest"} status={statusKey} lang={lang} user={me.user} initData={me.initData} onClose={() => setShowStatus(false)} />}
       <div className="container">
         <ScreenPane active={screen === "home"}>
           <div className="mx-homeLayout">

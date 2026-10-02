@@ -246,7 +246,7 @@ html.vx-keyboard-open .cl-redeemCoins { height: 36px; min-height: 36px; }
 .cl-app .rf-heading h2 { letter-spacing: -.5px; }
 .cl-app .rf-offer { border-color: var(--cl-line); }
 .cl-sheetOverlay { position: fixed; inset: 0; z-index: 10000; background: #00233366; display: flex; align-items: flex-end; justify-content: center; padding: 0; animation: cl-overlay-in .2s ease; }
-.cl-sheet { width: min(100%, 520px); max-height: min(90dvh, 840px); background: var(--cl-surface); color: var(--cl-ink); border-radius: 24px 24px 0 0; display: flex; flex-direction: column; padding: 10px 20px max(24px, env(safe-area-inset-bottom)); font-family: "Manrope", sans-serif; outline: none; animation: cl-sheet-in .28s cubic-bezier(.2,.8,.2,1); }
+.cl-sheet { box-sizing: border-box; width: min(100%, 520px); max-height: min(90dvh, 840px); background: var(--cl-surface); color: var(--cl-ink); border-radius: 24px 24px 0 0; display: flex; flex-direction: column; padding: 10px 20px max(24px, env(safe-area-inset-bottom)); font-family: "Manrope", sans-serif; outline: none; animation: cl-sheet-in .28s cubic-bezier(.2,.8,.2,1); }
 .cl-sheetHandle { width: 32px; height: 4px; border-radius: 5px; background: var(--cl-line); margin: 0 auto 12px; flex: none; }
 .cl-sheet > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 15px; }
 .cl-sheet h2 { font-size: 20px; letter-spacing: -.6px; margin: 0; color: var(--cl-ink); }
@@ -363,8 +363,8 @@ html[data-theme="dark"] .cl-currencySeal[data-cur="USDT"] { color: #78d8bd; }
 .cl-memberLevel { font-size: 32px; font-weight: 600; letter-spacing: -1px; margin-top: 26px; }
 .cl-memberCard p { font-size: 12px; margin: 5px 0 0; opacity: .8; }
 .cl-statusIntro, .cl-statusFootnote { font-size: 12px; line-height: 1.6; color: var(--cl-muted); margin: 18px 0; }
-.cl-statusFootnote { margin-bottom: 0; }
-.cl-statusLevel { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--cl-line); }
+.cl-statusFootnote { font-size: 11px; margin: 12px 0 0; }
+.cl-statusLevel { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--cl-line); }
 .cl-statusMedal { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; font-size: 19px; flex: none; color: #f6c600; background: #002333; border: 1px solid #294652; }
 .cl-statusLevel.is-silver .cl-statusMedal { background: #dce5e9; color: #334e5a; border-color: #c5d1d7; }
 .cl-statusLevel.is-gold .cl-statusMedal { background: #f6c600; color: #594700; border-color: #d8af00; }
@@ -395,3 +395,51 @@ html[data-theme="dark"] .cl-currencySeal[data-cur="USDT"] { color: #78d8bd; }
   .cl-memberLevel { margin-top: 18px; }
   .cl-statusIntro, .cl-statusFootnote { margin-top: 12px; margin-bottom: 12px; }
 }
+
+/* Personal club card: embossed lettering and materials for each membership level. */
+.cl-loyaltyCard{box-sizing:border-box;width:100%;min-width:0;position:relative;isolation:isolate;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;aspect-ratio:1.586;min-height:192px;padding:22px;border-radius:18px;border:1px solid #ffffff24;background:linear-gradient(120deg,#164454,#002333 58%,#123644);color:#f4f8fa;box-shadow:inset 0 1px 0 #ffffff26,0 9px 20px #00233317}
+.cl-loyaltyCard.is-silver{background:linear-gradient(115deg,#dce5e9,#f6f8f9 38%,#bccbd2 70%,#e3eaee);color:#173a4b;border-color:#c3d0d7}
+.cl-loyaltyCard.is-gold{background:linear-gradient(115deg,#e2ad17,#ffe27a 38%,#e9b814 70%,#f6d251);color:#382e07;border-color:#d0a928}
+.cl-cardTop,.cl-cardMiddle,.cl-cardBottom{position:relative;z-index:1;min-width:0}
+.cl-cardTop{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cl-cardBrand{display:flex;align-items:center;gap:7px;font:700 16px/1.1 "Circular Std","Manrope",sans-serif;letter-spacing:-.4px;white-space:nowrap}
+.cl-cardBrand .cl-whale{width:27px;height:27px;flex:none}
+.cl-cardType{font-size:9px;line-height:1.4;opacity:.8;text-align:right}
+.cl-cardMiddle{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:14px 0 18px}
+.cl-cardTier{font:500 clamp(23px,7vw,33px)/1.1 "Manrope",sans-serif;letter-spacing:-.8px;text-shadow:0 1px 1px #ffffff30}
+.cl-cardChip{display:grid;grid-template-columns:repeat(3,1fr);width:37px;height:29px;flex:none;overflow:hidden;border-radius:6px;border:1px solid #ac955d;background:linear-gradient(130deg,#e9d5a3,#bba367 65%,#ead7a7);box-shadow:inset 0 0 0 2px #ffffff18}
+.cl-cardChip i{border-right:1px solid #907b4c80;position:relative}
+.cl-cardChip i:last-child{border:0}
+.cl-cardChip i::after{content:"";position:absolute;left:0;right:0;top:45%;border-top:1px solid #907b4c80}
+.cl-cardChip i:nth-child(2){border-top:1px solid #907b4c80;border-bottom:1px solid #907b4c80;margin:7px 0}
+.cl-cardChip i:nth-child(2)::after{display:none}
+.cl-cardNameLabel{display:block;font-size:9px;line-height:1.4;opacity:.7;margin-bottom:3px}
+.cl-loyaltyCard .cl-cardName{display:flex;align-items:center;gap:10px;max-width:100%;min-height:36px;padding:3px 0;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;text-align:left}
+.cl-cardName>span{font:500 clamp(12px,3.8vw,17px)/1.4 ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace;letter-spacing:1.3px;text-transform:uppercase;text-shadow:0 1px 0 #ffffff30,0 -1px 1px #0006;overflow-wrap:anywhere;min-width:0}
+.cl-cardWaves{position:absolute;z-index:0;inset:0;width:100%;height:100%;pointer-events:none;stroke:currentColor;stroke-width:.6;opacity:.12}
+.cl-cardEditor{padding:14px 0 18px}
+.cl-cardEditor>label{display:block;font-size:12px;font-weight:700;margin-bottom:7px}
+.cl-sheet .cl-cardEditor>input{display:block;box-sizing:border-box;width:100%;min-height:44px;border:1px solid var(--cl-line);border-radius:10px;padding:10px 12px;background:var(--cl-bg);color:var(--cl-ink);font:500 16px/1.4 "Manrope",sans-serif}
+.cl-cardEditor>input:focus-visible{outline:2px solid #b79512;outline-offset:2px}
+.cl-cardEditor>p{font-size:10px;line-height:1.5;color:var(--cl-muted);margin:7px 0 10px}
+.cl-cardEditor>div{display:flex;gap:8px}
+.cl-cardEditor button,.cl-loyaltyProgress button{min-height:40px;border-radius:10px;padding:9px 16px;border:1px solid var(--cl-line);background:var(--cl-soft);color:var(--cl-ink);font:700 12px/1.4 "Manrope",sans-serif;cursor:pointer}
+.cl-cardEditor button[type="submit"]{background:#f6c600;color:#002333;border-color:#d4ac00}
+.cl-loyaltyProgress{padding:0;margin:16px 0 10px}
+.cl-loyaltyProgress p{font-size:12px;line-height:1.6;margin:0}
+.cl-progressHeading{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px}
+.cl-progressHeading>span{color:var(--cl-muted)}
+.cl-progressHeading>strong{font-size:13px;font-weight:800}
+.cl-progressHeading>strong>span{color:#ae8500}
+.cl-progressTrack{height:6px;overflow:hidden;margin-top:13px;border-radius:10px;background:var(--cl-line)}
+.cl-progressTrack>span{display:block;height:100%;border-radius:inherit;background:#bd9500}
+html[data-theme="dark"] .cl-progressTrack>span{background:#f6c600}
+html[data-theme="dark"] .cl-progressHeading>strong>span{color:#f6c600}
+.cl-progressEndpoints{display:flex;justify-content:space-between;gap:10px;margin:6px 0 8px;color:var(--cl-muted);font-size:9px}
+.cl-loyaltyProgress .cl-progressRemaining{font-size:12px;line-height:1.6}
+.cl-progressRemaining strong{font-weight:800;white-space:nowrap}
+.cl-loyaltyProgress .cl-progressTotal{font-size:10px;margin-top:4px;color:var(--cl-muted)}
+.cl-historyTotal{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;padding:5px 0 16px;border-bottom:1px solid var(--cl-line)}
+.cl-historyTotal>span{font-size:12px;color:var(--cl-muted)}
+.cl-historyTotal>strong{font-size:21px;letter-spacing:-.7px;color:var(--cl-ink)}
+@media(max-width:360px){.cl-loyaltyCard{padding:17px;min-height:178px}.cl-cardBrand{font-size:14px}.cl-cardBrand .cl-whale{width:23px;height:23px}.cl-cardMiddle{margin:12px 0}.cl-cardTier{font-size:25px}.cl-cardName>span{letter-spacing:.8px}}
