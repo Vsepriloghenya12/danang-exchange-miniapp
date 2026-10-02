@@ -693,7 +693,6 @@ export async function upsertUserFromTelegram(u: {
         created_at: now,
         last_seen_at: now
       };
-      attachReferral(store, store.users[key], referralPayload, now);
     } else {
       existing.username = u.username ?? existing.username;
       existing.first_name = u.first_name ?? existing.first_name;
@@ -705,6 +704,7 @@ export async function upsertUserFromTelegram(u: {
       existing.last_seen_at = now;
     }
 
+    attachReferral(store, store.users[key], referralPayload, now);
     store.users[key].referral_code ||= String(u.id);
     return store.users[key];
   });

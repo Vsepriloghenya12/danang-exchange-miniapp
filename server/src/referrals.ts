@@ -78,10 +78,22 @@ export function attachReferral(store: Store, user: StoredUser, payload: string |
   if (!match) return;
   const inviter = store.users[match[1]];
   if (!inviter || inviter.tg_id === user.tg_id || !Number.isSafeInteger(inviter.tg_id)) return;
-  if (store.requests.some(r => r.from.id === user.tg_id) || store.contacts.some(c => c.tg_id === user.tg_id)) return;
+  // Registration and a contact card are not an exchange. Attribution stays immutable.
+  if (user.referred_by || user.referral_reward_request_id || user.referral_rewarded_at) return;
+  if (store.requests.some(r => r.from.id === user.tg_id && (r.state === "done" || !!r.funds_received_at))) return;
+  if (store.bonusLedger.some(e => (e.kind === "welcome" && e.tg_id === user.tg_id) || (e.kind === "referrer" && e.peer_id === user.tg_id))) return;
+  // Existing accounts can now accept links, so also reject referral cycles.
+  const visited = new Set<number>([user.tg_id]);
+  let ancestor: StoredUser | undefined = inviter;
+  while (ancestor) {
+    if (visited.has(ancestor.tg_id)) return;
+    visited.add(ancestor.tg_id);
+    ancestor = ancestor.referred_by ? store.users[String(ancestor.referred_by)] : undefined;
+  }
   const today = Object.values(store.users).filter(u => u.referred_by === inviter.tg_id && u.referred_at?.slice(0, 10) === now.slice(0, 10)).length;
   if (today >= REFERRAL_TERMS.dailyLimit) { user.referral_rejected = "daily_limit"; return; }
   user.referred_by = inviter.tg_id; user.referred_at = now;
+  delete user.referral_rejected;
 }
 
 export function balanceCents(store: Store, tgId: number) {

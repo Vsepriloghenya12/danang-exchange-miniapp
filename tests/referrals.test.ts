@@ -51,7 +51,7 @@ test("referrals: signed attribution, completed exchanges and an atomic CashCoin 
   await api("/auth", {}, 1);
   await api("/auth", {}, 3);
 
-  await t.test("only new users get an immutable inviter from signed start_param", async () => {
+  await t.test("signed start_param keeps attribution immutable and rejects referral cycles", async () => {
     assert.equal((await api("/auth", {}, signed(2, "ref_1"))).status, 200);
     await api("/auth", {}, signed(2, "ref_3"));
     await api("/auth", {}, signed(1, "ref_2"));
@@ -72,10 +72,10 @@ test("referrals: signed attribution, completed exchanges and an atomic CashCoin 
     assert.equal((await api("/admin/referrals/payout", {}, 2)).status, 403);
   });
 
-  await t.test("daily limit and existing customer protection", async () => {
+  await t.test("daily limit and contact cards without exchanges", async () => {
     await mutateStore(s => { s.contacts.push({ id: "known", tg_id: 50, created_at: "2020-01-01", updated_at: "2020-01-01" }); });
     await upsertUserFromTelegram({ id: 50 }, "ref_1");
-    assert.equal((await readStore()).users["50"].referred_by, undefined);
+    assert.equal((await readStore()).users["50"].referred_by, 1);
     await Promise.all(Array.from({ length: 21 }, (_, i) => upsertUserFromTelegram({ id: i + 1000 }, "ref_3")));
     const users = Object.values((await readStore()).users);
     assert.equal(users.filter(u => u.referred_by === 3).length, 20);
@@ -188,12 +188,41 @@ test("referrals: signed attribution, completed exchanges and an atomic CashCoin 
     delete process.env.RAILWAY_ENVIRONMENT_ID; delete process.env.RAILWAY_SERVICE_ID;
   });
 
+  await t.test("existing accounts qualify before their first exchange, including after cancellation", async () => {
+    await api("/auth", {}, 51);
+    const canceled = await api("/requests", order, 51);
+    await api(`/admin/requests/${canceled.data.id}/state`, { state: "canceled" });
+    await api("/auth", {}, signed(51, "ref_1"));
+    await api("/auth", {}, signed(51, "ref_3"));
+    assert.equal((await readStore()).users["51"].referred_by, 1);
+    const gifted = await api("/requests", order, 51);
+    assert.equal(gifted.status, 200);
+    assert.equal(gifted.data.cashcoin.welcomeSell, 5);
+    assert.equal(gifted.data.cashcoin.welcomeBuy, 120000);
+    assert.equal(gifted.data.cashcoin.totalBuy, 24120000);
+    await api(`/admin/requests/${gifted.data.id}/state`, { state: "done", fundsReceived: true });
+    assert.equal((await readStore()).bonusLedger.filter(e => e.id === "referrer:51").length, 1);
+    const cardOnly = await api("/requests", order, 50);
+    assert.equal(cardOnly.data.cashcoin.welcomeSell, 5);
+
+    await api("/auth", {}, 52);
+    const completed = await api("/requests", order, 52);
+    await api(`/admin/requests/${completed.data.id}/state`, { state: "done", fundsReceived: true });
+    await api("/auth", {}, signed(52, "ref_1"));
+    assert.equal((await readStore()).users["52"].referred_by, undefined);
+    await upsertUserFromTelegram({ id: 53 });
+    await mutateStore(s => { s.requests.push({ ...s.requests.find(r => r.id === completed.data.id)!, id: "funds-already-received", from: { id: 53 }, state: "in_progress" }); });
+    await upsertUserFromTelegram({ id: 53 }, "ref_1");
+    assert.equal((await readStore()).users["53"].referred_by, undefined);
+  });
+
   await t.test("bot /start preserves attribution when the miniapp opens later", async () => {
     const { createBot } = await import("../server/src/bot.ts");
     const { Telegram } = await import("telegraf");
     t.mock.method(Telegram.prototype, "callApi", async () => ({ message_id: 1 }));
     const bot = createBot({ token: botToken, webappUrl: "https://example.com", ownerTgIds: [900] });
     bot.botInfo = { id: 123, is_bot: true, first_name: "Test", username: "referral_test_bot", can_join_groups: true, can_read_all_group_messages: false, supports_inline_queries: false, can_connect_to_business: false, has_main_web_app: true } as any;
+    await upsertUserFromTelegram({ id: 9, first_name: "Friend" });
     await bot.handleUpdate({ update_id: 1, message: { message_id: 1, date: Math.floor(Date.now() / 1000), chat: { id: 9, type: "private", first_name: "Friend" }, from: { id: 9, is_bot: false, first_name: "Friend" }, text: "/start ref_1", entities: [{ offset: 0, length: 6, type: "bot_command" }] } });
     assert.equal((await readStore()).users["9"].referred_by, 1);
     await api("/auth", {}, 9);
