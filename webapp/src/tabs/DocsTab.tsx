@@ -236,16 +236,16 @@ export default function DocsTab({ kind, lang = "ru" }: { kind: DocKind; lang?: L
   const sections = kind === "privacy" ? (isEn ? PRIVACY_EN : PRIVACY_RU) : (isEn ? TERMS_EN : TERMS_RU);
 
   return (
-    <div className="cx-doc">
+    <article className="cx-doc cp-document">
       <div className="cx-docUpdated">{isEn ? UPDATED.en : UPDATED.ru}</div>
       {sections.map((s) => (
-        <div key={s.h} className="cx-card cx-docCard">
-          <div className="cx-docH">{s.h}</div>
+        <section key={s.h} className="cx-docCard">
+          <h2 className="cx-docH">{s.h}</h2>
           {s.p.map((text) => (
             <p key={text} className="cx-docP">{text}</p>
           ))}
-        </div>
+        </section>
       ))}
-    </div>
+    </article>
   );
 }

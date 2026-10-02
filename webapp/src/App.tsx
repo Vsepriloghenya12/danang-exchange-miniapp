@@ -119,7 +119,8 @@ function ScreenHeader({ title, onBack, lang }: { title: string; onBack?: () => v
           </svg>
         </button>
       ) : null}
-      <div className="cx-screenTitle">{title}</div>
+      <h1 className="cx-screenTitle">{title}</h1>
+      <span className="cp-headerMark"><WhaleMark /></span>
     </div>
   );
 }
@@ -715,7 +716,7 @@ export default function App() {
         {visited.other ? (
           <ScreenPane active={screen === "other"}>
             <>
-              <ScreenHeader title={isEn ? "More" : "Прочее"} onBack={goHome} lang={lang} />
+              <ScreenHeader title={isEn ? "More" : "Ещё"} onBack={goHome} lang={lang} />
               <OtherTab
                 lang={lang}
                 onFaq={() => goTo("faq", "other_faq")}

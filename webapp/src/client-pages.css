@@ -1,0 +1,172 @@
+/* Secondary client screens share the exchange palette and spacing. */
+.cl-app .cx-screenHeader{display:flex;align-items:center;gap:12px;min-height:66px;margin:0 0 16px;padding:10px 0;border-bottom:1px solid var(--cl-line)}
+.cl-app .cx-screenTitle{flex:1;min-width:0;margin:0;font:800 21px/1.25 "Manrope",sans-serif;letter-spacing:-.65px;color:var(--cl-ink)}
+.cl-app .cx-backChip{display:grid;place-items:center;flex:none;width:38px;height:38px;padding:0;border:1px solid var(--cl-line);border-radius:12px;background:var(--cl-surface);color:var(--cl-ink);box-shadow:none}
+.cp-headerMark{color:var(--cl-ink);flex:none}.cp-headerMark .cl-whale{width:28px;height:28px}
+.cp-page{display:flex;flex-direction:column;gap:16px;min-width:0;padding-bottom:12px}
+.cp-page h2,.cp-page h3{margin:0;color:inherit;letter-spacing:-.4px}
+.cp-page p{margin:0}
+.cp-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--cl-soft);color:var(--cl-ink);flex:none}
+.cp-icon svg{width:21px;height:21px}
+.cp-chevron{width:16px;height:16px;flex:none;color:var(--cl-muted)}
+.cp-menuGroup{border:1px solid var(--cl-line);border-radius:20px;overflow:hidden;background:var(--cl-surface)}
+.cp-menuRow{display:flex;align-items:center;gap:12px;width:100%;padding:16px;text-align:left;background:none;border:0;color:var(--cl-ink);font:inherit;cursor:pointer;min-height:76px}
+.cp-menuRow+.cp-menuRow{border-top:1px solid var(--cl-line)}
+.cp-rowText{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.cp-rowText strong{font-size:13px;line-height:1.45;font-weight:750}
+.cp-rowText small{font-size:11px;line-height:1.5;color:var(--cl-muted);overflow-wrap:anywhere}
+.cp-support{display:flex;align-items:center;gap:12px;padding:20px 16px;border:0;border-radius:20px;background:#002333;color:#f4f8fa;font:inherit;text-align:left;cursor:pointer}
+.cp-support .cp-icon{background:#ffffff12;color:#f6c600}
+.cp-support .cp-rowText strong{font-size:17px;letter-spacing:-.4px}
+.cp-support .cp-rowText small,.cp-support .cp-chevron{color:#bed0d7}
+.cp-developer{background:transparent}
+.cp-developer .cp-icon{background:transparent}
+.cp-ocean{background:#002333;color:#f4f8fa;border-radius:22px;padding:24px;position:relative;overflow:hidden}
+.cp-ocean h2{font-size:25px;line-height:1.22;letter-spacing:-.9px;margin:14px 0 10px;max-width:13em}
+.cp-ocean p{font-size:13px;line-height:1.65;color:#bdd0d8;max-width:29em}
+.cp-ocean>.cl-whale{width:40px;height:40px;color:#f6c600}
+.cp-ocean>svg:not(.cl-whale){color:#f6c600;width:28px;height:28px}
+.cp-aboutBrand{text-align:center;padding:32px 20px}
+.cp-aboutBrand .cl-whale{margin:auto;width:64px;height:56px}
+.cp-aboutBrand h2{max-width:none;font-size:34px;margin:12px 0 4px;letter-spacing:-1.6px}
+.cp-aboutBrand h2 span{color:#f6c600}
+.cp-aboutBrand p{margin:auto}
+.cp-serviceList{background:var(--cl-surface);border:1px solid var(--cl-line);border-radius:20px;overflow:hidden}
+.cp-service{display:flex;gap:14px;padding:18px 16px;align-items:center}
+.cp-service+.cp-service{border-top:1px solid var(--cl-line)}
+.cp-service h3{font-size:14px;margin:0 0 5px;font-weight:800}
+.cp-service p{font-size:12px;color:var(--cl-muted);line-height:1.5}
+.cp-primary,.cp-secondary{display:flex;justify-content:center;align-items:center;gap:9px;min-height:48px;width:100%;padding:12px 18px;border-radius:14px;font:750 13px/1.4 "Manrope",sans-serif;cursor:pointer}
+.cp-primary{border:1px solid #d8af00;background:#f6c600;color:#002333}
+.cp-secondary{border:1px solid var(--cl-line);background:var(--cl-soft);color:var(--cl-ink)}
+.cp-primary:disabled,.cp-secondary:disabled{opacity:.5;cursor:default}
+.cp-footnote{text-align:center;color:var(--cl-muted);font-size:11px;line-height:1.6;padding:0 14px}
+.cp-prose{font-size:14px;line-height:1.85;color:var(--cl-muted);padding:2px 8px}
+.cp-contactRow .cp-rowText small{font-size:12px}
+.cp-pageIntro{display:flex;align-items:center;gap:12px;padding:2px 4px}
+.cp-pageIntro p{font-size:13px;line-height:1.65;color:var(--cl-muted)}
+.cp-faqList{background:var(--cl-surface);border:1px solid var(--cl-line);border-radius:20px;overflow:hidden}
+.cp-faqList:empty{display:none}
+.cp-faqItem+.cp-faqItem{border-top:1px solid var(--cl-line)}
+.cp-faqQuestion{border:0;background:none;color:var(--cl-ink);display:flex;gap:16px;justify-content:space-between;align-items:center;width:100%;text-align:left;padding:20px 16px;font:750 13px/1.55 "Manrope",sans-serif;cursor:pointer}
+.cp-faqPlus{flex:none;width:24px;height:24px;display:grid;place-items:center;border-radius:50%;background:var(--cl-soft);font-size:20px;font-weight:500;transition:transform .2s ease}
+.cp-faqItem.is-open .cp-faqPlus{transform:rotate(45deg);background:#f6c600;color:#002333}
+.cp-faqAnswer{display:grid;grid-template-rows:0fr;visibility:hidden;transition:grid-template-rows .22s ease,visibility .22s}
+.cp-faqAnswer>div{overflow:hidden;min-height:0}
+.cp-faqAnswer p{margin:0;padding:0 16px 20px;color:var(--cl-muted);font-size:13px;line-height:1.8;white-space:pre-line;overflow-wrap:anywhere}
+.cp-faqItem.is-open .cp-faqAnswer{grid-template-rows:1fr;visibility:visible}
+.cp-empty{padding:28px 20px;border:1px solid var(--cl-line);background:var(--cl-surface);border-radius:20px;text-align:center;color:var(--cl-muted);font-size:13px;line-height:1.7}
+.cp-empty>svg{width:32px;height:32px;margin-bottom:12px}
+.cp-empty h2,.cp-empty h3{color:var(--cl-ink);font-size:17px;margin:0 0 8px}
+.cp-empty .cp-secondary{margin-top:14px}
+.cp-document{background:var(--cl-surface);border:1px solid var(--cl-line);border-radius:20px;padding:20px;gap:0}
+.cl-app .cp-document .cx-docUpdated{padding:0 0 18px;margin:0;color:var(--cl-muted);font-size:11px;border-bottom:1px solid var(--cl-line)}
+.cl-app .cp-document .cx-docCard{background:none;border:0;border-radius:0;padding:20px 0;box-shadow:none}
+.cl-app .cp-document .cx-docCard+.cx-docCard{border-top:1px solid var(--cl-line)}
+.cl-app .cp-document .cx-docH{font-size:14px;line-height:1.55;margin:0 0 10px;color:var(--cl-ink)}
+.cl-app .cp-document .cx-docP{font-size:12px;line-height:1.85;color:var(--cl-muted);margin:0}
+.cl-app .cp-document .cx-docP+.cx-docP{margin-top:10px}
+.cl-app .cp-history .cx-histStatusCard{--cxText:#f4f8fa;--cxText2:#bcd0d8;--cxText3:#bcd0d8;--cxMoney:#f4f8fa;--cxAccentText:#f6c600;background:#002333;color:#f4f8fa;border:0;padding:22px;border-radius:22px}
+.cl-app .cp-history .cx-histStatusCard .cx-statusChip{color:#f6c600;height:auto;background:#ffffff0d;border:1px solid #ffffff21;border-radius:30px;padding:5px 10px}
+.cl-app .cp-history .cx-histStatusCard .cx-statusChip span{display:inline}
+.cl-app .cp-history .cx-histCaps{text-transform:none;letter-spacing:0;font-size:12px}
+.cl-app .cp-history .cx-histTotalRow{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:18px 0}
+.cl-app .cp-history .cx-histTotal{font-size:clamp(24px,7vw,32px);letter-spacing:-1px;overflow-wrap:anywhere;line-height:1.25}
+.cl-app .cp-history .cx-histBar{height:5px;border:0;background:#ffffff25}
+.cl-app .cp-history .cx-histBarFill{background:#f6c600;box-shadow:none}
+.cl-app .cp-history .cx-histBarMark{background:#718991}
+.cl-app .cp-history .cx-histBarLabels{text-transform:none;letter-spacing:0;font-size:10px;margin-top:10px}
+.cl-app .cp-history .cx-histNext{margin-top:16px;font-size:11px;line-height:1.7}
+.cl-app .cp-history .cx-histSummary{background:transparent;border:0;border-radius:0;padding:8px 2px 16px;border-bottom:1px solid var(--cl-line)}
+.cl-app .cp-history .cx-histSumVal{font-size:18px}
+.cl-app .cp-history .cx-histSumVal.is-money{font-size:14px;white-space:normal;overflow-wrap:anywhere;line-height:1.4}
+.cl-app .cp-history .cx-histSumSub{font-size:10px}
+.cl-app .cp-history .cx-histList{gap:0;background:var(--cl-surface);border:1px solid var(--cl-line);border-radius:20px;overflow:hidden}
+.cl-app .cp-history .cx-histItem{border:0;border-radius:0;padding:16px 14px;gap:10px;background:none}
+.cl-app .cp-history .cx-histItem+.cx-histItem{border-top:1px solid var(--cl-line)}
+.cl-app .cp-history .cx-histIco{width:32px;height:38px;border:0;background:none;color:var(--cl-muted)}
+.cl-app .cp-history .cx-histRow1{flex-wrap:wrap;gap:4px}
+.cl-app .cp-history .cx-histTitle{font-size:12px;flex-basis:100%;font-weight:650;color:var(--cl-muted);white-space:normal}
+.cl-app .cp-history .cx-histAmount{font-size:17px;letter-spacing:-.5px;white-space:normal;overflow-wrap:anywhere}
+.cl-app .cp-history .cx-histSub{font-size:10px;white-space:normal}
+.cl-app .cp-history .cx-histPill{font-size:9px;padding:3px 8px}
+.cl-app .cp-history .cx-histEmpty{padding:24px 16px}
+.cl-app .cp-history .cx-histEmptyIco{width:56px;height:56px;border-radius:18px;margin-bottom:14px}
+.cl-app .cp-history .cx-histEmptyCta{background:#f6c600;color:#002333;box-shadow:none;border:1px solid #d8af00;text-transform:none}
+.cp-receipt{font:13px/1.6 "Manrope",sans-serif}
+.cp-receipt>.cx-histPill{display:inline-flex;background:var(--cl-soft);color:var(--cl-ink);margin-bottom:16px}
+.cp-receiptAmounts{border:1px solid var(--cl-line);border-radius:18px;overflow:hidden}
+.cp-receiptAmounts>div{padding:16px;background:var(--cl-bg)}
+.cp-receiptAmounts>div+div{border-top:1px solid var(--cl-line);background:var(--cl-soft)}
+.cp-receiptAmounts span,.cp-receiptComment>span{display:block;font-size:11px;color:var(--cl-muted);margin-bottom:4px}
+.cp-receiptAmounts strong{display:block;font-size:26px;letter-spacing:-.7px;overflow-wrap:anywhere}
+.cp-receiptAmounts small{font-size:12px;font-weight:600;letter-spacing:0}
+.cp-receipt dl{margin:18px 0}
+.cp-receipt dl>div{display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--cl-line)}
+.cp-receipt dt{color:var(--cl-muted)}.cp-receipt dd{margin:0;text-align:right}
+.cp-receiptComment p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.cp-reviewIntro{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:6px 2px}
+.cp-reviewIntro h2{font-size:22px;line-height:1.3;letter-spacing:-.7px}
+.cp-reviewIntro p{color:var(--cl-muted);font-size:12px;margin-top:6px}
+.cp-compose{border:1px solid var(--cl-line);border-radius:18px;background:var(--cl-surface);overflow:hidden}
+.cp-composeToggle{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;color:var(--cl-ink);padding:16px;font:inherit;cursor:pointer}
+.cp-composeToggle strong{flex:1;text-align:left;font-size:13px}.cp-composeToggle>span{font-size:22px;font-weight:500}
+.cp-composeBody{padding:0 16px 16px}.cp-composeBody>p{font-size:12px;line-height:1.7;color:var(--cl-muted)}
+.cp-field{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;font:600 12px/1.5 "Manrope",sans-serif;color:var(--cl-muted)}
+.cp-field textarea,.cp-field select{width:100%;min-width:0;border:1px solid var(--cl-line);border-radius:12px;background:var(--cl-bg);color:var(--cl-ink);padding:12px;font:500 14px/1.5 "Manrope",sans-serif}
+.cp-field textarea{resize:vertical}.cp-field textarea::placeholder{color:var(--cl-muted)}
+.cp-check{display:flex;align-items:center;gap:8px;color:var(--cl-muted);font-size:12px;margin:14px 0}
+.cp-check input{accent-color:#d5aa00;width:18px;height:18px}
+.cp-formMessage{font-size:12px;line-height:1.7;padding:0 16px 16px;color:var(--cl-ink)}
+.cp-sectionHeading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cp-sectionHeading h3{font-size:13px}.cp-sectionHeading>span{font-size:12px;color:var(--cl-muted)}
+.cp-reviewList{display:flex;flex-direction:column;gap:12px}
+.cp-review{border:1px solid var(--cl-line);border-radius:20px;background:var(--cl-surface);padding:18px}
+.cp-review header{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+.cp-avatar{display:grid;place-items:center;flex:none;width:36px;height:36px;background:var(--cl-soft);border-radius:50%;font-size:14px;font-weight:750;color:var(--cl-ink)}
+.cp-review h3{font-size:12px;overflow-wrap:anywhere}.cp-review time{font-size:10px;color:var(--cl-muted)}
+.cp-review>p,.cp-reviewReply p{font-size:13px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere}
+.cp-reviewReply{margin-top:16px;border-left:2px solid #d3ad10;padding:2px 0 2px 12px;color:var(--cl-muted)}
+.cp-reviewReply strong{font-size:11px;color:var(--cl-ink)}.cp-reviewReply p{font-size:12px;margin-top:6px}
+.cl-app .cx-atm{gap:16px}
+.cl-app .cx-atmInfo{padding:22px;border-radius:22px;border:0;background:#002333;color:#f4f8fa;align-items:flex-start}
+.cl-app .cx-atmInfoIcon{color:#f6c600;background:#ffffff10;border:0}
+.cl-app .cx-atmInfoText{color:#d2e0e5;font-size:13px;line-height:1.8}
+.cl-app .cx-atmInfoText b{color:#f4f8fa}
+.cl-app .cx-sectionLabel{font-size:13px;font-weight:750;letter-spacing:0;text-transform:none;color:var(--cl-ink);margin:4px 0 0}
+.cl-app .cx-videoList{gap:0;border:1px solid var(--cl-line);border-radius:20px;overflow:hidden;background:var(--cl-surface)}
+.cl-app .cx-videoCard{border:0;border-radius:0;background:none;padding:16px;box-shadow:none}
+.cl-app .cx-videoCard+.cx-videoCard{border-top:1px solid var(--cl-line)}
+.cl-app .cx-videoThumb{width:42px;height:42px;border-radius:13px;box-shadow:none}
+.cl-app .cx-videoName{font-size:14px}.cl-app .cx-videoSub{font-size:11px}
+.cl-app .cx-videoTag{color:var(--cl-muted);background:var(--cl-soft);border:0;font-size:10px}
+.cl-app .cx-atm>.cx-cta{border:1px solid #d8af00;background:#f6c600;color:#002333;box-shadow:none;border-radius:14px;font-size:13px;text-transform:none}
+.cl-app .cx-suggestBox{background:transparent;border:1px dashed var(--cl-line);padding:18px;border-radius:18px}
+.cl-app .cx-suggestText{font-size:12px;color:var(--cl-muted);line-height:1.65}
+.cl-app .cx-suggestBtn{color:var(--cl-ink);background:var(--cl-surface);border:1px solid var(--cl-line);border-radius:10px;padding:10px 12px;font-size:12px;box-shadow:none}
+.cp-sheetIntro{font:500 13px/1.6 "Manrope",sans-serif;color:var(--cl-muted);margin:0 0 14px}
+.cp-atmVideo{display:block;width:100%;max-height:62dvh;border-radius:14px;background:#002333}
+.cp-actions{display:flex;gap:10px;margin-top:16px}.cp-actions>*{flex:1;min-width:0}
+.cl-app .rf-panel{background:var(--cl-surface);color:var(--cl-ink)}
+.cl-app .rf-heading button{display:grid;place-items:center;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:var(--cl-soft);color:var(--cl-ink)}
+.cl-app .rf-panel>.rf-offer{border-radius:20px;background:#002333;color:#f4f8fa;padding:22px;border:0}
+.cl-app .rf-panel>.rf-offer>strong{font-size:clamp(22px,7vw,30px);line-height:1.3;overflow-wrap:anywhere}
+.cl-app .rf-stats>div{border-color:var(--cl-line);padding:14px 0}
+.cl-app .rf-stats dd{text-align:right;font-size:13px;overflow-wrap:anywhere}
+.cl-app .rf-history li{border-color:var(--cl-line);flex-wrap:wrap}
+.cl-app .rf-history strong{white-space:normal;margin-left:auto;color:var(--cl-ink)}
+.cl-app .rf-link button{border:1px solid var(--cl-line);background:var(--cl-soft);color:var(--cl-ink);border-radius:10px}
+.cl-app :is(.cp-menuRow,.cp-support,.cp-composeToggle,.cx-videoCard):active{background:var(--cl-soft)}
+.cl-app .cp-support:active{background:#0e3546}
+:where(.cp-page,.cp-history,.cp-receipt,.cp-actions) :is(button,input,textarea,select):focus-visible{outline:2px solid #b58c00;outline-offset:3px}
+@media(hover:hover){.cp-menuRow:hover,.cp-composeToggle:hover{background:var(--cl-soft)}.cp-primary:hover:not(:disabled){background:#ffda32}}
+@media(max-width:360px){.cl-app .cx-screenTitle{font-size:19px}.cp-headerMark{display:none}.cp-menuRow{padding:14px 12px;gap:10px}.cp-rowText strong{font-size:12px}.cp-icon{width:34px;height:36px}.cp-ocean{padding:20px}.cp-ocean h2{font-size:23px}.cl-app .cp-history .cx-histStatusCard{padding:18px}}
+@media(prefers-reduced-motion:reduce){.cp-faqAnswer,.cp-faqPlus{transition:none}}
+
+.cl-app .cp-support .cp-rowText strong{color:#f4f8fa}
+html[data-theme="dark"] .cp-headerMark .cl-whale{filter:brightness(0) invert(1)}
+
+.cl-app.theme-client.vx-page .cp-field :is(textarea,select),.cl-sheet .cp-field :is(textarea,select){background:var(--cl-bg);color:var(--cl-ink);border:1px solid var(--cl-line);border-radius:12px;box-shadow:none;font-weight:500}
+.cl-app.theme-client.vx-page .cp-field textarea::placeholder,.cl-sheet .cp-field textarea::placeholder{color:var(--cl-muted)}
+.cl-app.theme-client.vx-page .cp-field :is(textarea,select):focus,.cl-sheet .cp-field :is(textarea,select):focus{border-color:#b79512;box-shadow:none;outline:2px solid #b79512;outline-offset:2px}
+.cl-app.theme-client.vx-page .cp-check input{width:18px;height:18px;box-shadow:none;border-radius:4px}

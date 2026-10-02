@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./styles.css";
 import "./client-design.css";
+import "./client-pages.css";
 import App from "./App";
 import { KeyboardState } from "./lib/keyboardState";
 

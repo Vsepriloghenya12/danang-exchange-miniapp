@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Sheet from "../components/Sheet";
 import { apiSuggestAtm } from "../lib/api";
 
 type Lang = "ru" | "en";
@@ -155,58 +156,14 @@ export default function AtmTab({ isActive = true, lang = "ru" }: { isActive?: bo
         </button>
       </div>
 
-      {active ? (
-        <div className="vx-modalOverlay" role="dialog" aria-modal="true" onClick={() => setActive(null)}>
-          <div className="vx-modalCard" onClick={(e) => e.stopPropagation()}>
-            <div className="vx-modalTitle">
-              {active === "vietcombank" ? (
-                <>
-                  {isEn ? "Video instruction for " : "Видео инструкция для "}
-                  <span className="vx-bankBrand vx-bankBrandVcb">Vietcombank</span>
-                </>
-              ) : (
-                <>
-                  {isEn ? "Video instruction for " : "Видео инструкция для "}
-                  <span className="vx-bankBrand vx-bankBrandBidv">BIDV</span>
-                </>
-              )}
-            </div>
-            <div className="vx-sp12" />
-            <video ref={videoRef} className="vx-atmVideo" controls playsInline preload="metadata" autoPlay muted src={src} />
-            <div className="vx-sp12" />
-            <button className="btn vx-btnSm" type="button" onClick={() => setActive(null)}>
-              {isEn ? "Close video" : "Закрыть видео"}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {suggestOpen ? (
-        <div className="vx-modalOverlay" role="dialog" aria-modal="true">
-          <div className="vx-modalCard">
-            <div className="vx-modalTitle">{isEn ? "New ATM" : "Новый банкомат"}</div>
-            <div className="vx-modalSub">{isEn ? "Paste the address or a Google Maps link" : "Вставьте адрес или ссылку на Google Maps"}</div>
-            <div className="vx-sp10" />
-            <textarea className="input" style={{ width: "100%", minHeight: 88 }} value={suggestText} onChange={(e) => setSuggestText(e.target.value)} placeholder={isEn ? "For example: https://maps.app.goo.gl/... or address" : "Например: https://maps.app.goo.gl/... или адрес"} />
-            <div className="vx-sp10" />
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => {
-                  if (sending) return;
-                  setSuggestOpen(false);
-                }}
-              >
-                {isEn ? "Cancel" : "Отмена"}
-              </button>
-              <button type="button" className="btn vx-btnOn" disabled={sending || !String(suggestText || "").trim()} onClick={submitSuggest}>
-                {sending ? (isEn ? "Sending…" : "Отправка…") : (isEn ? "Send" : "Отправить")}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {active && <Sheet title={active === "vietcombank" ? "Vietcombank" : "BIDV"} closeLabel={isEn?"Close video":"Закрыть видео"} onClose={()=>setActive(null)}>
+        <p className="cp-sheetIntro">{isEn?"How to withdraw cash":"Как снять наличные"}</p>
+        <video ref={videoRef} className="vx-atmVideo cp-atmVideo" controls playsInline preload="metadata" autoPlay muted src={src}/>
+      </Sheet>}
+      {suggestOpen && <Sheet title={isEn?"New ATM":"Новый банкомат"} closeLabel={isEn?"Close":"Закрыть"} onClose={()=>{if(!sending)setSuggestOpen(false);}}>
+        <label className="cp-field">{isEn?"Address or Google Maps link":"Адрес или ссылка на Google Maps"}<textarea value={suggestText} onChange={e=>setSuggestText(e.target.value)} placeholder={isEn?"Paste a link or enter the address":"Вставьте ссылку или введите адрес"} rows={3}/></label>
+        <div className="cp-actions"><button type="button" className="cp-secondary" disabled={sending} onClick={()=>setSuggestOpen(false)}>{isEn?"Cancel":"Отмена"}</button><button type="button" className="cp-primary" disabled={sending||!suggestText.trim()} onClick={submitSuggest}>{sending?(isEn?"Sending…":"Отправка…"):(isEn?"Send location":"Отправить точку")}</button></div>
+      </Sheet>}
     </div>
   );
 }

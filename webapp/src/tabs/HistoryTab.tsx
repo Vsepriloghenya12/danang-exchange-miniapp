@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import Sheet from "../components/Sheet";
+import RequestBonusDetails from "../components/RequestBonusDetails";
 import { apiGetMyRequests, apiGetTodayRates } from "../lib/api";
 
 type Lang = "ru" | "en";
@@ -95,6 +97,7 @@ export default function HistoryTab({ me, lang = "ru", onExchange }: { me: any; l
   const initData = tg?.initData || me?.initData || "";
 
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<any>(null);
   const [error, setError] = useState("");
   const [requests, setRequests] = useState<any[]>([]);
   const [rates, setRates] = useState<any>(null);
@@ -110,6 +113,8 @@ export default function HistoryTab({ me, lang = "ru", onExchange }: { me: any; l
         return;
       }
       setRequests(Array.isArray(r.requests) ? r.requests : []);
+    } catch {
+      setError(isEn ? "Could not load your exchanges. Please try again." : "Не удалось загрузить обмены. Попробуйте ещё раз.");
     } finally {
       setLoading(false);
     }
@@ -192,10 +197,10 @@ export default function HistoryTab({ me, lang = "ru", onExchange }: { me: any; l
   const monthName = new Date().toLocaleDateString(isEn ? "en-GB" : "ru-RU", { month: "long" });
   const silverPct = (SILVER_AT_VND / GOLD_AT_VND) * 100;
 
-  const showEmpty = !loading && list.length === 0;
+  const showEmpty = !loading && !error && list.length === 0;
 
   return (
-    <div className="cx-hist">
+    <div className="cx-hist cp-history">
       {/* status + progress toward the next tier */}
       <div className="cx-card cx-histStatusCard">
         <div className="cx-histStatusTop">
@@ -256,7 +261,7 @@ export default function HistoryTab({ me, lang = "ru", onExchange }: { me: any; l
       ) : null}
 
       {loading ? <div className="cx-histMuted">{isEn ? "Loading…" : "Загрузка…"}</div> : null}
-      {error ? <div className="cx-histMuted">{error}</div> : null}
+      {error ? <div className="cp-empty" role="alert"><p>{error}</p><button type="button" className="cp-secondary" onClick={()=>{setLoading(true);void load();}}>{isEn?"Try again":"Повторить"}</button></div> : null}
 
       {showEmpty ? (
         <div className="cx-histEmpty">
@@ -292,17 +297,9 @@ export default function HistoryTab({ me, lang = "ru", onExchange }: { me: any; l
               const sub = `${methodLabel(String(r?.receiveMethod || ""), lang)}${Number.isFinite(d.getTime()) ? ` · ${timeLabel(d, lang)}` : ""}`;
               const title = `${isEn ? "Exchange" : "Обмен"} ${r?.sellCurrency} → ${r?.buyCurrency}`;
 
-              const openDetails = () => {
-                const lines = [
-                  `${r?.sellCurrency} → ${r?.buyCurrency} · #${shortId(String(r?.id || ""))}`,
-                  "",
-                  `${isEn ? "You give" : "Отдаёте"}: ${r?.sellAmount} ${r?.sellCurrency}`,
-                  `${isEn ? "You get" : "Получаете"}: ${r?.buyAmount} ${r?.buyCurrency}`,
-                  `${isEn ? "Method" : "Способ"}: ${methodLabel(String(r?.payMethod || ""), lang)} → ${methodLabel(String(r?.receiveMethod || ""), lang)}`,
-                  `${isEn ? "Status" : "Статус"}: ${stNorm === "done" ? (isEn ? "Done" : "Выполнено") : stNorm === "canceled" ? (isEn ? "Cancelled" : "Отменено") : (isEn ? "In progress" : "В работе")}`,
-                ];
-                tg?.showAlert?.(lines.join("\n"));
-              };
+              const openDetails = () => setSelected(r);
+
+
 
               return (
                 <button key={String(r?.id)} type="button" className="cx-histItem" onClick={openDetails}>
@@ -329,6 +326,15 @@ export default function HistoryTab({ me, lang = "ru", onExchange }: { me: any; l
           </div>
         </div>
       ))}
+      {selected && <Sheet title={(isEn?"Exchange #":"Обмен #")+shortId(String(selected.id))} closeLabel={isEn?"Close":"Закрыть"} onClose={()=>setSelected(null)}>
+        <div className="cp-receipt">
+          <span className={"cx-histPill "+(selected.state==="done"?"is-done":selected.state==="canceled"?"is-cancelled":"is-pending")}>{selected.state==="done"?(isEn?"Done":"Выполнено"):selected.state==="canceled"?(isEn?"Cancelled":"Отменено"):(isEn?"In progress":"В работе")}</span>
+          <div className="cp-receiptAmounts"><div><span>{isEn?"You give":"Отдаёте"}</span><strong>{Number(selected.sellAmount).toLocaleString(isEn?"en-US":"ru-RU")} <small>{selected.sellCurrency}</small></strong></div><div><span>{isEn?"You get":"Получаете"}</span><strong>{Number(selected.buyAmount).toLocaleString(isEn?"en-US":"ru-RU")} <small>{selected.buyCurrency}</small></strong></div></div>
+          <RequestBonusDetails bonus={selected.cashcoin} sellCurrency={selected.sellCurrency} buyCurrency={selected.buyCurrency} isEn={isEn}/>
+          <dl><div><dt>{isEn?"Payment":"Оплата"}</dt><dd>{methodLabel(selected.payMethod,lang)}</dd></div><div><dt>{isEn?"Receive":"Получение"}</dt><dd>{methodLabel(selected.receiveMethod,lang)}</dd></div><div><dt>{isEn?"Date":"Дата"}</dt><dd>{new Date(selected.created_at).toLocaleString(isEn?"en-GB":"ru-RU")}</dd></div></dl>
+          {selected.comment && <div className="cp-receiptComment"><span>{isEn?"Comment":"Комментарий"}</span><p>{selected.comment}</p></div>}
+        </div>
+      </Sheet>}
     </div>
   );
 }

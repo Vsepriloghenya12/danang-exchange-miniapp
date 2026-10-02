@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { apiGetFaq } from "../lib/api";
+import ClientIcon from "../components/ClientIcon";
 import type { FaqItem } from "../lib/types";
 
 type Lang = "ru" | "en";
@@ -53,9 +54,17 @@ export default function FaqTab({ lang = "ru" }: { lang?: Lang }) {
       .filter((x) => x && String(x.q || "").trim());
   }, [items, isEn]);
 
-  if (loading) return <div className="card" style={{ padding: 14 }}><div className="small">{isEn ? "Loading…" : "Загрузка…"}</div></div>;
-  if (err) return <div className="card" style={{ padding: 14 }}><div className="h3" style={{ marginBottom: 6 }}>FAQ</div><div className="small">{err}</div></div>;
-  if (!list.length) return <div className="card" style={{ padding: 14 }}><div className="h3" style={{ marginBottom: 6 }}>FAQ</div><div className="small">{isEn ? "No questions yet." : "Пока нет вопросов."}</div></div>;
-
-  return <div className="mx-faq">{list.map((it) => { const open = openId === it.id; return <div key={it.id} className={open ? "mx-faqItem is-open" : "mx-faqItem"}><button type="button" className="mx-faqQ" onClick={() => setOpenId((x) => (x === it.id ? "" : it.id))}><span>{it.q}</span><span className="mx-faqChevron">{open ? "—" : "+"}</span></button>{open ? <div className="mx-faqA">{it.a}</div> : null}</div>; })}</div>;
+  return <div className="cp-page cp-faq">
+    <div className="cp-pageIntro"><span className="cp-icon"><ClientIcon name="help"/></span><p>{isEn ? "Answers to common questions about your exchange." : "Ответы на частые вопросы об обмене."}</p></div>
+    {loading && <p className="cp-empty" role="status">{isEn ? "Loading questions…" : "Загружаем вопросы…"}</p>}
+    {err && <p className="cp-empty" role="alert">{err}</p>}
+    {!loading && !err && !list.length && <div className="cp-empty"><ClientIcon name="help"/><h2>{isEn ? "No questions yet" : "Вопросов пока нет"}</h2><p>{isEn ? "You can contact the manager from the Contacts page." : "Задать вопрос менеджеру можно в разделе «Контакты»."}</p></div>}
+    <div className="cp-faqList">{list.map(it => {
+      const open = openId === it.id;
+      return <section key={it.id} className={"cp-faqItem"+(open?" is-open":"")}>
+        <button type="button" className="cp-faqQuestion" aria-expanded={open} aria-controls={"faq-answer-"+it.id} onClick={()=>setOpenId(open?"":it.id)}><span>{it.q}</span><span className="cp-faqPlus" aria-hidden="true">+</span></button>
+        <div className="cp-faqAnswer" id={"faq-answer-"+it.id} aria-hidden={!open}><div><p>{it.a}</p></div></div>
+      </section>;
+    })}</div>
+  </div>;
 }
