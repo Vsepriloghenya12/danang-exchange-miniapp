@@ -18,7 +18,7 @@ const errors: Record<string, string> = {
   referral_base_amount_required: "Обновите страницу. В редакторе указываются суммы без бонусов; бонусы пересчитываются отдельно.",
   referral_test_only: "Тестовые начисления доступны только владельцу в тестовом сервисе.",
   referral_quote_changed: "Курс или бонусы изменились. Проверьте обновлённые суммы и отправьте заявку ещё раз.",
-  referral_first_pending: "Бонус первого обмена уже использован или закреплён за другой заявкой. Обновите список заявок.",
+  referral_first_pending: "У вас уже есть заявка в работе с бонусом первого обмена. Бонус сохранён в ней. Откройте историю заявок или дождитесь завершения обмена.",
   referral_bonus_too_small: "Этого количества бонусов пока недостаточно для выбранной валюты.",
   referral_bad_amount: "Проверьте сумму обмена.",
   referral_rates_missing: "Для пересчёта бонусов нужны курсы обменника на сегодня. Обратитесь к менеджеру.",
@@ -29,11 +29,19 @@ const errors: Record<string, string> = {
   referral_payout_conflict: "Эта выдача уже записана с другими данными. Обновите историю.",
 };
 export function referralError(error: string) { return errors[error] || error || "Не удалось загрузить данные. Попробуйте ещё раз."; }
+export class ReferralApiError extends Error {
+  constructor(public code: string, public requestId?: string) {
+    super(code === "referral_first_pending" && requestId
+      ? `Заявка #${requestId.slice(-6)} уже в работе. Бонус первого обмена сохранён в ней. Откройте историю заявок или дождитесь завершения обмена.`
+      : referralError(code));
+    this.name = "ReferralApiError";
+  }
+}
 export async function referralApi<T>(token: string, path: string, body?: unknown): Promise<T> {
   const auth: Record<string, string> = token.startsWith("adminkey:") ? { "x-admin-key": token.slice(9) } : { "x-telegram-init-data": token };
   const response = await fetch(`/api${path}`, { method: body === undefined ? "GET" : "POST", cache: "no-store", headers: { ...auth, "content-type": "application/json" } as Record<string, string>, body: body === undefined ? undefined : JSON.stringify(body) });
   const data = await response.json();
-  if (!response.ok || !data.ok) throw new Error(referralError(data.error));
+  if (!response.ok || !data.ok) throw new ReferralApiError(String(data.error || "request_failed"), typeof data.requestId === "string" ? data.requestId : undefined);
   return data as T;
 }
 

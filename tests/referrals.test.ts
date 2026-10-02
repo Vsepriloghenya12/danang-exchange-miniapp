@@ -129,6 +129,8 @@ test("referrals: signed attribution, completed exchanges and an atomic CashCoin 
     assert.equal(a.status, 200);
     const b = await api("/requests", order, 8);
     assert.equal(b.data.error, "referral_first_pending");
+    assert.equal(b.data.requestId, a.data.id);
+    assert.equal((await api("/referrals/quote", order, 6)).data.requestId, undefined, "Do not expose another client’s reserved request");
     const results = await Promise.all([api(`/staff/requests/${a.data.id}/state`, { state: "done", fundsReceived: true }, 800), api(`/admin/requests/${a.data.id}/state`, { state: "done", fundsReceived: true })]);
     results.forEach(r => assert.equal(r.status, 200, JSON.stringify(r.data)));
     const s = await readStore();

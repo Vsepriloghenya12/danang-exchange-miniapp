@@ -1,8 +1,9 @@
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { activitySessionId, trackActivity } from "../lib/activity";
-import { referralApi, referralError, cashcoin } from "../lib/referrals";
+import { referralApi, referralError, ReferralApiError, cashcoin } from "../lib/referrals";
 import useCashCoin from "../lib/useCashCoin";
+import { createSubmissionGate } from "../lib/submissionGate";
 import { cashCoinPreview, type CashCoinBonus } from "../lib/cashcoin";
 import WhaleMark from "../components/WhaleMark";
 import CurrencyPicker from "../components/CurrencyPicker";
@@ -378,6 +379,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       : requestCommentPlaceholder(rm);
 
   const [loading, setLoading] = useState(true);
+  const [sendingRequest, setSendingRequest] = useState(false);
+  const submitOnce = useRef(createSubmissionGate());
   const [rates, setRates] = useState<Rates | null>(null);
   const [cross, setCross] = useState<CrossRates | null>(null);
   const [ratesUpdatedAt, setRatesUpdatedAt] = useState<string | null>(null);
@@ -904,7 +907,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   const validReceiveMethod = !!receiveMethod && allowedRecv.includes(receiveMethod);
   const canSend = canSendBase && !hasInvalid && !managerOffline && !receiveMethodUnavailableByHours && validPayMethod && validReceiveMethod;
   const canShowMethodSelectionAlertOnClick = canSendBase && !hasInvalid && !managerOffline && !receiveMethodUnavailableByHours && !hasSelectedMethods;
-  const sendButtonDisabled = !canSend && !canShowMethodSelectionAlertOnClick;
+  const sendButtonDisabled = sendingRequest || (!canSend && !canShowMethodSelectionAlertOnClick);
 
   const usdNote =
     sellCurrency === "USD" || buyCurrency === "USD"
@@ -1129,7 +1132,10 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       };
     } catch (e: any) {
       tg?.HapticFeedback?.notificationOccurred?.("error");
-      tg?.showAlert?.(`Ошибка сети: ${e?.message || e}`);
+      void refreshWallet().catch(() => {});
+      tg?.showAlert?.(e instanceof ReferralApiError
+        ? e.message
+        : (isEn ? "Could not confirm submission. Check your request history before trying again." : "Не удалось получить подтверждение отправки. Проверьте историю заявок перед повторной попыткой."));
       return null;
     }
   }
@@ -1166,20 +1172,25 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   }
 
   async function sendRequest() {
-    flushAmountActivity();
-    trackActivity(activityToken, "request_submit_click", { sellCurrency, buyCurrency });
-    if (!payMethod || !receiveMethod) {
-      tg?.HapticFeedback?.notificationOccurred?.("error");
-      tg?.showAlert?.(
-        isEn
-          ? "Please select both the payment and receive methods."
-          : "Пожалуйста, выберите способ оплаты и способ получения."
-      );
-      return;
-    }
-    if (!canSend) return;
-    const result = await createRequest();
-    if (result) await afterRequestSent(result);
+    await submitOnce.current(async () => {
+      flushAmountActivity();
+      trackActivity(activityToken, "request_submit_click", { sellCurrency, buyCurrency });
+      if (!payMethod || !receiveMethod) {
+        tg?.HapticFeedback?.notificationOccurred?.("error");
+        tg?.showAlert?.(
+          isEn
+            ? "Please select both the payment and receive methods."
+            : "Пожалуйста, выберите способ оплаты и способ получения."
+        );
+        return;
+      }
+      if (!canSend) return;
+      setSendingRequest(true);
+      try {
+        const result = await createRequest();
+        if (result) await afterRequestSent(result);
+      } finally { setSendingRequest(false); }
+    });
   }
 
   const requestDoneModal = requestSuccessModal && typeof document !== "undefined"
@@ -1568,11 +1579,12 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                       type="button"
                       className={"cx-cta" + (!canSend ? " is-disabled" : "")}
                       disabled={sendButtonDisabled}
-                      aria-disabled={!canSend}
+                      aria-disabled={sendButtonDisabled}
+                      aria-busy={sendingRequest}
                       onClick={sendRequest}
                     >
                       <WhaleMark className="cl-ctaWhale" />
-                      <span>{isEn ? "Send request" : "Отправить заявку"}</span>
+                      <span>{sendingRequest ? (isEn ? "Sending…" : "Отправляем…") : (isEn ? "Send request" : "Отправить заявку")}</span>
                       <ArrowRightIcon />
                     </button>
 

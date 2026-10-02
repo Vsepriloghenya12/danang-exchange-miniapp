@@ -2019,10 +2019,19 @@ router.post("/admin/faq", async (req, res) => {
       if (blocked) return res.status(403).json({ ok: false, error: "blocked" });
       const p = req.body || {};
       const store = await readCashCoinStore();
-      const bonus = previewCashCoin(store, {
-        tgId: user.id, sellCurrency: String(p.sellCurrency), buyCurrency: String(p.buyCurrency),
-        sellAmount: Number(p.sellAmount), buyAmount: Number(p.buyAmount), redeemMinor: Number(p.redeemMinor ?? 0),
-      });
+      let bonus;
+      try {
+        bonus = previewCashCoin(store, {
+          tgId: user.id, sellCurrency: String(p.sellCurrency), buyCurrency: String(p.buyCurrency),
+          sellAmount: Number(p.sellAmount), buyAmount: Number(p.buyAmount), redeemMinor: Number(p.redeemMinor ?? 0),
+        });
+      } catch (e: any) {
+        if (e?.message === "referral_first_pending") {
+          const pending = store.requests.find(r => r.from.id === user.id && (r.state === "new" || r.state === "in_progress") && !!r.cashcoin?.welcomeSell);
+          return res.status(400).json({ ok: false, error: "referral_first_pending", requestId: pending?.id });
+        }
+        throw e;
+      }
       res.setHeader("Cache-Control", "no-store");
       return res.json({ ok: true, bonus });
     } catch (e: any) { return res.status(requestErrorStatus(String(e?.message))).json({ ok: false, error: e?.message || "auth_failed" }); }
