@@ -170,3 +170,42 @@ html[data-theme="dark"] .cp-headerMark .cl-whale{filter:brightness(0) invert(1)}
 .cl-app.theme-client.vx-page .cp-field textarea::placeholder,.cl-sheet .cp-field textarea::placeholder{color:var(--cl-muted)}
 .cl-app.theme-client.vx-page .cp-field :is(textarea,select):focus,.cl-sheet .cp-field :is(textarea,select):focus{border-color:#b79512;box-shadow:none;outline:2px solid #b79512;outline-offset:2px}
 .cl-app.theme-client.vx-page .cp-check input{width:18px;height:18px;box-shadow:none;border-radius:4px}
+
+/* Payments: a travel ticket, a concise service list, one clear next step. */
+.cp-payments{gap:14px}
+.cp-journey{position:relative;isolation:isolate;overflow:hidden;min-height:210px;padding:23px 22px 22px;border-radius:23px;background:#002333;color:#fff}
+.cp-journey h2{position:relative;z-index:2;font-size:clamp(23px,6.7vw,30px);font-weight:800;line-height:1.2;letter-spacing:-1.1px}
+.cp-journey h2 span{color:#f6c600}
+.cp-journey>p{position:relative;z-index:2;max-width:49%;margin-top:18px;font-size:12px;line-height:1.65;color:#c7d8df}
+.cp-travelTicket{position:absolute;z-index:1;right:16px;bottom:17px;width:139px;padding:12px 12px 0;background:#f6c600;color:#002333;border-radius:11px;transform:rotate(-9deg);box-shadow:0 8px 22px #0003;animation:cp-ticket-arrive .48s cubic-bezier(.2,.8,.2,1) both}
+.cp-ticketBrand{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:800;letter-spacing:-.2px}
+.cp-ticketBrand .cl-whale{width:20px;height:20px}
+.cp-ticketRoute{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:10px 0 12px;font-size:22px;font-weight:850;line-height:1;letter-spacing:-1px}
+.cp-ticketRoute>svg{width:20px;height:20px}
+.cp-ticketStub{position:relative;display:flex;align-items:center;justify-content:space-between;gap:5px;border-top:1px dashed #00233350;padding:9px 0;font-size:7px;font-weight:700;white-space:nowrap}
+.cp-ticketStub::before,.cp-ticketStub::after{content:"";position:absolute;top:-5px;width:9px;height:9px;background:#002333;border-radius:50%}
+.cp-ticketStub::before{left:-16px}.cp-ticketStub::after{right:-16px}
+.cp-ticketStub i{height:13px;width:21px;flex:none;background:repeating-linear-gradient(90deg,#002333 0 1px,transparent 1px 3px,#002333 3px 5px,transparent 5px 7px)}
+.cp-journeyRoute{position:absolute;inset:auto 0 -6px;width:100%;height:160px;z-index:0;color:#5e8391;opacity:.45;pointer-events:none}
+.cp-journeyRoute circle{fill:#f6c600;stroke:none}
+.cp-tripServices{padding:0 16px;background:var(--cl-surface);border:1px solid var(--cl-line);border-radius:19px}
+.cp-tripService{display:flex;align-items:center;gap:13px;min-height:73px;padding:13px 0}
+.cp-tripService+.cp-tripService{border-top:1px solid var(--cl-line)}
+.cp-tripIcon{display:grid;place-items:center;flex:none;width:37px;height:40px;color:var(--cl-ink)}
+.cp-tripIcon svg{width:27px;height:27px;stroke-width:1.45}
+.cp-tripService h3{font-size:13px;line-height:1.4;font-weight:800;letter-spacing:-.25px;margin:0 0 4px}
+.cp-tripService p{font-size:11px;line-height:1.5;color:var(--cl-muted)}
+.cp-tripAction{display:flex;flex-direction:column;gap:10px}
+.cp-payments .cp-tripButton{min-height:52px;border-radius:15px;padding:12px 17px;gap:10px;font-size:14px;box-shadow:0 5px 15px #00233309;transition:background .18s,transform .18s}
+.cp-tripButton>svg{width:21px;height:21px}
+.cp-tripButton>span{text-align:center;min-width:0}
+.cp-payments .cp-tripButton:active{transform:scale(.985)}
+.cp-tripAction>p{padding:0 5px;text-align:center;color:var(--cl-muted);font-size:10px;line-height:1.6}
+@keyframes cp-ticket-arrive{from{opacity:0;transform:translateY(12px) rotate(-3deg)}to{opacity:1;transform:translateY(0) rotate(-9deg)}}
+@media(max-width:360px){.cp-journey{min-height:205px;padding:20px 16px}.cp-journey h2{font-size:23px;letter-spacing:-.9px}.cp-journey>p{font-size:11px;max-width:47%;margin-top:16px}.cp-travelTicket{right:12px;bottom:17px;width:121px;padding:10px 10px 0}.cp-ticketBrand{font-size:8px}.cp-ticketStub{font-size:6px}.cp-ticketStub::before{left:-14px}.cp-ticketStub::after{right:-14px}.cp-tripServices{padding:0 12px}.cp-tripService{gap:9px}.cp-tripService h3{font-size:12px}.cp-tripService p{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.cp-travelTicket{animation:none}.cp-payments .cp-tripButton{transition:none}}
+
+@media(max-height:700px){.cp-payments{gap:10px}.cp-journey{min-height:185px;padding-top:18px;padding-bottom:18px}.cp-journey h2{font-size:23px}.cp-journey>p{font-size:11px;margin-top:13px}.cp-travelTicket{width:121px;right:12px;bottom:14px;padding:10px 10px 0}.cp-ticketStub{font-size:6px}.cp-ticketStub::before{left:-14px}.cp-ticketStub::after{right:-14px}.cp-tripService{min-height:64px;padding:10px 0}.cp-tripAction{gap:7px}.cp-payments .cp-tripButton{min-height:48px}}
+
+.cl-app.theme-client.vx-page .cp-payments .cp-tripButton{display:grid;grid-template-columns:21px minmax(0,1fr) 21px;align-items:center;color:#002333;font-family:"Circular Std","Manrope",sans-serif;font-size:15px;font-weight:700;letter-spacing:-.15px}
+@media(max-height:700px){.cp-journey{min-height:195px}.cp-travelTicket{width:108px;bottom:12px;padding:8px 9px 0}.cp-ticketBrand{font-size:7px}.cp-ticketBrand .cl-whale{width:16px;height:16px}.cp-ticketRoute{font-size:18px;padding:8px 0}.cp-ticketRoute>svg{width:17px;height:17px}.cp-ticketStub{padding:7px 0;font-size:5.5px}.cp-ticketStub i{width:16px;height:11px}.cp-ticketStub::before{left:-13px}.cp-ticketStub::after{right:-13px}}
