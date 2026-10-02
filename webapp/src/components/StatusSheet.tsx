@@ -8,7 +8,7 @@ const levels: UserStatus[] = ["standard", "silver", "gold"];
 export default function StatusSheet({ status, lang, onClose }: { status: UserStatus; lang: "ru" | "en"; onClose: () => void }) {
   const isEn = lang === "en";
   const description = (level: UserStatus) => level === "gold"
-    ? (isEn ? "An even better exchange rate" : "Ещё более выгодный курс")
+    ? (isEn ? "An even better exchange rate and free delivery" : "Ещё более выгодный курс и бесплатная доставка")
     : level === "silver" ? (isEn ? "An improved exchange rate" : "Улучшенный курс обмена")
     : (isEn ? "Standard exchange terms" : "Базовые условия обмена");
   return <Sheet title={isEn ? "Your status" : "Ваш статус"} closeLabel={isEn ? "Close" : "Закрыть"} onClose={onClose}>

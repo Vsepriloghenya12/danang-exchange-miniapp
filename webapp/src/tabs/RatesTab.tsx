@@ -12,7 +12,7 @@ function normalizeEnRateSpacing(value: string, lang: Lang) {
 
 function fmt(pairId: string, quote: Cur, n: number | null, lang: Lang) {
   if (n == null || !Number.isFinite(n)) return "—";
-  const digits = pairId.includes("kzt") ? 4 : quote === "VND" ? 0 : pairId === "usd-usdt" ? 3 : 1;
+  const digits = pairId.includes("kzt") ? (quote === "VND" ? 1 : 2) : quote === "VND" ? 0 : pairId === "usd-usdt" ? 3 : 1;
   return normalizeEnRateSpacing(
     new Intl.NumberFormat(lang === "en" ? "en-US" : "ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n),
     lang
