@@ -7,20 +7,25 @@ export type ReferralReport = {
   referrals: { inviter: { tgId: number; name: string }; friend: { tgId: number; name: string }; invitedAt: string; rewardedAt?: string; firstRequestId?: string; status: string; completedCount: number; volume: Record<string, number>; inviterCents: number; friendCents: number; friendBonus?: { amount: number; currency: string; received: number; receiveCurrency: string } }[];
   ledger: BonusEntry[];
 };
-export const cashcoin = (cents: number) => `${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CashCoin`;
+export function cashcoin(cents: number, isEn = false) {
+  const amount = cents / 100;
+  const category = new Intl.PluralRules(isEn ? "en" : "ru").select(amount);
+  const unit = isEn ? (category === "one" ? "bonus" : "bonuses") : category === "one" ? "бонус" : (category === "few" || category === "other") ? "бонуса" : "бонусов";
+  return `${amount.toLocaleString(isEn ? "en-US" : "ru-RU", { maximumFractionDigits: 2 })} ${unit}`;
+}
 const errors: Record<string, string> = {
-  referral_currency_changed: "Бонусы теперь учитываются в CashCoin. Обновите страницу перед списанием.",
+  referral_currency_changed: "Бонусный счёт обновлён. Обновите страницу перед списанием.",
   referral_base_amount_required: "Обновите страницу. В редакторе указываются суммы без бонусов; бонусы пересчитываются отдельно.",
   referral_test_only: "Тестовые начисления доступны только владельцу в тестовом сервисе.",
   referral_quote_changed: "Курс или бонусы изменились. Проверьте обновлённые суммы и отправьте заявку ещё раз.",
   referral_first_pending: "Бонус первого обмена уже использован или закреплён за другой заявкой. Обновите список заявок.",
-  referral_bonus_too_small: "Этого количества CashCoin пока недостаточно для выбранной валюты.",
+  referral_bonus_too_small: "Этого количества бонусов пока недостаточно для выбранной валюты.",
   referral_bad_amount: "Проверьте сумму обмена.",
-  referral_rates_missing: "Для расчёта CashCoin нужны курсы обменника на сегодня. Обратитесь к менеджеру.",
+  referral_rates_missing: "Для пересчёта бонусов нужны курсы обменника на сегодня. Обратитесь к менеджеру.",
   referral_completed_locked: "Деньги по этой заявке подтверждены. Завершённую сделку нельзя открыть повторно или отменить.",
   funds_received_required: "Подтвердите получение денег и завершение обмена.",
   referral_insufficient_balance: "На бонусном счёте недостаточно средств.",
-  referral_bad_payout: "Укажите клиента, сумму с точностью до 0,01 CashCoin и комментарий к выдаче.",
+  referral_bad_payout: "Укажите клиента, сумму с точностью до 0,01 бонуса и комментарий к выдаче.",
   referral_payout_conflict: "Эта выдача уже записана с другими данными. Обновите историю.",
 };
 export function referralError(error: string) { return errors[error] || error || "Не удалось загрузить данные. Попробуйте ещё раз."; }
@@ -32,4 +37,4 @@ export async function referralApi<T>(token: string, path: string, body?: unknown
   return data as T;
 }
 
-export const bonusEntryAmount = (entry: BonusEntry) => entry.currency === "CashCoin" ? cashcoin(entry.cents) : `${(entry.cents / 100).toFixed(2)} USD`;
+export const bonusEntryAmount = (entry: BonusEntry, isEn = false) => entry.currency === "CashCoin" ? cashcoin(entry.cents, isEn) : `${(entry.cents / 100).toFixed(2)} USD`;

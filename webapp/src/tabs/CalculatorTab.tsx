@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { activitySessionId, trackActivity } from "../lib/activity";
-import { referralApi, referralError } from "../lib/referrals";
+import { referralApi, referralError, cashcoin } from "../lib/referrals";
 import useCashCoin from "../lib/useCashCoin";
 import { cashCoinPreview, type CashCoinBonus } from "../lib/cashcoin";
 import WhaleMark from "../components/WhaleMark";
@@ -1077,7 +1077,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     }
 
     if (redeemCoins && !coinPreview.canRedeem) {
-      tg?.showAlert?.(isEn ? "Today’s CashCoin rate is unavailable. Contact your manager or turn off CashCoin." : "Курс CashCoin на сегодня не задан. Обратитесь к менеджеру или отключите списание.");
+      tg?.showAlert?.(isEn ? "Today’s bonus conversion rate is unavailable. Contact your manager or turn off bonus redemption." : "Курс для пересчёта бонусов на сегодня не задан. Обратитесь к менеджеру или отключите списание.");
       return null;
     }
     const payload = {
@@ -1521,10 +1521,10 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                   {(wallet?.availableCents ?? wallet?.balanceCents ?? 0) > 0 && <button
                     type="button" className={"cl-redeemCoins" + (redeemCoins ? " is-active" : "")}
                     disabled={!coinPreview.canRedeem && !redeemCoins} aria-pressed={redeemCoins}
-                    title={isEn ? "1 CashCoin = 1 RUB. Converted at today's exchange office rates." : "1 CashCoin = 1 ₽. Пересчёт по курсу дня обменника."}
+                    title={isEn ? "1 bonus = 1 RUB. Converted at today's exchange office rates." : "1 бонус = 1 ₽. Пересчёт по курсу дня обменника."}
                     onPointerDown={e => { if (e.isPrimary && e.button === 0 && document.documentElement.classList.contains("vx-keyboard-open")) e.preventDefault(); }}
                     onClick={() => { setRedeemCoins(value => !value); tg?.HapticFeedback?.selectionChanged?.(); }}
-                  ><span>{redeemCoins ? (isEn ? "Applied · undo" : "Учтено · отменить") : (isEn ? "Use bonuses" : "Списать бонусы")}</span><b>{((wallet?.availableCents ?? wallet?.balanceCents ?? 0) / 100).toLocaleString(isEn ? "en-US" : "ru-RU", { maximumFractionDigits: 2 })} CashCoin</b></button>}
+                  ><span>{redeemCoins ? (isEn ? "Applied · undo" : "Учтено · отменить") : (isEn ? "Use bonuses" : "Списать бонусы")}</span><b>{cashcoin(wallet?.availableCents ?? wallet?.balanceCents ?? 0, isEn)}</b></button>}
                   </div>
 
                   <input
