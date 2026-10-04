@@ -4,6 +4,7 @@ import { readStore, mutateStore } from './store.js';
 import { NEWS_SOURCES, NEWS_CATEGORIES, newsState, visibleNews, publicNewsPost, syncNews, plainText, safeNewsUrl, type NewsPost } from './news.js';
 import { telegramRequest } from './telegramExperience.js';
 import { parsePublishChatId } from './publish.js';
+import { fetchPublicTelegramPage, publicTelegramUsername } from './newsPublicTelegram.js';
 
 export function registerNewsRoutes(router: express.Router, owner: (req: express.Request) => Promise<boolean>, token: string) {
   router.get('/news', async (_req, res) => {
@@ -31,6 +32,34 @@ export function registerNewsRoutes(router: express.Router, owner: (req: express.
     res.json({ ok: true });
   }));
   router.post('/admin/news/refresh', guarded(async (_req, res) => { await syncNews(token); res.json({ ok: true }); }));
+  router.post('/admin/news/public-telegram-source', guarded(async (req, res) => {
+    if (req.body?.remove === true) {
+      if (typeof req.body.id !== 'string') { res.status(400).json({ ok: false, error: 'Выберите источник.' }); return; }
+      await mutateStore(s => { const n = newsState(s); n.publicTelegramSources = (n.publicTelegramSources || []).filter(x => x.id !== req.body.id); });
+      res.json({ ok: true }); return;
+    }
+    const username = publicTelegramUsername(req.body?.channel);
+    if (!username) { res.status(400).json({ ok: false, error: 'Нужна ссылка https://t.me/имя_канала или @имя. Закрытые каналы не поддерживаются.' }); return; }
+    const current = newsState(await readStore());
+    if (current.channel?.url?.toLowerCase() === `https://t.me/${username}` || current.telegramSources?.some(x => x.username?.toLowerCase() === username)) {
+      res.status(400).json({ ok: false, error: 'Канал уже подключён через бота или используется для публикации.' }); return;
+    }
+    if (current.publicTelegramSources?.some(x => x.username === username)) { res.json({ ok: true }); return; }
+    if ((current.publicTelegramSources?.length || 0) >= 10) { res.status(400).json({ ok: false, error: 'Можно подключить до 10 публичных каналов.' }); return; }
+    try {
+      const page = await fetchPublicTelegramPage(username);
+      const { result } = await mutateStore(s => {
+        const n = newsState(s); const sources = n.publicTelegramSources ||= [];
+        if (n.channel?.url?.toLowerCase() === `https://t.me/${username}` || n.telegramSources?.some(x => x.username?.toLowerCase() === username)) return false;
+        if (sources.some(x => x.username === username)) return true;
+        if (sources.length >= 10) return false;
+        const connectedAt = new Date().toISOString();
+        sources.push({ id: randomUUID(), username, title: page.title, connectedAt, lastCheckedAt: connectedAt, lastMessageId: Math.max(0, ...page.ids) });
+        return true;
+      });
+      res.status(result ? 200 : 400).json({ ok: result, ...(!result ? { error: 'Источник уже занят или достигнут лимит каналов.' } : {}) });
+    } catch (e) { res.status(400).json({ ok: false, error: e instanceof Error ? e.message : 'Открытая лента недоступна.' }); }
+  }));
   router.post('/admin/news/telegram-source', guarded(async (req, res) => {
     if (req.body?.remove === true && Number.isSafeInteger(req.body?.id)) {
       await mutateStore(s => { const n = newsState(s); n.telegramSources = (n.telegramSources || []).filter(x => x.id !== req.body.id); });
@@ -46,6 +75,7 @@ export function registerNewsRoutes(router: express.Router, owner: (req: express.
       if (chat.type !== 'channel' || !['administrator', 'member', 'creator'].includes(member.status) || chat.has_protected_content) throw Error('access');
       const { result } = await mutateStore(s => {
         const n = newsState(s); const sources = n.telegramSources ||= [];
+        if (n.publicTelegramSources?.some(x => x.username === chat.username?.toLowerCase())) return false;
         if (String(n.channel?.id) === String(chat.id) || sources.length >= 20 && !sources.some(x => x.id === chat.id)) return false;
         if (!sources.some(x => x.id === chat.id)) sources.push({ id: chat.id, title: plainText(chat.title), username: chat.username, connectedAt: new Date().toISOString() });
         return true;
@@ -64,6 +94,7 @@ export function registerNewsRoutes(router: express.Router, owner: (req: express.
       const membership = await telegramRequest(token, 'getChatMember', { chat_id: chat.id, user_id: me.id });
       if (chat.type !== 'channel' || membership.status !== 'administrator' || !membership.can_post_messages) throw new Error('channel_rights');
       if (newsState(await readStore()).telegramSources?.some(s => s.id === chat.id)) { res.status(400).json({ ok: false, error: 'Сначала отключите этот канал от источников.' }); return; }
+      if (newsState(await readStore()).publicTelegramSources?.some(s => s.username === chat.username?.toLowerCase())) { res.status(400).json({ ok: false, error: 'Сначала отключите этот канал от публичных источников.' }); return; }
       await mutateStore(s => {
         const n = newsState(s);
         n.channel = { id: chat.id, title: plainText(chat.title), url: chat.username ? `https://t.me/${chat.username}` : undefined,

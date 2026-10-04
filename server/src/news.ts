@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { XMLParser } from 'fast-xml-parser';
 import { readStore, mutateStore, type Store } from './store.js';
 import { telegramRequest, publicAppOrigin } from './telegramExperience.js';
+import { pollPublicTelegramSource, type PublicTelegramSource } from './newsPublicTelegram.js';
 
 export const NEWS_SOURCES = [
   { id: 'ator', name: 'АТОР', url: 'https://www.atorus.ru/news/rss.xml', host: 'atorus.ru', language: 'ru', enabled: true },
@@ -22,6 +23,7 @@ export type NewsState = {
   channel?: { id: string | number; title: string; url?: string; connectedAt: string };
   lease?: { id: string; until: string }; lastSendAt?: string;
   telegramSources?: { id: number; title: string; username?: string; connectedAt: string; lastReceivedAt?: string }[];
+  publicTelegramSources?: PublicTelegramSource[];
 };
 export const DAY = 86400000;
 export function newsState(store: Store): NewsState {
@@ -134,10 +136,23 @@ async function runNews(token: string, now: Date) {
   });
   if (!acquired.result) return;
   try {
-    const chosen = newsState(await readStore()).sources;
+    const snapshot = newsState(await readStore());
+    const chosen = snapshot.sources;
     const results = await Promise.all(NEWS_SOURCES.filter(s => chosen.includes(s.id)).map(async source => {
       try { return { source, posts: parseNewsFeed(await fetchFeed(source), source, now), error: '' }; }
       catch { return { source, posts: [] as NewsPost[], error: 'Не удалось обновить источник. Следующая попытка через 15 минут.' }; }
+    }));
+    // Bounded concurrency and pagination keep the run inside its persisted lease.
+    const publicSources = [...(snapshot.publicTelegramSources || [])];
+    const publicResults: { source: PublicTelegramSource; posts: NewsPost[]; lastMessageId?: number; error?: string }[] = [];
+    let sourceIndex = 0;
+    await Promise.all(Array.from({ length: Math.min(4, publicSources.length) }, async () => {
+      while (sourceIndex < publicSources.length) {
+        const source = publicSources[sourceIndex++];
+        if (snapshot.channel?.url?.toLowerCase() === `https://t.me/${source.username}`) continue;
+        try { publicResults.push({ source, ...await pollPublicTelegramSource(source, now) }); }
+        catch (e) { publicResults.push({ source, posts: [], error: e instanceof Error ? e.message : 'Не удалось прочитать канал.' }); }
+      }
     }));
     await mutateStore(s => {
       const n = newsState(s); if (!n.enabled || n.lease?.id !== leaseId) return;
@@ -145,6 +160,14 @@ async function runNews(token: string, now: Date) {
         if (!n.sources.includes(result.source.id)) continue;
         n.sourceStatus[result.source.id] = { checkedAt: now.toISOString(), count: result.posts.length, error: result.error || undefined };
         for (const p of result.posts) if (!n.posts.some(old => duplicateNews(old, p))) n.posts.push(p);
+      }
+      for (const result of publicResults) {
+        const source = n.publicTelegramSources?.find(x => x.id === result.source.id && x.connectedAt === result.source.connectedAt);
+        if (!source || n.channel?.url?.toLowerCase() === `https://t.me/${source.username}`) continue;
+        source.lastCheckedAt = now.toISOString(); source.error = result.error;
+        if (result.error) continue;
+        source.lastMessageId = Math.max(source.lastMessageId, result.lastMessageId || 0);
+        for (const p of result.posts) if (!n.posts.some(old => duplicateNews(old, p))) { n.posts.push(p); source.lastReceivedAt = now.toISOString(); }
       }
       n.posts = n.posts.filter(p => Date.parse(p.addedAt) > +now - 90 * DAY).sort((a, b) => b.addedAt.localeCompare(a.addedAt)).slice(0, 500);
       n.checkedAt = now.toISOString();

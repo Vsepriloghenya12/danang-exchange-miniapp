@@ -11,6 +11,7 @@ test('Danang feed, owner access and automatic delivery', async t => {
   process.env.ADMIN_WEB_KEY = 'news-test-owner';
   const { NEWS_SOURCES, parseNewsFeed, relevantToDanang, duplicateNews, newsState, visibleNews, deliveryCandidate, syncNews, publicNewsPost, newsTelegramText } = await import('../server/src/news.ts');
   const { ingestTelegramNews } = await import('../server/src/newsTelegram.ts');
+  const { publicTelegramUsername, parsePublicTelegramPage, fetchPublicTelegramPage, pollPublicTelegramSource } = await import('../server/src/newsPublicTelegram.ts');
   const { readStore, mutateStore } = await import('../server/src/store.ts');
   const { createApiRouter } = await import('../server/src/routes.ts');
   const now = new Date('2026-10-04T05:00:00Z');
@@ -46,7 +47,15 @@ test('Danang feed, owner access and automatic delivery', async t => {
     assert.equal(deliveryCandidate(s, now), undefined);
   });
   const actualFetch = globalThis.fetch; let telegramCalls = 0; let feedCalls = 0; let failSend = false;
+  const tgPage = (items: string, before = '') => `<div class="tgme_channel_info_header_title"><span>Город у моря</span></div><div class="tgme_channel_info_header_username"><a>@danang_news</a></div><section class="tgme_channel_history">${items}${before ? `<a class="tme_messages_more" data-before="${before}"></a>` : ''}</section>`;
+  const tgItem = (id: number, text = 'Новое кафе у моря<br><br>Кофе &amp; завтрак.', date = now.toISOString()) => `<div class="tgme_widget_message" data-post="danang_news/${id}"><div class="tgme_widget_message_text"><b>${text}</b></div><a class="tgme_widget_message_date"><time datetime="${date}"></time></a></div>`;
+  let tgHtml = tgPage(tgItem(5)); let publicFetches = 0; let publicFailure = false; let olderHtml = '';
   t.mock.method(globalThis, 'fetch', async (url: any, options: any) => {
+    if (String(url).startsWith('https://t.me/s/danang_news')) {
+      publicFetches++; assert.equal(options.redirect, 'error'); assert.equal(options.headers.cookie, undefined);
+      if (publicFailure) return new Response('', { status: 429 });
+      return new Response(String(url).includes('?before=') ? olderHtml : tgHtml, { headers: { 'content-type': 'text/html' } });
+    }
     if (String(url).startsWith('https://www.atorus.ru/')) { feedCalls++; return new Response(rss(item())); }
     if (String(url).includes('/sendMessage')) { telegramCalls++; assert.equal(JSON.parse(options.body).chat_id, -100123); if (failSend) throw Error('timeout'); return Response.json({ ok: true, result: { message_id: 77 } }); }
     throw Error('Unexpected upstream request');
@@ -103,5 +112,39 @@ test('Danang feed, owner access and automatic delivery', async t => {
     assert.equal((await req('/admin/news/telegram-source', { remove: true, id: -100456 })).status, 200);
     assert.equal(newsState(await readStore()).telegramSources?.length, 0);
     assert.equal(await ingestTelegramNews(msg, now), false);
+  });
+  await t.test('public Telegram HTML: strict URLs, identity, message dates, safe nested text and media cursors', async () => {
+    assert.equal(publicTelegramUsername('https://t.me/s/DaNang_News'), 'danang_news');
+    assert.equal(publicTelegramUsername('@DaNang_News'), 'danang_news');
+    for (const bad of ['https://evil.test/danang_news', 'http://t.me/danang_news', 'https://t.me@127.0.0.1/danang_news', 'https://t.me/+secret', 'https://t.me/c/123/456', 'https://t.me/danang_news?x=1', 'https://t.me/s/../../admin']) assert.equal(publicTelegramUsername(bad), null);
+    const parsed = parsePublicTelegramPage(tgPage(tgItem(6, 'Кафе &amp; море<br><br><i>Открытие</i><script>secret()</script>') + '<div class="tgme_widget_message" data-post="danang_news/7"></div>'), 'danang_news');
+    assert.deepEqual(parsed.ids, [6,7]); assert.equal(parsed.messages.length, 1); assert.equal(parsed.messages[0].text, 'Кафе & море\n\nОткрытие');
+    assert.throws(() => parsePublicTelegramPage('<html>Login required</html>', 'danang_news'));
+    assert.throws(() => parsePublicTelegramPage(tgHtml.replace('@danang_news', '@other'), 'danang_news'));
+    const before = publicFetches; await assert.rejects(fetchPublicTelegramPage('../admin')); assert.equal(publicFetches, before);
+    publicFailure = true; await assert.rejects(fetchPublicTelegramPage('danang_news'), /частоту/); publicFailure = false;
+  });
+  await t.test('public channels connect without Bot API, skip old posts and import new posts once with persistent errors', async () => {
+    assert.equal((await req('/admin/news/public-telegram-source', { channel: '@danang_news' }, false)).status, 401);
+    const fetched = publicFetches;
+    assert.equal((await req('/admin/news/public-telegram-source', { channel: 'https://127.0.0.1/' })).status, 400); assert.equal(publicFetches, fetched);
+    assert.equal((await req('/admin/news/public-telegram-source', { channel: '@danang_news' })).status, 200);
+    let n = newsState(await readStore()); let source = n.publicTelegramSources![0]; assert.equal(source.lastMessageId, 5);
+    assert.equal(n.posts.filter(p => p.sourceId === 'telegram:public:danang_news').length, 0);
+    await req('/admin/news/public-telegram-source', { channel: 'https://t.me/DaNang_News' });
+    assert.equal(newsState(await readStore()).publicTelegramSources?.length, 1);
+    await mutateStore(s => { const n = newsState(s); n.enabled = true; n.sources = []; n.publicTelegramSources![0].connectedAt = '2026-10-04T04:00:00Z'; });
+    tgHtml = tgPage(tgItem(6));
+    await syncNews('', now); await syncNews('', now);
+    n = newsState(await readStore()); source = n.publicTelegramSources![0];
+    assert.equal(source.lastMessageId, 6); assert.equal(n.posts.filter(p => p.sourceId === 'telegram:public:danang_news').length, 1);
+    publicFailure = true; await syncNews('', now); n = newsState(await readStore()); assert.match(n.publicTelegramSources![0].error!, /частоту/); assert.equal(n.publicTelegramSources![0].lastMessageId, 6); publicFailure = false;
+    tgHtml = tgPage(tgItem(9), '9'); olderHtml = tgPage(tgItem(8, 'Фестиваль Дананга') + tgItem(6));
+    const polled = await pollPublicTelegramSource(source, now); assert.deepEqual(polled.posts.map(p => p.title), ['Новое кафе у моря', 'Фестиваль Дананга']); assert.equal(polled.lastMessageId, 9);
+    olderHtml = tgPage(tgItem(8), '9'); await assert.rejects(pollPublicTelegramSource(source, now), /Слишком много/);
+    await mutateStore(s => { newsState(s).channel = { id: -100999, title: 'Destination', url: 'https://t.me/danang_news', connectedAt: now.toISOString() }; });
+    assert.equal((await req('/admin/news/public-telegram-source', { channel: '@danang_news' })).status, 400);
+    await req('/admin/news/public-telegram-source', { remove: true, id: source.id });
+    assert.equal(newsState(await readStore()).publicTelegramSources?.length, 0);
   });
 });
