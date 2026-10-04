@@ -12,6 +12,7 @@ export const NEWS_CATEGORIES = ['places', 'events', 'travel', 'offers', 'life'] 
 export type NewsCategory = typeof NEWS_CATEGORIES[number];
 export type NewsPost = {
   id: string; title: string; summary: string; category: NewsCategory; source: string; sourceId: string;
+  sourceKind?: 'website' | 'telegram' | 'editorial';
   url: string; language: string; publishedAt: string; addedAt: string; hidden: boolean;
   expiresAt?: string; mapUrl?: string; delivery?: { state: 'sending' | 'sent' | 'uncertain'; at: string; chatId: string | number; messageId?: number };
 };
@@ -20,6 +21,7 @@ export type NewsState = {
   sourceStatus: Record<string, { checkedAt: string; count?: number; error?: string }>;
   channel?: { id: string | number; title: string; url?: string; connectedAt: string };
   lease?: { id: string; until: string }; lastSendAt?: string;
+  telegramSources?: { id: number; title: string; username?: string; connectedAt: string; lastReceivedAt?: string }[];
 };
 export const DAY = 86400000;
 export function newsState(store: Store): NewsState {
@@ -106,7 +108,16 @@ export function deliveryCandidate(state: NewsState, now = new Date()): NewsPost 
 }
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export function newsTelegramText(post: NewsPost) {
-  return `<b>${esc(post.title)}</b>${post.summary ? '\n\n' + esc(post.summary) : ''}\n\n${esc(post.source)} · ${new Date(post.publishedAt).toLocaleDateString('ru-RU', { timeZone: 'Asia/Ho_Chi_Minh' })}${post.url ? `\n<a href="${esc(post.url)}">Читать в источнике</a>` : ''}`;
+  const website = newsSourceKind(post) === 'website';
+  return `<b>${esc(post.title)}</b>${post.summary ? '\n\n' + esc(post.summary) : ''}\n\n${website ? esc(post.source) + ' · ' : ''}${new Date(post.publishedAt).toLocaleDateString('ru-RU', { timeZone: 'Asia/Ho_Chi_Minh' })}${website && post.url ? `\n<a href="${esc(post.url)}">Читать в источнике</a>` : ''}`;
+}
+export function newsSourceKind(post: NewsPost) {
+  return post.sourceKind || (post.sourceId.startsWith('telegram:') ? 'telegram' : post.sourceId === 'editorial' ? 'editorial' : 'website');
+}
+export function publicNewsPost(post: NewsPost) {
+  const { delivery, hidden, sourceId, ...publicPost } = post;
+  const sourceKind = newsSourceKind(post);
+  return { ...publicPost, sourceKind, ...(sourceKind !== 'website' ? { source: '' } : {}), ...(sourceKind === 'telegram' ? { url: '' } : {}) };
 }
 let running: Promise<void> | undefined;
 export function syncNews(token: string, now = new Date()): Promise<void> {

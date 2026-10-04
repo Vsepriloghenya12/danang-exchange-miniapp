@@ -1,7 +1,7 @@
 import type express from 'express';
 import { randomUUID } from 'node:crypto';
 import { readStore, mutateStore } from './store.js';
-import { NEWS_SOURCES, NEWS_CATEGORIES, newsState, visibleNews, syncNews, plainText, safeNewsUrl, type NewsPost } from './news.js';
+import { NEWS_SOURCES, NEWS_CATEGORIES, newsState, visibleNews, publicNewsPost, syncNews, plainText, safeNewsUrl, type NewsPost } from './news.js';
 import { telegramRequest } from './telegramExperience.js';
 import { parsePublishChatId } from './publish.js';
 
@@ -10,7 +10,7 @@ export function registerNewsRoutes(router: express.Router, owner: (req: express.
     try {
       const n = newsState(await readStore());
       res.setHeader('Cache-Control', 'public, max-age=30');
-      res.json({ ok: true, posts: visibleNews(n).slice(0, 100).map(({ delivery, hidden, ...p }) => p), channelUrl: n.channel?.url || null, checkedAt: n.checkedAt || null });
+      res.json({ ok: true, posts: visibleNews(n).slice(0, 100).map(publicNewsPost), channelUrl: n.channel?.url || null, checkedAt: n.checkedAt || null });
     } catch { res.status(503).json({ ok: false, error: 'Лента временно недоступна. Попробуйте ещё раз.' }); }
   });
   const guarded = (handler: express.RequestHandler): express.RequestHandler => async (req, res, next) => {
@@ -31,6 +31,29 @@ export function registerNewsRoutes(router: express.Router, owner: (req: express.
     res.json({ ok: true });
   }));
   router.post('/admin/news/refresh', guarded(async (_req, res) => { await syncNews(token); res.json({ ok: true }); }));
+  router.post('/admin/news/telegram-source', guarded(async (req, res) => {
+    if (req.body?.remove === true && Number.isSafeInteger(req.body?.id)) {
+      await mutateStore(s => { const n = newsState(s); n.telegramSources = (n.telegramSources || []).filter(x => x.id !== req.body.id); });
+      res.json({ ok: true }); return;
+    }
+    const raw = String(req.body?.channel || '').trim().replace(/^https:\/\/t\.me\/([\w]+)\/?$/, '@$1');
+    const id = parsePublishChatId(raw);
+    if (!id) { res.status(400).json({ ok: false, error: 'Укажите @имя, ссылку t.me или ID канала.' }); return; }
+    try {
+      const me = await telegramRequest(token, 'getMe', {});
+      const chat = await telegramRequest(token, 'getChat', { chat_id: id });
+      const member = await telegramRequest(token, 'getChatMember', { chat_id: chat.id, user_id: me.id });
+      if (chat.type !== 'channel' || !['administrator', 'member', 'creator'].includes(member.status) || chat.has_protected_content) throw Error('access');
+      const { result } = await mutateStore(s => {
+        const n = newsState(s); const sources = n.telegramSources ||= [];
+        if (String(n.channel?.id) === String(chat.id) || sources.length >= 20 && !sources.some(x => x.id === chat.id)) return false;
+        if (!sources.some(x => x.id === chat.id)) sources.push({ id: chat.id, title: plainText(chat.title), username: chat.username, connectedAt: new Date().toISOString() });
+        return true;
+      });
+      if (!result) { res.status(400).json({ ok: false, error: 'Канал публикации нельзя добавить как источник. Лимит — 20 источников.' }); return; }
+      res.json({ ok: true });
+    } catch { res.status(400).json({ ok: false, error: 'Добавьте бота приложения в канал-источник. Нужен доступ к сообщениям, канал без запрета копирования.' }); }
+  }));
   router.post('/admin/news/channel', guarded(async (req, res) => {
     if (req.body?.disconnect === true) { await mutateStore(s => { delete newsState(s).channel; }); res.json({ ok: true }); return; }
     const id = parsePublishChatId(req.body?.channel);
@@ -40,6 +63,7 @@ export function registerNewsRoutes(router: express.Router, owner: (req: express.
       const chat = await telegramRequest(token, 'getChat', { chat_id: id });
       const membership = await telegramRequest(token, 'getChatMember', { chat_id: chat.id, user_id: me.id });
       if (chat.type !== 'channel' || membership.status !== 'administrator' || !membership.can_post_messages) throw new Error('channel_rights');
+      if (newsState(await readStore()).telegramSources?.some(s => s.id === chat.id)) { res.status(400).json({ ok: false, error: 'Сначала отключите этот канал от источников.' }); return; }
       await mutateStore(s => {
         const n = newsState(s);
         n.channel = { id: chat.id, title: plainText(chat.title), url: chat.username ? `https://t.me/${chat.username}` : undefined,

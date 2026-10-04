@@ -1,4 +1,5 @@
 import { Telegraf, Markup } from "telegraf";
+import { ingestTelegramNews } from "./newsTelegram.js";
 import { randomUUID } from "node:crypto";
 import { prepareReferralRequest } from "./referrals.js";
 import { activitySession, recordActivity } from "./activity.js";
@@ -268,6 +269,7 @@ export function createBot(opts: {
   bot.on("channel_post", async (ctx) => {
     const post = ctx.channelPost;
     if (!post) return;
+    if (await ingestTelegramNews(post)) return;
 
     const chatId = post.chat.id;
     const rawText = "text" in post ? post.text : "caption" in post ? post.caption : "";
