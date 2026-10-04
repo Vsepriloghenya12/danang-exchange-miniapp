@@ -10,6 +10,7 @@ import type { RequestState, UserStatus } from "./domain/status.js";
 import { normalizeStatus, parseStatusInput } from "./domain/status.js";
 import { attachReferral, type BonusEntry, type ReferralQuote, type CashCoinBonus } from "./referrals.js";
 import type { ActivityEvent } from "./activity.js";
+import type { NewsState } from './news.js';
 
 export type { BonusesConfig, BonusesTier, CrossRates, GFormula, PairMarkup, Rates } from "./domain/exchange.js";
 export { defaultBonuses, defaultGFormulas } from "./domain/exchange.js";
@@ -75,6 +76,7 @@ export type StoredUser = {
 
 export type Store = {
   config: {
+    news?: NewsState;
     activityTrackingSince?: string;
     groupChatId?: number;
     publishChatId?: string | number;

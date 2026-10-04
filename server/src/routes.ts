@@ -1,4 +1,5 @@
 import express from "express";
+import { registerNewsRoutes } from './newsRoutes.js';
 import { randomUUID } from "node:crypto";
 import { invitationResult, publicAppOrigin, telegramRequest } from "./telegramExperience.js";
 import * as fs from "node:fs";
@@ -301,6 +302,7 @@ export function createApiRouter(opts: {
     return a;
   }
 
+  registerNewsRoutes(router, async req => (await requireAdmin(req)).isOwner, opts.botToken);
   router.get("/health", async (_req, res) => res.json({ ok: true }));
 
   router.get("/admin/activity", async (req, res) => {

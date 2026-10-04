@@ -1,0 +1,82 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import express from 'express';
+
+test('Danang feed, owner access and automatic delivery', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'cashalot-news-'));
+  process.env.STORE_PATH = join(dir, 'store.json'); delete process.env.DATABASE_URL;
+  process.env.ADMIN_WEB_KEY = 'news-test-owner';
+  const { NEWS_SOURCES, parseNewsFeed, relevantToDanang, duplicateNews, newsState, visibleNews, deliveryCandidate, syncNews } = await import('../server/src/news.ts');
+  const { readStore, mutateStore } = await import('../server/src/store.ts');
+  const { createApiRouter } = await import('../server/src/routes.ts');
+  const now = new Date('2026-10-04T05:00:00Z');
+  const item = (title = 'В Дананге открылся новый музей', link = 'https://www.atorus.ru/danang-museum', date = now.toUTCString()) => `<item><title><![CDATA[${title}]]></title><description><![CDATA[Музей в Дананге принимает посетителей каждый день. <script>alert(1)</script>]]></description><link>${link}</link><pubDate>${date}</pubDate></item>`;
+  const rss = (items: string) => `<rss><channel>${items}</channel></rss>`;
+  const post = parseNewsFeed(rss(item()), NEWS_SOURCES[0], now)[0];
+  await t.test('only fresh Danang news or national entry rules, and no XML entities or unsafe links', () => {
+    assert.equal(post.category, 'places'); assert.equal(post.source, 'АТОР'); assert.doesNotMatch(post.summary, /script|alert/);
+    assert.ok((post.title + ' ' + post.summary).trim().split(/\s+/).length <= 24);
+    assert.equal(relevantToDanang('Открылось кафе в Нячанге', 'Отпуск во Вьетнаме'), false);
+    assert.equal(relevantToDanang('Вьетнам изменил правила въезда', ''), true);
+    assert.equal(relevantToDanang('Новые отели Вьетнама', ''), false);
+    assert.equal(parseNewsFeed(rss(item('Дананг', 'javascript:alert(1)')), NEWS_SOURCES[0], now).length, 0);
+    assert.equal(parseNewsFeed(rss(item('Дананг', 'https://evil.invalid/danang')), NEWS_SOURCES[0], now).length, 0);
+    assert.equal(parseNewsFeed(rss(item('Дананг', 'https://www.atorus.ru/a', 'bad')), NEWS_SOURCES[0], now).length, 0);
+    assert.equal(parseNewsFeed(rss(item('Дананг', 'https://www.atorus.ru/a', 'Mon, 01 Jan 2024 00:00:00 GMT')), NEWS_SOURCES[0], now).length, 0);
+    assert.equal(parseNewsFeed(rss(item('Дананг', 'https://www.atorus.ru/a', 'Mon, 05 Oct 2026 00:00:00 GMT')), NEWS_SOURCES[0], now).length, 0);
+    assert.throws(() => parseNewsFeed('<!DOCTYPE a [<!ENTITY x "boom">]>' + rss(item()), NEWS_SOURCES[0], now));
+    assert.throws(() => parseNewsFeed('<html>blocked</html>', NEWS_SOURCES[0], now));
+    assert.equal(duplicateNews(post, { ...post, id: 'other', url: 'https://tourdom.ru/other' }), true);
+  });
+  await t.test('expired and hidden posts stay out of public feed and delivery; quiet hours and caps', () => {
+    const s = newsState({ config: {} } as any);
+    s.posts = [post]; s.channel = { id: -100123, title: 'Твой Вьетнам', connectedAt: '2026-10-04T04:00:00Z' };
+    assert.equal(deliveryCandidate(s, now)?.id, post.id);
+    s.posts = [{ ...post, hidden: true }, { ...post, id: 'expired', expiresAt: '2026-10-03T00:00:00Z' }];
+    assert.equal(visibleNews(s, now).length, 0); assert.equal(deliveryCandidate(s, now), undefined);
+    s.posts = [post]; assert.equal(deliveryCandidate(s, new Date('2026-10-04T15:00:00Z')), undefined);
+    s.lastSendAt = '2026-10-04T04:00:00Z'; assert.equal(deliveryCandidate(s, now), undefined); delete s.lastSendAt;
+    s.channel.connectedAt = '2026-10-04T06:00:00Z'; assert.equal(deliveryCandidate(s, now), undefined);
+    s.channel.connectedAt = '2026-10-04T04:00:00Z';
+    s.posts.push(...[1, 2, 3].map(i => ({ ...post, id: `sent-${i}`, delivery: { state: 'sent' as const, at: '2026-10-04T01:00:00Z', chatId: -100123 } })));
+    assert.equal(deliveryCandidate(s, now), undefined);
+  });
+  const actualFetch = globalThis.fetch; let telegramCalls = 0; let feedCalls = 0; let failSend = false;
+  t.mock.method(globalThis, 'fetch', async (url: any, options: any) => {
+    if (String(url).startsWith('https://www.atorus.ru/')) { feedCalls++; return new Response(rss(item())); }
+    if (String(url).includes('/sendMessage')) { telegramCalls++; assert.equal(JSON.parse(options.body).chat_id, -100123); if (failSend) throw Error('timeout'); return Response.json({ ok: true, result: { message_id: 77 } }); }
+    throw Error('Unexpected upstream request');
+  });
+  await t.test('concurrent refreshes deduplicate; persisted claims prevent duplicate channel sends', async () => {
+    await mutateStore(s => { const n = newsState(s); n.sources = ['ator']; n.channel = { id: -100123, title: 'Твой Вьетнам', connectedAt: '2026-10-04T04:00:00Z' }; });
+    await Promise.all([syncNews('123:test', now), syncNews('123:test', now)]);
+    assert.equal(feedCalls, 1); assert.equal(telegramCalls, 1);
+    let n = newsState(await readStore()); assert.equal(n.posts.length, 1); assert.equal(n.posts[0].delivery?.state, 'sent');
+    await syncNews('123:test', new Date('2026-10-04T08:00:00Z')); assert.equal(telegramCalls, 1);
+    await mutateStore(s => { const n = newsState(s); delete n.posts[0].delivery; delete n.lastSendAt; }); failSend = true;
+    await syncNews('123:test', now); assert.equal(telegramCalls, 2);
+    n = newsState(await readStore()); assert.equal(n.posts[0].delivery?.state, 'uncertain');
+    await syncNews('123:test', new Date('2026-10-04T09:00:00Z')); assert.equal(telegramCalls, 2);
+    await mutateStore(s => { newsState(s).enabled = false; }); const before = feedCalls; await syncNews('123:test', now); assert.equal(feedCalls, before);
+  });
+  const app = express(); app.use(express.json()); app.use('/api', createApiRouter({ botToken: '123:test' }));
+  const server = app.listen(0, '127.0.0.1'); await new Promise<void>(r => server.once('listening', r));
+  const base = `http://127.0.0.1:${(server.address() as any).port}/api`;
+  const req = async (path: string, body?: any, owner = true) => { const r = await actualFetch(base + path, { method: body === undefined ? 'GET' : 'POST', headers: { 'content-type': 'application/json', ...(owner ? { 'x-admin-key': 'news-test-owner' } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) }); return { status: r.status, data: await r.json() as any }; };
+  t.after(async () => { await new Promise<void>(r => server.close(() => r())); await rm(dir, { recursive: true, force: true }); });
+  await t.test('only owners manage sources and posts; public responses omit internal delivery state', async () => {
+    assert.equal((await req('/admin/news', undefined, false)).status, 401);
+    assert.equal((await req('/admin/news/visibility', { id: post.id, hidden: true }, false)).status, 401);
+    assert.equal((await req('/admin/news/settings', { enabled: true, sources: ['http://127.0.0.1'] })).status, 400);
+    assert.equal((await req('/admin/news/post', { title: 'Акция в Дананге', category: 'offers' })).status, 400);
+    assert.equal((await req('/admin/news/post', { title: 'Место в Дананге', category: 'places', url: 'javascript:alert(1)' })).status, 400);
+    const created = await req('/admin/news/post', { title: 'Место в Дананге', category: 'places', summary: 'Собственный обзор' }); assert.equal(created.status, 200);
+    let pub = await req('/news', undefined, false); assert.equal(pub.status, 200); assert.ok(pub.data.posts.every((p: any) => !('delivery' in p) && !('hidden' in p)));
+    await req('/admin/news/visibility', { id: created.data.id, hidden: true }); pub = await req('/news', undefined, false); assert.ok(!pub.data.posts.some((p: any) => p.id === created.data.id));
+    await req('/admin/news/visibility', { id: created.data.id, hidden: false }); pub = await req('/news', undefined, false); assert.ok(pub.data.posts.some((p: any) => p.id === created.data.id));
+    assert.equal((await req('/admin/news')).data.enabled, false);
+  });
+});

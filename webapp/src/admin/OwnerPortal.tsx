@@ -4,6 +4,7 @@ import "./admin-theme.css";
 import AdminTab from "../tabs/AdminTab";
 import ReferralAdmin from "./ReferralAdmin";
 import OwnerActivity from "./OwnerActivity";
+import OwnerNews from './OwnerNews';
 import OwnerDialog from "./OwnerDialog";
 import { referralError, cashcoin } from "../lib/referrals";
 import CalculatorTab from "../tabs/CalculatorTab";
@@ -190,7 +191,7 @@ export default function OwnerPortal() {
   const token = useMemo(() => (key ? `adminkey:${key}` : ""), [key]);
   const me = useMemo(() => ({ initData: token }), [token]);
 
-  type Tab = "rates" | "bonuses" | "reviews" | "clients" | "requests" | "faq" | "reports" | "analytics" | "referrals" | "activity";
+  type Tab = "rates" | "bonuses" | "reviews" | "clients" | "requests" | "faq" | "reports" | "analytics" | "referrals" | "activity" | "news";
   const [tab, setTab] = useState<Tab>("rates");
 
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -1184,6 +1185,7 @@ function moveFaq(id: string, dir: -1 | 1) {
             <button className={tab === "reports" ? "on" : ""} onClick={() => setTab("reports")}>Отчёты</button>
             <button className={tab === "analytics" ? "on" : ""} onClick={() => setTab("analytics")}>Статистика</button>
             <button className={tab === "activity" ? "on" : ""} onClick={() => setTab("activity")}>Действия</button>
+            <button className={tab === "news" ? "on" : ""} onClick={() => setTab("news")}>Новости</button>
           </div>
         </header>
 
@@ -1368,6 +1370,7 @@ function moveFaq(id: string, dir: -1 | 1) {
 
       {tab === "referrals" ? <ReferralAdmin token={token} /> : null}
       {tab === "activity" ? <OwnerActivity token={token} /> : null}
+      {tab === "news" ? <OwnerNews token={token} /> : null}
 
       {tab === "clients" ? (
         <section className="card adx-clients">

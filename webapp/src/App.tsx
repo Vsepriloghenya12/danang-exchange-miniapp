@@ -13,6 +13,7 @@ import StaffTab from "./tabs/StaffTab";
 import HistoryTab from "./tabs/HistoryTab";
 import AboutTab from "./tabs/AboutTab";
 import OtherTab from "./tabs/OtherTab";
+import NewsTab from './tabs/NewsTab';
 import DocsTab from "./tabs/DocsTab";
 import FaqTab from "./tabs/FaqTab";
 import ContactsTab from "./tabs/ContactsTab";
@@ -39,7 +40,7 @@ type Me = {
 
 type ScreenKey = "home" | "calc" | "atm" | "reviews" | "staff" | "pay" | "history" | "other" | "faq" | "about" | "contacts" | "privacy" | "terms";
 type Lang = "ru" | "en";
-type HomeSection = "calc" | "atm" | "reviews";
+type HomeSection = "calc" | "atm" | "reviews" | "news";
 
 function readPreferredLang(): Lang {
   try {
@@ -370,6 +371,7 @@ export default function App() {
     const section = launchSection(window.location.search, getTg()?.initDataUnsafe?.start_param);
     if (section === 'rates') setCourseExpanded(true);
     if (section === 'bonus') setShowReferrals(true);
+    if (section === 'news') setHomeSection('news');
   }, []);
   const [showStatus, setShowStatus] = useState(false);
   const [visited, setVisited] = useState<Record<string, boolean>>({ home: true });
@@ -615,7 +617,7 @@ export default function App() {
               </Sheet>}
               {courseExpanded && <Sheet title={isEn ? "All exchange rates" : "Все курсы обмена"} closeLabel={isEn ? "Close" : "Закрыть"} onClose={() => setCourseExpanded(false)}><RatesTab lang={lang} /></Sheet>}
 
-              <div className="cx-segment" role="tablist" aria-label={isEn ? "Home sections" : "Разделы главной"}>
+              <div className="cx-segment dn-homeTabs" role="tablist" aria-label={isEn ? "Home sections" : "Разделы главной"}>
                 <button
                   type="button"
                   className={"cx-segmentBtn " + (homeSection === "calc" ? "is-active" : "")}
@@ -640,6 +642,7 @@ export default function App() {
                 >
                   {isEn ? "Reviews" : "Отзывы"}
                 </button>
+                <button type="button" className={"cx-segmentBtn " + (homeSection === "news" ? "is-active" : "")} onClick={() => openHomeSection("news", "home_tab_news")} aria-current={homeSection === "news" ? "page" : undefined}>{isEn ? "News" : "Новости"}</button>
               </div>
 
               </AnimatedHeader>
@@ -683,6 +686,7 @@ export default function App() {
                 </div>
               ) : null}
 
+              {homeSection === "news" ? <div className="mx-homePanel"><NewsTab isEn={isEn} /></div> : null}
               {homeSection === "reviews" ? (
                 <div className="mx-homePanel">
                   <ReviewsTab lang={lang} />

@@ -10,6 +10,7 @@ import cors from "cors";
 import { createApiRouter } from "./routes.js";
 import { createBot } from "./bot.js";
 import { configureTestTelegram } from "./telegramBrand.js";
+import { startNewsWorker } from './news.js';
 import { startMarketUpdater } from "./marketRates.js";
 import { ensureSchema, HAS_DATABASE } from "./db.js";
 
@@ -146,6 +147,7 @@ async function startApiOnly() {
 
   // market snapshot updater (used by calculator)
   startMarketUpdater();
+  startNewsWorker(BOT_TOKEN);
 
   app.use(
     "/api",
@@ -255,6 +257,7 @@ async function startMonolith() {
   httpLogger(app);
 
   startMarketUpdater();
+  startNewsWorker(BOT_TOKEN);
 
   app.use(
     "/api",
