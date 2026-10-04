@@ -1,8 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { XMLParser } from 'fast-xml-parser';
 import { readStore, mutateStore, type Store } from './store.js';
-import { telegramRequest, publicAppOrigin } from './telegramExperience.js';
+import { publicAppOrigin } from './telegramExperience.js';
 import { pollPublicTelegramSource, type PublicTelegramSource } from './newsPublicTelegram.js';
+import { sendNewsMedia, type NewsMedia } from './newsMedia.js';
 
 export const NEWS_SOURCES = [
   { id: 'ator', name: 'АТОР', url: 'https://www.atorus.ru/news/rss.xml', host: 'atorus.ru', language: 'ru', enabled: true },
@@ -15,7 +16,8 @@ export type NewsPost = {
   id: string; title: string; summary: string; category: NewsCategory; source: string; sourceId: string;
   sourceKind?: 'website' | 'telegram' | 'editorial';
   url: string; language: string; publishedAt: string; addedAt: string; hidden: boolean;
-  expiresAt?: string; mapUrl?: string; delivery?: { state: 'sending' | 'sent' | 'uncertain'; at: string; chatId: string | number; messageId?: number };
+  media?: NewsMedia[]; mediaWarning?: string; mediaUpdatedAt?: string; mediaHasCaption?: boolean;
+  expiresAt?: string; mapUrl?: string; delivery?: { state: 'sending' | 'sent' | 'uncertain'; at: string; chatId: string | number; messageId?: number; messageIds?: number[] };
 };
 export type NewsState = {
   enabled: boolean; sources: string[]; posts: NewsPost[]; checkedAt?: string;
@@ -106,7 +108,7 @@ export function deliveryCandidate(state: NewsState, now = new Date()): NewsPost 
   const day = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
   const attempts = state.posts.filter(p => p.delivery && new Date(p.delivery.at).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }) === day);
   if (attempts.length >= 3) return;
-  return visibleNews(state, now).filter(p => !p.delivery && p.addedAt >= state.channel!.connectedAt && Date.parse(p.publishedAt) >= +now - DAY).at(0);
+  return visibleNews(state, now).filter(p => !p.delivery && (!p.mediaUpdatedAt || +now - Date.parse(p.mediaUpdatedAt) >= 60000) && p.addedAt >= state.channel!.connectedAt && Date.parse(p.publishedAt) >= +now - DAY).at(0);
 }
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export function newsTelegramText(post: NewsPost) {
@@ -117,9 +119,10 @@ export function newsSourceKind(post: NewsPost) {
   return post.sourceKind || (post.sourceId.startsWith('telegram:') ? 'telegram' : post.sourceId === 'editorial' ? 'editorial' : 'website');
 }
 export function publicNewsPost(post: NewsPost) {
-  const { delivery, hidden, sourceId, ...publicPost } = post;
+  const { delivery, hidden, sourceId, media, mediaUpdatedAt, mediaHasCaption, mediaWarning, ...publicPost } = post;
   const sourceKind = newsSourceKind(post);
-  return { ...publicPost, sourceKind, ...(sourceKind !== 'website' ? { source: '' } : {}), ...(sourceKind === 'telegram' ? { url: '' } : {}) };
+  return { ...publicPost, sourceKind, ...(sourceKind !== 'website' ? { source: '' } : {}), ...(sourceKind === 'telegram' ? { url: '' } : {}),
+    media: (media || []).map((m,i) => ({ kind: m.kind, url: `/api/news/media/${post.id}/${i}`, ...(m.kind === 'video' && (m.posterUrl || m.posterFileId) ? { poster: `/api/news/media/${post.id}/${i}?poster=1` } : {}) })), mediaUnavailable: Boolean(mediaWarning) };
 }
 let running: Promise<void> | undefined;
 export function syncNews(token: string, now = new Date()): Promise<void> {
@@ -132,7 +135,7 @@ async function runNews(token: string, now: Date) {
   const acquired = await mutateStore(s => {
     const n = newsState(s);
     if (!n.enabled || n.lease && Date.parse(n.lease.until) > +now) return false;
-    n.lease = { id: leaseId, until: new Date(+now + 180000).toISOString() }; return true;
+    n.lease = { id: leaseId, until: new Date(+now + 900000).toISOString() }; return true;
   });
   if (!acquired.result) return;
   try {
@@ -144,7 +147,7 @@ async function runNews(token: string, now: Date) {
     }));
     // Bounded concurrency and pagination keep the run inside its persisted lease.
     const publicSources = [...(snapshot.publicTelegramSources || [])];
-    const publicResults: { source: PublicTelegramSource; posts: NewsPost[]; lastMessageId?: number; error?: string }[] = [];
+    const publicResults: { source: PublicTelegramSource; posts: NewsPost[]; mediaUpdates?: NewsPost[]; lastMessageId?: number; error?: string }[] = [];
     let sourceIndex = 0;
     await Promise.all(Array.from({ length: Math.min(4, publicSources.length) }, async () => {
       while (sourceIndex < publicSources.length) {
@@ -167,6 +170,13 @@ async function runNews(token: string, now: Date) {
         source.lastCheckedAt = now.toISOString(); source.error = result.error;
         if (result.error) continue;
         source.lastMessageId = Math.max(source.lastMessageId, result.lastMessageId || 0);
+        for (const update of result.mediaUpdates || []) {
+          const existing = n.posts.find(p => p.id === update.id);
+          if (existing && update.media?.length) {
+            if (!existing.delivery && update.media.length !== existing.media?.length) existing.mediaUpdatedAt = now.toISOString();
+            existing.media = update.media; existing.mediaWarning = update.mediaWarning;
+          }
+        }
         for (const p of result.posts) if (!n.posts.some(old => duplicateNews(old, p))) { n.posts.push(p); source.lastReceivedAt = now.toISOString(); }
       }
       n.posts = n.posts.filter(p => Date.parse(p.addedAt) > +now - 90 * DAY).sort((a, b) => b.addedAt.localeCompare(a.addedAt)).slice(0, 500);
@@ -182,9 +192,10 @@ async function runNews(token: string, now: Date) {
       const { post, channel } = claim.result;
       try {
         const origin = publicAppOrigin(process.env.WEBAPP_URL || '');
-        const result = await telegramRequest(token, 'sendMessage', { chat_id: channel.id, text: newsTelegramText(post), parse_mode: 'HTML', link_preview_options: { is_disabled: true },
-          ...(origin ? { reply_markup: { inline_keyboard: [[{ text: 'Лента Дананга', url: `${origin}/?section=news` }]] } } : {}) });
-        await mutateStore(s => { const p = newsState(s).posts.find(x => x.id === post.id); if (p && p.delivery && p.delivery.at === post.delivery?.at) p.delivery = { ...p.delivery, state: 'sent', messageId: result.message_id }; });
+        await sendNewsMedia(token, post, channel.id, newsTelegramText(post), origin ? { inline_keyboard: [[{ text: 'Лента Дананга', url: `${origin}/?section=news` }]] } : undefined, async ids => {
+          await mutateStore(s => { const p = newsState(s).posts.find(x => x.id === post.id); if (p?.delivery?.at === post.delivery?.at && p?.delivery) { p.delivery.messageIds = [...(p.delivery.messageIds || []), ...ids]; p.delivery.messageId ||= ids[0]; } });
+        });
+        await mutateStore(s => { const p = newsState(s).posts.find(x => x.id === post.id); if (p?.delivery && p.delivery.at === post.delivery?.at) p.delivery.state = 'sent'; });
       } catch {
         await mutateStore(s => { const p = newsState(s).posts.find(x => x.id === post.id); if (p?.delivery) p.delivery.state = 'uncertain'; });
       }

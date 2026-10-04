@@ -4,7 +4,11 @@ import './news.css';
 
 export const newsLabels: Record<string, string> = { all: 'Всё', places: 'Места', events: 'Афиша', travel: 'Туристу', offers: 'Акции', life: 'Жизнь города' };
 const english: Record<string, string> = { all: 'All', places: 'Places', events: 'Events', travel: 'Travel', offers: 'Offers', life: 'City life' };
-export type NewsItem = { id: string; title: string; summary: string; category: string; source: string; sourceKind?: 'website' | 'telegram' | 'editorial'; url: string; publishedAt: string; language: string; expiresAt?: string; mapUrl?: string; hidden?: boolean; delivery?: { state: string } };
+export type NewsItem = { id: string; title: string; summary: string; category: string; source: string; sourceKind?: 'website' | 'telegram' | 'editorial'; url: string; publishedAt: string; language: string; expiresAt?: string; mapUrl?: string; hidden?: boolean; delivery?: { state: string }; media?: { kind: 'photo' | 'video'; url: string; poster?: string }[]; mediaUnavailable?: boolean; mediaWarning?: string };
+function NewsAttachment({ media, title, isEn }: { media: NonNullable<NewsItem['media']>[number]; title: string; isEn: boolean }) {
+  const [failed, setFailed] = useState(false); const [attempt, setAttempt] = useState(0);
+  return <figure className="dn-attachment">{failed ? <div className="dn-mediaError"><p>{isEn ? 'Media is temporarily unavailable' : 'Фото или видео временно недоступно'}</p><button type="button" onClick={() => { setFailed(false); setAttempt(n => n + 1); }}>{isEn ? 'Try again' : 'Повторить'}</button></div> : media.kind === 'video' ? <video key={attempt} controls playsInline preload="none" poster={media.poster} src={media.url} aria-label={title} onError={() => setFailed(true)}/> : <img key={attempt} src={media.url} alt={title} loading="lazy" decoding="async" onError={() => setFailed(true)}/>}</figure>;
+}
 function openNewsLink(url: string) {
   if (!url.startsWith('https://')) return;
   const tg = getTg();
@@ -35,7 +39,11 @@ export default function NewsTab({ isEn = false }: { isEn?: boolean }) {
     {!loading && !error && !filtered.length && <div className="dn-empty"><h3>{savedOnly ? (isEn ? 'Keep something for later' : 'Сохраните что-нибудь на потом') : (isEn ? 'New stories are on their way' : 'Новые истории ещё впереди')}</h3><p>{savedOnly ? (isEn ? 'Tap the bookmark on a story.' : 'Нажмите на закладку у интересной публикации.') : (isEn ? 'Fresh stories will appear here as sources publish them. Try another category.' : 'Свежие материалы появятся здесь по мере выхода в источниках. Можно посмотреть другие рубрики.')}</p><button type="button" onClick={() => setReload(x => x + 1)}>{isEn ? 'Refresh' : 'Обновить'}</button></div>}
     {!loading && !error && <div className="dn-stories">{filtered.map((p, i) => <article key={p.id} className={`dn-story ${i === 0 ? 'dn-lead' : ''}`}>
       <div className="dn-meta"><span>{labels[p.category]}</span><time dateTime={p.publishedAt}>{new Date(p.publishedAt).toLocaleDateString(isEn ? 'en-GB' : 'ru-RU', { day: 'numeric', month: 'long', timeZone: 'Asia/Ho_Chi_Minh' })}</time><button className="dn-bookmark" type="button" aria-label={saved.includes(p.id) ? (isEn ? 'Remove bookmark' : 'Убрать из сохранённого') : (isEn ? 'Bookmark story' : 'Сохранить публикацию')} aria-pressed={saved.includes(p.id)} onClick={() => toggle(p.id)}><svg viewBox="0 0 24 24" width="20" height="20" fill={saved.includes(p.id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4V3Z"/></svg></button></div>
-      <h3>{p.title}</h3>{p.summary && <p className="dn-summary">{p.summary}</p>}
+      <h3>{p.title}</h3>
+      {!!p.media?.length && <div className={`dn-gallery ${p.media.length > 1 ? 'dn-galleryMultiple' : ''}`} role="group" aria-label={isEn ? 'Post photos and videos' : 'Фото и видео публикации'}>{p.media.map((m, index) => <NewsAttachment key={`${p.id}-${index}`} media={m} title={`${p.title} · ${index + 1}/${p.media!.length}`} isEn={isEn}/>)}</div>}
+      {(p.media?.length || 0) > 1 && <p className="dn-galleryHint">{isEn ? `${p.media!.length} attachments · swipe to view` : `${p.media!.length} вложений · листайте в сторону`}</p>}
+      {p.mediaUnavailable && <p className="dn-mediaNote">{isEn ? 'Some media is unavailable in the public Telegram preview.' : 'Часть вложений недоступна в открытой версии Telegram.'}</p>}
+      {p.summary && <p className="dn-summary">{p.summary}</p>}
       {p.expiresAt && <p className="dn-expiry">{isEn ? 'Until ' : 'До '}{new Date(p.expiresAt).toLocaleDateString(isEn ? 'en-GB' : 'ru-RU', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}
       <footer><span>{p.sourceKind !== 'telegram' && p.sourceKind !== 'editorial' ? p.source : ''}{p.language === 'en' ? (isEn ? ' · English' : ' · на английском') : ''}</span><div>{p.mapUrl && <button type="button" onClick={() => openNewsLink(p.mapUrl!)}>{isEn ? 'Map' : 'На карте'}</button>}{p.url && p.sourceKind !== 'telegram' && <button type="button" onClick={() => openNewsLink(p.url)}>{isEn ? 'Read story' : 'Читать'}</button>}</div></footer>
     </article>)}</div>}

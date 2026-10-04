@@ -1,12 +1,13 @@
 import { createHash } from 'node:crypto';
 import { parseDocument, DomUtils } from 'htmlparser2';
 import { DAY, newsCategory, type NewsPost } from './news.js';
+import { safeTelegramMediaUrl, type NewsMedia } from './newsMedia.js';
 
 export type PublicTelegramSource = {
   id: string; username: string; title: string; connectedAt: string; lastMessageId: number;
   lastCheckedAt?: string; lastReceivedAt?: string; error?: string;
 };
-type PublicMessage = { id: number; date: string; text: string };
+type PublicMessage = { id: number; date: string; text: string; media: NewsMedia[]; mediaWarning?: string };
 export type PublicChannelPage = { username: string; title: string; messages: PublicMessage[]; ids: number[]; before?: number };
 const MAX_BYTES = 2_000_000;
 const usernamePattern = /^[a-z][a-z0-9_]{3,30}[a-z0-9]$/i;
@@ -49,9 +50,33 @@ export function parsePublicTelegramPage(html: string, username: string): PublicC
     const dateLink = find('tgme_widget_message_date', widget.children);
     const time = dateLink && DomUtils.findOne(n => n.name === 'time', dateLink.children, true);
     const date = Date.parse(time?.attribs.datetime || '');
-    if (!textNode || !Number.isFinite(date) || /(?:^|\s)(?:noforwards|protected_content)(?:\s|$)/.test(widget.attribs.class || '')) continue;
-    const text = cleanText(textNode);
-    if (text.length >= 5) messages.push({ id, date: new Date(date).toISOString(), text });
+    if (!Number.isFinite(date) || /(?:^|\s)(?:noforwards|protected_content)(?:\s|$)/.test(widget.attribs.class || '')) continue;
+    const text = textNode ? cleanText(textNode) : '';
+    const media: NewsMedia[] = []; let missing = false;
+    const background = (node: any) => {
+      const match = (node?.attribs?.style || '').match(/background-image\s*:\s*url\(\s*(['"]?)(.*?)\1\s*\)/i);
+      return match && safeTelegramMediaUrl(match[2]);
+    };
+    const attachments = DomUtils.findAll(n => hasClass(n, 'tgme_widget_message_photo_wrap') || hasClass(n, 'tgme_widget_message_video_player'), widget.children);
+    for (const node of attachments) {
+      const link = node.attribs.href?.match(/^https:\/\/t\.me\/([\w]+)\/(\d+)(?:\?.*)?$/);
+      const messageId = link && link[1].toLowerCase() === username.toLowerCase() ? Number(link[2]) : id;
+      if (!Number.isSafeInteger(messageId) || messageId < 1) continue;
+      if (!ids.includes(messageId)) ids.push(messageId);
+      if (hasClass(node, 'tgme_widget_message_video_player')) {
+        const video = DomUtils.findOne(n => n.name === 'video', node.children, true);
+        const url = safeTelegramMediaUrl(video?.attribs.src || '');
+        const posterUrl = background(find('tgme_widget_message_video_thumb', node.children));
+        if (url) media.push({ kind: 'video', messageId, url, ...(posterUrl ? { posterUrl } : {}) }); else missing = true;
+      } else {
+        const url = background(node);
+        if (url) media.push({ kind: 'photo', messageId, url }); else missing = true;
+      }
+    }
+    // Locked/unsupported previews sometimes contain no actual video element.
+    if (find('tgme_widget_message_video_not_supported', widget.children) || find('tgme_widget_message_media_not_supported', widget.children)) missing = true;
+    const unique = media.filter((m, i) => media.findIndex(other => other.kind === m.kind && other.url === m.url) === i);
+    if (text.length >= 5 || unique.length || missing) messages.push({ id, date: new Date(date).toISOString(), text, media: unique.slice(0,10), ...(missing || unique.length > 10 ? { mediaWarning: 'Часть вложений недоступна в открытой версии Telegram или превышен лимит 10 вложений.' } : {}) });
   }
   const pager = find('tme_messages_more');
   const cursor = Number(pager?.attribs['data-before']);
@@ -80,16 +105,17 @@ export async function pollPublicTelegramSource(source: PublicTelegramSource, now
     if (depth >= 2 || seen.has(page.before)) throw Error('Слишком много новых постов для одной проверки. Повторите проверку или переподключите канал.');
     seen.add(page.before); page = await fetchPublicTelegramPage(source.username, page.before); messages.push(...page.messages);
   }
-  const posts: NewsPost[] = messages.filter(m => m.id > source.lastMessageId && Date.parse(m.date) >= Date.parse(source.connectedAt) && Date.parse(m.date) >= +now - 14 * DAY && Date.parse(m.date) <= +now + 300000).map(m => {
-    const lines = m.text.split('\n').filter(Boolean); const first = lines.shift() || '';
+  const candidates = messages.filter(m => Date.parse(m.date) >= Date.parse(source.connectedAt) && Date.parse(m.date) >= +now - 14 * DAY && Date.parse(m.date) <= +now + 300000);
+  const posts: NewsPost[] = candidates.map(m => {
+    const lines = m.text.split('\n').filter(Boolean); const first = lines.shift() || (m.media.some(x => x.kind === 'video') ? 'Видео из Дананга' : 'Фото из Дананга');
     return {
       id: createHash('sha256').update(`telegram:public:${source.username}:${m.id}`).digest('hex').slice(0,24),
       title: first.length > 160 ? first.slice(0,157) + '…' : first,
       summary: (first.length > 160 ? [first, ...lines] : lines).join('\n\n').slice(0,1600),
       source: source.title, sourceId: `telegram:public:${source.username}`, sourceKind: 'telegram',
       url: `https://t.me/${source.username}/${m.id}`, category: newsCategory(m.text), language: /[а-яё]/i.test(m.text) ? 'ru' : 'en',
-      publishedAt: m.date, addedAt: now.toISOString(), hidden: false,
+      publishedAt: m.date, addedAt: now.toISOString(), hidden: false, media: m.media, mediaWarning: m.mediaWarning,
     };
   });
-  return { posts, lastMessageId: newest };
+  return { posts: posts.filter((_,i) => candidates[i].id > source.lastMessageId), mediaUpdates: posts.filter((_,i) => candidates[i].id <= source.lastMessageId), lastMessageId: newest };
 }

@@ -147,4 +147,80 @@ test('Danang feed, owner access and automatic delivery', async t => {
     await req('/admin/news/public-telegram-source', { remove: true, id: source.id });
     assert.equal(newsState(await readStore()).publicTelegramSources?.length, 0);
   });
+  await t.test('public photos and mixed albums: preserve order/caption, skip avatar and link preview, flag unavailable video', async () => {
+    const photo = '<a class="tgme_widget_message_photo_wrap" href="https://t.me/danang_news/21" style="background-image:url(\'https://cdn1.telesco.pe/file/photo?x=1&amp;y=2\')"></a>';
+    const video = '<a class="tgme_widget_message_video_player" href="https://t.me/danang_news/22"><i class="tgme_widget_message_video_thumb" style="background-image:url(\'https://cdn1.telesco.pe/file/poster\')"></i><video src="https://cdn1.telesco.pe/file/movie.mp4"></video></a>';
+    const html = tgPage(tgItem(21, 'Прогулка у моря<br>Фото и видео').replace('</div><a class="tgme_widget_message_date">', `</div>${photo}${video}<a class="tgme_widget_message_link_preview"><img src="https://evil.test/preview"/></a><a class="tgme_widget_message_date">`));
+    const message = parsePublicTelegramPage(html, 'danang_news').messages[0];
+    assert.deepEqual(message.media.map(m => [m.kind,m.messageId]), [['photo',21],['video',22]]);
+    assert.equal(message.media[0].url, 'https://cdn1.telesco.pe/file/photo?x=1&y=2'); assert.ok(message.media[1].posterUrl);
+    assert.match(message.text, /Фото и видео/);
+    const unsafe = parsePublicTelegramPage(html.replace('https://cdn1.telesco.pe/file/movie.mp4', 'http://127.0.0.1/private'), 'danang_news').messages[0];
+    assert.equal(unsafe.media.length, 1); assert.ok(unsafe.mediaWarning);
+    const onlyMedia = parsePublicTelegramPage(html.replace('<div class="tgme_widget_message_text"><b>Прогулка у моря<br>Фото и видео</b></div>', ''), 'danang_news').messages[0];
+    assert.equal(onlyMedia.text, ''); assert.equal(onlyMedia.media.length, 2);
+    const { safeTelegramMediaUrl } = await import('../server/src/newsMedia.ts');
+    for (const url of ['https://cdn1.telesco.pe.evil.test/file/x', 'https://cdn1.telesco.pe@127.0.0.1/file/x', 'file:///etc/passwd', 'https://cdn1.telesco.pe:4430/file/x']) assert.equal(safeTelegramMediaUrl(url), undefined);
+  });
+  await t.test('bot albums collect out-of-order updates once, preserve caption, wait before sending and keep private IDs private', async () => {
+    await mutateStore(s => { const n = newsState(s); n.enabled = true; n.posts = []; n.sources = []; delete n.lastSendAt; n.channel = { id: -100123, title: 'Destination', connectedAt: '2026-10-04T04:00:00Z' }; n.telegramSources = [{ id: -100456, title: 'Source', username: 'source_test', connectedAt: '2026-10-04T04:00:00Z' }]; });
+    const msg = { chat: { id: -100456, type: 'channel' }, media_group_id: 'album-1', message_id: 22, date: +now/1000, video: { file_id: 'private-video', thumbnail: { file_id: 'private-poster' } } };
+    await ingestTelegramNews(msg, now);
+    await ingestTelegramNews({ ...msg, video: undefined, message_id: 21, photo: [{ file_id: 'small' }, { file_id: 'private-photo' }], caption: 'Дананг на рассвете\nТёплый день у моря.' }, now);
+    await ingestTelegramNews(msg, now);
+    let n = newsState(await readStore()); assert.equal(n.posts.length, 1); const p = n.posts[0];
+    assert.equal(p.title, 'Дананг на рассвете'); assert.deepEqual(p.media?.map(m => m.messageId), [21,22]);
+    assert.equal(deliveryCandidate(n, now), undefined); assert.equal(deliveryCandidate(n, new Date(+now + 61000))?.id, p.id);
+    const pub = publicNewsPost(p); assert.match(pub.media[0].url, /^\/api\/news\/media\//); assert.ok(pub.media[1].poster);
+    assert.doesNotMatch(JSON.stringify(pub), /private-video|private-photo|private-poster|source_test|fileId|mediaUpdatedAt/);
+    await ingestTelegramNews({ ...msg, message_id: 23, has_protected_content: true }, now); assert.equal(newsState(await readStore()).posts[0].media?.length, 2);
+  });
+  await t.test('media forwarding uses albums, retains long text, and persists partial delivery without duplicate retry', async t => {
+    const { sendNewsMedia } = await import('../server/src/newsMedia.ts');
+    const calls: string[] = []; let failText = false;
+    t.mock.method(globalThis, 'fetch', async (url: any, init: any) => {
+      const method = String(url).split('/').at(-1)!; calls.push(method);
+      if (method === 'sendMessage') { if (failText) throw Error('timeout'); assert.ok(JSON.parse(init.body).text.length > 1024); return Response.json({ ok: true, result: { message_id: 81 } }); }
+      assert.ok(init.body instanceof FormData);
+      if (method === 'sendMediaGroup') { const album = JSON.parse(init.body.get('media')); assert.equal(album.length, 2); assert.equal(album[0].media, 'private-photo'); assert.equal(album[1].type, 'video'); return Response.json({ ok: true, result: [{ message_id: 79 },{ message_id: 80 }] }); }
+      assert.ok(['sendPhoto','sendVideo'].includes(method)); assert.equal(init.body.get('caption'), 'Короткая подпись'); return Response.json({ ok: true, result: { message_id: 82 } });
+    });
+    const p = newsState(await readStore()).posts[0]; const ids: number[] = [];
+    await sendNewsMedia('test', p, -100123, 'Текст '.repeat(220), undefined, async x => { ids.push(...x); });
+    assert.deepEqual(calls, ['sendMediaGroup','sendMessage']); assert.deepEqual(ids, [79,80,81]);
+    await sendNewsMedia('test', { ...p, media: [p.media![0]] }, -100123, 'Короткая подпись', undefined, async () => {});
+    await sendNewsMedia('test', { ...p, media: [p.media![1]] }, -100123, 'Короткая подпись', undefined, async () => {});
+    assert.deepEqual(calls.slice(-2), ['sendPhoto','sendVideo']);
+    await mutateStore(s => { newsState(s).posts[0].summary = 'Длинный текст '.repeat(100); }); failText = true;
+    await syncNews('test', new Date(+now + 61000));
+    const failed = newsState(await readStore()).posts[0]; assert.equal(failed.delivery?.state, 'uncertain'); assert.deepEqual(failed.delivery?.messageIds, [79,80]);
+    const count = calls.length; await syncNews('test', new Date(+now + 3 * 3600000)); assert.equal(calls.length, count);
+  });
+  await t.test('media proxy bounds downloads, renews expired links, supports video ranges and hides removed posts', async t => {
+    const { getNewsMedia } = await import('../server/src/newsMedia.ts');
+    const photoBytes = new Uint8Array([255,216,255,224,0,0,0,0,0,0,0,0,0,0,0,0]);
+    const videoBytes = new Uint8Array([0,0,0,24,102,116,121,112,109,112,52,50,0,0,0,0]);
+    let downloads = 0; let renewals = 0;
+    t.mock.method(globalThis, 'fetch', async (url: any, init: any) => {
+      if (String(url).startsWith('https://t.me/s/danang_news')) {
+        renewals++; return new Response(tgPage(tgItem(31).replace('</div><a class="tgme_widget_message_date">', '</div><a class="tgme_widget_message_photo_wrap" href="https://t.me/danang_news/31" style="background-image:url(\'https://cdn1.telesco.pe/file/fresh\')"></a><a class="tgme_widget_message_date">')), { headers: { 'content-type': 'text/html' } });
+      }
+      assert.equal(init.redirect, 'error'); downloads++;
+      if (String(url).endsWith('/expired')) return new Response('', { status: 403 });
+      if (String(url).endsWith('/huge')) return new Response(photoBytes, { headers: { 'content-type': 'image/jpeg', 'content-length': '10000001' } });
+      if (String(url).endsWith('/html')) return new Response('<script>bad</script>', { headers: { 'content-type': 'text/html' } });
+      if (String(url).endsWith('/video')) return new Response(videoBytes, { headers: { 'content-type': 'video/mp4' } });
+      return new Response(photoBytes, { headers: { 'content-type': 'image/jpeg' } });
+    });
+    const id = (await import('node:crypto')).randomBytes(12).toString('hex');
+    const p = { ...post, id, publishedAt: new Date().toISOString(), sourceKind: 'telegram' as const, url: 'https://t.me/danang_news/31', media: [{ kind: 'photo' as const, messageId: 31, url: 'https://cdn1.telesco.pe/file/expired' }, { kind: 'video' as const, messageId: 32, url: 'https://cdn1.telesco.pe/file/video' }] };
+    await mutateStore(s => { newsState(s).posts = [p]; });
+    const file = await getNewsMedia(p, 0, 'test'); assert.equal(file.size, photoBytes.length); assert.equal(renewals, 1);
+    const before = downloads; await getNewsMedia(p, 0, 'test'); assert.equal(downloads, before);
+    const response = await actualFetch(`${base}/news/media/${id}/1`, { headers: { range: 'bytes=4-7' } }); assert.equal(response.status, 206); assert.equal(await response.text(), 'ftyp');
+    for (const suffix of ['huge','html']) await assert.rejects(getNewsMedia({ ...p, url: '', media: [{ kind: 'photo', messageId: 33, url: `https://cdn1.telesco.pe/file/${suffix}` }] },0,'test'));
+    await mutateStore(s => { newsState(s).posts[0].hidden = true; });
+    assert.equal((await actualFetch(`${base}/news/media/${id}/1`)).status, 404);
+    assert.equal((await actualFetch(`${base}/news/media/${id}/1000`)).status, 404);
+  });
 });

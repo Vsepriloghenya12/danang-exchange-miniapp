@@ -5,8 +5,20 @@ import { NEWS_SOURCES, NEWS_CATEGORIES, newsState, visibleNews, publicNewsPost, 
 import { telegramRequest } from './telegramExperience.js';
 import { parsePublishChatId } from './publish.js';
 import { fetchPublicTelegramPage, publicTelegramUsername } from './newsPublicTelegram.js';
+import { getNewsMedia } from './newsMedia.js';
 
 export function registerNewsRoutes(router: express.Router, owner: (req: express.Request) => Promise<boolean>, token: string) {
+  router.get('/news/media/:id/:index', async (req, res) => {
+    try {
+      if (!/^[a-f0-9]{24}$/.test(req.params.id) || !/^[0-9]$/.test(req.params.index)) { res.sendStatus(404); return; }
+      const post = visibleNews(newsState(await readStore())).find(p => p.id === req.params.id);
+      if (!post?.media?.[Number(req.params.index)]) { res.sendStatus(404); return; }
+      const file = await getNewsMedia(post, Number(req.params.index), token, req.query.poster === '1');
+      res.setHeader('Content-Type', file.type); res.setHeader('X-Content-Type-Options', 'nosniff');
+      // Express serves Range requests for video seeking. Every request rechecks post visibility.
+      res.sendFile(file.path, { maxAge: 0, headers: { 'Cache-Control': 'private, no-cache' } }, err => { if (err && !res.headersSent) res.sendStatus(503); });
+    } catch { if (!res.headersSent) res.status(503).json({ ok: false, error: 'Фото или видео временно недоступно.' }); }
+  });
   router.get('/news', async (_req, res) => {
     try {
       const n = newsState(await readStore());

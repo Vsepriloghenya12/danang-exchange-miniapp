@@ -63,12 +63,12 @@ export function inlineResults(store: Store, username: string, tgId: number, orig
 }
 
 // Keep tokens out of error messages and put a deadline on every Telegram call.
-export async function telegramRequest(token: string, method: string, body: Record<string, unknown> | FormData): Promise<any> {
+export async function telegramRequest(token: string, method: string, body: Record<string, unknown> | FormData, timeoutMs = 10_000): Promise<any> {
   const multipart = body instanceof FormData;
   try {
     const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
       method: 'POST', headers: multipart ? undefined : { 'content-type': 'application/json' },
-      body: multipart ? body : JSON.stringify(body), signal: AbortSignal.timeout(10_000),
+      body: multipart ? body : JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs),
     });
     const data: any = await response.json();
     if (!response.ok || !data.ok) throw new Error('telegram_request_failed');
