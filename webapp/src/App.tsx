@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getTg } from "./lib/telegram";
+import { launchSection } from './lib/launchSection';
 import { apiAuth, apiEvent, apiWarmup } from "./lib/api";
 import { activitySessionId, trackActivity } from "./lib/activity";
 import type { UserStatus } from "./lib/types";
@@ -365,6 +366,11 @@ export default function App() {
   const [screen, setScreen] = useState<ScreenKey>("home");
   const [homeSection, setHomeSection] = useState<HomeSection>("calc");
   const [courseExpanded, setCourseExpanded] = useState(false);
+  useEffect(() => {
+    const section = launchSection(window.location.search, getTg()?.initDataUnsafe?.start_param);
+    if (section === 'rates') setCourseExpanded(true);
+    if (section === 'bonus') setShowReferrals(true);
+  }, []);
   const [showStatus, setShowStatus] = useState(false);
   const [visited, setVisited] = useState<Record<string, boolean>>({ home: true });
   const homeCalcRef = useRef<HTMLDivElement | null>(null);

@@ -5,6 +5,7 @@ import { activitySession, recordActivity } from "./activity.js";
 import { USER_STATUS_LABELS_RU, type UserStatus } from "./domain/status.js";
 import { setUserStatus, notifyStatusChange } from "./userStatus.js";
 import { formatAmount } from "./format.js";
+import { inlineResults, invitationResult, publicAppOrigin, ratesResult, TELEGRAM_ART } from "./telegramExperience.js";
 import {
   readStore,
   mutateStore,
@@ -102,9 +103,51 @@ export function createBot(opts: {
       return ctx.reply("WEBAPP_URL не задан. Укажи публичный HTTPS URL и снова /start.");
     }
 
-    const kb = Markup.inlineKeyboard([Markup.button.webApp("Открыть мини-приложение", webappUrl)]);
-    await ctx.reply("Открывай мини-приложение 👇", kb);
+    if (ctx.chat?.type !== 'private') return ctx.reply('Откройте Cash a Lot в личном чате с ботом.');
+    const kb = Markup.inlineKeyboard([
+      [Markup.button.webApp('Обменять валюту', webappUrl)],
+      [Markup.button.switchToChat('Поделиться курсами', 'rates'), Markup.button.switchToChat('Пригласить друга', 'invite')],
+    ]);
+    const caption = 'Добро пожаловать в Cash a Lot!\n\nОбмен валют в Дананге. Рассчитайте сумму и отправьте заявку менеджеру.\n\nПриглашайте друзей: другу — +0,5% к первому получению, вам — бонусы после его обмена.';
+    try {
+      await ctx.replyWithPhoto(`${publicAppOrigin(webappUrl)}${TELEGRAM_ART}/cover.jpg`, { caption, ...kb });
+    } catch { await ctx.reply(caption, kb); }
   });
+
+  bot.on('inline_query', async ctx => {
+    const origin = publicAppOrigin(opts.webappUrl || '');
+    if (!origin) return ctx.answerInlineQuery([], { cache_time: 0, is_personal: true });
+    try {
+      let store = await readStore();
+      if (!store.users[String(ctx.from.id)]) {
+        await upsertUserFromTelegram(ctx.from);
+        store = await readStore();
+      }
+      if ((store.config.blacklistUsernames || []).some(u => u.replace(/^@/, '').toLowerCase() === ctx.from.username?.toLowerCase())) return ctx.answerInlineQuery([], { cache_time: 0, is_personal: true });
+      const results = ctx.inlineQuery.offset ? [] : inlineResults(store, ctx.me, ctx.from.id, origin, ctx.inlineQuery.query);
+      // Invitations belong to the querying Telegram user. Never share their cache across users.
+      return await ctx.answerInlineQuery(results, { cache_time: 0, is_personal: true });
+    } catch { console.error('Inline query could not be answered'); }
+  });
+
+  bot.command('rates', async ctx => {
+    const result = ratesResult(await readStore(), ctx.me, publicAppOrigin(opts.webappUrl || ''));
+    if (result.type === 'article' && 'message_text' in result.input_message_content) {
+      await ctx.reply(result.input_message_content.message_text, { reply_markup: result.reply_markup });
+    }
+  });
+
+  bot.command('bonus', async ctx => {
+    if (ctx.chat.type !== 'private') return ctx.reply('Личное приглашение можно получить в чате с ботом.');
+    await upsertUserFromTelegram(ctx.from);
+    const result = invitationResult(ctx.me, ctx.from.id, publicAppOrigin(opts.webappUrl || ''));
+    if (result.type === 'photo') await ctx.replyWithPhoto(result.photo_url, {
+      caption: result.caption,
+      reply_markup: { inline_keyboard: [...(result.reply_markup?.inline_keyboard || []), [{ text: 'Отправить другу', switch_inline_query: 'invite' }]] },
+    });
+  });
+
+  bot.command('help', ctx => ctx.reply('Cash a Lot — обмен валют в Дананге.\n\n/start — открыть обмен\n/rates — курсы на сегодня\n/bonus — пригласить друга\n\nВ любом чате введите @' + ctx.me + ' и пробел: появятся курсы и приглашение. Поддержка — в разделе «Ещё → Контакты» приложения.'));
 
   bot.command("whoami", async (ctx) => {
     if (ctx.from) {

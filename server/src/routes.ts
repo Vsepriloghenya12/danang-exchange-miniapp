@@ -1,5 +1,6 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
+import { invitationResult, publicAppOrigin, telegramRequest } from "./telegramExperience.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -330,6 +331,42 @@ export function createApiRouter(opts: {
         history: store.bonusLedger.filter(e => e.tg_id === user.id).reverse().map(({ id, cents, currency, kind, created_at, request_id }) => ({ id, cents, currency: currency || "USD", kind, created_at, request_id })),
       });
     } catch (e: any) { return res.status(401).json({ ok: false, error: e?.message || "auth_failed" }); }
+  });
+
+  const preparedInvites = new Map<number, { id: string; expiresAt: number }>();
+  const preparingInvites = new Map<number, Promise<{ id: string; expiresAt: number }>>();
+  router.post('/referrals/share', async (req, res) => {
+    let authenticated = false;
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const { user, blocked } = await requireAuth(req);
+      authenticated = true;
+      if (blocked) return res.status(403).json({ ok: false, error: 'blocked' });
+      const cached = preparedInvites.get(user.id);
+      if (cached && cached.expiresAt > Date.now() + 30_000) return res.json({ ok: true, ...cached });
+      let pending = preparingInvites.get(user.id);
+      if (!pending) {
+        pending = (async () => {
+          const username = await getBotUsername();
+          const origin = publicAppOrigin(process.env.WEBAPP_URL || '');
+          if (!username || !origin) throw new Error('telegram_share_unavailable');
+          const result = await telegramRequest(opts.botToken, 'savePreparedInlineMessage', {
+            user_id: user.id, result: invitationResult(username, user.id, origin),
+            allow_user_chats: true, allow_group_chats: true, allow_channel_chats: true, allow_bot_chats: false,
+          });
+          if (typeof result?.id !== 'string' || !Number.isFinite(result?.expiration_date) || result.expiration_date * 1000 <= Date.now()) throw new Error('telegram_share_unavailable');
+          const prepared = { id: result.id, expiresAt: Math.min(result.expiration_date * 1000, Date.now() + 5 * 60_000) };
+          if (preparedInvites.size >= 500) preparedInvites.delete(preparedInvites.keys().next().value!);
+          preparedInvites.set(user.id, prepared);
+          return prepared;
+        })();
+        preparingInvites.set(user.id, pending);
+        void pending.finally(() => preparingInvites.delete(user.id)).catch(() => {});
+      }
+      return res.json({ ok: true, ...await pending });
+    } catch {
+      return res.status(authenticated ? 503 : 401).json({ ok: false, error: authenticated ? 'telegram_share_unavailable' : 'auth_failed' });
+    }
   });
 
   router.get("/admin/referrals", async (req, res) => {

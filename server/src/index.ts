@@ -9,6 +9,7 @@ import cors from "cors";
 
 import { createApiRouter } from "./routes.js";
 import { createBot } from "./bot.js";
+import { configureTestTelegram } from "./telegramBrand.js";
 import { startMarketUpdater } from "./marketRates.js";
 import { ensureSchema, HAS_DATABASE } from "./db.js";
 
@@ -219,6 +220,7 @@ async function startBotOnly() {
 
     const me = await bot.telegram.getMe();
     console.log(`✅ getMe OK: @${me.username} (id=${me.id})`);
+    void configureTestTelegram(BOT_TOKEN, me.username || "", WEBAPP_URL);
 
     if (!BASE_URL) {
       console.log("⚠️ No BASE_URL. Using polling locally.");
@@ -229,7 +231,7 @@ async function startBotOnly() {
     }
 
     const full = `${BASE_URL}${WEBHOOK_PATH}`;
-    await bot.telegram.setWebhook(full);
+    await bot.telegram.setWebhook(full, { allowed_updates: ["message", "callback_query", "channel_post", "inline_query", "chosen_inline_result", "my_chat_member"] });
     console.log(`✅ Webhook set: ${full}`);
   });
 
@@ -305,6 +307,7 @@ async function startMonolith() {
     console.log(`✅ Server listening on port ${PORT}`);
     const me = await bot.telegram.getMe();
     console.log(`✅ getMe OK: @${me.username} (id=${me.id})`);
+    void configureTestTelegram(BOT_TOKEN, me.username || "", WEBAPP_URL);
 
     if (!BASE_URL) {
       console.log("⚠️ No BASE_URL. Using polling locally.");
@@ -315,7 +318,7 @@ async function startMonolith() {
     }
 
     const full = `${BASE_URL}${WEBHOOK_PATH}`;
-    await bot.telegram.setWebhook(full);
+    await bot.telegram.setWebhook(full, { allowed_updates: ["message", "callback_query", "channel_post", "inline_query", "chosen_inline_result", "my_chat_member"] });
     console.log(`✅ Webhook set: ${full}`);
   });
 

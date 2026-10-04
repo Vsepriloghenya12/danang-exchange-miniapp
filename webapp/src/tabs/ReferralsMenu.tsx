@@ -8,9 +8,17 @@ export default function ReferralsMenu({ initData, isEn, onClose }: { initData: s
   const [error, setError] = useState("");
   const [page, setPage] = useState<"invite" | "balance" | "history">("invite");
   const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareFallback, setShareFallback] = useState(false);
+  const sharePending = useRef(false);
   const [retry, setRetry] = useState(0);
   const panel = useRef<HTMLDivElement>(null);
   const demo = initData === "demo";
+  useEffect(() => {
+    if (!sharing) return;
+    const timer = window.setTimeout(() => { sharePending.current = false; setSharing(false); setShareFallback(true); }, 45_000);
+    return () => window.clearTimeout(timer);
+  }, [sharing]);
   useEffect(() => {
     let live = true;
     setError("");
@@ -36,12 +44,29 @@ export default function ReferralsMenu({ initData, isEn, onClose }: { initData: s
     document.addEventListener("keydown", keydown);
     return () => { document.body.style.overflow = overflow; document.removeEventListener("keydown", keydown); previous?.focus(); };
   }, [onClose]);
-  function share() {
+  function shareLink() {
     if (!data?.link) return;
     const message = isEn ? "Join Cash A Lot and earn bonuses!" : "Присоединяйся к Cash A Lot и получай бонусы!";
     const url = `https://t.me/share/url?url=${encodeURIComponent(data.link)}&text=${encodeURIComponent(message)}`;
     const tg = getTg();
     if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, "_blank", "noopener,noreferrer");
+  }
+  async function share() {
+    if (!data?.link || sharePending.current) return;
+    const tg = getTg();
+    if (!tg?.shareMessage || !tg.isVersionAtLeast?.('8.0')) { shareLink(); return; }
+    sharePending.current = true;
+    setSharing(true); setShareFallback(false);
+    try {
+      const prepared = await referralApi<{ id: string }>(initData, '/referrals/share', {});
+      tg.shareMessage(prepared.id, sent => {
+        sharePending.current = false; setSharing(false);
+        // Cancelling the chooser is not a failure and must not open another chooser.
+        if (!sent) setShareFallback(true);
+      });
+    } catch {
+      sharePending.current = false; setSharing(false); setShareFallback(true);
+    }
   }
   async function copy() {
     if (!data?.link) return;
@@ -58,13 +83,15 @@ export default function ReferralsMenu({ initData, isEn, onClose }: { initData: s
       {!data && !error && <p role="status">{isEn ? "Loading…" : "Загружаем…"}</p>}
       {data && <>
         {demo && <p className="rf-muted">{isEn ? "Preview. Open the app in Telegram for your personal link." : "Предпросмотр. Для личной ссылки откройте приложение в Telegram."}</p>}
+        {page === 'invite' && <img className="rf-inviteArt" src="/brand/telegram/invite.jpg" width="640" height="400" alt={isEn ? 'Cash a Lot: invite friends and earn bonuses' : 'Cash a Lot: приглашайте друзей и получайте бонусы'} />}
+        {shareFallback && <p className="rf-muted">{isEn ? 'You can also share your personal link.' : 'Можно также отправить обычную личную ссылку.'} <button type="button" className="cx-linkBtn" onClick={shareLink}>{isEn ? 'Share link' : 'Отправить ссылку'}</button></p>}
         {data.referralRejected && <p>{isEn ? "This invitation exceeded the daily limit. A welcome bonus is not available." : "Для этого приглашения превышен дневной лимит. Приветственный бонус недоступен."}</p>}
         {page === "invite" && <>
           <div className="cl-referralOffers">
           <div className="rf-offer"><span>{isEn ? "For your friend" : "Другу"}</span><strong>+0,5%</strong><p>{isEn ? "Added to the amount they receive in their first exchange" : "К сумме, которую он получает в первом обмене"}</p></div>
           <div className="rf-offer rf-offer-secondary"><span>{isEn ? "For you" : "Вам"}</span><strong>0,5%</strong><p>{isEn ? "Of the amount your friend receives in their first exchange, in bonuses" : "От суммы, полученной другом в первом обмене, в бонусах"}</p></div>
           </div>
-          <button className="rf-share" disabled={!data.link} onClick={share}><svg viewBox="0 0 24 24" fill="none" width="20" height="20" aria-hidden="true"><path d="m21 3-7 18-4-7-7-4L21 3Zm0 0L10 14" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" /></svg>{isEn ? "Share in Telegram" : "Пригласить друга в Telegram"}</button>
+          <button className="rf-share" disabled={!data.link || sharing} onClick={share}><svg viewBox="0 0 24 24" fill="none" width="20" height="20" aria-hidden="true"><path d="m21 3-7 18-4-7-7-4L21 3Zm0 0L10 14" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" /></svg>{sharing ? (isEn ? "Preparing invitation…" : "Готовим приглашение…") : (isEn ? "Share in Telegram" : "Пригласить друга в Telegram")}</button>
           {data.link && <div className="rf-link"><input aria-label={isEn ? "Your invitation link" : "Ваша ссылка приглашения"} readOnly value={data.link} onFocus={e => e.currentTarget.select()} /><button className="btn" onClick={copy}>{copied ? (isEn ? "Copied" : "Скопировано") : (isEn ? "Copy" : "Копировать")}</button></div>}
           {!data.link && !demo && <p>{isEn ? "The bot link is unavailable. Please try again later." : "Ссылка бота пока недоступна. Попробуйте обновить страницу позже."}</p>}
           <p className="rf-muted">{isEn ? "For new clients only. Your friend gets the extra amount in their first exchange. Your bonuses are credited after the manager confirms completion. 1 bonus = 1 RUB; conversions use the exchange office’s daily rates. Up to 20 invitations per day (UTC)." : "Для новых клиентов. Друг получает прибавку в первом обмене, а вы — бонусы после подтверждения сделки. 1 бонус = 1 ₽. Пересчёт по курсам обменника на день заявки. До 20 приглашений в сутки (UTC)."}</p>

@@ -1,4 +1,5 @@
 import React from "react";
+import HomeScreenInstall from '../components/HomeScreenInstall';
 import ClientIcon, {type ClientIconName} from "../components/ClientIcon";
 type Lang="ru"|"en";
 function Row({icon,title,subtitle,onClick}:{icon:ClientIconName;title:string;subtitle?:string;onClick:()=>void}){
@@ -7,6 +8,7 @@ function Row({icon,title,subtitle,onClick}:{icon:ClientIconName;title:string;sub
 export default function OtherTab({onFaq,onAbout,onContacts,onOrderApp,onPrivacy,onTerms,lang="ru"}:{onFaq:()=>void;onAbout:()=>void;onContacts:()=>void;onOrderApp:()=>void;onPrivacy:()=>void;onTerms:()=>void;lang?:Lang}){
  const en=lang==="en";
  return <div className="cp-page">
+  <HomeScreenInstall isEn={en}/>
   <button className="cp-support" type="button" onClick={onContacts}><span className="cp-icon"><ClientIcon name="chat"/></span><span className="cp-rowText"><strong>{en?"We’re here to help":"Мы на связи"}</strong><small>{en?"Exchange and app support":"Поможем с обменом и приложением"}</small></span><ClientIcon name="chevron" className="cp-chevron"/></button>
   <section className="cp-menuGroup" aria-label={en?"About the service":"О сервисе"}>
    <Row icon="help" title="FAQ" subtitle={en?"Answers to your questions":"Ответы на частые вопросы"} onClick={onFaq}/>

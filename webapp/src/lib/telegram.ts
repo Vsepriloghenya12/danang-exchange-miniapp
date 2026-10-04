@@ -6,6 +6,9 @@ export type TgWebApp = {
   sendData: (data: string) => void;
   openLink?: (url: string) => void;
   openTelegramLink?: (url: string) => void;
+  isVersionAtLeast?: (version: string) => boolean;
+  shareMessage?: (id: string, callback?: (sent: boolean) => void) => void;
+  switchInlineQuery?: (query: string, chooseChatTypes?: string[]) => void;
 
   // Homescreen shortcuts (Bot API 8.0+)
   addToHomeScreen?: () => void;
