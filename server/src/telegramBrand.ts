@@ -5,11 +5,11 @@ import { isTestBot, publicAppOrigin, telegramRequest } from './telegramExperienc
 // Only the named test bot can receive these settings, even if this code is merged later.
 export async function configureTestTelegram(token: string, username: string, webappUrl: string) {
   if (!isTestBot(username) || !publicAppOrigin(webappUrl)) return;
-  const revision = 'telegram-brand-v1';
+  const revision = 'telegram-brand-v2';
   const store = await readStore();
   if ((store.config as any).telegramBrandRevision === revision) return;
   try {
-    await telegramRequest(token, 'setMyDescription', { description: 'Cash a Lot — обмен валют в Дананге.\n\nАктуальные курсы, удобный расчёт и заявка менеджеру — в одном приложении.\n\nПриглашайте друзей и получайте бонусы.\n\nТестовая версия сервиса.' });
+    await telegramRequest(token, 'setMyDescription', { description: 'Cash A Lot - сервис обмена валют во Вьетнаме.\n\nВыгодный курс, быстрый расчёт, программа лояльности.\n\nОплата e-visa и билетов, бронирование отелей.\n\nПриглашай друзей и получай бонусы!' });
     await telegramRequest(token, 'setMyShortDescription', { short_description: 'Cash a Lot · Обмен валют в Дананге. Курсы, обмен и бонусы. Тестовая версия.' });
     await telegramRequest(token, 'setMyCommands', { commands: [
       { command: 'start', description: 'Открыть обмен' }, { command: 'rates', description: 'Курсы в Дананге' },

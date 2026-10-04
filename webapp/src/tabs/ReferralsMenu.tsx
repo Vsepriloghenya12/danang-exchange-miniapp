@@ -46,7 +46,7 @@ export default function ReferralsMenu({ initData, isEn, onClose }: { initData: s
   }, [onClose]);
   function shareLink() {
     if (!data?.link) return;
-    const message = isEn ? "Join Cash A Lot and earn bonuses!" : "Присоединяйся к Cash A Lot и получай бонусы!";
+    const message = isEn ? "Join Cash A Lot and claim your bonus!" : "Присоединяйся к Cash A Lot и забери свой бонус!";
     const url = `https://t.me/share/url?url=${encodeURIComponent(data.link)}&text=${encodeURIComponent(message)}`;
     const tg = getTg();
     if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, "_blank", "noopener,noreferrer");

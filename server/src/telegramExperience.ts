@@ -20,7 +20,7 @@ export function invitationResult(username: string, tgId: number, origin: string)
     description: 'Личная ссылка и бонус к первому обмену',
     photo_url: `${origin}${TELEGRAM_ART}/invite.jpg`, thumbnail_url: `${origin}${TELEGRAM_ART}/thumb.jpg`,
     photo_width: 640, photo_height: 400,
-    caption: 'Присоединяйся к Cash A Lot и получай бонусы!\n\nДругу — +0,5% к сумме получения при первом обмене. Пригласившему — 0,5% от полученной другом суммы на бонусный счёт после завершения сделки.\n\nДля клиентов без завершённых обменов. Условия — в приложении.',
+    caption: 'Присоединяйся к Cash A Lot и забери свой бонус!',
     reply_markup: { inline_keyboard: [[{ text: 'Получить бонус · Открыть Cash a Lot', url: link }]] },
   };
 }
