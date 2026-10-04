@@ -8,7 +8,7 @@ import { USER_STATUS_LABELS_RU, type UserStatus } from "./domain/status.js";
 import { BONUS_CURRENCIES, MARKUP_DIRECTION_KEYS, directionKey, type CrossRates, type PairMarkup } from "./domain/exchange.js";
 import { formatAmount } from "./format.js";
 import { activitySession, clientActivity, loadActivityReport, recordActivity } from "./activity.js";
-import { captureCoinQuote, changeRequestState, migrateLegacyBonuses, ownerReferralReport, prepareReferralRequest, previewCashCoin, recordBonusPayout, recordTestBonusCredit, referralSummary, repriceCashCoinRequest, requestBonusAmounts, welcomeAvailable, REFERRAL_TERMS } from "./referrals.js";
+import { captureCoinQuote, changeRequestState, migrateLegacyBonuses, ownerReferralReport, prepareReferralRequest, previewCashCoin, recordBonusCredit, recordBonusPayout, recordTestBonusCredit, referralSummary, repriceCashCoinRequest, requestBonusAmounts, welcomeAvailable, REFERRAL_TERMS } from "./referrals.js";
 import {
   readStore,
   mutateStore,
@@ -349,6 +349,19 @@ export function createApiRouter(opts: {
       const { result } = await mutateStore(store => recordTestBonusCredit(store, {
         id: String(req.body?.id || ""), tgId: Number(req.body?.tgId), cents: Number(req.body?.cents),
         note: String(req.body?.note || "").trim().slice(0, 300),
+      }, user.id));
+      return res.json({ ok: true, entry: result });
+    } catch (e: any) { return res.status(String(e?.message).startsWith("referral_") ? 400 : 401).json({ ok: false, error: e?.message || "auth_failed" }); }
+  });
+
+  router.post("/admin/referrals/credit", async (req, res) => {
+    try {
+      const { isOwner, user } = await requireAdmin(req);
+      if (!isOwner) return res.status(403).json({ ok: false, error: "not_owner" });
+      if (req.body?.currency !== "CashCoin") return res.status(400).json({ ok: false, error: "referral_currency_changed" });
+      const { result } = await mutateStore(store => recordBonusCredit(store, {
+        id: String(req.body?.id || ""), tgId: Number(req.body?.tgId), cents: Number(req.body?.cents),
+        note: String(req.body?.note || "").trim(),
       }, user.id));
       return res.json({ ok: true, entry: result });
     } catch (e: any) { return res.status(String(e?.message).startsWith("referral_") ? 400 : 401).json({ ok: false, error: e?.message || "auth_failed" }); }

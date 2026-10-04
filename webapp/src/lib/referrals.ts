@@ -1,4 +1,4 @@
-export type BonusEntry = { id: string; tg_id?: number; cents: number; currency?: "CashCoin" | "USD"; kind: "welcome" | "referrer" | "payout" | "redemption" | "test_credit"; created_at: string; request_id?: string; note?: string };
+export type BonusEntry = { id: string; tg_id?: number; cents: number; currency?: "CashCoin" | "USD"; kind: "welcome" | "referrer" | "payout" | "redemption" | "test_credit" | "manual_credit"; created_at: string; request_id?: string; note?: string };
 export type BonusSummary = { legacyUsdCents?: number; balanceCents: number; availableCents?: number; reservedCents?: number; invitedCount: number; completedCount: number; earnedCents: number; paidCents: number };
 export type MyReferrals = BonusSummary & { welcomeAvailable?: boolean; walletQuote?: { ratesDate: string; rates: Record<string, number>; key: string }; link: string | null; referred: boolean; rewarded: boolean; referralRejected?: string; history: BonusEntry[] };
 export type ReferralReport = {
@@ -14,7 +14,7 @@ export function cashcoin(cents: number, isEn = false) {
   return `${amount.toLocaleString(isEn ? "en-US" : "ru-RU", { maximumFractionDigits: 2 })} ${unit}`;
 }
 const errors: Record<string, string> = {
-  referral_currency_changed: "Бонусный счёт обновлён. Обновите страницу перед списанием.",
+  referral_currency_changed: "Бонусный счёт обновлён. Обновите страницу перед операцией.",
   referral_base_amount_required: "Обновите страницу. В редакторе указываются суммы без бонусов; бонусы пересчитываются отдельно.",
   referral_test_only: "Тестовые начисления доступны только владельцу в тестовом сервисе.",
   referral_quote_changed: "Курс или бонусы изменились. Проверьте обновлённые суммы и отправьте заявку ещё раз.",
@@ -25,8 +25,9 @@ const errors: Record<string, string> = {
   referral_completed_locked: "Деньги по этой заявке подтверждены. Завершённую сделку нельзя открыть повторно или отменить.",
   funds_received_required: "Подтвердите получение денег и завершение обмена.",
   referral_insufficient_balance: "На бонусном счёте недостаточно средств.",
-  referral_bad_payout: "Укажите клиента, сумму с точностью до 0,01 бонуса и комментарий к выдаче.",
-  referral_payout_conflict: "Эта выдача уже записана с другими данными. Обновите историю.",
+  referral_bad_credit: "Укажите клиента, сумму от 0,01 до 1 000 000 бонусов и комментарий до 300 символов.",
+  referral_bad_payout: "Укажите клиента, сумму с точностью до 0,01 бонуса и комментарий к операции.",
+  referral_payout_conflict: "Эта операция уже записана с другими данными. Обновите историю.",
 };
 export function referralError(error: string) { return errors[error] || error || "Не удалось загрузить данные. Попробуйте ещё раз."; }
 export class ReferralApiError extends Error {

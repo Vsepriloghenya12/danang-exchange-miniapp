@@ -154,6 +154,35 @@ test("API persists all pairs and publishes with bounded Telegram requests", asyn
   const { readStore, upsertUserFromTelegram } = await import("../server/src/store.ts");
   await upsertUserFromTelegram({ id: 123, username: "client_one" });
 
+  await t.test("owner credit works outside staging and rejects unauthenticated clients and managers", async () => {
+    const { mutateStore } = await import("../server/src/store.ts");
+    const payload = { id: "owner-credit-api-retry", tgId: 123, cents: 12345, currency: "CashCoin", note: "Подарок клиенту" };
+    assert.equal((await api("/admin/referrals/credit", payload, false)).status, 401);
+    await mutateStore(store => { store.config.adminTgIds = [987]; });
+    for (const id of [123, 987]) {
+      const fields = new URLSearchParams({ auth_date: String(Math.floor(Date.now() / 1000)), user: JSON.stringify({ id, first_name: "Test" }) });
+      const data = [...fields.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join("\n");
+      const secret = createHmac("sha256", "WebAppData").update("test-token").digest();
+      fields.set("hash", createHmac("sha256", secret).update(data).digest("hex"));
+      const response = await localFetch(`http://127.0.0.1:${address.port}/api/admin/referrals/credit`, {
+        method: "POST", headers: { "content-type": "application/json", "x-telegram-init-data": fields.toString() }, body: JSON.stringify(payload),
+      });
+      assert.equal(response.status, 403);
+    }
+    assert.equal((await api("/admin/referrals/credit", { ...payload, currency: "USD" })).status, 400);
+    assert.equal((await api("/admin/referrals/credit", { ...payload, note: "" })).status, 400);
+    const results = await Promise.all([api("/admin/referrals/credit", payload), api("/admin/referrals/credit", payload)]);
+    for (const result of results) assert.equal(result.status, 200);
+    assert.equal((await api("/admin/referrals/credit", { ...payload, cents: 1 })).status, 400);
+    const entries = (await readStore()).bonusLedger.filter(e => e.id === `manual-credit:${payload.id}`);
+    assert.equal(entries.length, 1); assert.equal(entries[0].cents, 12345); assert.equal(entries[0].by, 0);
+    assert.equal(entries[0].kind, "manual_credit");
+    const report = (await api("/admin/referrals")).data;
+    assert.equal(report.accounts.find((a: any) => a.tgId === 123).availableCents, 12345);
+    assert.equal((await api("/admin/referrals/payout", { ...payload, id: "owner-credit-api-payout" })).status, 200);
+    assert.equal((await api("/admin/referrals")).data.accounts.find((a: any) => a.tgId === 123).balanceCents, 0);
+  });
+
   await t.test("API accepts KZT transfer requests and rejects cash in both directions", async () => {
     const { mutateStore } = await import("../server/src/store.ts");
     await mutateStore(store => {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { balanceCents, captureCoinQuote, changeRequestState, migrateLegacyBonuses, prepareReferralRequest, previewCashCoin, recordBonusPayout, recordTestBonusCredit, referralSummary, repriceCashCoinRequest, requestBonusAmounts } from "../server/src/referrals.js";
+import { balanceCents, captureCoinQuote, changeRequestState, migrateLegacyBonuses, prepareReferralRequest, previewCashCoin, recordBonusCredit, recordBonusPayout, recordTestBonusCredit, referralSummary, repriceCashCoinRequest, requestBonusAmounts } from "../server/src/referrals.js";
 import { cashCoinPreview } from "../webapp/src/lib/cashcoin.js";
 import type { Store, StoredRequest } from "../server/src/store.js";
 
@@ -130,6 +130,38 @@ export function verifyCashCoin() {
     assert.equal(s.bonusLedger.length, 1);
     assert.throws(() => recordTestBonusCredit(s, { ...input, cents: 200000 }, 9), /payout_conflict/);
     assert.equal(quote(s, request("first-after-credit")).welcomeSell, 50);
+  });
+  check("owner credits are audited, idempotent, spendable and preserve first exchange eligibility", () => {
+    const s = fixture(), input = { id: "owner-credit-1000-bonus", tgId: 2, cents: 100000, note: "Подарок клиенту" };
+    const entry = recordBonusCredit(s, input, 9);
+    assert.equal(entry.kind, "manual_credit"); assert.equal(entry.by, 9); assert.equal(entry.note, input.note);
+    assert.equal(recordBonusCredit(s, input, 9), entry);
+    assert.equal(s.bonusLedger.length, 1);
+    assert.equal(referralSummary(s, 2).availableCents, 100000);
+    assert.throws(() => recordBonusCredit(s, { ...input, cents: 200000 }, 9), /payout_conflict/);
+    assert.throws(() => recordBonusCredit(s, { ...input, tgId: 1 }, 9), /payout_conflict/);
+    assert.throws(() => recordBonusCredit(s, { ...input, note: "Other reason" }, 9), /payout_conflict/);
+    const r = create(s, request("manual-credit-redemption"), 100000);
+    assert.equal(r.cashcoin?.welcomeSell, 50);
+    assert.equal(r.cashcoin?.redeemBuy, 280000);
+    assert.equal(referralSummary(s, 2).availableCents, 0);
+    assert.throws(() => recordBonusPayout(s, { ...input, id: "cannot-spend-reserved" }, 9), /insufficient_balance/);
+    changeRequestState(s, r, "canceled", 9, false);
+    recordBonusPayout(s, { ...input, id: "owner-payout-1000-bonus" }, 9);
+    assert.equal(balanceCents(s, 2), 0);
+  });
+  check("owner credit validation rejects invalid amounts and missing clients without a ledger entry", () => {
+    const s = fixture(), input = { id: "owner-credit-validation", tgId: 2, cents: 1, note: "Reason" };
+    for (const cents of [0, -1, .5, NaN, Infinity, 100_000_001, Number.MAX_SAFE_INTEGER + 1]) {
+      assert.throws(() => recordBonusCredit(s, { ...input, cents }, 9), /bad_credit/);
+    }
+    for (const bad of [{ tgId: 404 }, { note: " " }, { note: "x".repeat(301) }, { id: "short" }]) {
+      assert.throws(() => recordBonusCredit(s, { ...input, ...bad }, 9), /bad_credit/);
+    }
+    assert.equal(s.bonusLedger.length, 0);
+    s.ratesByDate = {};
+    recordBonusCredit(s, input, 9);
+    assert.equal(balanceCents(s, 2), 1, "A bonus credit needs no exchange rate");
   });
   check("manager breakdown uses actual principal, gift and total", () => {
     const s = fixture(), r = create(s, request("message"));

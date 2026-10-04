@@ -13,7 +13,7 @@ export type CashCoinBonus = {
 export type BonusEntry = {
   // cents are hundredths of currency; all new entries explicitly use CashCoin.
   id: string; tg_id: number; cents: number; currency?: "CashCoin";
-  kind: "welcome" | "referrer" | "payout" | "redemption" | "test_credit";
+  kind: "welcome" | "referrer" | "payout" | "redemption" | "test_credit" | "manual_credit";
   created_at: string; request_id?: string; peer_id?: number; by?: number; note?: string;
   legacyUsdCents?: number; migrated_at?: string; migrationRubPerUsd?: number;
 };
@@ -203,6 +203,24 @@ export function recordBonusPayout(store: Store, input: { id: string; tgId: numbe
   }
   if (balanceCents(store, tgId) - reservedCents(store, tgId) < cents) throw new Error("referral_insufficient_balance");
   const entry: BonusEntry = { id: `payout:${id}`, tg_id: tgId, cents: -cents, currency: "CashCoin", kind: "payout", created_at: new Date().toISOString(), by, note };
+  store.bonusLedger.push(entry);
+  return entry;
+}
+
+// Owner-only route; ledger entries preserve the author and reason for each credit.
+export function recordBonusCredit(store: Store, input: { id: string; tgId: number; cents: number; note: string }, by: number) {
+  const { id, tgId, cents } = input;
+  const note = input.note.trim();
+  if (!/^[a-zA-Z0-9_-]{16,80}$/.test(id) || !Number.isSafeInteger(tgId) || tgId <= 0 || !store.users[String(tgId)] ||
+    !Number.isSafeInteger(cents) || cents <= 0 || cents > 100_000_000 || !note || note.length > 300) throw new Error("referral_bad_credit");
+  const existing = store.bonusLedger.find(e => e.id === `manual-credit:${id}`);
+  if (existing) {
+    if (existing.tg_id !== tgId || existing.cents !== cents || existing.note !== note) throw new Error("referral_payout_conflict");
+    return existing;
+  }
+  migrateLegacyBonuses(store);
+  if (!Number.isSafeInteger(balanceCents(store, tgId) + cents)) throw new Error("referral_bad_credit");
+  const entry: BonusEntry = { id: `manual-credit:${id}`, tg_id: tgId, cents, currency: "CashCoin", kind: "manual_credit", created_at: new Date().toISOString(), by, note };
   store.bonusLedger.push(entry);
   return entry;
 }

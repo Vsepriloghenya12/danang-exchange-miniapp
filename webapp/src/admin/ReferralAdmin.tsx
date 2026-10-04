@@ -12,7 +12,7 @@ export default function ReferralAdmin({ token }: { token: string }) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-  const [operation, setOperation] = useState<"payout" | "test-credit">("payout");
+  const [operation, setOperation] = useState<"payout" | "credit">("payout");
   const [loading, setLoading] = useState(false);
   const pending = useRef<{ signature: string; id: string } | null>(null);
   async function load() {
@@ -27,15 +27,16 @@ export default function ReferralAdmin({ token }: { token: string }) {
     const normalized = amount.trim().replace(",", ".");
     if (!/^\d+(\.\d{1,2})?$/.test(normalized) || !note.trim() || !tgId || Number(normalized) <= 0) { setError("Выберите клиента, введите количество бонусов (до двух знаков после запятой) и комментарий."); return; }
     const cents = Math.round(Number(normalized) * 100);
+    if (!Number.isSafeInteger(cents) || (operation === "credit" && cents > 100_000_000)) { setError("Максимальная сумма начисления — 1 000 000 бонусов за операцию."); return; }
     const who = data?.accounts.find(a => String(a.tgId) === tgId);
     if (!who || (operation === "payout" && cents > (who.availableCents ?? who.balanceCents))) { setError("На бонусном счёте недостаточно средств."); return; }
-    if (!window.confirm(operation === "test-credit" ? `Начислить ${cashcoin(cents)} клиенту ${who.name} в тестовом сервисе?\n${note.trim()}` : `Записать фактическую выдачу ${cashcoin(cents)} клиенту ${who.name}?\n${note.trim()}\nСумма будет списана с бонусного счёта.`)) return;
+    if (!window.confirm(operation === "credit" ? `Начислить ${cashcoin(cents)} клиенту ${who.name} на бонусный счёт?\n${note.trim()}` : `Записать фактическую выдачу ${cashcoin(cents)} клиенту ${who.name}?\n${note.trim()}\nСумма будет списана с бонусного счёта.`)) return;
     const signature = JSON.stringify({ operation, tgId, cents, note: note.trim() });
     if (pending.current?.signature !== signature) pending.current = { signature, id: crypto.randomUUID() };
     setBusy(true); setError(""); setNotice("");
     try {
       await referralApi(token, `/admin/referrals/${operation}`, { id: pending.current.id, tgId: Number(tgId), cents, currency: "CashCoin", note: note.trim() });
-      pending.current = null; setAmount(""); setNote(""); setNotice(operation === "test-credit" ? "Тестовые бонусы начислены." : "Выдача записана. Бонусный баланс обновлён.");
+      pending.current = null; setAmount(""); setNote(""); setNotice(operation === "credit" ? "Бонусы начислены." : "Выдача записана. Бонусный баланс обновлён.");
       await load();
     } catch (e: any) { setError(e.message); }
     finally { setBusy(false); }
@@ -59,12 +60,12 @@ export default function ReferralAdmin({ token }: { token: string }) {
         {!rows.length && <tr><td colSpan={6}>{loading ? "Загрузка…" : "Приглашений пока нет или они не подходят под фильтр."}</td></tr>}
       </tbody></table></div>
     </div>
-    <div className="card"><h3>Бонусные счета и выдача</h3><p className="vx-muted">После согласования валюты и фактической выдачи клиенту укажите количество списываемых бонусов. В комментарии запишите, сколько и в какой валюте выдали.</p>
-      <div className="ra-filters">{data?.testCreditsEnabled && <label>Операция<select aria-label="Операция с бонусами" className="input vx-in" value={operation} disabled={busy} onChange={e => setOperation(e.target.value as "payout" | "test-credit")}><option value="payout">Записать выдачу</option><option value="test-credit">Начислить тестовые бонусы</option></select></label>}<label>Клиент<select className="input vx-in" value={tgId} disabled={busy} onChange={e => setTgId(e.target.value)}><option value="">Выберите клиента</option>{data?.accounts.filter(a => operation === "test-credit" || a.earnedCents > 0 || a.invitedCount > 0).map(a => <option key={a.tgId} value={a.tgId}>{a.name} · ID {a.tgId} · {cashcoin(a.availableCents ?? a.balanceCents)}</option>)}</select></label><label>{operation === "test-credit" ? "Начислить бонусов" : "Списать бонусов"}<input className="input vx-in" inputMode="decimal" value={amount} disabled={busy} onChange={e => setAmount(e.target.value)} placeholder="0.00" /></label></div>
+    <div className="card"><h3>Бонусные счета</h3><p className="vx-muted">Выберите начисление или списание, клиента и количество бонусов. Укажите причину операции; при выдаче — сумму и валюту. 1 бонус = 1 ₽.</p>
+      <div className="ra-filters"><label>Операция<select aria-label="Операция с бонусами" className="input vx-in" value={operation} disabled={busy} onChange={e => setOperation(e.target.value as "payout" | "credit")}><option value="payout">Списать</option><option value="credit">Начислить</option></select></label><label>Клиент<select className="input vx-in" value={tgId} disabled={busy} onChange={e => setTgId(e.target.value)}><option value="">Выберите клиента</option>{data?.accounts.filter(a => operation === "credit" || a.earnedCents > 0 || a.invitedCount > 0).map(a => <option key={a.tgId} value={a.tgId}>{a.name} · ID {a.tgId} · {cashcoin(a.availableCents ?? a.balanceCents)}</option>)}</select></label><label>{operation === "credit" ? "Начислить бонусов" : "Списать бонусов"}<input className="input vx-in" inputMode="decimal" value={amount} disabled={busy} onChange={e => setAmount(e.target.value)} placeholder="0.00" /></label></div>
       {selected && <p>Приглашено: <b>{selected.invitedCount}</b> · Доступно: <b>{cashcoin(selected.availableCents ?? selected.balanceCents)}</b> · Выдано: <b>{cashcoin(selected.paidCents)}</b></p>}
-      <label>Комментарий к выдаче<input className="input vx-in" maxLength={300} value={note} disabled={busy} onChange={e => setNote(e.target.value)} placeholder="Например: выдано 125 000 VND наличными" /></label>
-      <button className="btn" style={{ marginTop: 12 }} disabled={busy || !selected} onClick={payout}>{busy ? "Записываем…" : operation === "test-credit" ? "Начислить тестовые бонусы" : "Записать выдачу бонусов"}</button>
+      <label>Комментарий к операции<input className="input vx-in" maxLength={300} value={note} disabled={busy} onChange={e => setNote(e.target.value)} placeholder="Например: подарок клиенту или выдача 125 000 VND" /></label>
+      <button className="btn" style={{ marginTop: 12 }} disabled={busy || !selected} onClick={payout}>{busy ? "Записываем…" : operation === "credit" ? "Начислить бонусы" : "Списать бонусы"}</button>
     </div>
-    <div className="card"><h3>История начислений и выдач</h3><div className="ra-tableWrap"><table className="ra-table"><thead><tr><th>Дата</th><th>Клиент</th><th>Операция</th><th>Сумма</th><th>Заявка / комментарий</th></tr></thead><tbody>{data?.ledger.filter(e => !tgId || e.tg_id === Number(tgId)).map(e => <tr key={e.id}><td>{new Date(e.created_at).toLocaleString("ru-RU")}</td><td>{names.get(e.tg_id!)}<small>ID {e.tg_id}</small></td><td>{e.kind === "welcome" ? "Первый обмен" : e.kind === "referrer" ? "Приглашение друга" : e.kind === "test_credit" ? "Тестовое начисление" : e.kind === "redemption" ? "Использованы в обмене" : "Бонусы выданы"}</td><td>{e.cents > 0 ? "+" : ""}{bonusEntryAmount(e)}</td><td>{e.note || (e.request_id ? `#${e.request_id.slice(-6)}` : "—")}</td></tr>)}{!data?.ledger.length && <tr><td colSpan={5}>Операций пока нет.</td></tr>}</tbody></table></div></div>
+    <div className="card"><h3>История начислений и выдач</h3><div className="ra-tableWrap"><table className="ra-table"><thead><tr><th>Дата</th><th>Клиент</th><th>Операция</th><th>Сумма</th><th>Заявка / комментарий</th></tr></thead><tbody>{data?.ledger.filter(e => !tgId || e.tg_id === Number(tgId)).map(e => <tr key={e.id}><td>{new Date(e.created_at).toLocaleString("ru-RU")}</td><td>{names.get(e.tg_id!)}<small>ID {e.tg_id}</small></td><td>{e.kind === "welcome" ? "Первый обмен" : e.kind === "referrer" ? "Приглашение друга" : e.kind === "manual_credit" ? "Начисление владельцем" : e.kind === "test_credit" ? "Тестовое начисление" : e.kind === "redemption" ? "Использованы в обмене" : "Бонусы выданы"}</td><td>{e.cents > 0 ? "+" : ""}{bonusEntryAmount(e)}</td><td>{e.note || (e.request_id ? `#${e.request_id.slice(-6)}` : "—")}</td></tr>)}{!data?.ledger.length && <tr><td colSpan={5}>Операций пока нет.</td></tr>}</tbody></table></div></div>
   </div>;
 }
