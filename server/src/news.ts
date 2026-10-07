@@ -4,11 +4,17 @@ import { readStore, mutateStore, type Store } from './store.js';
 import { publicAppOrigin } from './telegramExperience.js';
 import { pollPublicTelegramSource, type PublicTelegramSource } from './newsPublicTelegram.js';
 import { sendNewsMedia, type NewsMedia } from './newsMedia.js';
+import { cleanNewsText } from './newsText.js';
+import { queueVietnamese, translatePendingNews, type NewsTranslation } from './newsTranslation.js';
+import { startWeatherWorker, weatherState, type NewsWeather } from './newsWeather.js';
 
 export const NEWS_SOURCES = [
   { id: 'ator', name: 'АТОР', url: 'https://www.atorus.ru/news/rss.xml', host: 'atorus.ru', language: 'ru', enabled: true },
   { id: 'tourdom', name: 'ТурДом', url: 'https://www.tourdom.ru/rss/', host: 'tourdom.ru', language: 'ru', enabled: true },
   { id: 'vnexpress', name: 'VnExpress', url: 'https://e.vnexpress.net/rss/travel.rss', host: 'e.vnexpress.net', language: 'en', enabled: false },
+  { id: 'vnexpress-vi', name: 'VnExpress · туризм', url: 'https://vnexpress.net/rss/du-lich.rss', host: 'vnexpress.net', language: 'vi', enabled: false },
+  { id: 'vietnamplus-vi', name: 'VietnamPlus · общество', url: 'https://www.vietnamplus.vn/rss/xahoi-314.rss', host: 'vietnamplus.vn', language: 'vi', enabled: false },
+  { id: 'vietnamplus-travel-vi', name: 'VietnamPlus · туризм', url: 'https://www.vietnamplus.vn/rss/dulich-237.rss', host: 'vietnamplus.vn', language: 'vi', enabled: false },
 ] as const;
 export const NEWS_CATEGORIES = ['places', 'events', 'travel', 'offers', 'life'] as const;
 export type NewsCategory = typeof NEWS_CATEGORIES[number];
@@ -17,6 +23,7 @@ export type NewsPost = {
   sourceKind?: 'website' | 'telegram' | 'editorial';
   url: string; language: string; publishedAt: string; addedAt: string; hidden: boolean;
   media?: NewsMedia[]; mediaWarning?: string; mediaUpdatedAt?: string; mediaHasCaption?: boolean;
+  translation?: NewsTranslation;
   expiresAt?: string; mapUrl?: string; delivery?: { state: 'sending' | 'sent' | 'uncertain'; at: string; chatId: string | number; messageId?: number; messageIds?: number[] };
 };
 export type NewsState = {
@@ -26,6 +33,7 @@ export type NewsState = {
   lease?: { id: string; until: string }; lastSendAt?: string;
   telegramSources?: { id: number; title: string; username?: string; connectedAt: string; lastReceivedAt?: string }[];
   publicTelegramSources?: PublicTelegramSource[];
+  weather?: NewsWeather; translationUsage?: { day: string; chars: number }; vietnamSourcesSince?: string;
 };
 export const DAY = 86400000;
 export function newsState(store: Store): NewsState {
@@ -52,7 +60,7 @@ export function safeNewsUrl(raw: string, host?: string): string {
 export function relevantToDanang(title: string, summary: string): boolean {
   const s = `${title} ${summary}`.toLowerCase();
   return /дананг|da\s*nang|đà\s*nẵng/.test(s) ||
-    (/вьетнам|vietnam|viet nam/.test(s) && /виз[аыуе]|безвиз|правил.{0,25}въезд|e-?visa|visa exemption|entry requirements/.test(s));
+    (/вьетнам|vietnam|viet nam|việt nam/.test(s) && /виз[аыуе]|безвиз|правил.{0,25}въезд|e-?visa|visa exemption|entry requirements|thị thực|miễn thị thực|nhập cảnh/.test(s));
 }
 export function newsCategory(text: string): NewsCategory {
   if (/фестивал|концерт|афиш|фейерверк|festival|concert|firework/i.test(text)) return 'events';
@@ -76,7 +84,8 @@ export function parseNewsFeed(xml: string, source: typeof NEWS_SOURCES[number], 
   const raw = parsed.rss.channel.item || [];
   return (Array.isArray(raw) ? raw : [raw]).slice(0, 500).flatMap((item: any) => {
     const title = plainText(textValue(item.title));
-    const summary = plainText(textValue(item.description));
+    // RSS publishers append related-story lists; they are not part of this story.
+    const summary = plainText(textValue(item.description).replace(/<(?:ul|ol)\b[\s\S]*$/i, ''));
     const date = Date.parse(textValue(item.pubDate));
     const url = safeNewsUrl(textValue(item.link), source.host);
     if (!title || title.length > 300 || !url || !Number.isFinite(date) || date > +now + 300000 || date < +now - 14 * DAY || !relevantToDanang(title, summary)) return [];
@@ -90,7 +99,7 @@ export function parseNewsFeed(xml: string, source: typeof NEWS_SOURCES[number], 
   });
 }
 export function visibleNews(state: NewsState, now = new Date()) {
-  return state.posts.filter(p => !p.hidden && (!p.expiresAt || Date.parse(p.expiresAt) > +now)).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  return state.posts.filter(p => !p.hidden && p.translation?.state !== 'pending' && p.language !== 'vi' && (!p.expiresAt || Date.parse(p.expiresAt) > +now)).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
 }
 async function fetchFeed(source: typeof NEWS_SOURCES[number]): Promise<string> {
   const response = await fetch(source.url, { redirect: 'error', signal: AbortSignal.timeout(20000), headers: { 'accept': 'application/rss+xml, application/xml, text/xml', 'user-agent': 'CashALotNews/1.0' } });
@@ -106,22 +115,23 @@ export function deliveryCandidate(state: NewsState, now = new Date()): NewsPost 
   const hour = Number(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh', hour: 'numeric', hourCycle: 'h23' }));
   if (hour < 8 || hour >= 21 || state.lastSendAt && +now - Date.parse(state.lastSendAt) < 2 * 3600000) return;
   const day = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
-  const attempts = state.posts.filter(p => p.delivery && new Date(p.delivery.at).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }) === day);
+  const attempts = state.posts.filter(p => p.sourceId !== 'weather' && p.delivery && new Date(p.delivery.at).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }) === day);
   if (attempts.length >= 3) return;
   return visibleNews(state, now).filter(p => !p.delivery && (!p.mediaUpdatedAt || +now - Date.parse(p.mediaUpdatedAt) >= 60000) && p.addedAt >= state.channel!.connectedAt && Date.parse(p.publishedAt) >= +now - DAY).at(0);
 }
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export function newsTelegramText(post: NewsPost) {
   const website = newsSourceKind(post) === 'website';
-  return `<b>${esc(post.title)}</b>${post.summary ? '\n\n' + esc(post.summary) : ''}\n\n${website ? esc(post.source) + ' · ' : ''}${new Date(post.publishedAt).toLocaleDateString('ru-RU', { timeZone: 'Asia/Ho_Chi_Minh' })}${website && post.url ? `\n<a href="${esc(post.url)}">Читать в источнике</a>` : ''}`;
+  const summary = cleanNewsText(post.summary);
+  return `<b>${esc(cleanNewsText(post.title))}</b>${summary ? '\n\n' + esc(summary) : ''}${website && post.url ? `\n\n<a href="${esc(post.url)}">${esc(post.source)}</a>` : ''}`;
 }
 export function newsSourceKind(post: NewsPost) {
   return post.sourceKind || (post.sourceId.startsWith('telegram:') ? 'telegram' : post.sourceId === 'editorial' ? 'editorial' : 'website');
 }
 export function publicNewsPost(post: NewsPost) {
-  const { delivery, hidden, sourceId, media, mediaUpdatedAt, mediaHasCaption, mediaWarning, ...publicPost } = post;
+  const { delivery, hidden, sourceId, media, mediaUpdatedAt, mediaHasCaption, mediaWarning, translation, ...publicPost } = post;
   const sourceKind = newsSourceKind(post);
-  return { ...publicPost, sourceKind, ...(sourceKind !== 'website' ? { source: '' } : {}), ...(sourceKind === 'telegram' ? { url: '' } : {}),
+  return { ...publicPost, title: cleanNewsText(post.title), summary: cleanNewsText(post.summary), translated: translation?.state === 'done', sourceKind, ...(sourceKind !== 'website' ? { source: '' } : {}), ...(sourceKind === 'telegram' ? { url: '' } : {}),
     media: (media || []).map((m,i) => ({ kind: m.kind, url: `/api/news/media/${post.id}/${i}`, ...(m.kind === 'video' && (m.posterUrl || m.posterFileId) ? { poster: `/api/news/media/${post.id}/${i}?poster=1` } : {}) })), mediaUnavailable: Boolean(mediaWarning) };
 }
 let running: Promise<void> | undefined;
@@ -162,7 +172,10 @@ async function runNews(token: string, now: Date) {
       for (const result of results) {
         if (!n.sources.includes(result.source.id)) continue;
         n.sourceStatus[result.source.id] = { checkedAt: now.toISOString(), count: result.posts.length, error: result.error || undefined };
-        for (const p of result.posts) if (!n.posts.some(old => duplicateNews(old, p))) n.posts.push(p);
+        for (const p of result.posts) {
+          if (p.language === 'vi' && n.vietnamSourcesSince && p.publishedAt < n.vietnamSourcesSince) continue;
+          if (!n.posts.some(old => duplicateNews(old, p))) n.posts.push(queueVietnamese(p));
+        }
       }
       for (const result of publicResults) {
         const source = n.publicTelegramSources?.find(x => x.id === result.source.id && x.connectedAt === result.source.connectedAt);
@@ -177,11 +190,12 @@ async function runNews(token: string, now: Date) {
             existing.media = update.media; existing.mediaWarning = update.mediaWarning;
           }
         }
-        for (const p of result.posts) if (!n.posts.some(old => duplicateNews(old, p))) { n.posts.push(p); source.lastReceivedAt = now.toISOString(); }
+        for (const p of result.posts) if (!n.posts.some(old => duplicateNews(old, p))) { n.posts.push(queueVietnamese(p)); source.lastReceivedAt = now.toISOString(); }
       }
       n.posts = n.posts.filter(p => Date.parse(p.addedAt) > +now - 90 * DAY).sort((a, b) => b.addedAt.localeCompare(a.addedAt)).slice(0, 500);
       n.checkedAt = now.toISOString();
     });
+    await translatePendingNews(now);
     const claim = await mutateStore(s => {
       const n = newsState(s); if (n.lease?.id !== leaseId) return null;
       const p = deliveryCandidate(n, now); if (!p || !token) return null;
@@ -207,7 +221,19 @@ async function runNews(token: string, now: Date) {
 export function startNewsWorker(token: string) {
   // A local preview and production cannot start a new publisher accidentally.
   if (process.env.NEWS_ENABLED !== 'true' && process.env.RAILWAY_SERVICE_ID !== '1c1b2d05-972a-458a-b30c-606e2264e467') return;
-  const run = () => { void syncNews(token).catch(() => console.error('News refresh failed; next scheduled attempt will retry.')); };
+  const setup = configureNewsFeatures();
+  void setup.then(() => startWeatherWorker(token)).catch(() => console.error('News setup failed.'));
+  const run = () => { void setup.then(() => syncNews(token)).catch(() => console.error('News refresh failed; next scheduled attempt will retry.')); };
   const first = setTimeout(run, 15000); first.unref();
   const timer = setInterval(run, 15 * 60000); timer.unref();
+}
+export async function configureNewsFeatures(now = new Date()) {
+  await mutateStore(s => {
+    const n = newsState(s);
+    if (!n.vietnamSourcesSince) {
+      n.vietnamSourcesSince = now.toISOString();
+      n.sources = [...new Set([...n.sources, ...NEWS_SOURCES.filter(s => s.language === 'vi').map(s => s.id)])];
+      weatherState(n).enabled = true;
+    }
+  });
 }

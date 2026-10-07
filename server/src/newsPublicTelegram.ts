@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { parseDocument, DomUtils } from 'htmlparser2';
 import { DAY, newsCategory, type NewsPost } from './news.js';
 import { safeTelegramMediaUrl, type NewsMedia } from './newsMedia.js';
+import { cleanNewsText, newsLanguage } from './newsText.js';
 
 export type PublicTelegramSource = {
   id: string; username: string; title: string; connectedAt: string; lastMessageId: number;
@@ -51,7 +52,7 @@ export function parsePublicTelegramPage(html: string, username: string): PublicC
     const time = dateLink && DomUtils.findOne(n => n.name === 'time', dateLink.children, true);
     const date = Date.parse(time?.attribs.datetime || '');
     if (!Number.isFinite(date) || /(?:^|\s)(?:noforwards|protected_content)(?:\s|$)/.test(widget.attribs.class || '')) continue;
-    const text = textNode ? cleanText(textNode) : '';
+    const text = textNode ? cleanNewsText(cleanText(textNode)) : '';
     const media: NewsMedia[] = []; let missing = false;
     const background = (node: any) => {
       const match = (node?.attribs?.style || '').match(/background-image\s*:\s*url\(\s*(['"]?)(.*?)\1\s*\)/i);
@@ -113,7 +114,7 @@ export async function pollPublicTelegramSource(source: PublicTelegramSource, now
       title: first.length > 160 ? first.slice(0,157) + '…' : first,
       summary: (first.length > 160 ? [first, ...lines] : lines).join('\n\n').slice(0,1600),
       source: source.title, sourceId: `telegram:public:${source.username}`, sourceKind: 'telegram',
-      url: `https://t.me/${source.username}/${m.id}`, category: newsCategory(m.text), language: /[а-яё]/i.test(m.text) ? 'ru' : 'en',
+      url: `https://t.me/${source.username}/${m.id}`, category: newsCategory(m.text), language: newsLanguage(m.text),
       publishedAt: m.date, addedAt: now.toISOString(), hidden: false, media: m.media, mediaWarning: m.mediaWarning,
     };
   });

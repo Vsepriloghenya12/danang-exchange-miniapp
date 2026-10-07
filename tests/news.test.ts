@@ -24,6 +24,8 @@ test('Danang feed, owner access and automatic delivery', async t => {
     assert.equal(relevantToDanang('Открылось кафе в Нячанге', 'Отпуск во Вьетнаме'), false);
     assert.equal(relevantToDanang('Вьетнам изменил правила въезда', ''), true);
     assert.equal(relevantToDanang('Новые отели Вьетнама', ''), false);
+    const unrelated = `<item><title>Осень в России</title><description><![CDATA[<p>Золотая осень в России.</p><ul><li>В Дананге открылся парк</li></ul>]]></description><link>https://www.atorus.ru/autumn</link><pubDate>${now.toUTCString()}</pubDate></item>`;
+    assert.equal(parseNewsFeed(rss(unrelated), NEWS_SOURCES[0], now).length, 0);
     assert.equal(parseNewsFeed(rss(item('Дананг', 'javascript:alert(1)')), NEWS_SOURCES[0], now).length, 0);
     assert.equal(parseNewsFeed(rss(item('Дананг', 'https://evil.invalid/danang')), NEWS_SOURCES[0], now).length, 0);
     assert.equal(parseNewsFeed(rss(item('Дананг', 'https://www.atorus.ru/a', 'bad')), NEWS_SOURCES[0], now).length, 0);
@@ -101,7 +103,7 @@ test('Danang feed, owner access and automatic delivery', async t => {
     const p = posts[0]; assert.equal(p.category, 'places'); assert.equal(p.summary, 'В Дананге открылось кафе с видом на пляж.');
     const pub = publicNewsPost(p); assert.equal(pub.source, ''); assert.equal(pub.url, ''); assert.ok(!('sourceId' in pub));
     assert.doesNotMatch(newsTelegramText(p), /Редакция|danang_editor|Читать в источнике/);
-    assert.match(newsTelegramText(post), /АТОР|Читать в источнике/);
+    assert.match(newsTelegramText(post), /АТОР/);
     const api = await req('/news', undefined, false); assert.ok(api.data.posts.some((x: any) => x.id === p.id && x.source === '' && !x.url));
     await mutateStore(s => { newsState(s).channel = { id: -100456, title: 'Own channel', connectedAt: now.toISOString() }; });
     assert.equal(await ingestTelegramNews({ ...msg, message_id: 12 }, now), false);
@@ -222,5 +224,65 @@ test('Danang feed, owner access and automatic delivery', async t => {
     await mutateStore(s => { newsState(s).posts[0].hidden = true; });
     assert.equal((await actualFetch(`${base}/news/media/${id}/1`)).status, 404);
     assert.equal((await actualFetch(`${base}/news/media/${id}/1000`)).status, 404);
+  });
+  await t.test('remove channel footer and generated dates while retaining dates in news text', async () => {
+    const { cleanNewsText, newsLanguage } = await import('../server/src/newsText.ts');
+    const content = 'Открытие 07.10.2026\n\n🌴Новости Дананга';
+    assert.equal(cleanNewsText(content), 'Открытие 07.10.2026');
+    const sample = { ...post, title: 'Открытие', summary: content, sourceId: 'telegram:test', sourceKind: 'telegram' as const };
+    const text = newsTelegramText(sample); assert.doesNotMatch(text, /Новости Дананга|04\.10\.2026/); assert.match(text, /07\.10\.2026/);
+    assert.equal(publicNewsPost(sample).summary, 'Открытие 07.10.2026');
+    assert.equal(newsLanguage('Đà Nẵng khai trương công viên mới'), 'vi'); assert.equal(newsLanguage('Новое кафе'), 'ru');
+    assert.ok(relevantToDanang('Đà Nẵng khai trương công viên mới', ''));
+  });
+  await t.test('Vietnamese news wait for Russian translation, preserve source, respect quota and reject failed translations', async t => {
+    const { queueVietnamese, translatePendingNews, translateVietnamese, translationChunks } = await import('../server/src/newsTranslation.ts');
+    assert.ok(translationChunks('Đà Nẵng '.repeat(300)).every(c => Buffer.byteLength(c) <= 500));
+    let calls = 0; let failed = false;
+    t.mock.method(globalThis, 'fetch', async (url: any) => {
+      calls++; const u = new URL(String(url)); assert.equal(u.hostname, 'api.mymemory.translated.net'); assert.equal(u.searchParams.get('langpair'), 'vi|ru');
+      if (failed) return Response.json({ responseStatus: 429, quotaFinished: true });
+      return Response.json({ responseStatus: 200, responseData: { translatedText: 'В Дананге открылся новый парк' } });
+    });
+    const p = queueVietnamese({ ...post, id: 'vietnamese', title: 'Đà Nẵng khai trương công viên mới', summary: 'Công viên mở cửa vào ngày 8 tháng 10.', language: 'vi' });
+    await mutateStore(s => { const n = newsState(s); n.posts = [p]; n.enabled = true; delete n.translationUsage; });
+    assert.equal(visibleNews(newsState(await readStore()), now).length, 0);
+    await translatePendingNews(now); let n = newsState(await readStore()); assert.equal(n.posts[0].language, 'ru'); assert.equal(n.posts[0].translation?.state, 'done');
+    assert.equal(n.posts[0].url, p.url); assert.equal(visibleNews(n,now).length, 1); assert.ok(!('translation' in publicNewsPost(n.posts[0])));
+    const before = calls; await translatePendingNews(now); assert.equal(calls, before);
+    failed = true; await assert.rejects(translateVietnamese('Đà Nẵng'), /лимит/);
+    await mutateStore(s => { const n = newsState(s); n.posts = [{ ...p, id: 'blocked' }]; n.translationUsage = { day: now.toISOString().slice(0,10), chars: 4800 }; });
+    const full = calls; await translatePendingNews(now); assert.equal(calls, full); n = newsState(await readStore()); assert.equal(visibleNews(n,now).length, 0); assert.match(n.posts[0].translation!.error!, /лимит/);
+  });
+  await t.test('weather prepares before 08:00 Da Nang, sends once, replaces only its previous pin and retries pin failures', async t => {
+    const { syncWeather, formatWeather, weatherDay } = await import('../server/src/newsWeather.ts');
+    const actions: { method: string; body: any }[] = []; let clock = new Date('2026-10-08T00:47:00Z'); let nextId = 500; let pinFails = false; let sendFails = false;
+    const forecast = () => ({ properties: { meta: { updated_at: clock.toISOString() }, timeseries: [8,12,18,23].map(h => ({ time: `2026-10-${String(Number(weatherDay(clock).slice(-2))).padStart(2,'0')}T${String(h-7).padStart(2,'0')}:00:00Z`, data: { instant: { details: { air_temperature: h===12?31:26, wind_speed: 4.2 } }, next_1_hours: { summary: { symbol_code: 'rain' } } } })) } });
+    t.mock.method(globalThis, 'fetch', async (url: any, init: any) => {
+      if (String(url).includes('api.met.no')) { actions.push({ method: 'forecast', body: {} }); assert.match(init.headers['user-agent'], /CashALot/); return Response.json(forecast()); }
+      const method = String(url).split('/').at(-1)!; const body = JSON.parse(init.body); actions.push({ method, body });
+      if (method === 'sendMessage' && sendFails || method === 'pinChatMessage' && pinFails) throw Error('timeout');
+      return Response.json({ ok: true, result: method === 'sendMessage' ? { message_id: ++nextId } : true });
+    });
+    assert.match(formatWeather(forecast(),weatherDay(clock),clock).summary, /Утро \+26° · день \+31° · вечер \+26°/);
+    assert.throws(() => formatWeather({ properties: { meta: { updated_at: '2020-01-01' }, timeseries: [] } },weatherDay(clock),clock), /устарел/);
+    await mutateStore(s => { const n = newsState(s); n.enabled = true; n.posts = []; n.channel = { id: -100123, title: 'Destination', connectedAt: now.toISOString() }; n.weather = { enabled: true, jobs: [], lastPin: { chatId: -100123, messageId: 400 } }; });
+    await syncWeather('test',new Date('2026-10-08T00:40:00Z')); assert.equal(actions.length,0);
+    await syncWeather('test',clock); assert.deepEqual(actions.map(a=>a.method),['forecast']);
+    clock = new Date('2026-10-08T01:00:00Z');
+    await Promise.all([syncWeather('test',clock),syncWeather('test',clock)]);
+    assert.deepEqual(actions.map(a=>a.method),['forecast','sendMessage','pinChatMessage','unpinChatMessage']);
+    assert.equal(actions[3].body.message_id,400); assert.equal(actions[2].body.message_id,501);
+    await syncWeather('test',clock); assert.equal(actions.length,4);
+    let n = newsState(await readStore()); assert.equal(n.weather?.lastPin?.messageId,501); assert.equal(n.posts.length,1);
+    clock = new Date('2026-10-09T01:00:00Z'); pinFails = true;
+    await syncWeather('test',clock); n = newsState(await readStore()); assert.equal(n.weather?.lastPin?.messageId,501); assert.ok(n.weather?.error);
+    const sends = actions.filter(a=>a.method==='sendMessage').length; pinFails = false; clock = new Date('2026-10-09T01:16:00Z');
+    await syncWeather('test',clock); assert.equal(actions.filter(a=>a.method==='sendMessage').length,sends); assert.equal(actions.at(-1)?.body.message_id,501);
+    assert.equal(newsState(await readStore()).weather?.lastPin?.messageId,502);
+    clock = new Date('2026-10-10T01:00:00Z'); sendFails = true; await syncWeather('test',clock);
+    const total = actions.length; await syncWeather('test',new Date('2026-10-10T01:20:00Z')); assert.equal(actions.length,total);
+    n = newsState(await readStore()); assert.equal(n.weather?.jobs.at(-1)?.state,'uncertain');
+    await mutateStore(s=>{newsState(s).enabled=false;}); await syncWeather('test',new Date('2026-10-11T01:00:00Z')); assert.equal(actions.length,total);
   });
 });

@@ -6,6 +6,7 @@ import { telegramRequest } from './telegramExperience.js';
 import { parsePublishChatId } from './publish.js';
 import { fetchPublicTelegramPage, publicTelegramUsername } from './newsPublicTelegram.js';
 import { getNewsMedia } from './newsMedia.js';
+import { weatherState } from './newsWeather.js';
 
 export function registerNewsRoutes(router: express.Router, owner: (req: express.Request) => Promise<boolean>, token: string) {
   router.get('/news/media/:id/:index', async (req, res) => {
@@ -44,6 +45,20 @@ export function registerNewsRoutes(router: express.Router, owner: (req: express.
     res.json({ ok: true });
   }));
   router.post('/admin/news/refresh', guarded(async (_req, res) => { await syncNews(token); res.json({ ok: true }); }));
+  router.post('/admin/news/weather', guarded(async (req, res) => {
+    if (typeof req.body?.enabled !== 'boolean') { res.status(400).json({ ok: false, error: 'Укажите настройку погоды.' }); return; }
+    const n = newsState(await readStore());
+    if (req.body.enabled) {
+      if (!n.channel) { res.status(400).json({ ok: false, error: 'Сначала подключите Telegram-канал.' }); return; }
+      try {
+        const me = await telegramRequest(token, 'getMe', {});
+        const member = await telegramRequest(token, 'getChatMember', { chat_id: n.channel.id, user_id: me.id });
+        if (member.status !== 'administrator' || !member.can_post_messages || !member.can_edit_messages) throw Error();
+      } catch { res.status(400).json({ ok: false, error: 'Для погоды и закрепления включите боту права «Публиковать сообщения» и «Редактировать сообщения» в настройках канала.' }); return; }
+    }
+    await mutateStore(s => { const w = weatherState(newsState(s)); w.enabled = req.body.enabled; delete w.error; delete w.retryAt; });
+    res.json({ ok: true });
+  }));
   router.post('/admin/news/public-telegram-source', guarded(async (req, res) => {
     if (req.body?.remove === true) {
       if (typeof req.body.id !== 'string') { res.status(400).json({ ok: false, error: 'Выберите источник.' }); return; }
