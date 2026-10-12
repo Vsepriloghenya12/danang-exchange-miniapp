@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { balanceCents, captureCoinQuote, changeRequestState, migrateLegacyBonuses, prepareReferralRequest, previewCashCoin, recordBonusCredit, recordBonusPayout, recordTestBonusCredit, referralSummary, repriceCashCoinRequest, requestBonusAmounts } from "../server/src/referrals.js";
 import { cashCoinPreview } from "../webapp/src/lib/cashcoin.js";
+import { cashDeliveryFee, grossForNetDelivery } from "../server/src/domain/delivery.js";
+import { matchesBonusAccount } from "../webapp/src/lib/referrals.js";
 import type { Store, StoredRequest } from "../server/src/store.js";
 
 export function verifyCashCoin() {
@@ -187,3 +189,46 @@ export function verifyCashCoin() {
 }
 
 test("CashCoin accounting invariants", verifyCashCoin);
+
+test('delivery is deducted once after bonuses, saved in requests and described to managers', () => {
+  const now = new Date().toISOString(), day = new Date(now).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+  const s = { users: { '1': { tg_id: 1 }, '2': { tg_id: 2, referred_by: 1 } }, contacts: [], requests: [], bonusLedger: [], ratesByDate: { [day]: { rates: { RUB: { buy_vnd: 280, sell_vnd: 300 }, USD: { buy_vnd: 25000, sell_vnd: 26000 } } } } } as unknown as Store;
+  const r = { id: 'delivery', from: { id: 2 }, created_at: now, state: 'in_progress', status: 'standard', sellCurrency: 'RUB', buyCurrency: 'VND', sellAmount: 10000, buyAmount: 2800000, payMethod: 'transfer', receiveMethod: 'cash' } as StoredRequest;
+  const input = { ...r, tgId: 2 };
+  const q = previewCashCoin(s, input, now);
+  assert.equal(q.deliveryFee,70000); assert.equal(q.welcomeBuy,14000); assert.equal(q.totalBuy,2744000);
+  const local = cashCoinPreview({ welcomeAvailable: true } as any,false,'RUB','VND',10000,2800000);
+  assert.equal(local.totalBuy - cashDeliveryFee(input,1).fee,q.totalBuy);
+  assert.throws(()=>prepareReferralRequest(s,r,{quoteKey:'stale'}),/quote_changed/);
+  prepareReferralRequest(s,r,{quoteKey:q.key}); s.requests.push(r);
+  assert.equal(r.buyAmount,q.totalBuy); assert.match(requestBonusAmounts(r,(_,n)=>String(n)).buy,/70000 доставка/);
+  repriceCashCoinRequest(s,r,2800000); assert.equal(r.buyAmount,q.totalBuy);
+  const historical = { ...r, cashcoin: { ...r.cashcoin! } }; delete historical.cashcoin.deliveryFee; delete historical.cashcoin.deliveryFeeVnd;
+  repriceCashCoinRequest(s,historical,2800000); repriceCashCoinRequest(s,historical,2800000); assert.equal(historical.buyAmount,2814000);
+  assert.equal(previewCashCoin(s,{...input,id:r.id,status:'gold'},now).deliveryFee,0);
+  assert.equal(previewCashCoin(s,{...input,id:r.id,receiveMethod:'transfer'},now).deliveryFee,0);
+  assert.equal(previewCashCoin(s,{...input,id:r.id,sellAmount:20000,buyAmount:5600000},now).deliveryFee,0);
+  assert.equal(previewCashCoin(s,{...input,id:r.id,buyCurrency:'USD',buyAmount:100},now).deliveryFee,2.69);
+  assert.throws(()=>previewCashCoin(s,{...input,tgId:1,id:r.id,buyCurrency:'EUR',buyAmount:100},now),/delivery_rates_missing/);
+  assert.throws(()=>previewCashCoin(s,{...input,id:r.id,buyAmount:50000},now),/delivery_exceeds_amount/);
+  changeRequestState(s,r,'done',9,true);
+  assert.equal(balanceCents(s,1),Math.round(q.totalBuy * .005 / 300 * 100));
+});
+
+test('reverse delivery calculation handles free-delivery boundary and transfer/ATM without fees', () => {
+  const input = { sellCurrency:'RUB', buyCurrency:'VND', sellAmount:10000, buyAmount:2800000, payMethod:'transfer', receiveMethod:'cash', status:'standard' };
+  const fee = (gross: number) => cashDeliveryFee({...input,sellAmount:gross/280,buyAmount:gross},1).fee;
+  assert.equal(Math.round(grossForNetDelivery(2730000,0,0,fee)),2800000);
+  assert.equal(Math.round(grossForNetDelivery(2744000,.005,0,fee)),2800000);
+  assert.equal(Math.round(grossForNetDelivery(3010000,0,280000,fee)),2800000);
+  const boundary = grossForNetDelivery(5570000,0,0,fee);
+  assert.ok(boundary - fee(boundary) >= 5570000); assert.ok(Math.abs(boundary-5600000)<1);
+  for (const receiveMethod of ['transfer','atm']) assert.equal(cashDeliveryFee({...input,receiveMethod},1).fee,0);
+  assert.equal(cashDeliveryFee({...input,sellAmount:0,buyAmount:0},1).fee,0);
+});
+
+test('bonus account search matches nickname, Telegram name, owner name and ID', () => {
+  const account = { name:'@cash_friend',fullName:'Артём Иванов',adminName:'Алексей курьер',tgId:12345 } as any;
+  for (const q of ['@CASH','артем','ИВАНОВ артём','курьер','12345','']) assert.equal(matchesBonusAccount(account,q),true,q);
+  assert.equal(matchesBonusAccount(account,'Мария'),false);
+});

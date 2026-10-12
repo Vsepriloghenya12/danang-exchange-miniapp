@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { cashDeliveryFee } from "./domain/delivery.js";
 import type { Store, StoredRequest, StoredUser, RequestState } from "./store.js";
 
 export const REFERRAL_TERMS = { currency: "CashCoin", rubPerCoin: 1, friendRate: 0.005, inviterRate: 0.005, dailyLimit: 20 } as const;
@@ -9,6 +10,7 @@ export type CashCoinBonus = {
   version: 1; quote: CoinQuote; baseBuyAmount: number;
   welcomeSell: number; welcomeBuy: number; redeemMinor: number; redeemBuy: number;
   totalBuy: number; availableMinor: number; key: string;
+  deliveryFee?: number; deliveryFeeVnd?: number;
 };
 export type BonusEntry = {
   // cents are hundredths of currency; all new entries explicitly use CashCoin.
@@ -120,7 +122,7 @@ export function welcomeAvailable(store: Store, tgId: number) {
   return firstExchange(store, tgId) && !store.requests.some(r => r.from.id === tgId && active(r) && !!r.cashcoin?.welcomeSell);
 }
 
-export function previewCashCoin(store: Store, input: { tgId: number; sellCurrency: string; buyCurrency: string; sellAmount: number; buyAmount: number; redeemMinor?: number; id?: string }, now = new Date().toISOString(), fixedQuote?: CoinQuote): CashCoinBonus {
+export function previewCashCoin(store: Store, input: { tgId: number; sellCurrency: string; buyCurrency: string; sellAmount: number; buyAmount: number; redeemMinor?: number; id?: string; payMethod?: string; receiveMethod?: string; status?: string; legacyDelivery?: boolean }, now = new Date().toISOString(), fixedQuote?: CoinQuote): CashCoinBonus {
   const { tgId, sellCurrency, buyCurrency, sellAmount, buyAmount } = input;
   if (!validRate(sellAmount) || !validRate(buyAmount) || !Number.isSafeInteger(Math.round(sellAmount * 100)) || !Number.isSafeInteger(Math.round(buyAmount * 100))) throw new Error("referral_bad_amount");
   const redeemMinor = input.redeemMinor ?? 0;
@@ -136,16 +138,20 @@ export function previewCashCoin(store: Store, input: { tgId: number; sellCurrenc
   const redeemBuy = redeemMinor ? roundBonus(buyCurrency, redeemMinor / 100 * rate(quote, "RUB", buyCurrency)) : 0;
   if (redeemMinor && !redeemBuy) throw new Error("referral_bonus_too_small");
   if (first) rate(quote, buyCurrency, "RUB");
-  const totalBuy = Number((buyAmount + welcomeBuy + redeemBuy).toFixed(buyCurrency === "VND" ? 0 : 2));
+  const delivery = cashDeliveryFee({ ...input, ...(input.legacyDelivery ? { payMethod: '', receiveMethod: '' } : {}) }, quote.rates[`VND>${buyCurrency}`]);
+  if (!delivery.available) throw new Error("referral_delivery_rates_missing");
+  const deliveryFee = delivery.fee, deliveryFeeVnd = delivery.feeVnd;
+  const totalBuy = Number((buyAmount + welcomeBuy + redeemBuy - deliveryFee).toFixed(buyCurrency === "VND" ? 0 : 2));
+  if (totalBuy <= 0) throw new Error("referral_delivery_exceeds_amount");
   if (!Number.isSafeInteger(Math.round(totalBuy * (buyCurrency === "VND" ? 1 : 100)))) throw new Error("referral_bad_amount");
-  const fields = { version: 1 as const, quote, baseBuyAmount: buyAmount, welcomeSell, welcomeBuy, redeemMinor, redeemBuy, totalBuy, availableMinor };
-  return { ...fields, key: digest({ tgId, sellCurrency, buyCurrency, sellAmount, buyAmount, quote: quote.key, welcomeSell, welcomeBuy, redeemMinor, redeemBuy, totalBuy }) };
+  const fields = { version: 1 as const, quote, baseBuyAmount: buyAmount, welcomeSell, welcomeBuy, redeemMinor, redeemBuy, totalBuy, availableMinor, ...(!input.legacyDelivery ? { deliveryFee, deliveryFeeVnd } : {}) };
+  return { ...fields, key: digest({ tgId, sellCurrency, buyCurrency, sellAmount, buyAmount, quote: quote.key, welcomeSell, welcomeBuy, redeemMinor, redeemBuy, totalBuy, deliveryFee, deliveryFeeVnd }) };
 }
 
 export function prepareReferralRequest(store: Store, request: StoredRequest, input: { redeemMinor?: number; quoteKey?: string } = {}) {
   migrateLegacyBonuses(store);
   const bonus = previewCashCoin(store, { tgId: request.from.id, ...request, redeemMinor: input.redeemMinor }, request.created_at);
-  if ((bonus.welcomeSell || bonus.redeemMinor) && input.quoteKey !== bonus.key) throw new Error("referral_quote_changed");
+  if ((bonus.welcomeSell || bonus.redeemMinor || bonus.deliveryFeeVnd) && input.quoteKey !== bonus.key) throw new Error("referral_quote_changed");
   request.bonus_balance_cents = balanceCents(store, request.from.id);
   request.cashcoin = bonus;
   request.buyAmount = bonus.totalBuy;
@@ -154,7 +160,7 @@ export function prepareReferralRequest(store: Store, request: StoredRequest, inp
 // Staff edits provide the base payout, without bonuses; keep the saved daily rates.
 export function repriceCashCoinRequest(store: Store, request: StoredRequest, baseBuyAmount: number) {
   if (!request.cashcoin) return;
-  const bonus = previewCashCoin(store, { ...request, tgId: request.from.id, buyAmount: baseBuyAmount, redeemMinor: request.cashcoin.redeemMinor }, request.created_at, request.cashcoin.quote);
+  const bonus = previewCashCoin(store, { ...request, tgId: request.from.id, buyAmount: baseBuyAmount, redeemMinor: request.cashcoin.redeemMinor, legacyDelivery: request.cashcoin.deliveryFeeVnd === undefined }, request.created_at, request.cashcoin.quote);
   request.cashcoin = bonus; request.buyAmount = bonus.totalBuy;
 }
 
@@ -248,7 +254,7 @@ export function requestBonusAmounts(request: StoredRequest, format: (currency: s
   const added = bonus.welcomeBuy + bonus.redeemBuy;
   return {
     sell: bonus.welcomeSell ? `${sell} + ${format(request.sellCurrency, bonus.welcomeSell)} б = ${format(request.sellCurrency, request.sellAmount + bonus.welcomeSell)}` : sell,
-    buy: added ? `${format(request.buyCurrency, bonus.baseBuyAmount)} + ${format(request.buyCurrency, added)} б = ${buy}` : buy,
+    buy: added || bonus.deliveryFee ? `${format(request.buyCurrency, bonus.baseBuyAmount)}${added ? ` + ${format(request.buyCurrency, added)} б` : ''}${bonus.deliveryFee ? ` − ${format(request.buyCurrency, bonus.deliveryFee)} доставка (70 000 VND)` : ''} = ${buy}` : buy,
   };
 }
 
@@ -259,7 +265,7 @@ export function ownerReferralReport(store: Store) {
     return { tgId: id, name: u?.username ? `@${u.username}` : [u?.first_name, u?.last_name].filter(Boolean).join(" ") || String(id) };
   };
   return {
-    accounts: people.map(u => ({ ...label(u.tg_id), ...referralSummary(store, u.tg_id) })),
+    accounts: people.map(u => ({ ...label(u.tg_id), fullName: [u.first_name, u.last_name].filter(Boolean).join(' '), adminName: store.contacts.find(c => c.tg_id === u.tg_id || u.username && c.username?.replace(/^@/, '').toLowerCase() === u.username.toLowerCase())?.fullName || '', ...referralSummary(store, u.tg_id) })),
     referrals: people.filter(u => u.referred_by).map(u => {
       const completed = store.requests.filter(r => r.from.id === u.tg_id && r.state === "done");
       const volume: Record<string, number> = {};

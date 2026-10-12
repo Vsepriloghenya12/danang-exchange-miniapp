@@ -3,6 +3,7 @@ import type { MyReferrals } from "./referrals";
 export type CashCoinBonus = {
   version: 1; baseBuyAmount: number; welcomeSell: number; welcomeBuy: number;
   redeemMinor: number; redeemBuy: number; totalBuy: number; availableMinor: number; key: string;
+  deliveryFee?: number; deliveryFeeVnd?: number;
 };
 const roundDown = (currency: string, amount: number) => {
   const scale = currency === "VND" ? 1 : 100;

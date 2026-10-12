@@ -2028,7 +2028,7 @@ router.post("/admin/faq", async (req, res) => {
 
   router.post("/referrals/quote", async (req, res) => {
     try {
-      const { user, blocked } = await requireAuth(req);
+      const { user, blocked, status } = await requireAuth(req);
       if (blocked) return res.status(403).json({ ok: false, error: "blocked" });
       const p = req.body || {};
       const store = await readCashCoinStore();
@@ -2037,6 +2037,7 @@ router.post("/admin/faq", async (req, res) => {
         bonus = previewCashCoin(store, {
           tgId: user.id, sellCurrency: String(p.sellCurrency), buyCurrency: String(p.buyCurrency),
           sellAmount: Number(p.sellAmount), buyAmount: Number(p.buyAmount), redeemMinor: Number(p.redeemMinor ?? 0),
+          payMethod: String(p.payMethod || '').toLowerCase().trim(), receiveMethod: String(p.receiveMethod || '').toLowerCase().trim(), status: normalizeStatus(status),
         });
       } catch (e: any) {
         if (e?.message === "referral_first_pending") {

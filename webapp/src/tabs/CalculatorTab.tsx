@@ -5,6 +5,7 @@ import { referralApi, referralError, ReferralApiError, cashcoin } from "../lib/r
 import useCashCoin from "../lib/useCashCoin";
 import { createSubmissionGate } from "../lib/submissionGate";
 import { cashCoinPreview, type CashCoinBonus } from "../lib/cashcoin";
+import { cashDeliveryFee, grossForNetDelivery } from "../../../server/src/domain/delivery";
 import WhaleMark from "../components/WhaleMark";
 import CurrencyPicker from "../components/CurrencyPicker";
 import ExchangeGuidance, { type ExchangeNotice } from "../components/ExchangeGuidance";
@@ -342,25 +343,11 @@ const MIN_SELL_AMOUNTS: Partial<Record<Currency, number>> = {
   VND: 6_500_000,
 };
 
-const CASH_DELIVERY_MIN_AMOUNTS: Record<string, number> = {
-  RUB: 20_000,
-  USD: 200,
-  EUR: 200,
-  USDT: 200,
-  THB: 100_000,
-};
-
 function minSellAmountLabel(cur: Currency): string {
   if (MIN_SELL_AMOUNTS[cur] == null) return "";
   const value = MIN_SELL_AMOUNTS[cur] ?? 0;
   if (cur === "RUB") return `${fmtAmount(cur, value)} ₽`;
   return `${fmtAmount(cur, value)} ${cur}`;
-}
-
-function needsCashDeliveryWarning(cur: Currency, amount: number): boolean {
-  const min = CASH_DELIVERY_MIN_AMOUNTS[cur];
-  if (!Number.isFinite(amount) || amount <= 0 || min == null) return false;
-  return amount < min;
 }
 
 export default function CalculatorTab({ me, lang = "ru", mode = "client", forcedStatus, onOpenDoc }: Props) {
@@ -678,9 +665,12 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
   const sellAmount = useMemo(() => parseAmount(sellCurrency, sellText), [sellCurrency, sellText]);
   const buyAmount = useMemo(() => parseAmount(buyCurrency, buyText), [buyCurrency, buyText]);
-  const coinPreview = cashCoinPreview(wallet, redeemCoins, sellCurrency, buyCurrency, sellAmount, buyAmount);
+  const bonusPreview = cashCoinPreview(wallet, redeemCoins, sellCurrency, buyCurrency, sellAmount, buyAmount);
+  const deliveryRate = buyCurrency === 'VND' ? 1 : Number(cross?.[`VND/${buyCurrency}`]?.buy) || (Number(cross?.[`${buyCurrency}/VND`]?.sell) > 0 ? 1 / Number(cross?.[`${buyCurrency}/VND`]?.sell) : 1 / Number(rates?.[buyCurrency]?.sell_vnd));
+  const delivery = cashDeliveryFee({ sellCurrency, buyCurrency, sellAmount, buyAmount, payMethod, receiveMethod, status: clientStatus }, deliveryRate);
+  const coinPreview = { ...bonusPreview, totalBuy: delivery.available ? Math.max(0, Number((bonusPreview.totalBuy - delivery.fee).toFixed(buyCurrency === 'VND' ? 0 : 2))) : 0 };
   const hasCoinBonus = coinPreview.welcomeBuy > 0 || coinPreview.redeemBuy > 0;
-  const receiveDisplay = buyTotalDraft ?? (buyText.trim() && hasCoinBonus ? fmtAmount(buyCurrency, coinPreview.totalBuy) : buyText);
+  const receiveDisplay = buyTotalDraft ?? (buyText.trim() && (hasCoinBonus || delivery.feeVnd) ? fmtAmount(buyCurrency, coinPreview.totalBuy) : buyText);
   useEffect(() => setBuyTotalDraft(null), [sellCurrency, buyCurrency, redeemCoins, payMethod, receiveMethod]);
 
   // Re-format inputs when currency changes (e.g. USDT may have decimals)
@@ -738,16 +728,16 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
 
   // ======= Validations =======
   const invalidUsdSell = sellCurrency === "USD" && sellText.trim() !== "" && !isMultiple(sellAmount, USD_STEP);
-  const invalidUsdBuy = buyCurrency === "USD" && buyText.trim() !== "" && !isMultiple(buyAmount, USD_STEP);
+  const invalidUsdBuy = buyCurrency === "USD" && buyText.trim() !== "" && !isMultiple(coinPreview.totalBuy, USD_STEP);
   const invalidEurSell = sellCurrency === "EUR" && sellText.trim() !== "" && !isMultiple(sellAmount, EUR_STEP);
-  const invalidEurBuy = buyCurrency === "EUR" && buyText.trim() !== "" && !isMultiple(buyAmount, EUR_STEP);
+  const invalidEurBuy = buyCurrency === "EUR" && buyText.trim() !== "" && !isMultiple(coinPreview.totalBuy, EUR_STEP);
   const invalidThbSell = sellCurrency === "THB" && sellText.trim() !== "" && !isMultiple(sellAmount, THB_STEP);
-  const invalidThbBuy = buyCurrency === "THB" && buyText.trim() !== "" && !isMultiple(buyAmount, THB_STEP);
+  const invalidThbBuy = buyCurrency === "THB" && buyText.trim() !== "" && !isMultiple(coinPreview.totalBuy, THB_STEP);
   const invalidVndSellCash =
     sellCurrency === "VND" && payMethod === "cash" && sellText.trim() !== "" && !isMultiple(sellAmount, CASH_VND_STEP);
   const invalidVndBuyCash = false;
   const invalidVndBuyAtm =
-    buyCurrency === "VND" && receiveMethod === "atm" && buyText.trim() !== "" && !isMultiple(buyAmount, ATM_VND_STEP);
+    buyCurrency === "VND" && receiveMethod === "atm" && buyText.trim() !== "" && !isMultiple(coinPreview.totalBuy, ATM_VND_STEP);
   const invalidMinSell =
     sellText.trim() !== "" &&
     sellAmount > 0 &&
@@ -900,7 +890,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
   const isVndToVnd = sellCurrency === "VND" && buyCurrency === "VND";
 
   const canSendBase =
-    canCalc && sameCurrencyAllowed && sellText.trim() !== "" && buyText.trim() !== "" && sellAmount > 0 && buyAmount > 0;
+    canCalc && sameCurrencyAllowed && sellText.trim() !== "" && buyText.trim() !== "" && sellAmount > 0 && buyAmount > 0 && delivery.available && coinPreview.totalBuy > 0;
 
   const hasSelectedMethods = !!payMethod && !!receiveMethod;
   const validPayMethod = !!payMethod && allowedPay.includes(payMethod);
@@ -938,9 +928,10 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     ? (isEn ? `Minimum ${sellCurrency} amount for exchange is ${minSellAmountLabel(sellCurrency)}.` : `Минимальная сумма ${sellCurrency} для обмена — ${minSellAmountLabel(sellCurrency)}.`)
     : null;
 
-  const showCashDeliveryNote =
-    needsCashDeliveryWarning(sellCurrency, sellAmount) ||
-    needsCashDeliveryWarning(buyCurrency, buyAmount);
+  const showCashDeliveryNote = delivery.feeVnd > 0;
+  const deliveryNote = !delivery.available
+    ? (isEn ? 'Today’s rate is needed to deduct delivery.' : 'Для вычета доставки нужен курс получаемой валюты на сегодня.')
+    : (isEn ? `Delivery deducted: ${fmtAmount(buyCurrency, delivery.fee)} ${buyCurrency}${buyCurrency !== 'VND' ? ' (70,000 VND)' : ''}.` : `Доставка вычтена: ${fmtAmount(buyCurrency, delivery.fee)} ${buyCurrency}${buyCurrency !== 'VND' ? ' (70 000 VND)' : ''}.`);
 
   // Keep related guidance together and show each rule once inside the result card.
   const amountNotices: ExchangeNotice[] = [];
@@ -960,8 +951,8 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
     text: isEn ? `VND cash payment: multiples of ${fmtAmount("VND", CASH_VND_STEP)}.` : `Оплата наличными VND: кратно ${fmtAmount("VND", CASH_VND_STEP)}.` });
   if (vndAtmNote) amountNotices.push({ key: "atm", warning: invalidVndBuyAtm,
     text: isEn ? `ATM payout: multiples of ${fmtAmount("VND", ATM_VND_STEP)} VND.` : `Банкомат: выдача кратно ${fmtAmount("VND", ATM_VND_STEP)} VND.` });
-  if (showCashDeliveryNote) amountNotices.push({ key: "delivery-cost", warning: false,
-    text: isEn ? "Delivery will cost from 70,000 VND." : "Стоимость доставки — от 70 000 VND." });
+  if (showCashDeliveryNote) amountNotices.push({ key: "delivery-cost", warning: !delivery.available || coinPreview.totalBuy <= 0,
+    text: deliveryNote + (delivery.available && coinPreview.totalBuy <= 0 ? (isEn ? ' Increase the exchange amount.' : ' Увеличьте сумму обмена.') : '') });
   if (hasCoinBonus) amountNotices.push({ key: "cashcoin", warning: false,
     text: isEn ? `Bonus included: +${fmtAmount(buyCurrency, coinPreview.welcomeBuy + coinPreview.redeemBuy)} ${buyCurrency}.` : `Бонус включён: +${fmtAmount(buyCurrency, coinPreview.welcomeBuy + coinPreview.redeemBuy)} ${buyCurrency}.` });
   useFitAmount(sellInputRef, sellText, !isAdminMode);
@@ -1013,6 +1004,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
       `${isEn ? "Payment" : "Оплата"}: ${payMethod ? uiMethodLabel(payMethod) : (isEn ? "Not selected" : "Не выбрано")}`,
       `${isEn ? "Receive" : "Получение"}: ${receiveMethod ? uiMethodLabel(receiveMethod) : (isEn ? "Not selected" : "Не выбрано")}`,
     ];
+    if (bonus?.deliveryFee || delivery.feeVnd) lines.push(`${isEn ? 'Delivery deducted' : 'Доставка вычтена'}: ${fmtAmount(buyCurrency, bonus?.deliveryFee ?? delivery.fee)} ${buyCurrency} (70 000 VND)`);
     const comment = String(requestComment || "").trim();
     if (comment) lines.push(`${isEn ? "Comment" : "Комментарий"}: ${comment}`);
     if (requestAttachmentImageDataUrl) lines.push(isEn ? "Photo: attached to the request." : "Фото: приложено к заявке.");
@@ -1380,12 +1372,19 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
                   preserveSwappedValuesRef.current = false;
                   lastEdited.current = "buy";
                   const formatted = formatAmountInput(buyCurrency, e.currentTarget.value, receiveDisplay, inputHintFromEvent(e));
-                  setBuyTotalDraft(hasCoinBonus ? formatted.text : null);
+                  setBuyTotalDraft(formatted.text);
                   const entered = parseAmount(buyCurrency, formatted.text);
-                  const fraction = sellAmount > 0 ? coinPreview.welcomeSell / sellAmount : 0;
-                  const next = hasCoinBonus && formatted.text.trim()
-                    ? fmtAmount(buyCurrency, Math.max(0, (entered - coinPreview.redeemBuy) / (1 + fraction)))
-                    : formatted.text;
+                  const fraction = sellAmount > 0 ? coinPreview.welcomeSell / sellAmount : wallet?.welcomeAvailable ? .005 : 0;
+                  const feeForGross = (gross: number) => {
+                    let give = baseQuote ? convertBackward(baseQuote.side, baseQuote.rate, gross) : rates ? calcSellAmountVnd(rates, sellCurrency, buyCurrency, gross) : 0;
+                    for (let i = 0; i < 3 && Number.isFinite(give); i++) {
+                      const p = pricedQuote(pricingCtx, sellCurrency, buyCurrency, give, clientStatus, receiveMethod, bonuses);
+                      if (p) give = convertBackward(p.quote.side, p.rate, gross);
+                    }
+                    return cashDeliveryFee({ sellCurrency, buyCurrency, sellAmount: give, buyAmount: gross, payMethod, receiveMethod, status: clientStatus }, deliveryRate).fee;
+                  };
+                  const gross = grossForNetDelivery(entered, fraction, coinPreview.redeemBuy, feeForGross);
+                  const next = formatted.text.trim() && Number.isFinite(gross) ? fmtAmount(buyCurrency, gross) : formatted.text;
                   pendingCaretRef.current = makePendingCaret("buy", e.currentTarget, formatted);
                   buyRawRef.current = next.trim() ? parseAmount(buyCurrency, next) : null;
                   recordAmountInput("buy", buyCurrency, parseAmount(buyCurrency, next));
@@ -1490,7 +1489,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
             {minSellNote ? <div className="vx-warn">{minSellNote}</div> : null}
             {showCashDeliveryNote ? (
               <div className="vx-warn" role="alert">
-                {isEn ? "Delivery will cost from 70,000 VND." : "Стоимость доставки составит от 70,000 VND."}
+                {deliveryNote}
               </div>
             ) : null}
             </>}

@@ -218,6 +218,22 @@ test("referrals: signed attribution, completed exchanges and an atomic CashCoin 
     assert.equal((await readStore()).users["53"].referred_by, undefined);
   });
 
+  await t.test('delivery quote and saved payout agree; forged gold status cannot waive delivery', async () => {
+    await api('/auth', {}, 61);
+    const body = { sellCurrency:'RUB',buyCurrency:'VND',sellAmount:10000,buyAmount:2800000,payMethod:'transfer',receiveMethod:'cash',status:'gold' };
+    const quote = await api('/referrals/quote',body,61);
+    assert.equal(quote.status,200); assert.equal(quote.data.bonus.deliveryFee,70000); assert.equal(quote.data.bonus.totalBuy,2730000);
+    const saved = await api('/requests',{...body,bonusQuoteKey:quote.data.bonus.key},61);
+    assert.equal(saved.status,200); assert.equal(saved.data.cashcoin.totalBuy,2730000);
+    assert.equal((await readStore()).requests.find(r=>r.id===saved.data.id)?.buyAmount,2730000);
+    const changed = await api('/requests',{...body,receiveMethod:'transfer',bonusQuoteKey:quote.data.bonus.key},61);
+    assert.equal(changed.status,200); assert.equal(changed.data.cashcoin.totalBuy,2800000);
+    await mutateStore(s=>{s.users['61'].status='gold'; s.contacts.push({id:'delivery-contact',tg_id:61,fullName:'Клиент по имени',created_at:new Date().toISOString(),updated_at:new Date().toISOString()});});
+    const gold = await api('/referrals/quote',body,61); assert.equal(gold.data.bonus.deliveryFee,0);
+    const report = await api('/admin/referrals'); const account = report.data.accounts.find((a:any)=>a.tgId===61);
+    assert.equal(account.fullName,'User 61'); assert.equal(account.adminName,'Клиент по имени');
+  });
+
   await t.test("bot /start preserves attribution when the miniapp opens later", async () => {
     const { createBot } = await import("../server/src/bot.ts");
     const { Telegram } = await import("telegraf");

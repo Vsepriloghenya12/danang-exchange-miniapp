@@ -3,10 +3,15 @@ export type BonusSummary = { legacyUsdCents?: number; balanceCents: number; avai
 export type MyReferrals = BonusSummary & { welcomeAvailable?: boolean; walletQuote?: { ratesDate: string; rates: Record<string, number>; key: string }; link: string | null; referred: boolean; rewarded: boolean; referralRejected?: string; history: BonusEntry[] };
 export type ReferralReport = {
   testCreditsEnabled?: boolean;
-  accounts: (BonusSummary & { tgId: number; name: string })[];
+  accounts: (BonusSummary & { tgId: number; name: string; fullName?: string; adminName?: string })[];
   referrals: { inviter: { tgId: number; name: string }; friend: { tgId: number; name: string }; invitedAt: string; rewardedAt?: string; firstRequestId?: string; status: string; completedCount: number; volume: Record<string, number>; inviterCents: number; friendCents: number; friendBonus?: { amount: number; currency: string; received: number; receiveCurrency: string } }[];
   ledger: BonusEntry[];
 };
+export function matchesBonusAccount(account: ReferralReport['accounts'][number], search: string) {
+  const normalize = (s: string) => s.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/@/g, '').trim();
+  const text = normalize(`${account.name} ${account.fullName || ''} ${account.adminName || ''} ${account.tgId}`);
+  return normalize(search).split(/\s+/).every(part => text.includes(part));
+}
 export function cashcoin(cents: number, isEn = false) {
   const amount = cents / 100;
   const category = new Intl.PluralRules(isEn ? "en" : "ru").select(amount);
@@ -14,6 +19,8 @@ export function cashcoin(cents: number, isEn = false) {
   return `${amount.toLocaleString(isEn ? "en-US" : "ru-RU", { maximumFractionDigits: 2 })} ${unit}`;
 }
 const errors: Record<string, string> = {
+  referral_delivery_rates_missing: "Для вычета доставки нужен курс получаемой валюты на сегодня. Обратитесь к менеджеру.",
+  referral_delivery_exceeds_amount: "Сумма получения должна быть больше стоимости доставки.",
   referral_currency_changed: "Бонусный счёт обновлён. Обновите страницу перед операцией.",
   referral_base_amount_required: "Обновите страницу. В редакторе указываются суммы без бонусов; бонусы пересчитываются отдельно.",
   referral_test_only: "Тестовые начисления доступны только владельцу в тестовом сервисе.",
