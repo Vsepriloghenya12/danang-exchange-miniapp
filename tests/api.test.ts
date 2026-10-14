@@ -116,6 +116,28 @@ test("API persists all pairs and publishes with bounded Telegram requests", asyn
   assert.equal(published.data.message_id, 42);
   assert.equal(calls.at(-1)?.body.chat_id, "@other_channel");
   assert.ok(!calls.at(-1)?.body.text.includes("{{"));
+  assert.match(calls.at(-1)?.body.text, /50 000 KZT   💵 5 012 500 vnd\n\n5 000 THB   💵 501 250 vnd/);
+
+  await t.test("rate posts require valid KZT and THB rates before sending to Telegram", async () => {
+    const { mutateStore } = await import("../server/src/store.ts");
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+    for (const currency of ["KZT", "THB"] as const) {
+      for (const invalid of [undefined, 0, -1]) {
+        await mutateStore(store => {
+          if (invalid === undefined) delete store.ratesByDate[today].rates[currency];
+          else store.ratesByDate[today].rates[currency] = { buy_vnd: invalid, sell_vnd: 110.75 };
+        });
+        const before = calls.length;
+        const result = await api("/admin/publish", payload);
+        assert.equal(result.status, 400);
+        assert.equal(result.data.error, "rates_missing");
+        assert.ok(result.data.message.includes(currency));
+        assert.equal(calls.length, before);
+      }
+      await mutateStore(store => { store.ratesByDate[today].rates[currency] = rates[currency]; });
+    }
+    assert.equal((await api("/admin/publish", payload)).status, 200);
+  });
 
   const callsBeforeNoAuth = calls.length;
   assert.equal((await api("/admin/publish", payload, false)).status, 401);

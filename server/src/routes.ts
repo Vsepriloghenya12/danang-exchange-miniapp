@@ -1576,7 +1576,10 @@ router.post("/admin/faq", async (req, res) => {
 
       const todayKey = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
       const todayRates = store.ratesByDate?.[todayKey]?.rates;
-      if (!todayRates?.RUB || !todayRates?.USDT || !todayRates?.USD) {
+      if ((["RUB", "USDT", "USD", "KZT", "THB"] as const).some(currency => {
+        const rate = Number(todayRates?.[currency]?.buy_vnd);
+        return !Number.isFinite(rate) || rate <= 0;
+      })) {
         return res.status(400).json({ ok: false, error: "rates_missing", message: publishErrorMessage("rates_missing") });
       }
 
@@ -1584,7 +1587,9 @@ router.post("/admin/faq", async (req, res) => {
       const rubLine = `10 000 ₽   💸 ${fmtSpaces(10_000 * Number(todayRates.RUB.buy_vnd))} vnd`;
       const usdtLine = `100 USDT   💵 ${fmtSpaces(100 * Number(todayRates.USDT.buy_vnd))} vnd`;
       const usdLine = `100 USD    💵 ${fmtSpaces(100 * Number(todayRates.USD.buy_vnd))} vnd`;
-      const ratesBlock = `${rubLine}\n\n${usdtLine}\n\n${usdLine}`;
+      const kztLine = `50 000 KZT   💵 ${fmtSpaces(50_000 * Number(todayRates!.KZT!.buy_vnd))} vnd`;
+      const thbLine = `5 000 THB   💵 ${fmtSpaces(5_000 * Number(todayRates!.THB!.buy_vnd))} vnd`;
+      const ratesBlock = `${rubLine}\n\n${usdtLine}\n\n${usdLine}\n\n${kztLine}\n\n${thbLine}`;
 
       // "16 февраля 2026" (без "г.")
       const dateHuman = (() => {

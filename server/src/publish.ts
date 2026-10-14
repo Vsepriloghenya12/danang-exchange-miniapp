@@ -37,7 +37,7 @@ export function publishErrorMessage(error: string): string {
     return "Telegram отклонил токен бота. Проверь BOT_TOKEN в сервисе api: нужен действующий токен этого бота из BotFather. После обновления переменной перезапусти сервис api.";
   }
   if (error === "group_not_set") return "Укажи канал для публикации: @username или числовой ID.";
-  if (error === "rates_missing") return "Сначала сохрани курсы RUB, USDT и USD на сегодня во вкладке «Курс».";
+  if (error === "rates_missing") return "Сначала сохрани положительные курсы RUB, USDT, USD, KZT и THB на сегодня во вкладке «Курс».";
   if (/chat not found/i.test(error)) return "Канал не найден. Проверь @username или ID канала и добавь в него бота.";
   if (/not enough rights|CHAT_ADMIN_REQUIRED|not an administrator|forbidden|kicked/i.test(error)) {
     return "У бота нет доступа к публикации. Добавь его в администраторы канала с правом публикации сообщений.";
