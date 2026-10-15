@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { apiGetFaq } from "../lib/api";
 import ClientIcon from "../components/ClientIcon";
+import FaqAnswer from "../components/FaqAnswer";
 import type { FaqItem } from "../lib/types";
 
 type Lang = "ru" | "en";
 
-export default function FaqTab({ lang = "ru" }: { lang?: Lang }) {
+export default function FaqTab({ lang = "ru", onOpenReferrals }: { lang?: Lang; onOpenReferrals?: () => void }) {
   const isEn = lang === "en";
   const [items, setItems] = useState<FaqItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +64,7 @@ export default function FaqTab({ lang = "ru" }: { lang?: Lang }) {
       const open = openId === it.id;
       return <section key={it.id} className={"cp-faqItem"+(open?" is-open":"")}>
         <button type="button" className="cp-faqQuestion" aria-expanded={open} aria-controls={"faq-answer-"+it.id} onClick={()=>setOpenId(open?"":it.id)}><span>{it.q}</span><span className="cp-faqPlus" aria-hidden="true">+</span></button>
-        <div className="cp-faqAnswer" id={"faq-answer-"+it.id} aria-hidden={!open}><div><p>{it.a}</p></div></div>
+        <div className="cp-faqAnswer" id={"faq-answer-"+it.id} aria-hidden={!open}><div><p><FaqAnswer text={it.a} onOpenReferrals={onOpenReferrals} /></p></div></div>
       </section>;
     })}</div>
   </div>;

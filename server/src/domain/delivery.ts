@@ -1,6 +1,6 @@
 // Pure rules shared by the server quote and the client calculator.
 export const DELIVERY_FEE_VND = 70_000;
-const FREE_DELIVERY_FROM: Record<string, number> = { RUB: 20_000, USD: 200, EUR: 200, USDT: 200, THB: 100_000 };
+const FREE_DELIVERY_FROM: Record<string, number> = { RUB: 20_000, USD: 200, EUR: 200, USDT: 200, THB: 8_000, KZT: 100_000 };
 export type DeliveryInput = { sellCurrency: string; buyCurrency: string; sellAmount: number; buyAmount: number; payMethod?: string | null; receiveMethod?: string | null; status?: string };
 export function cashDeliveryFee(input: DeliveryInput, vndToBuy: number) {
   const below = (currency: string, amount: number) => amount > 0 && amount < (FREE_DELIVERY_FROM[currency] ?? 0);

@@ -11,6 +11,20 @@ import { EffectiveRatesTable } from "../webapp/src/admin/EffectiveRates.tsx";
 import { parsePublishChatId, publishTextHtml } from "../server/src/publish.ts";
 import { formatAmount } from "../server/src/format.ts";
 import { apiGetTodayRates, apiAdminSetTodayRates } from "../webapp/src/lib/api.ts";
+import { faqParts, safeFaqHref } from '../webapp/src/lib/faqLinks.ts';
+import FaqAnswer from '../webapp/src/components/FaqAnswer.tsx';
+
+test('FAQ supports named links, plain URLs and the friends section without executing HTML', () => {
+  const parts = faqParts('Подробнее в разделе "Друзья и бонусы". [Сайт](https://example.com/path?q=1) или https://example.org.');
+  assert.deepEqual(parts.filter(p=>p.href).map(p=>[p.text,p.href]),[['Друзья и бонусы','#referrals'],['Сайт','https://example.com/path?q=1'],['https://example.org','https://example.org/']]);
+  assert.deepEqual(faqParts('[Бонусы](#referrals)'),[{text:'Бонусы',href:'#referrals'}]);
+  for (const url of ['javascript:alert(1)','data:text/html,x','//evil.example','#unknown']) assert.equal(safeFaqHref(url),undefined);
+  const html = renderToStaticMarkup(React.createElement(FaqAnswer,{text:'<script>alert(1)</script> [x](javascript:evil) Друзья и бонусы [сайт](https://example.com)'}));
+  assert.ok(!html.includes('<script>'));
+  assert.ok(!html.includes('href="javascript:'));
+  assert.match(html,/<button[^>]*>Друзья и бонусы<\/button>/);
+  assert.match(html,/rel="noopener noreferrer"/);
+});
 
 test("decimal input survives thousands grouping for every fractional currency", () => {
   for (const cur of ["RUB", "USDT", "USD", "EUR", "THB", "KZT"] as const) {

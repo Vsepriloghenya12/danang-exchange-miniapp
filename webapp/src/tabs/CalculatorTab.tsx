@@ -340,7 +340,6 @@ const MIN_SELL_AMOUNTS: Partial<Record<Currency, number>> = {
   USD: 100,
   EUR: 100,
   THB: 10_000,
-  VND: 6_500_000,
 };
 
 function minSellAmountLabel(cur: Currency): string {
@@ -1267,7 +1266,7 @@ export default function CalculatorTab({ me, lang = "ru", mode = "client", forced
           <div className="cx-amtCard">
             <div className="cx-amtLabel">
               <span>{isEn ? "You give" : "Вы отдаёте"}</span>
-              {!(isVndToVnd && sellCurrency === "VND") ? (
+              {minSellAmountLabel(sellCurrency) && !(isVndToVnd && sellCurrency === "VND") ? (
                 <span className="cx-amtLabelHint">{isEn ? "min." : "мин."} {minSellAmountLabel(sellCurrency)}</span>
               ) : null}
             </div>

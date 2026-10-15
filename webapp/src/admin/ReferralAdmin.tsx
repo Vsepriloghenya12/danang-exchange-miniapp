@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { referralApi, cashcoin, bonusEntryAmount, matchesBonusAccount, type ReferralReport } from "../lib/referrals";
+import { referralApi, cashcoin, bonusEntryAmount, type ReferralReport } from "../lib/referrals";
+import BonusClientPicker from './BonusClientPicker';
 import "./referral-admin.css";
 
 export default function ReferralAdmin({ token }: { token: string }) {
@@ -9,7 +10,6 @@ export default function ReferralAdmin({ token }: { token: string }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [tgId, setTgId] = useState("");
-  const [accountSearch, setAccountSearch] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -46,7 +46,7 @@ export default function ReferralAdmin({ token }: { token: string }) {
   const query = search.toLowerCase().trim();
   const rows = data?.referrals.filter(r => (filter === "all" || r.status === filter) && (!query || `${r.inviter.name} ${r.inviter.tgId} ${r.friend.name} ${r.friend.tgId}`.toLowerCase().includes(query))) || [];
   const names = new Map(data?.accounts.map(a => [a.tgId, a.name]));
-  const accounts = data?.accounts.filter(a => (operation === 'credit' || a.earnedCents > 0 || a.invitedCount > 0) && matchesBonusAccount(a, accountSearch)) || [];
+  const accounts = data?.accounts.filter(a => operation === 'credit' || a.earnedCents > 0 || a.invitedCount > 0) || [];
   return <div className="ra-section">
     <div className="card">
       <div className="row vx-between vx-center"><h2>Реферальная программа</h2><button className="btn" disabled={loading || busy} onClick={load}>{loading ? "Обновляем…" : "Обновить"}</button></div>
@@ -63,8 +63,7 @@ export default function ReferralAdmin({ token }: { token: string }) {
       </tbody></table></div>
     </div>
     <div className="card"><h3>Бонусные счета</h3><p className="vx-muted">Выберите начисление или списание, клиента и количество бонусов. Укажите причину операции; при выдаче — сумму и валюту. 1 бонус = 1 ₽.</p>
-      <label>Поиск клиента<input className="input vx-in" type="search" aria-label="Поиск клиента для бонусов" placeholder="Имя, ник Telegram или ID" value={accountSearch} disabled={busy} onChange={e => { setAccountSearch(e.target.value); setTgId(''); }} /></label>
-      <div className="ra-filters"><label>Операция<select aria-label="Операция с бонусами" className="input vx-in" value={operation} disabled={busy} onChange={e => { setOperation(e.target.value as "payout" | "credit"); setTgId(""); }}><option value="payout">Списать</option><option value="credit">Начислить</option></select></label><label>Клиент<select aria-label="Клиент для бонусов" className="input vx-in" value={tgId} disabled={busy} onChange={e => setTgId(e.target.value)}><option value="">Выберите клиента</option>{accounts.map(a => <option key={a.tgId} value={a.tgId}>{a.name}{a.adminName ? ` · ${a.adminName}` : a.fullName ? ` · ${a.fullName}` : ""} · ID {a.tgId} · {cashcoin(a.availableCents ?? a.balanceCents)}</option>)}</select></label><label>{operation === "credit" ? "Начислить бонусов" : "Списать бонусов"}<input className="input vx-in" inputMode="decimal" value={amount} disabled={busy} onChange={e => setAmount(e.target.value)} placeholder="0.00" /></label></div>
+      <div className="ra-filters"><label>Операция<select aria-label="Операция с бонусами" className="input vx-in" value={operation} disabled={busy} onChange={e => { setOperation(e.target.value as "payout" | "credit"); setTgId(""); }}><option value="payout">Списать</option><option value="credit">Начислить</option></select></label><BonusClientPicker key={operation} accounts={accounts} value={tgId} onChange={setTgId} disabled={busy} loading={loading} /><label>{operation === "credit" ? "Начислить бонусов" : "Списать бонусов"}<input className="input vx-in" inputMode="decimal" value={amount} disabled={busy} onChange={e => setAmount(e.target.value)} placeholder="0.00" /></label></div>
       {!loading && !accounts.length && <p role="status">Клиенты не найдены. Попробуйте другое имя или ник.</p>}{selected && <p>Приглашено: <b>{selected.invitedCount}</b> · Доступно: <b>{cashcoin(selected.availableCents ?? selected.balanceCents)}</b> · Выдано: <b>{cashcoin(selected.paidCents)}</b></p>}
       <label>Комментарий к операции<input className="input vx-in" maxLength={300} value={note} disabled={busy} onChange={e => setNote(e.target.value)} placeholder="Например: подарок клиенту или выдача 125 000 VND" /></label>
       <button className="btn" style={{ marginTop: 12 }} disabled={busy || !selected} onClick={payout}>{busy ? "Записываем…" : operation === "credit" ? "Начислить бонусы" : "Списать бонусы"}</button>

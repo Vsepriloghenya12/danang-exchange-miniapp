@@ -323,7 +323,6 @@ export default function App() {
     "Minimum RUB amount — 10,000 ₽.",
     "Minimum USD / EUR / USDT amount — 100.",
     "Minimum THB amount — 10,000 baht.",
-    "Minimum VND amount — 6,500,000 VND.",
     "USD: only new-series $100 cash notes without defects are accepted and paid out.",
     "EUR: only new-series €50/€100/€200 cash notes without defects are accepted and paid out.",
     "THB: cash only, in multiples of 100 baht.",
@@ -334,7 +333,6 @@ export default function App() {
     "Минимальная сумма RUB для обмена — 10,000 ₽.",
     "Минимальная сумма USD / EUR / USDT для обмена — 100.",
     "Минимальная сумма THB для обмена — 10,000 бат.",
-    "Минимальная сумма VND для обмена — 6,500,000 VND.",
     "USD: принимаются и выдаются только наличные купюры 100$ нового образца, без дефектов.",
     "EUR: принимаются и выдаются только наличные купюры 50/100/200€ нового образца, без дефектов.",
     "THB: передача и получение только наличными, кратно 100 бат.",
@@ -734,7 +732,7 @@ export default function App() {
           <ScreenPane active={screen === "faq"}>
             <>
               <ScreenHeader title="FAQ" onBack={() => setScreen("other")} lang={lang} />
-              <FaqTab lang={lang} />
+              <FaqTab lang={lang} onOpenReferrals={() => setShowReferrals(true)} />
             </>
           </ScreenPane>
         ) : null}

@@ -232,3 +232,21 @@ test('bonus account search matches nickname, Telegram name, owner name and ID', 
   for (const q of ['@CASH','артем','ИВАНОВ артём','курьер','12345','']) assert.equal(matchesBonusAccount(account,q),true,q);
   assert.equal(matchesBonusAccount(account,'Мария'),false);
 });
+
+test('THB and KZT delivery thresholds include the exact free boundary in both directions', () => {
+  for (const [currency, threshold] of [['THB',8000],['KZT',100000]] as const) {
+    for (const amount of [threshold-1,threshold,threshold+1,threshold*10]) {
+      const expected = amount < threshold ? 70000 : 0;
+      const input = { sellCurrency:currency,buyCurrency:'VND',sellAmount:amount,buyAmount:5000000,payMethod:'transfer',receiveMethod:'cash',status:'standard' };
+      assert.equal(cashDeliveryFee(input,1).feeVnd,expected,`${currency} ${amount}`);
+      assert.equal(cashDeliveryFee({...input,sellCurrency:'VND',buyCurrency:currency,sellAmount:5000000,buyAmount:amount,payMethod:'cash',receiveMethod:'transfer'},.01).feeVnd,expected);
+      assert.equal(cashDeliveryFee({...input,status:'gold'},1).fee,0);
+      assert.equal(cashDeliveryFee({...input,receiveMethod:'transfer'},1).fee,0);
+      const now = new Date().toISOString(), day = new Date(now).toLocaleDateString('en-CA',{timeZone:'Asia/Ho_Chi_Minh'});
+      const store = {users:{'1':{tg_id:1}},contacts:[],requests:[],bonusLedger:[],ratesByDate:{[day]:{rates:{[currency]:{buy_vnd:50,sell_vnd:55}}}}} as unknown as Store;
+      const quote = previewCashCoin(store,{...input,tgId:1},now);
+      assert.equal(quote.deliveryFeeVnd,expected);
+      assert.equal(quote.totalBuy,5000000-expected);
+    }
+  }
+});

@@ -1573,6 +1573,7 @@ function moveFaq(id: string, dir: -1 | 1) {
       </div>
     ) : null}
 
+    <p className="small">Ссылка в ответе: <code>[текст ссылки](https://example.com)</code> или просто адрес https://… . Текст «Друзья и бонусы» автоматически открывает этот раздел приложения; также можно использовать <code>[Друзья и бонусы](#referrals)</code>.</p>
     {(faqItems || []).map((it, i) => (
       <div key={it.id} className="vx-faqRow">
         <div className="row vx-between vx-center" style={{ gap: 10 }}>
