@@ -31,6 +31,7 @@ import { validateTelegramInitData } from "./telegramValidate.js";
 import { getMarketSnapshot } from "./marketRates.js";
 import { HAS_DATABASE, ensureSchema, getPool } from "./db.js";
 import { setUserStatus, notifyStatusChange, type StatusChange } from "./userStatus.js";
+import { loyaltyVolume, promoteLoyaltyStatus } from './loyalty.js';
 import { parsePublishChatId, publishChatId, publishTextHtml, publishErrorMessage } from "./publish.js";
 
 
@@ -1584,11 +1585,11 @@ router.post("/admin/faq", async (req, res) => {
       }
 
       const fmtSpaces = (n: number) => String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-      const rubLine = `10 000 ₽   💸 ${fmtSpaces(10_000 * Number(todayRates.RUB.buy_vnd))} vnd`;
-      const usdtLine = `100 USDT   💵 ${fmtSpaces(100 * Number(todayRates.USDT.buy_vnd))} vnd`;
-      const usdLine = `100 USD    💵 ${fmtSpaces(100 * Number(todayRates.USD.buy_vnd))} vnd`;
-      const kztLine = `50 000 KZT   💵 ${fmtSpaces(50_000 * Number(todayRates!.KZT!.buy_vnd))} vnd`;
-      const thbLine = `5 000 THB   💵 ${fmtSpaces(5_000 * Number(todayRates!.THB!.buy_vnd))} vnd`;
+      const rubLine = `10 000 ₽ — ${fmtSpaces(10_000 * Number(todayRates.RUB.buy_vnd))} vnd`;
+      const usdtLine = `100 USDT — ${fmtSpaces(100 * Number(todayRates.USDT.buy_vnd))} vnd`;
+      const usdLine = `100 USD — ${fmtSpaces(100 * Number(todayRates.USD.buy_vnd))} vnd`;
+      const kztLine = `50 000 KZT — ${fmtSpaces(50_000 * Number(todayRates!.KZT!.buy_vnd))} vnd`;
+      const thbLine = `5 000 THB — ${fmtSpaces(5_000 * Number(todayRates!.THB!.buy_vnd))} vnd`;
       const ratesBlock = `${rubLine}\n\n${usdtLine}\n\n${usdLine}\n\n${kztLine}\n\n${thbLine}`;
 
       // "16 февраля 2026" (без "г.")
@@ -1829,11 +1830,13 @@ router.post("/admin/faq", async (req, res) => {
         if (!r) return { notFound: true as const };
 
         const changed = changeRequestState(store, r, next, user.id, req.body?.fundsReceived === true);
-        return { notFound: false as const, request: { ...r }, changed };
+        const statusChange = next === 'done' ? promoteLoyaltyStatus(store, r.from.id, new Date().toISOString()) : null;
+        return { notFound: false as const, request: { ...r }, changed, statusChange };
       });
       if (result.notFound) return res.status(404).json({ ok: false, error: "not_found" });
       const r = result.request as StoredRequest;
 
+      await notifyStatusChange(opts.botToken, result.statusChange);
       // notify user
       if (!result.changed) return res.json({ ok: true, request: r });
       try {
@@ -1992,11 +1995,13 @@ router.post("/admin/faq", async (req, res) => {
         if (!r) return { notFound: true as const };
 
         const changed = changeRequestState(store, r, next, user.id, req.body?.fundsReceived === true);
-        return { notFound: false as const, request: { ...r }, changed };
+        const statusChange = next === 'done' ? promoteLoyaltyStatus(store, r.from.id, new Date().toISOString()) : null;
+        return { notFound: false as const, request: { ...r }, changed, statusChange };
       });
       if (result.notFound) return res.status(404).json({ ok: false, error: "not_found" });
       const r = result.request as StoredRequest;
 
+      await notifyStatusChange(opts.botToken, result.statusChange);
       // Уведомление пользователю (это и будет "push" на телефоне через Telegram)
       if (!result.changed) return res.json({ ok: true, request: r });
       const shortId = id.slice(-6);
@@ -2242,7 +2247,7 @@ router.post("/admin/faq", async (req, res) => {
         .filter((r) => Number((r as any)?.from?.id) === Number(user.id))
         .slice()
         .sort((a, b) => String((b as any)?.created_at || "").localeCompare(String((a as any)?.created_at || "")));
-      return res.json({ ok: true, requests: list });
+      return res.json({ ok: true, requests: list, loyalty: loyaltyVolume(store, user.id) });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e?.message || "auth_failed" });
     }

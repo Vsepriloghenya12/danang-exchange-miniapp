@@ -25,7 +25,7 @@ test("referrals: signed attribution, completed exchanges and an atomic CashCoin 
   t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
     assert.ok(String(url).startsWith("https://api.telegram.org/"));
     assert.ok(init.signal, "Telegram call should have a timeout");
-    if (init.body) notifications.push(JSON.parse(String(init.body)));
+    if (init.body) notifications.push(init.body instanceof FormData ? Object.fromEntries(init.body.entries()) : JSON.parse(String(init.body)));
     return Response.json({ ok: true, result: { username: "referral_test_bot" } });
   });
   function signed(id: number, start?: string) {
@@ -232,6 +232,29 @@ test("referrals: signed attribution, completed exchanges and an atomic CashCoin 
     const gold = await api('/referrals/quote',body,61); assert.equal(gold.data.bonus.deliveryFee,0);
     const report = await api('/admin/referrals'); const account = report.data.accounts.find((a:any)=>a.tgId===61);
     assert.equal(account.fullName,'User 61'); assert.equal(account.adminName,'Клиент по имени');
+  });
+
+  await t.test('completion promotes loyalty once across staff and owner routes, including concurrent retries', async () => {
+    await api('/auth',{},701);
+    await mutateStore(s=>s.contacts.push({id:'loyalty-contact',tg_id:701,status:'standard',created_at:new Date().toISOString(),updated_at:new Date().toISOString()}));
+    const first = await api('/requests',{...order,sellAmount:10000,buyAmount:100000000},701);
+    assert.equal(first.status,200);
+    const path = `/staff/requests/${first.data.id}/state`;
+    assert.equal((await api(path,{state:'done'},800)).status,400);
+    assert.equal((await readStore()).users['701'].status,'standard');
+    const before = notifications.filter(n=>n.caption).length;
+    const results = await Promise.all([api(path,{state:'done',fundsReceived:true},800),api(path,{state:'done',fundsReceived:true},800)]);
+    for (const result of results) assert.equal(result.status,200);
+    const s = await readStore();
+    assert.equal(s.users['701'].status,'silver');
+    assert.equal(s.contacts.find(c=>c.tg_id===701)?.status,'silver');
+    assert.equal(notifications.filter(n=>n.caption).length,before+1);
+    assert.equal((await api('/requests/mine',undefined,701)).data.loyalty.total,100000000);
+    const second = await api('/requests',{...order,sellAmount:20000,buyAmount:200000000},701);
+    assert.equal((await api(`/admin/requests/${second.data.id}/state`,{state:'done',fundsReceived:true})).status,200);
+    assert.equal((await readStore()).users['701'].status,'gold');
+    assert.equal(notifications.filter(n=>n.caption).length,before+2);
+    assert.equal((await api('/requests/mine',undefined,701)).data.loyalty.total,300000000);
   });
 
   await t.test("bot /start preserves attribution when the miniapp opens later", async () => {

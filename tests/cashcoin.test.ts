@@ -5,6 +5,29 @@ import { cashCoinPreview } from "../webapp/src/lib/cashcoin.js";
 import { cashDeliveryFee, grossForNetDelivery } from "../server/src/domain/delivery.js";
 import { matchesBonusAccount } from "../webapp/src/lib/referrals.js";
 import type { Store, StoredRequest } from "../server/src/store.js";
+import { loyaltyVolume, promoteLoyaltyStatus } from '../server/src/loyalty.js';
+
+test('loyalty counts completed deals once at historical rates, skips unknown values and never downgrades', () => {
+  const request = (id:string, extra:any={}) => ({id,from:{id:1},state:'done',sellCurrency:'RUB',buyCurrency:'VND',sellAmount:1,buyAmount:99999999,created_at:'2026-10-01T18:00:00Z',...extra});
+  const s = {users:{'1':{tg_id:1,status:'standard'}},contacts:[],requests:[request('one')],ratesByDate:{'2026-10-02':{rates:{USD:{buy_vnd:25000,sell_vnd:26000}}}}} as unknown as Store;
+  const now = new Date().toISOString();
+  assert.equal(promoteLoyaltyStatus(s,1,now),null);
+  s.requests.push(request('two',{buyAmount:1}) as any);
+  assert.equal(promoteLoyaltyStatus(s,1,now)?.next,'silver');
+  assert.equal(promoteLoyaltyStatus(s,1,now),null);
+  s.requests.push(request('pending',{state:'in_progress',buyAmount:999999999}) as any,request('canceled',{state:'canceled',buyAmount:999999999}) as any,request('other',{from:{id:2},buyAmount:999999999}) as any);
+  assert.equal(loyaltyVolume(s,1).total,100000000);
+  s.requests.push(request('historical',{sellCurrency:'EUR',buyCurrency:'USD',buyAmount:100}) as any);
+  assert.equal(loyaltyVolume(s,1).total,102500000);
+  s.requests.push(request('saved',{buyCurrency:'USD',buyAmount:100,cashcoin:{quote:{rates:{'USD>VND':20000}}}}) as any);
+  assert.equal(loyaltyVolume(s,1).total,104500000);
+  s.requests.push(request('unknown',{sellCurrency:'EUR',buyCurrency:'THB'}) as any);
+  assert.equal(loyaltyVolume(s,1).partial,true);
+  s.users['1'].status='gold';
+  assert.equal(promoteLoyaltyStatus(s,1,now),null);
+  s.users['1'].status='standard'; s.requests=[request('jump',{buyAmount:300000000}) as any];
+  assert.equal(promoteLoyaltyStatus(s,1,now)?.next,'gold');
+});
 
 export function verifyCashCoin() {
   const passed: string[] = [];

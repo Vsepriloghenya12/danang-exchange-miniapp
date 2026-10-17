@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { UserStatus } from "../lib/types";
 import { getUserStatusLabel } from "../domain/status";
 import { loyaltyProgress, vndEquivalent } from "../domain/loyalty";
-import { apiGetMyRequests, apiGetTodayRates } from "../lib/api";
+import { apiGetMyRequests } from "../lib/api";
 import Sheet from "./Sheet";
 import WhaleMark from "./WhaleMark";
 
@@ -30,13 +30,14 @@ export default function StatusSheet({ status, lang, user, initData, onClose }: P
     if (!initData) return;
     let alive = true;
     setLoadError(false);
-    Promise.all([apiGetMyRequests(initData), apiGetTodayRates().catch(() => null)])
-      .then(([response, today]) => {
+    apiGetMyRequests(initData)
+      .then(response => {
         if (!response?.ok || !Array.isArray(response.requests)) throw new Error("history_unavailable");
+        if (response.loyalty) { if (alive) setVolume(response.loyalty); return; }
         let total = 0, partial = false;
         for (const request of response.requests) {
           if (request.state !== "done") continue;
-          const amount = vndEquivalent(request, today?.data?.rates);
+          const amount = vndEquivalent(request);
           if (amount == null) partial = true;
           else total += amount;
         }

@@ -95,6 +95,7 @@ export type StaffRequestsResponse = {
 export type MyRequestsResponse = {
   ok: boolean;
   requests?: any[];
+  loyalty?: { total: number; partial: boolean };
   error?: string;
 };
 

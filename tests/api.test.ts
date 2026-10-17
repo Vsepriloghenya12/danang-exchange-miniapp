@@ -116,7 +116,8 @@ test("API persists all pairs and publishes with bounded Telegram requests", asyn
   assert.equal(published.data.message_id, 42);
   assert.equal(calls.at(-1)?.body.chat_id, "@other_channel");
   assert.ok(!calls.at(-1)?.body.text.includes("{{"));
-  assert.match(calls.at(-1)?.body.text, /50 000 KZT   💵 5 012 500 vnd\n\n5 000 THB   💵 501 250 vnd/);
+  assert.match(calls.at(-1)?.body.text, /50 000 KZT — 5 012 500 vnd\n\n5 000 THB — 501 250 vnd/);
+  assert.doesNotMatch(calls.at(-1)?.body.text, /💸|💵/);
 
   await t.test("rate posts require valid KZT and THB rates before sending to Telegram", async () => {
     const { mutateStore } = await import("../server/src/store.ts");
